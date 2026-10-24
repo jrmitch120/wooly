@@ -104,10 +104,11 @@ internal sealed class AShell
         FakeProfileRegistry.Profile("personal", "mastodon.social", "jeff@mastodon.social"));
 
     /// <summary>
-    ///     Where each step of the shell width is saved (#415). Beside the registry rather than among the ports, for the
-    ///     reason <c>ProfilePorts</c> gives: this is the local config, not an instance.
+    ///     Where each step of the shell width and each toggle of the rail is saved (#415, #442). Beside the registry
+    ///     rather than among the ports, for the reason <c>ProfilePorts</c> gives: this is the local config, not an
+    ///     instance.
     /// </summary>
-    public FakeShellWidthStore ShellWidths { get; set; } = new();
+    public FakeShellPreferenceStore ShellPreferences { get; set; } = new();
 
     /// <summary>
     ///     A sign-in through the browser, which the add screen begins (#245). Beside the registry rather than among the
@@ -145,6 +146,11 @@ internal sealed class AShell
     /// <summary>The config file's <c>shell_width</c>, which a launch opens at (#415). The whole terminal, unless said.</summary>
     public int ShellWidth { get; set; } = 100;
 
+    /// <summary>
+    ///     The config file's <c>hidden_rail</c>, which a launch opens on (#442, #445). The shown rail, unless said.
+    /// </summary>
+    public bool HiddenRail { get; set; }
+
     /// <summary>The config file's preferences, as far as these tests set them.</summary>
     private Preferences Preferences => new()
     {
@@ -153,6 +159,7 @@ internal sealed class AShell
         DefaultLanguage = DefaultLanguage,
         Bell = Bell,
         ShellWidth = ShellWidth,
+        HiddenRail = HiddenRail,
     };
 
     /// <summary>
@@ -211,7 +218,7 @@ internal sealed class AShell
         opening,
         Ports,
         new ProfilePorts(Profiles, Paths, Authorizer, Verifier),
-        ShellWidths,
+        ShellPreferences,
         Host,
         Browser,
         Clipboard,
@@ -289,7 +296,7 @@ internal sealed class AShell
             Opening.As(registry.Resolve(null)),
             Ports,
             new ProfilePorts(registry, paths, Authorizer, Verifier),
-            ShellWidths,
+            ShellPreferences,
             Host,
             Browser,
             Clipboard,

@@ -110,10 +110,11 @@ public sealed class Shell
     private readonly ProfilePorts _profiles;
 
     /// <summary>
-    ///     Where each step of the <see cref="ShellWidth" /> is saved, for the next launch to open at (#415). Not one of
-    ///     <see cref="ShellPorts" /> either, for the profiles' reason: it reaches the local config.
+    ///     Where each step of the <see cref="ShellWidth" /> and each toggle of the rail is saved, for the next launch
+    ///     to open at (#415, #442). Not one of <see cref="ShellPorts" /> either, for the profiles' reason: it reaches
+    ///     the local config.
     /// </summary>
-    private readonly IShellWidthStore _shellWidths;
+    private readonly IShellPreferenceStore _shellPreferences;
 
     /// <summary>
     ///     The instance the rail's foot names, read when the shell is built and again when a profile is added: the
@@ -147,7 +148,8 @@ public sealed class Shell
     /// </param>
     /// <param name="preferences">
     ///     The config file's preferences: the hashtag the rail keeps a place for, what compose starts on, whether a
-    ///     rising Inbox badge rings the bell, and the shell width the launch opens at. None where the file sets none.
+    ///     rising Inbox badge rings the bell, and the shell width and the rail the launch opens at. None where the file
+    ///     sets none.
     /// </param>
     /// <param name="launchedFrom">
     ///     The folder Wooly was launched from, where the file browser first opens (#376): the working folder, where
@@ -157,7 +159,7 @@ public sealed class Shell
         Opening opening,
         ShellPorts ports,
         ProfilePorts profiles,
-        IShellWidthStore shellWidths,
+        IShellPreferenceStore shellPreferences,
         IShellHost host,
         IWebBrowser browser,
         IClipboard clipboard,
@@ -169,7 +171,7 @@ public sealed class Shell
     {
         _ports = ports;
         _profiles = profiles;
-        _shellWidths = shellWidths;
+        _shellPreferences = shellPreferences;
         _host = host;
         _browser = browser;
         _clock = clock;
@@ -187,6 +189,7 @@ public sealed class Shell
             new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage),
             launchedFrom ?? Environment.CurrentDirectory);
         ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
+        RailState = preferences?.HiddenRail is true ? RailState.Hidden : RailState.Shown;
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
         _badges = new InboxBadges(ports, Rail, host, clock, timing, ringing: preferences?.Bell ?? true, Landed);
@@ -283,6 +286,20 @@ public sealed class Shell
     public ShellWidth ShellWidth { get; private set; }
 
     /// <summary>
+    ///     Whether the rail is the <b>hidden rail</b> (<c>GLOSSARY.md</c>), out of sight with the content taking its
+    ///     columns, or the <b>shown rail</b>: whether it is drawn, and nothing else about where the reader is (#445).
+    ///     What the config file saved, or shown, until <c>\</c> toggles it (#442).
+    /// </summary>
+    public RailState RailState { get; private set; }
+
+    /// <summary>
+    ///     Whether the rail is drawn hidden: there is one to show (<see cref="ShowsRail" />), and the reader has hidden
+    ///     it (<see cref="RailState" />). What the status row, the locked walk, the window's layout and the mark on the
+    ///     content panel all ask, so that none of them takes a saved hidden rail for one where there is none (#445).
+    /// </summary>
+    public bool HidesRail => ShowsRail && RailState is RailState.Hidden;
+
+    /// <summary>
     ///     The row at the foot of the shell, which keeps what is said and asked on it and takes every press while a
     ///     confirmation is open (#436). The shell keeps only what sets it going: a push clears it, and <c>esc</c> and a
     ///     profile switch dismiss the confirmation.
@@ -357,8 +374,44 @@ public sealed class Shell
     /// <summary>What mentioning <paramref name="person" /> writes into a post, as the profile acted as writes it.</summary>
     public string MentionOf(Mentionable person) => _acting?.People.MentionOf(person) ?? $"@{person.Address}";
 
-    /// <summary>The keys the current screen answers to, for the status row.</summary>
-    public IReadOnlyList<KeyHint> Keys => Screen.Keys;
+    /// <summary>
+    ///     The keys the current screen answers to, for the status row — with the rail hidden, the way to show it in
+    ///     place of the walk along it, which is locked (#445).
+    /// </summary>
+    public IReadOnlyList<KeyHint> Keys =>
+        HidesRail ? Unwalked(Screen.Keys, BackslashShowsTheRail) : Screen.Keys;
+
+    /// <summary>
+    ///     Whether <c>\</c> pressed now would show the hidden rail, rather than being typed as a letter by the screen
+    ///     in front (<see cref="Screen.TypesBackslash" />, #447). The status row and the locked walk name it only where
+    ///     it would.
+    /// </summary>
+    private bool BackslashShowsTheRail => Keymap.Means(ShellKey.Backslash, Screen) is Verb.ToggleRail;
+
+    /// <summary>
+    ///     <paramref name="keys" /> without those that walk the rail (<see cref="KeyHint.WalksTheRail" />), and with
+    ///     <c>\</c> where the first of them stood, so that the row keeps its order and nothing after them moves for a
+    ///     key that does nothing (#445). Where none stood, <c>\</c> goes just before <c>?</c>, or at the end where
+    ///     there is no <c>?</c>, so that the way to show the rail is said wherever it is the way (#447). Nothing is
+    ///     added unless <c>\</c> <paramref name="shows" /> the rail, rather than being typed as a letter.
+    /// </summary>
+    private static List<KeyHint> Unwalked(IReadOnlyList<KeyHint> keys, bool shows)
+    {
+        var unwalked = keys.Where(key => !key.WalksTheRail).ToList();
+
+        if (!shows)
+        {
+            return unwalked;
+        }
+
+        var walked = keys.ToList().FindIndex(key => key.WalksTheRail);
+        var asking = unwalked.IndexOf(PostKeys.Asking);
+        var at = walked >= 0 ? walked : asking >= 0 ? asking : unwalked.Count;
+
+        unwalked.Insert(at, PostKeys.ShowingTheRail);
+
+        return unwalked;
+    }
 
     /// <summary>
     ///     The conversation <c>m</c> would mark read: the one being read, or the one picked out on the list. The two
@@ -427,8 +480,19 @@ public sealed class Shell
     /// <remarks>
     ///     Never onto the destination already shown: a draft in front means the cursor is on the selection, opening one
     ///     having called off whatever the tabbing left waiting (#429), so one step off it is always somewhere else.
+    ///     Nothing at all on the hidden rail, whose cursor nobody can see to choose by, but the way to show it said on
+    ///     the status row (#445) where <c>\</c> is that way, and only that it is hidden where <c>\</c> is a letter —
+    ///     and the draft left where it is, since nothing is being left for.
     /// </remarks>
-    private void Stepping(Action step) =>
+    private void Stepping(Action step)
+    {
+        if (HidesRail)
+        {
+            StatusRow.SayForAMoment(BackslashShowsTheRail ? @"Rail hidden — \ to show" : "Rail hidden");
+
+            return;
+        }
+
         Leaving(0, () =>
         {
             var dropped = DropDrafts();
@@ -440,6 +504,7 @@ public sealed class Shell
                 Rail.LandNow();
             }
         });
+    }
 
     /// <summary>
     ///     A click on the <paramref name="at" />th destination on the rail. Another destination is arrived at at once:
@@ -596,6 +661,7 @@ public sealed class Shell
         Verb.Vote => Ran(AskToVote),
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
+        Verb.ToggleRail => Ran(ToggleRail),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -956,6 +1022,26 @@ public sealed class Shell
 
     /// <summary><c>+</c> or <c>=</c>: the <see cref="ShellWidth" /> one step wider, refused at the whole terminal (#414).</summary>
     public void Widen() => Stepped(ShellWidth.Wider(), refused: "Full width");
+
+    /// <summary>
+    ///     <c>\</c>: the rail hidden, or shown again (#441, #445). The cursor, the selection, a settle window under
+    ///     way and the stack are left as they are. Nothing where there is no rail, whoever asks: a setting the reader
+    ///     cannot see is not changed, or saved, behind their back.
+    /// </summary>
+    public void ToggleRail()
+    {
+        if (!ShowsRail)
+        {
+            return;
+        }
+
+        RailState = RailState is RailState.Hidden ? RailState.Shown : RailState.Hidden;
+
+        // Saved straight away, as a width step is, so the next launch opens on the rail this one was left on (#442).
+        _ = Saved(() => _shellPreferences.SaveRail(RailState));
+
+        Changed?.Invoke();
+    }
 
     /// <summary>
     ///     <c>a</c> on the profiles screen: adds a profile, from the instance up (#245). Nothing is read or sent until
@@ -2189,20 +2275,32 @@ public sealed class Shell
 
         // Saved straight away, so the next launch opens where this one was left (#415). A choice is saved only when
         // asked (ADR-0020), and a width key pressed counts as asking (#413, which extends that rule to these keys); a
-        // refused step, above, asks for nothing, so what is saved is always a width that was seen. One that cannot be
-        // saved still holds for this session, since it was seen; the status row says why, as D does.
+        // refused step, above, asks for nothing, so what is saved is always a width that was seen.
+        if (Saved(() => _shellPreferences.SaveWidth(width)))
+        {
+            StatusRow.SayForAMoment($"Width {width.Percent}%");
+        }
+    }
+
+    /// <summary>
+    ///     Saves one of the shell's own preferences through <paramref name="save" />. One that cannot be saved still
+    ///     holds for this session, since it was seen; the status row says why, as D does.
+    /// </summary>
+    /// <returns>Whether it was saved.</returns>
+    private bool Saved(Action save)
+    {
         try
         {
-            _shellWidths.Save(width);
+            save();
+
+            return true;
         }
         catch (WoolyException failure)
         {
             StatusRow.Say(failure.Message, isError: true);
 
-            return;
+            return false;
         }
-
-        StatusRow.SayForAMoment($"Width {width.Percent}%");
     }
 
     private void Apply(Action work) => _host.OnUiThread(work);

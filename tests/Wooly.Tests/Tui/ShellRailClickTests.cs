@@ -3,6 +3,7 @@ using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using static Wooly.Tests.Tui.RailHeights;
 
 namespace Wooly.Tests.Tui;
 
@@ -14,18 +15,6 @@ public class ShellRailClickTests
 {
     /// <summary>A column inside the rail, clear of its left edge and its mark column.</summary>
     private const int OverRail = RailLines.Width / 2;
-
-    /// <summary>
-    ///     Tall enough that every group is framed: ten destinations, four frames of two rows, and the API panel's four,
-    ///     with the status row under them.
-    /// </summary>
-    private const int Framed = 24;
-
-    /// <summary>Too short to frame the groups, tall enough for the compact rail whole (15 to 21 rail rows).</summary>
-    private const int Compact = 18;
-
-    /// <summary>Too short even for the compact rail, which scrolls to keep the cursor's group in view.</summary>
-    private const int Scrolled = 12;
 
     /// <summary>
     ///     A click on a destination puts the rail's cursor and its selection there together and arrives at once: no

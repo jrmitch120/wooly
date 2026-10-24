@@ -127,6 +127,9 @@ public enum ShellKey
     /// <summary><c>=</c>, which is <c>+</c> without the shift on most keyboards.</summary>
     EqualsSign,
 
+    /// <summary><c>\</c>.</summary>
+    Backslash,
+
     /// <summary><c>a</c>.</summary>
     A,
 

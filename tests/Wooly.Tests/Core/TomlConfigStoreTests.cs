@@ -247,6 +247,83 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Contains("shell_width", exception.Message);
     }
 
+    /// <summary>
+    ///     #445: the shown rail is what an absent key means, with no file and with a file that leaves it out — which
+    ///     is what a fresh install opens on.
+    /// </summary>
+    [Fact]
+    public void Load_ReadsTheRailAsShownWhenAbsent()
+    {
+        Assert.False(NewStore().Load().Preferences.HiddenRail);
+
+        WriteConfigFile(
+            """
+            [preferences]
+            hashtag = "dotnet"
+            """);
+
+        Assert.False(NewStore().Load().Preferences.HiddenRail);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTripsTheHiddenRailBesideTheShellWidth()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { ShellWidth = 70, HiddenRail = true } });
+
+        Assert.Contains("hidden_rail = true", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+
+        var preferences = store.Load().Preferences;
+
+        Assert.True(preferences.HiddenRail);
+        Assert.Equal(70, preferences.ShellWidth);
+    }
+
+    /// <summary>
+    ///     Shown is what an absent key reads as, so it is not written: showing the rail again takes the line away,
+    ///     leaving the file as it would be had the rail never been hidden.
+    /// </summary>
+    [Fact]
+    public void Save_OmitsTheRailWhenShown_AndRemovesItOnceShownAgain()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { HiddenRail = false } });
+
+        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { Hashtag = "dotnet", HiddenRail = true } });
+        store.Save(store.Load() with { Preferences = store.Load().Preferences with { HiddenRail = false } });
+
+        var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
+
+        Assert.DoesNotContain("hidden_rail", toml);
+        Assert.Contains("hashtag = \"dotnet\"", toml);
+    }
+
+    /// <summary>
+    ///     A bad value written by hand is refused against the config file, as a bad <c>shell_width</c> is: there is no
+    ///     in-between state to bring it to, so it is said rather than guessed.
+    /// </summary>
+    [Theory]
+    [InlineData("\"yes\"")]
+    [InlineData("1")]
+    [InlineData("\"hidden\"")]
+    public void Load_RefusesAHiddenRailThatIsNotTrueOrFalse(string written)
+    {
+        WriteConfigFile(
+            $"""
+             [preferences]
+             hidden_rail = {written}
+             """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("config.toml", exception.Message);
+        Assert.Contains("'hidden_rail' must be true or false.", exception.Message);
+    }
+
     [Fact]
     public void Save_ThenLoad_RoundTripsProfilesCurrentProfileAndPreferences()
     {

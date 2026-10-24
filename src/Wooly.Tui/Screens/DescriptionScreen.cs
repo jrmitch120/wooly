@@ -57,6 +57,10 @@ public sealed class DescriptionScreen(ComposeScreen compose, ComposeAttachment a
     public override string Crumb => $"Describe {attachment.Name}";
 
     /// <inheritdoc />
+    /// <remarks>Its field takes it before the window sees it (#445).</remarks>
+    public override bool TypesBackslash => true;
+
+    /// <inheritdoc />
     /// <remarks>Both "done": what was typed is kept either way.</remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys => [new("esc", "done"), new("ctrl-s", "done")];
 

@@ -355,9 +355,11 @@ public class ShellPointerTests
         Assert.DoesNotContain(sources, file => File.ReadAllText(file).Contains("IsMouseDisabled", StringComparison.Ordinal));
     }
 
-    /// <summary>The keymap says in one line, among the frame's keys, what the mouse does.</summary>
+    /// <summary>
+    ///     The keymap says among the frame's keys what the mouse does, the wheel on a row of its own (#446).
+    /// </summary>
     [Fact]
-    public async Task Help_SaysWhatTheMouseDoesInOneLine()
+    public async Task Help_SaysWhatTheMouseDoesAmongTheFrameKeys()
     {
         var opened = await new AShell().Opened();
 
@@ -366,9 +368,9 @@ public class ShellPointerTests
             .SkipWhile(text => text != "Everywhere")
             .ToList();
 
-        var mouse = Assert.Single(everywhere, text => text.StartsWith("mouse ", StringComparison.Ordinal));
+        var wheel = Assert.Single(everywhere, text => text.StartsWith("wheel ", StringComparison.Ordinal));
 
-        Assert.Contains("wheel", mouse, StringComparison.Ordinal);
+        Assert.Contains("scroll", wheel, StringComparison.Ordinal);
     }
 
     /// <summary>

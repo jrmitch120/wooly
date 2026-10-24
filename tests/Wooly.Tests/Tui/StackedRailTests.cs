@@ -44,7 +44,8 @@ public class StackedRailTests
         Assert.Equal("╭ Inbox ───────────╮", rail[10]);
         Assert.Equal("╭ You ─────────────╮", rail[15]);
         Assert.Equal("╭ API ─────────────╮", rail[20]);
-        Assert.Equal("╰──────────────────╯", rail[22]);
+        // The toggle's mark just inside the corner, the shell's bottom-left (#445).
+        Assert.Equal("╰«─────────────────╯", rail[22]);
     }
 
     /// <summary>On a terminal too short to frame them, the groups are headings rather than panels.</summary>

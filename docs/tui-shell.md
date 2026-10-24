@@ -33,15 +33,15 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 ╰──────────────────╯│                                                          │
 ╭ API ─────────────╮│                                                          │
 │ ██████████░░  92%││                                                          │
-╰──────────────────╯╰──────────────────────────────────────────────────────────╯
+╰«─────────────────╯╰──────────────────────────────────────────────────────────╯
  Post: j/k | Refresh: g | Destination: tab | Group: ` | Read: ⏎ | …+10 | Keys: ?
 ```
 
 | Region | Size | Holds |
 |---|---|---|
-| Rail | 20 columns including its frames, full height less the status row | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
-| Content | the rest of the width, full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1 |
-| Status | 1 row, the shell's full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation; the quota again when the rail is hidden |
+| Rail | 20 columns including its frames, full height less the status row; none at all hidden (**Hidden rail**, below) | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. `«` just inside the foot's bottom-left corner, the toggle's mark (**Hidden rail**, below). On a terminal too short to frame every group the rail steps down (below) |
+| Content | the rest of the width, all of it with the rail hidden; full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1. With the rail hidden, `»` just inside its bottom-left corner, the toggle's mark |
+| Status | 1 row, the shell's full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest — with the rail hidden, `Rail: \` in place of the destination and group hints; or a notice; or a confirmation |
 
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
 from the left so it always ends where you are, and the fetch mark, a star spinner, a space after it while a fetch
@@ -100,6 +100,61 @@ character after it. Terminal.app is beyond it: it draws such text off its own ce
 with it, even a border placed at an explicit column, so a post in these scripts still pushes its row there. Where the
 text is the client's own rather than an author's — the Lang list — it is written in English instead.
 
+## Hidden rail
+
+`\` hides the rail and shows it again (`GLOSSARY.md`, #445), and each toggle is saved as `hidden_rail` for the next
+launch to open on (#442; "Starting it", below). Hidden means gone, not shrunk: the content panel and its breadcrumb
+start at the shell's first column and take the whole of whatever the **Shell width** has left, 80 columns at 80 and 78
+inside its edges. Hiding changes nothing about the stack or about where you are.
+
+```
+╭ Home ────────────────────────────────────────────────────────────────────────╮
+│▌Jeff                                                                    ○ now│
+│▌@jeff@mastodon.social                                                        │
+│▌                                                                             │
+│▌Hello world                                                                  │
+│                                                                              │
+╰»─────────────────────────────────────────────────────────────────────────────╯
+ Post: j/k | Refresh: g | Rail: \ | Read: ⏎ | Reply: r | …+5 | Keys: ?
+```
+
+- **Nothing of it is drawn**: no destinations, no unread counts, no instance and no budget. The Inbox is still read
+  while it is hidden, and a badge rising still rings the bell; only the count is not drawn.
+- **Walking it is locked**, since a cursor nobody can see would land somewhere nobody chose. `tab`, `shift-tab`, `` ` ``
+  and `~` move neither the cursor nor the selection and start no settle window. Instead the status row says
+  `Rail hidden — \ to show` for a moment, on a prompt taking letters as anywhere else. Where `\` is typed as a letter
+  instead, as on the file browser, it says only `Rail hidden`, since there `\` would not show it. Going straight to a
+  named destination still works, because the breadcrumb says where you landed: `/` arrives at Search, and choosing a
+  profile on `ctrl-p` starts again on its Home. A walk under way when the rail is hidden, inside its settle window,
+  still lands.
+- **The status row** drops the `Destination: tab` and `Group: `` ` `` hints, which name the locked walk, and says
+  `Rail: \` where the first of them stood. A row with no walk hint to stand in for, such as a drilled-in screen's or
+  the follow list's filter's, says `Rail: \` just before `Keys: ?`, or last where it has no `?`, so that it is said
+  wherever `\` shows the rail (#447). Shown, the row is as it was, and does not offer `\`.
+- **A toggle** lays the content out again at its new width, pictures with it (ADR-0025), and keeps the picked post on
+  the page row it was drawn on as near as rewrapping allows; with nothing picked the page is left where it begins.
+- **On a prompt taking letters** `\` still hides and shows the rail rather than being typed, so that the hidden rail is
+  never out of the keys' reach: on Search's prompt, the follow list's filter and Add a profile. A search, a follow and
+  an instance have no use for a backslash (#447). It is typed as a letter only on compose, the description editor and
+  the public profile form, whose fields take it before the shell sees it, and on the file browser, whose filter takes
+  it since a Windows path is typed with it (#447). It does nothing where there is no rail. It is listed on the `?`
+  screen under the frame's keys.
+- **Remembered.** One setting for every profile, as the **Shell width** is, and saved straight away through the same
+  port (`IShellPreferenceStore`); opening on it is not a toggle, and saves nothing. A fresh install opens on the shown
+  rail. A toggle that cannot be saved still holds for the session, and the status row says why as a failure, which
+  stays until something else is said. A toggle that is saved says nothing: the rail going or coming is answer enough.
+- **The mark** is one cell for both states, column 1 of the shell's bottom frame row, so that a click undoing a click
+  lands where the first did: `«` just inside the bottom-left corner of the shown rail's foot (`╰«──`) — on the compact
+  rail, which has no frames, the first cell of the gauge row after its space in, the bar a cell shorter for it — and
+  `»` just inside the content panel's bottom-left corner (`╰»──`) while the rail is hidden. Each points the way a click
+  would send the rail. A left click on it is `\`, through the **Keymap** on the screen in front, so it toggles and
+  saves exactly as the key does and does nothing where the key does nothing: on compose, the description editor and
+  the public profile form, where the mark is still drawn, and where an open question is declined instead. Where there
+  is no rail there is no mark. The glyph is the whole of what it says, in the role of the edge or row it is on, so it
+  reads the same with colour and without; both are Latin-1 and not East Asian ambiguous, so a column wide on every
+  terminal. No hover, no drag, the wheel over it does nothing, and a double click is one toggle: its second click
+  lands on the mark the first drew in the same cell, and is spent on that toggle.
+
 ## Shell width
 
 The shell is drawn in a share of the terminal's width: all of it, or less, in steps of ten down to half (`GLOSSARY.md`,
@@ -116,11 +171,11 @@ rail's 20, the 58 columns at 80 — is the shell's, which is the terminal's at 1
 - **The steps.** Narrower is the largest multiple of ten below the share and at least 50; wider is the smallest above it
   and at most 100. Narrower is refused where there is none, or where it would take the shell under 80 columns on this
   terminal, and says `Narrowest`; wider is refused only at 100, and says `Full width`. A step taken says `Width 90%`
-  and is saved straight away, through the shell's one narrow port for it (`IShellWidthStore`); a refused one saves
-  nothing, so what is saved is always a width that was seen. A share written by hand between the steps, such as 73, is
-  drawn as written, and a step takes it back onto them: 70 narrower, 80 wider. Each of the three is said for two
-  seconds (`ShellTiming.WidthSaidFor`) and then let go of, the status row going back to its keys; why a step could not
-  be saved is a failure, and stays until something else is said.
+  and is saved straight away, through the shell's one narrow port for its preferences (`IShellPreferenceStore`); a
+  refused one saves nothing, so what is saved is always a width that was seen. A share written by hand between the
+  steps, such as 73, is drawn as written, and a step takes it back onto them: 70 narrower, 80 wider. Each of the three
+  is said for two seconds (`ShellTiming.WidthSaidFor`) and then let go of, the status row going back to its keys; why a
+  step could not be saved is a failure, and stays until something else is said.
 - **The margins** are cells the window never draws, left at the terminal's default attribute: no **Role**, so no theme
   entry, under any theme or `NO_COLOR`. They are the terminal's, outside the shell (ADR-0014, ADR-0021). Terminal.Gui
   clears a screen to a white on black of its own, which written out would be a black margin, so the window puts every
@@ -179,11 +234,12 @@ workable only because the status row always shows the current screen's keys. Wha
 | `esc` | Up one level of the stack. Never quits. |
 | `ctrl-q` | Quit. |
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
-| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. Opening a draft — compose, a reply, an edit, the public profile form — before then calls that off: the cursor goes back to the destination selected, nothing loads, and the draft stays in front (#429). |
-| `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021). |
+| `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. Opening a draft — compose, a reply, an edit, the public profile form — before then calls that off: the cursor goes back to the destination selected, nothing loads, and the draft stays in front (#429). With the rail hidden, nothing but `Rail hidden — \ to show` on the status row, or `Rail hidden` where `\` is typed as a letter, as on the file browser (#445, #447). |
+| `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021), and is locked as `tab` is with the rail hidden (#445). |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
 | `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
+| `\` | Hides the rail, the content taking the whole width of the shell, or shows it again, saved for the next launch (#442, #445). On a prompt taking letters too, rather than typed: Search's, the follow list's filter and Add a profile (#447). Typed as a letter only on compose, the description editor and the public profile form, whose fields take it, and on the file browser, whose filter takes a Windows path (#447). Nothing where there is no rail. Listed on the `?` screen, and on the status row only while the rail is hidden, as `Rail: \` (#445). See **Hidden rail**, above. |
 
 Feed and post:
 
@@ -332,8 +388,10 @@ not answer them differently:
 - **A prompt taking letters takes `/`, `?`, `` ` `` and `~` too**, which is the one exception to the frame keys above.
   A web address and a question are both things somebody is entitled to search for, and a prompt that could not take a
   slash would refuse the query most likely to be pasted into it; code in backticks and a path under `~` are the same
-  (#265). Every other frame key — `esc`, `ctrl-q`, `tab` — still means what it means everywhere, and the status row
-  says what the prompt answers to.
+  (#265). Every other frame key, `esc`, `ctrl-q` and `tab` among them, still means what it means everywhere, and the
+  status row says what the prompt answers to. So does `\`, which hides and shows the rail rather than typing a
+  backslash, since no search, follow or instance needs one (#447). The one prompt that types it is the file browser's
+  filter, since a Windows path is typed with it.
 - **`/` from the search screen's results starts a fresh prompt** rather than doing nothing, since that is the one place
   the key is most likely to be pressed twice.
 - **A screen's own keys go in front of the shared ones on the status row.** The row is one row and draws what it has
@@ -1165,7 +1223,8 @@ lists them under a read-only Media header of its own (#381).
   rows about after a click as the pointer passed over them. Two quick clicks on `x` take two rows off — the second the
   row that took the first one's place — though Terminal.Gui reports the second as a double click, which anywhere else
   on a row describes; the same on `retry (r)`. The attachments screen's rows drag the same way, a press there picking
-  the row as it picks it up, and none of them is ever on the band.
+  the row as it picks it up, and none of them is ever on the band. A drag let go of anywhere — the content panel's
+  frame and the hidden rail's `»` on it too — ends there, so the next click is a click.
 - **Past the limit**, a drop attaches as many as fit and the status row says `2 left out — 4 is the most a post can
   carry.`, or `Nothing attached — …` onto a full post.
 - **Anything attached touches the draft** (#373), so leaving it asks first.
@@ -1232,7 +1291,9 @@ does a post already carrying all it can, which says `This post carries all it ca
   `Screenshot 2024-02-29 at 9.31.03 AM.png` first and loose matches still show lower down. `..` stays on top, folders
   ahead of files, and the cursor lands on the closest match. Fuzzy so that `space` can always mean choose: a name's
   spaces never need typing. `backspace` and `delete` only ever edit the filter — held down, they stop at empty rather
-  than walking up the folders — and `esc` clears it before it goes back.
+  than walking up the folders — and `esc` clears it before it goes back. `\` is a letter here, as on compose's
+  fields, rather than the hidden rail's key, since a Windows path is typed with it; hidden, the locked walk says only
+  `Rail hidden` and the status row has no `Rail: \` (#447).
 - **Choosing**: `space`, a click on a box, or a ctrl- or shift-click on a row chooses a file, or lets it go, up to what
   the post still has room for; choices outlast a change of filter or of folder, and the cursor stays where it is.
   `space` is the keymap's (`Verb.Choose`), asked by the window ahead of the filter's letters. `⏎` attaches what is
@@ -2087,7 +2148,8 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Click | Anywhere outside the open list of people to mention | Closes it, as `esc` does, and nothing more: the caret stays, the draft or the bio is as it was, and what is under the pointer is not clicked (#335, #408) |
 | Click | A destination on the rail | Arrives there at once, through the rail's immediate path: the cursor and the selection move together, there is no settle window, and any landing the tabbing left waiting is abandoned, so only the destination clicked is read (#288). Which entry a row is comes off the rail's own rows, each carrying its destination's place as its `Line.Item`, so the click lands on what is drawn under the pointer whether the rail is framed, compact or compact and scrolled |
 | Click | The destination already shown | Walks back out to its own screen: drilled in from it, the stack goes back to its one bottom screen with the page and **Picked** it was left on, as any pop keeps, and nothing is asked of the instance — the way a sidebar's entry takes you back to its top page (#289). On its own screen already, nothing. With a touched compose drilled in it asks first, as every way out of one does (#373). The first crumb of the breadcrumb is the same click (#308). One of the two moves the mouse has that the keys do not: tabbing back onto the destination shown is still a walk that ended where it began |
-| Click | A group's title, a compact heading, the API panel | Nothing. Only destinations answer a click |
+| Click | The `«`/`»` mark, column 1 of the shell's bottom frame row: on the shown rail's foot, or the first cell of its compact gauge row, and on the content panel's bottom-left corner with the rail hidden | `\` through the **Keymap**: the rail hidden or shown and saved, or nothing where `\` means nothing (#443, #445; **Hidden rail**, above). Which cell is the mark is the one cell, shown or hidden, so the window answers it before any view is asked: hidden, it is on the content panel's frame, whose cells Terminal.Gui hands to the panel's own edge. None where there is no rail |
+| Click | A group's title, a compact heading, the API panel, the rest of the edge the mark is on | Nothing. Only destinations and the mark answer a click |
 | Click | A crumb of the breadcrumb, behind the one in front | Walks back to that screen in one move: everything drilled in above it comes off the stack, as that many presses of `esc` would take it off, and the screen is in front as it was left — its **Page**, its **Picked** and any **Reference** picked on it — with nothing asked of the instance. What the screens taken off asked for is dropped, as with any pop. The first crumb is the click on the destination shown above. Which crumb a column is comes off the breadcrumb's own spans, each carrying its place in the stack as its `Span.Item`, as the rail's rows carry theirs, so the click lands on the crumb drawn under the pointer however the trail is elided. A crumb whose walk back would take a touched compose off the stack asks first, as every way out of one does (#373); a crumb above a compose still walks back. Crumbs are not drawn as clickable. The other move the keys do not have (#308) |
 | Click | The crumb in front, the `… ›` lead of an elided trail, a separator, the fetch mark, the edge after the trail | Nothing. Only a crumb behind the one in front answers a click |
 | Click | A row of a thing in the content | Picks that thing, through the same pick `[`/`]` make: any row of it counts — a tall post's byline, its text, a picture on it — since which thing a row is part of is its `Line.Item`, the ordinal `Screen.Pick` takes. The remark on the status row goes, as it does for `j`/`k`, and a **Reference** walked to inside the thing is let go, so the `⏎` after it opens the thing rather than the reference. The page stays where it is rather than following the pick, so what was clicked never moves out from under the pointer. The same on every listing screen, the account screen's header block (after which the post keys go quiet, as after `j`/`k`) and a search's results in their sections among them (#290) |
@@ -2132,8 +2194,21 @@ click on it and no `⏎`, since Terminal.Gui reports the second of two quick cli
 
 Mouse tracking stays on, and nothing turns it off: drag means nothing, and selecting text to copy goes through the
 terminal's modifier bypass (`⌥` in iTerm2, `Fn` in Terminal.app) until selection is a feature of its own. The `?`
-screen says what the mouse does beside the frame's keys, ending `right click back` and carried on to a second line with
-no key of its own, `click a crumb to walk back to it`, since one line no longer fits beside the key column at 80 columns.
+screen says what the mouse does beside the frame's keys, an action a row with its input in the key column, as every
+key's is (#446):
+
+```
+wheel           scroll the content
+click           arrive on the rail; pick a row
+double click    read (⏎)
+right click     up one level, as esc
+click a crumb   walk back to it
+click «/»       hide or show the rail
+```
+
+A meaning too long for the screen's width, the mouse's or any key's, carries on to the rows under it, each starting in
+the meaning column, rather than being cut with `…`: at 80 columns with the rail shown that is `tab / shift-tab`'s and
+`` ` `` / `~`'s (#446).
 
 ## Starting it, and the one destination that needs configuring
 
@@ -2151,6 +2226,7 @@ hashtag = "dotnet"
 hide_drawn_caption = true
 bell = false
 shell_width = 70
+hidden_rail = true
 ```
 
 `hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
@@ -2164,6 +2240,11 @@ width"). One written out of range is clamped to the nearer end rather than refus
 it is never written, and widening back to it takes the line away. Unlike the others it has keys, `-` and `+`/`=`, and
 each step they take saves it — which rewrites the whole file, as `D` on the profiles screen does, so comments written in
 it by hand do not survive.
+
+`hidden_rail` is a fifth (#442, #445): `true` opens a launch on the **hidden rail** (above, "Hidden rail"). `false`
+(the default, and what an absent key means) opens on the shown rail, so it is never written, and showing the rail
+again takes the line away. Anything but `true` or `false` is refused against the file, as a `shell_width` that is not a
+whole number is. Like `shell_width` it has a key, `\`, and each toggle saves it, rewriting the whole file the same way.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.

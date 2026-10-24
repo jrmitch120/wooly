@@ -94,6 +94,12 @@ public enum Verb
     /// </summary>
     Wider,
 
+    /// <summary>
+    ///     <c>\</c>: the rail hidden, the content taking the whole width of the shell, or shown again (#441, #445), and
+    ///     saved for the next launch (#442). Nothing where there is no rail.
+    /// </summary>
+    ToggleRail,
+
     /// <summary><c>a</c> on the profiles screen: add a profile, from the instance up (#245).</summary>
     AddProfile,
 

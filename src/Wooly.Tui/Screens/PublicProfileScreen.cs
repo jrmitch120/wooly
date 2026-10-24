@@ -169,6 +169,10 @@ public sealed class PublicProfileScreen : Screen, IDraft
     public override string Crumb => "Edit public profile";
 
     /// <inheritdoc />
+    /// <remarks>Its fields take it before the window sees it (#445).</remarks>
+    public override bool TypesBackslash => true;
+
+    /// <inheritdoc />
     /// <remarks>
     ///     <c>space</c> first on a toggle, and <c>⏎</c> and the paste on a picture, being what the row is for; then the
     ///     walk, offered only the ways it goes, as compose's is (#337): it stops at either end rather than coming round.

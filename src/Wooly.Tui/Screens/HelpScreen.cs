@@ -25,10 +25,16 @@ public sealed class HelpScreen(Screen about) : Screen
         new("ctrl-p", "profiles: who this session is acting as"),
         // Listed here and on no status row: set and forgotten, they would take room on every screen (#414).
         new("- / + or =", "narrow or widen the shell by 10%"),
-        // The pointer: it adds no keys of its own, only another way to ask for these (#286). Two lines, the second under
-        // the first with no key of its own, since one no longer fits beside the key column at 80 columns (#308).
-        new("mouse", "wheel scrolls the content; a click arrives on the rail and picks a row; a double click is ⏎; right click back"),
-        new(string.Empty, "click a crumb to walk back to it"),
+        // On no status row either, for the same reason, but where the rail is hidden (#441, #445).
+        new("\\", "hide or show the rail"),
+        // The pointer: it adds no keys of its own, only another way to ask for these (#286). An action a row, its input
+        // in the key column as a key's is (#446).
+        new("wheel", "scroll the content"),
+        new("click", "arrive on the rail; pick a row"),
+        new("double click", "read (⏎)"),
+        new("right click", "up one level, as esc"),
+        new("click a crumb", "walk back to it"),
+        new("click «/»", "hide or show the rail"),
     ];
 
     /// <summary>The screen whose keys these are.</summary>
@@ -49,11 +55,11 @@ public sealed class HelpScreen(Screen about) : Screen
     {
         var lines = new List<Line> { Line.Of($"On {about.Crumb}", Role.BylineName), Line.Blank };
 
-        lines.AddRange(about.Keys.Select(key => Row(key, drawing.Width)));
+        lines.AddRange(about.Keys.SelectMany(key => Rows(key, drawing.Width)));
         lines.Add(Line.Blank);
         lines.Add(Line.Of("Everywhere", Role.BylineName));
         lines.Add(Line.Blank);
-        lines.AddRange(Frame.Select(key => Row(key, drawing.Width)));
+        lines.AddRange(Frame.SelectMany(key => Rows(key, drawing.Width)));
 
         return lines;
     }
@@ -61,20 +67,29 @@ public sealed class HelpScreen(Screen about) : Screen
     /// <summary>The key in one column and what it does in the next, so a reader can scan down either.</summary>
     /// <remarks>
     ///     The key takes <see cref="Role.Key" /> and the padding after it does not (#221): a themer who gives
-    ///     <c>key</c> a background would otherwise get a band across every row rather than a highlighted key.
+    ///     <c>key</c> a background would otherwise get a band across every row rather than a highlighted key. A meaning
+    ///     too long for the width carries on to the rows under it, each starting in the meaning column, rather than
+    ///     being cut (#446): help is the one screen a reader comes to for every word.
     /// </remarks>
-    private static Line Row(KeyHint key, int width)
+    private static IEnumerable<Line> Rows(KeyHint key, int width)
     {
         const int keyColumn = 16;
         var columns = Glyphs.Columns(key.Key);
         var spacer = new string(' ', Math.Max(0, keyColumn - columns));
         var used = columns + spacer.Length;
+        var meaning = TextWrap.Wrap(key.Does, Math.Max(0, width - used));
 
-        // A line carried on from the one above has no key, and no empty run of the key's role standing in for one.
-        return Line.Of([
+        // A hint with no key draws none, and no empty run of the key's role standing in for one.
+        yield return Line.Of([
             .. columns > 0 ? [new Span(key.Key, Role.Key)] : Array.Empty<Span>(),
             new Span(spacer, Role.Body),
-            new Span(TextWrap.Clip(key.Does, Math.Max(0, width - used)), Role.Body),
+            new Span(meaning.Count > 0 ? meaning[0] : string.Empty, Role.Body),
         ]);
+
+        // A row carried on from the one above has no key, and no empty run of the key's role standing in for one.
+        foreach (var row in meaning.Skip(1))
+        {
+            yield return Line.Of([new Span(new string(' ', used), Role.Body), new Span(row, Role.Body)]);
+        }
     }
 }

@@ -290,7 +290,7 @@ public class ShellWidthTests
         Assert.Equal((10, 180), Shell(drawn));
 
         // Only the step that narrowed it to begin with.
-        Assert.Equal([90], built.ShellWidths.Saved);
+        Assert.Equal([90], built.ShellPreferences.Widths);
     }
 
     /// <summary>

@@ -50,9 +50,12 @@ public static class Keymap
         (ShellKey.CtrlQ, _) => Verb.Quit,
         (ShellKey.Escape, _) => Verb.Back,
 
-        // Nothing on compose, whose fields take `?` as a letter before the window sees it (#320): a keymap opened only
-        // where no widget has the typing would be one a reader can never reach, over a draft.
-        (ShellKey.Question, _) when HasWidgetsOfItsOwn(screen) => Verb.None,
+        // Nothing on compose, the description editor or the public profile form, whose fields take `?` and the Shell
+        // width's `-`, `+` and `=` as letters before the window sees them (#320, #414): a keymap opened only where no
+        // widget has the typing would be one a reader can never reach, over a draft, and where the typing is in none —
+        // Media, a picture, a toggle — a key from under a draft is no-one's.
+        (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign, _)
+            when HasWidgetsOfItsOwn(screen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -64,12 +67,13 @@ public static class Keymap
         // typed. On compose too, where it is a way out of the draft and asks first like every other (ADR-0020, #373).
         (ShellKey.CtrlP, _) => Verb.Profiles,
 
-        // The Shell width (#414): - narrower, and + or = wider, so that widening needs no shift. Nothing on compose, the
-        // description editor or the public profile form, for the reason ? is nothing there: their fields take them as
-        // letters, and where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
-        (ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign, _) when HasWidgetsOfItsOwn(screen) => Verb.None,
+        // The Shell width (#414): - narrower, and + or = wider, so that widening needs no shift.
         (ShellKey.Minus, _) => Verb.Narrower,
         (ShellKey.Plus or ShellKey.EqualsSign, _) => Verb.Wider,
+
+        // The hidden rail (#441, #445), but on a screen that types `\` as a letter, where it is that letter (#447).
+        (ShellKey.Backslash, { TypesBackslash: true }) => Verb.None,
+        (ShellKey.Backslash, _) => Verb.ToggleRail,
 
         // Screen-local, and the reason this pair is here rather than on the editor widget alone: the editor gives up
         // focus while the warning is taking letters, and from there neither key would reach it (#123). Off a compose

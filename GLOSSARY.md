@@ -462,6 +462,16 @@ which is a headed run on a screen: `[`/`]` walk sections, `` ` ``/`~` walk rail 
 not only the notifications that the code's `INotificationInbox` reads.
 _Avoid_: section, box, panel (a rail group is drawn as a panel, but the content is a panel too)
 
+**Hidden rail**:
+The rail put out of sight by the reader, so the content has the whole width of the shell. Its other state is the
+**shown rail**. Which one is a fact about how the reader likes the screen, so it is one for every profile and outlasts
+the session, like **Shell width**. Hidden means gone, not shrunk: no destinations, no unread counts, no budget. Walking
+the rail is locked while it is hidden, since a cursor nobody can see would land somewhere nobody chose; going straight
+to a named **destination** still works, because the breadcrumb says where you landed. Hiding changes nothing about the
+stack or about where you are. Distinct from the rail being _absent_, which is when nobody is being acted as and there
+are no destinations to show.
+_Avoid_: collapsed (nothing of it stays), minimised, folded, absent (that is when there is no rail at all)
+
 **Shell width**:
 How much of the terminal's width the TUI takes, as a percentage: all of it, or less, in steps of ten down to half, with
 the shell centred and the terminal's own background showing either side. Width only, because what it is for is a line

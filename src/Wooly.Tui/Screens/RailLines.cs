@@ -38,6 +38,22 @@ public static class RailLines
     /// </summary>
     private const string SettledMark = "▷";
 
+    /// <summary>
+    ///     The column of the shell's bottom frame row the toggle's mark is in, shown or hidden: just inside the corner
+    ///     the rail's foot or the content panel starts at, where a pointer finds the corner (#445).
+    /// </summary>
+    public const int ToggleColumn = 1;
+
+    /// <summary>
+    ///     The toggle's mark on the shown rail, a click on which hides it, and on the content panel once it is hidden,
+    ///     a click on which shows it — pointing the way the rail would go. Latin-1 and not East Asian ambiguous, so a
+    ///     column wide on every terminal, which a symbol's width is not (ADR-0031).
+    /// </summary>
+    private const string Hides = "«";
+
+    /// <inheritdoc cref="Hides" />
+    private const string Shows = "»";
+
     /// <summary>Below this share of the budget, the quota is drawn as nearly spent.</summary>
     private const double NearlySpent = 0.1;
 
@@ -55,10 +71,10 @@ public static class RailLines
     private const int Sides = 2;
 
     /// <summary>
-    ///     The columns of a gauge row that are not its bar: a space in, a space after the bar, and the percentage's
-    ///     four.
+    ///     The columns of a gauge row after its bar: a space, and the percentage's four. What comes before the bar is
+    ///     measured, since the compact rail's carries the toggle's mark.
     /// </summary>
-    private const int GaugeMargin = 6;
+    private const int PercentColumns = 5;
 
     /// <summary>The rail, drawn to <paramref name="height" /> rows with the budget held at the bottom.</summary>
     /// <param name="rail">The destinations, the cursor, and the selection.</param>
@@ -121,7 +137,10 @@ public static class RailLines
         }
 
         List<Line> api = instance is null ? [Gauge(quota, inside)] : [Fact(instance, inside), Gauge(quota, inside)];
-        var foot = Panel.Framed("API", api, Width, api.Count + Sides, active: false);
+        var foot = Panel.Framed("API", api, Width, api.Count + Sides, active: false).ToList();
+
+        // The toggle's mark on the foot's bottom edge, just inside the corner, which is the shell's bottom-left (#445).
+        foot[^1] = WithToggleMark(foot[^1], RailState.Shown);
 
         return Footed(lines, foot, height);
     }
@@ -165,10 +184,11 @@ public static class RailLines
         var spare = height - body.Count - 1;
 
         // The instance where there is a row for it, and the gauge alone where there is not: the gauge is what the rail
-        // is the one thing able to spend.
+        // is the one thing able to spend. With no frame to carry it, the gauge row carries the toggle's mark in its
+        // first cell, the shell's bottom-left, so that a pointer finds it at every height (#445).
         List<Line> foot = instance is not null && spare >= 1
-            ? [Fact(instance, Width), Gauge(quota, Width)]
-            : [Gauge(quota, Width)];
+            ? [Fact(instance, Width), Gauge(quota, Width, hides: true)]
+            : [Gauge(quota, Width, hides: true)];
 
         var room = Math.Max(0, height - foot.Count);
 
@@ -183,6 +203,52 @@ public static class RailLines
         }
 
         return Footed(body, foot, height);
+    }
+
+    /// <summary>
+    ///     <paramref name="row" />, a bottom edge, with the toggle's mark in place of whatever it drew at
+    ///     <see cref="ToggleColumn" />, in that cell's role — the glyph is the whole of what it says, with colour or
+    ///     without: <c>«</c> on the shown rail's foot, and <c>»</c> on the content panel's once the rail is hidden
+    ///     (#445).
+    /// </summary>
+    /// <param name="row">The bottom edge the mark is drawn on.</param>
+    /// <param name="rail">
+    ///     The state the rail is in: <see cref="RailState.Shown" /> draws <c>«</c>, a click on which hides it, and
+    ///     <see cref="RailState.Hidden" /> draws <c>»</c>, a click on which shows it.
+    /// </param>
+    public static Line WithToggleMark(Line row, RailState rail)
+    {
+        const int column = ToggleColumn;
+        var mark = rail is RailState.Shown ? Hides : Shows;
+        var spans = new List<Span>();
+        var start = 0;
+
+        foreach (var span in row.Spans)
+        {
+            var end = start + span.Width;
+
+            if (column < start || column >= end)
+            {
+                spans.Add(span);
+            }
+            else
+            {
+                // Cut either side of the cell, padded where a two-column character straddled it, so the row keeps its
+                // width and everything after the mark stays where it was.
+                var before = Glyphs.Padded(Glyphs.Cut(span.Text, column - start), column - start);
+                var reach = Glyphs.Reach(span.Text, 0, span.Text.Length, column - start + 1);
+                var past = Glyphs.Columns(span.Text[..reach]);
+                var after = new string(' ', Math.Max(0, past - (column - start) - 1)) + span.Text[reach..];
+
+                spans.AddRange(before.Length > 0 ? [span with { Text = before }] : Array.Empty<Span>());
+                spans.Add(new Span(mark, span.Role));
+                spans.AddRange(after.Length > 0 ? [span with { Text = after }] : Array.Empty<Span>());
+            }
+
+            start = end;
+        }
+
+        return row.Respanned(spans);
     }
 
     /// <summary>
@@ -276,23 +342,31 @@ public static class RailLines
     ///     The budget as a gauge <paramref name="width" /> columns wide: <c>█</c> for what is left and <c>░</c> for what
     ///     is spent, then the percentage left — or a blank row before anything has asked, rather than a guess.
     /// </summary>
-    private static Line Gauge(RateLimitQuota? quota, int width)
+    /// <param name="quota">What the instance last said is left, or <see langword="null" /> before anything did.</param>
+    /// <param name="width">How many columns the row takes.</param>
+    /// <param name="hides">
+    ///     Whether the row carries the shown rail's <c>«</c> at <see cref="ToggleColumn" />, after the space in, as the
+    ///     compact rail's does — the bar a cell shorter for it, rather than a cell of it drawn over (#445).
+    /// </param>
+    private static Line Gauge(RateLimitQuota? quota, int width, bool hides = false)
     {
+        var lead = new Span(hides ? $" {Hides}" : " ", Role.Quota);
+
         if (quota is null)
         {
-            return Line.Of(new string(' ', width), Role.Quota);
+            return Line.Of([lead, new Span(new string(' ', Math.Max(0, width - lead.Width)), Role.Quota)]);
         }
 
         var low = quota.Fraction <= NearlySpent;
-        var cells = Math.Max(0, width - GaugeMargin);
+        var cells = Math.Max(0, width - lead.Width - PercentColumns);
         var full = (int)Math.Round(cells * quota.Fraction, MidpointRounding.AwayFromZero);
         var percent = ((int)(quota.Fraction * 100)).ToString(CultureInfo.CurrentCulture);
 
         return Line.Of([
-            new Span(" ", Role.Quota),
+            lead,
             .. full > 0 ? [new Span(new string('█', full), low ? Role.QuotaLow : Role.Gauge)] : Array.Empty<Span>(),
             .. cells - full > 0 ? [new Span(new string('░', cells - full), Role.GaugeEmpty)] : Array.Empty<Span>(),
-            new Span(Glyphs.Cut($" {percent,3}%", width - 1 - cells), low ? Role.QuotaLow : Role.Quota),
+            new Span(Glyphs.Cut($" {percent,3}%", width - lead.Width - cells), low ? Role.QuotaLow : Role.Quota),
         ]);
     }
 

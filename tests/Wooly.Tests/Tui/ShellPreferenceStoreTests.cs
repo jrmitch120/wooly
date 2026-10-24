@@ -6,10 +6,10 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The shell width saved into a real config file, in a folder of its own (#415): the one preference set, and
-///     everything else in the file left as it was.
+///     The shell's preferences saved into a real config file, in a folder of its own (#415, #442): the one preference
+///     set, and everything else in the file left as it was.
 /// </summary>
-public class ShellWidthStoreTests
+public class ShellPreferenceStoreTests
 {
     [Fact]
     public void SavingAWidthWritesItToThePreferences_AndKeepsTheRestOfTheFile()
@@ -26,7 +26,7 @@ public class ShellWidthStoreTests
             Preferences = new Preferences { Hashtag = "dotnet", Bell = false },
         });
 
-        new ShellWidthStore(config).Save(ShellWidth.Of(70));
+        new ShellPreferenceStore(config).SaveWidth(ShellWidth.Of(70));
 
         var saved = config.Load();
         Assert.Equal(70, saved.Preferences.ShellWidth);
@@ -42,14 +42,39 @@ public class ShellWidthStoreTests
     {
         using var directory = new TemporaryDirectory();
         var paths = new WoolyPaths(directory.Path);
-        var store = new ShellWidthStore(new TomlConfigStore(paths));
+        var store = new ShellPreferenceStore(new TomlConfigStore(paths));
 
-        store.Save(ShellWidth.Of(90));
+        store.SaveWidth(ShellWidth.Of(90));
 
         Assert.Contains("shell_width = 90", File.ReadAllText(paths.ConfigFile));
 
-        store.Save(ShellWidth.Full);
+        store.SaveWidth(ShellWidth.Full);
 
         Assert.Empty(File.ReadAllText(paths.ConfigFile));
+    }
+
+    /// <summary>
+    ///     Hiding the rail writes it beside the width, and showing it again takes the line away, leaving the width
+    ///     where it was.
+    /// </summary>
+    [Fact]
+    public void SavingTheRailWritesItBesideTheWidth_AndShowingItTakesTheLineAway()
+    {
+        using var directory = new TemporaryDirectory();
+        var paths = new WoolyPaths(directory.Path);
+        var config = new TomlConfigStore(paths);
+        var store = new ShellPreferenceStore(config);
+
+        store.SaveWidth(ShellWidth.Of(90));
+        store.SaveRail(RailState.Hidden);
+
+        Assert.True(config.Load().Preferences.HiddenRail);
+        Assert.Equal(90, config.Load().Preferences.ShellWidth);
+
+        store.SaveRail(RailState.Shown);
+
+        var toml = File.ReadAllText(paths.ConfigFile);
+        Assert.DoesNotContain("hidden_rail", toml);
+        Assert.Contains("shell_width = 90", toml);
     }
 }
