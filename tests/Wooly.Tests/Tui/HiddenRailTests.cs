@@ -120,6 +120,95 @@ public class HiddenRailTests
     }
 
     /// <summary>
+    ///     Walking the hidden rail is locked, since a cursor nobody can see would land somewhere nobody chose:
+    ///     <c>tab</c>, <c>shift-tab</c>, <c>`</c> and <c>~</c> move neither the cursor nor the selection, start no
+    ///     settle window, and say on the status row how to get the rail back.
+    /// </summary>
+    [Theory]
+    [InlineData("tab")]
+    [InlineData("shift-tab")]
+    [InlineData("`")]
+    [InlineData("~")]
+    public async Task WalkingTheHiddenRailIsLockedAndSaysHowToShowIt(string key)
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
+
+        drawn.Press(Toggle);
+        drawn.Press(key switch
+        {
+            "tab" => Key.Tab,
+            "shift-tab" => Key.Tab.WithShift,
+            _ => new Key(key[0]),
+        });
+
+        Assert.Equal(0, drawn.Shell.Rail.Cursor);
+        Assert.Contains(@"Rail hidden — \ to show", drawn.Rows()[^1], StringComparison.Ordinal);
+        Assert.DoesNotContain(ShellTiming.Default.Settle, drawn.Built.Host.Delays);
+
+        drawn.Built.Host.Settle();
+        drawn.Redraw();
+
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+        Assert.Equal(["Home"], drawn.Shell.Crumbs);
+
+        drawn.Press(Toggle);
+        drawn.Press(Key.Tab);
+
+        Assert.Equal(1, drawn.Shell.Rail.Cursor);
+    }
+
+    /// <summary>
+    ///     Going straight to a named destination still works hidden, since the breadcrumb says where it landed:
+    ///     <c>/</c> arrives at Search, and a profile chosen on <c>ctrl-p</c> starts again on its Home.
+    /// </summary>
+    [Fact]
+    public async Task SearchAndChoosingAProfileStillArriveWhileTheRailIsHidden()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, Twice());
+
+        drawn.Press(Toggle);
+        drawn.Press(new Key('/'));
+        drawn.Settle();
+
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.Equal(["Search"], drawn.Shell.Crumbs);
+        Assert.StartsWith("╭ Search", drawn.Rows()[0], StringComparison.Ordinal);
+
+        drawn.Press(Key.Esc);
+        drawn.Press(Key.P.WithCtrl);
+        Assert.IsType<ProfilesScreen>(drawn.Shell.Screen).Pick("work");
+        drawn.Press(Key.Enter);
+        drawn.Settle();
+
+        Assert.Equal("token-work", drawn.Built.Timelines.Tokens[^1]);
+        Assert.Equal(["Home"], drawn.Shell.Crumbs);
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
+        Assert.StartsWith("╭ Home", drawn.Rows()[0], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Hidden in the middle of a walk, inside the settle window the walk started: the arrival it was waiting on
+    ///     still lands where the cursor had got to.
+    /// </summary>
+    [Fact]
+    public async Task HidingInsideASettleWindowStillLandsThePendingArrival()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
+
+        drawn.Press(Key.Tab);
+        drawn.Press(Toggle);
+
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+
+        drawn.Built.Host.Settle();
+        drawn.Redraw();
+
+        Assert.Equal(1, drawn.Shell.Rail.Current);
+        Assert.Equal(["Local"], drawn.Shell.Crumbs);
+        Assert.StartsWith("╭ Local", drawn.Rows()[0], StringComparison.Ordinal);
+    }
+
+    /// <summary>
     ///     On compose, the description editor and the public profile form <c>\</c> is typed, as <c>-</c> and <c>+</c>
     ///     are: a backslash in the text, never a rail hidden from under the draft.
     /// </summary>

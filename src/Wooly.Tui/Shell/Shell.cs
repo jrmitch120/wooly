@@ -437,8 +437,18 @@ public sealed class Shell
     /// <remarks>
     ///     Never onto the destination already shown: a draft in front means the cursor is on the selection, opening one
     ///     having called off whatever the tabbing left waiting (#429), so one step off it is always somewhere else.
+    ///     Nothing at all on the hidden rail, whose cursor nobody can see to choose by, but the way to show it said on
+    ///     the status row (#445) — and the draft left where it is, since nothing is being left for.
     /// </remarks>
-    private void Stepping(Action step) =>
+    private void Stepping(Action step)
+    {
+        if (RailState is RailState.Hidden)
+        {
+            StatusRow.SayForAMoment(@"Rail hidden — \ to show");
+
+            return;
+        }
+
         Leaving(0, () =>
         {
             var dropped = DropDrafts();
@@ -450,6 +460,7 @@ public sealed class Shell
                 Rail.LandNow();
             }
         });
+    }
 
     /// <summary>
     ///     A click on the <paramref name="at" />th destination on the rail. Another destination is arrived at at once:
