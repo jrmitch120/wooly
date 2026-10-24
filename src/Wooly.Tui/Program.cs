@@ -80,8 +80,8 @@ try
             provider.GetRequiredService<IBrowserAuthorizer>(),
             provider.GetRequiredService<IAccessTokenVerifier>()),
 
-        // The shell width and the collapsed rail, saved in the config file's preferences for the next launch: the local
-        // config too (#415, #442).
+        // The shell width and the hidden rail, saved in the config file's preferences for the next launch: the local
+        // config too (#415, #442, #445).
         new ShellPreferenceStore(provider.GetRequiredService<IConfigStore>()),
         new TerminalHost(application),
 

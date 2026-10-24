@@ -14,7 +14,7 @@ internal sealed class FakeShellPreferenceStore : IShellPreferenceStore
     /// </summary>
     public List<int> Widths { get; } = [];
 
-    /// <summary>Every rail saved, collapsed or expanded, in order.</summary>
+    /// <summary>Every rail saved, hidden or shown, in order.</summary>
     public List<RailState> Rails { get; } = [];
 
     /// <summary>

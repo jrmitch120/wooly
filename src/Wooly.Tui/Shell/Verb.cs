@@ -95,7 +95,7 @@ public enum Verb
     Wider,
 
     /// <summary>
-    ///     <c>\</c>: the collapsed rail, one mark a destination, or the expanded rail again with its labels (#441), and
+    ///     <c>\</c>: the rail hidden, the content taking the whole width of the shell, or shown again (#441, #445), and
     ///     saved for the next launch (#442). Nothing where there is no rail.
     /// </summary>
     ToggleRail,

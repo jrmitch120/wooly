@@ -286,9 +286,9 @@ public sealed class Shell
     public ShellWidth ShellWidth { get; private set; }
 
     /// <summary>
-    ///     Whether the rail is the <b>collapsed rail</b> (<c>GLOSSARY.md</c>), one mark a destination, or the
-    ///     <b>expanded rail</b> with its labels: how the rail is drawn and how wide, and nothing else about it (#441).
-    ///     What the config file saved, or expanded, until <c>\</c> toggles it (#442).
+    ///     Whether the rail is the <b>hidden rail</b> (<c>GLOSSARY.md</c>), out of sight with the content taking its
+    ///     columns, or the <b>shown rail</b>: whether it is drawn, and nothing else about where the reader is (#445).
+    ///     What the config file saved, or shown, until <c>\</c> toggles it (#442).
     /// </summary>
     public RailState RailState { get; private set; }
 
@@ -969,9 +969,9 @@ public sealed class Shell
     public void Widen() => Stepped(ShellWidth.Wider(), refused: "Full width");
 
     /// <summary>
-    ///     <c>\</c>: the rail collapsed, or expanded again (#441). Only how it is drawn: the cursor, the selection, a
-    ///     settle window under way and the stack are left as they are. Nothing where there is no rail, whoever asks: a
-    ///     setting the reader cannot see is not changed, or saved, behind their back.
+    ///     <c>\</c>: the rail hidden, or shown again (#441, #445). The cursor, the selection, a settle window under way
+    ///     and the stack are left as they are. Nothing where there is no rail, whoever asks: a setting the reader cannot
+    ///     see is not changed, or saved, behind their back.
     /// </summary>
     public void ToggleRail()
     {

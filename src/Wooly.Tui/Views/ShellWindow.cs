@@ -101,11 +101,8 @@ internal sealed class ShellWindow : Window
     /// <summary>Whether the rail is laid out, which it is as built.</summary>
     private bool _railed = true;
 
-    /// <summary>Whether the rail was laid out collapsed or expanded: expanded as built (#441).</summary>
+    /// <summary>Whether the rail was last laid out shown or hidden: shown as built (#445).</summary>
     private RailState _railState;
-
-    /// <summary>Whether colour is drawn, which decides how wide the collapsed rail is.</summary>
-    private readonly bool _coloured;
 
     /// <summary>
     ///     Whether the last click was spent declining an open question, which spends the double click it turns out to be
@@ -169,7 +166,6 @@ internal sealed class ShellWindow : Window
         _shell = shell;
         _clock = clock;
         _quit = quit;
-        _coloured = theme.DrawsColour;
 
         // No border and no title of Terminal.Gui's: the panels are this client's own, drawn in roles (ADR-0021), and a
         // box around the outside would cost two rows and two columns and say nothing.
@@ -203,14 +199,11 @@ internal sealed class ShellWindow : Window
         // constructs a colour, which is the rule this is keeping rather than breaking (ADR-0014).
         SetScheme(new Terminal.Gui.Drawing.Scheme(theme.For(Role.Body)));
 
-        var rail = _rail = new PaintedView(
-            theme,
-            (_, height) =>
-                RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance, theme.DrawsColour, shell.RailState))
+        var rail = _rail = new PaintedView(theme, (_, height) => RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance, theme.DrawsColour))
         {
             X = 0,
             Y = 0,
-            Width = Dim.Func(_ => RailColumns),
+            Width = RailLines.Width,
             Height = Dim.Fill(1),
             CanFocus = false,
         };
@@ -1019,12 +1012,14 @@ internal sealed class ShellWindow : Window
 
     /// <summary>
     ///     Lays the rail out where the shell has one and takes it away where it has none — with nobody to act as, which
-    ///     leaves only adding a profile and every column to it (#247) — at the width it is drawn at, expanded or
-    ///     collapsed (#441). Only on the frame where that changes.
+    ///     leaves only adding a profile and every column to it (#247) — or where the reader has hidden it, which gives
+    ///     the content the same columns (#445). Only on the frame where that changes.
     /// </summary>
     private void Railed()
     {
-        if (_railed == _shell.ShowsRail && _railState == _shell.RailState)
+        var railed = _shell.ShowsRail && _shell.RailState is RailState.Shown;
+
+        if (_railed == railed && _railState == _shell.RailState)
         {
             return;
         }
@@ -1037,7 +1032,7 @@ internal sealed class ShellWindow : Window
             _content.KeepPickOnItsRow();
         }
 
-        _railed = _shell.ShowsRail;
+        _railed = railed;
         _railState = _shell.RailState;
         _rail.Visible = _railed;
 
@@ -1045,16 +1040,10 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     How many columns the rail takes, expanded or collapsed (#441), which the layout asks for on every pass
-    ///     rather than holding.
-    /// </summary>
-    private int RailColumns => RailLines.Columns(_railState, _coloured);
-
-    /// <summary>
     ///     Where the content panel and the breadcrumb over it start: where the rail ends, or at the window's left edge
-    ///     where there is no rail.
+    ///     where there is no rail or it is hidden.
     /// </summary>
-    private int Left => _railed ? RailColumns : 0;
+    private int Left => _railed ? RailLines.Width : 0;
 
     /// <summary>
     ///     Settles the window to what the shell now says: the rail, the scroll, and the content's scrolling while

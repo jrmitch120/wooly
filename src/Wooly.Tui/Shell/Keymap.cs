@@ -51,7 +51,7 @@ public static class Keymap
         (ShellKey.Escape, _) => Verb.Back,
 
         // Nothing on compose, the description editor or the public profile form, whose fields take `?`, the Shell
-        // width's `-`, `+` and `=`, and the collapsed rail's `\` as letters before the window sees them (#320, #414,
+        // width's `-`, `+` and `=`, and the hidden rail's `\` as letters before the window sees them (#320, #414,
         // #441): a keymap opened only where no widget has the typing would be one a reader can never reach, over a
         // draft, and where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
         (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign or ShellKey.Backslash, _)
@@ -71,7 +71,7 @@ public static class Keymap
         (ShellKey.Minus, _) => Verb.Narrower,
         (ShellKey.Plus or ShellKey.EqualsSign, _) => Verb.Wider,
 
-        // The collapsed rail (#441).
+        // The hidden rail (#441, #445).
         (ShellKey.Backslash, _) => Verb.ToggleRail,
 
         // Screen-local, and the reason this pair is here rather than on the editor widget alone: the editor gives up

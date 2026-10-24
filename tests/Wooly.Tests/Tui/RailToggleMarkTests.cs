@@ -30,94 +30,6 @@ public class RailToggleMarkTests
     private const int Headless = 4;
 
     /// <summary>
-    ///     Framed, the mark is in the top-right corner of the Timelines panel's top edge, just inside the corner —
-    ///     <c>«</c> expanded, and a click on it collapses the rail, which then has <c>»</c> in the same place on the
-    ///     collapsed rail, a click on which expands it again. Each click is saved, as each <c>\</c> is.
-    /// </summary>
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task AClickOnTheFramedMarkCollapsesTheRailAndAClickOnItsOtherExpandsIt(bool coloured)
-    {
-        var built = new AShell();
-        using var drawn = await DrawnShell.Of(80, Framed, Theme(coloured), built);
-
-        Assert.Equal("╭ Timelines ──────«╮", drawn.Rail()[0]);
-
-        drawn.Click(RailLines.Width - 2, 0);
-
-        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
-        Assert.Equal(coloured ? "╭────»╮" : "╭──────»╮", drawn.Rail(CollapsedRailWidth(coloured))[0]);
-
-        drawn.Click(CollapsedRailWidth(coloured) - 2, 0);
-
-        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
-        Assert.Equal("╭ Timelines ──────«╮", drawn.Rail()[0]);
-        Assert.Equal([RailState.Hidden, RailState.Shown], built.ShellPreferences.Rails);
-    }
-
-    /// <summary>
-    ///     Compact, where there are no frames, the mark ends the Timelines heading, over where the counts end: the last
-    ///     column expanded, and on the collapsed rail the column before its last, which its counts leave.
-    /// </summary>
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task CompactTheMarkEndsTheTimelinesHeading(bool coloured)
-    {
-        var built = new AShell();
-        using var drawn = await DrawnShell.Of(80, Compact, Theme(coloured), built);
-
-        Assert.Equal("Timelines          «", drawn.Rail()[0]);
-
-        drawn.Click(RailLines.Width - 1, 0);
-
-        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
-        var columns = CollapsedRailWidth(coloured);
-
-        Assert.Equal(new string(' ', columns - 2) + "» ", drawn.Rail(columns)[0]);
-
-        drawn.Click(columns - 2, 0);
-
-        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
-        Assert.Equal([RailState.Hidden, RailState.Shown], built.ShellPreferences.Rails);
-    }
-
-    /// <summary>
-    ///     Scrolled past the Timelines heading, the mark ends the first heading in view instead, so a click always has
-    ///     it to land on — and the collapsed rail, scrolled alike, has it on the same row.
-    /// </summary>
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task ScrolledTheMarkEndsTheFirstHeadingInView(bool coloured)
-    {
-        using var drawn = await DrawnShell.Of(80, Scrolled, Theme(coloured));
-
-        drawn.Shell.Rail.GoTo(DestinationKind.Messages);
-        drawn.Built.Host.Drain();
-        drawn.Redraw();
-
-        var rail = drawn.Rail();
-        var explore = Array.FindIndex(rail, row => row.StartsWith("Explore", StringComparison.Ordinal));
-
-        Assert.DoesNotContain(rail, row => row.StartsWith("Timelines", StringComparison.Ordinal));
-        Assert.Equal("Explore            «", rail[explore]);
-        Assert.Single(rail, row => row.Contains('«', StringComparison.Ordinal));
-
-        drawn.Click(RailLines.Width - 1, explore);
-
-        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
-        var columns = CollapsedRailWidth(coloured);
-
-        Assert.Equal(new string(' ', columns - 2) + "» ", drawn.Rail(columns)[explore]);
-
-        drawn.Click(columns - 2, explore);
-
-        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
-    }
-
-    /// <summary>
     ///     A double click on the scrolled mark is the one toggle its first click made and nothing more: its second
     ///     click, landing where the content panel now starts beside the collapsed rail, opens nothing there.
     /// </summary>
@@ -147,85 +59,6 @@ public class RailToggleMarkTests
         Assert.Same(messages, drawn.Shell.Screen);
         Assert.Equal(1, drawn.Shell.Depth);
         Assert.Equal([RailState.Hidden], built.ShellPreferences.Rails);
-    }
-
-    /// <summary>
-    ///     Framed or scrolled, either way about, a double click on the mark is one toggle: <c>«</c> collapses the rail
-    ///     once and <c>»</c> expands it once, the screen in front is still in front, and one toggle is saved.
-    /// </summary>
-    [Theory]
-    [InlineData(Framed, RailState.Shown, true)]
-    [InlineData(Framed, RailState.Shown, false)]
-    [InlineData(Framed, RailState.Hidden, true)]
-    [InlineData(Framed, RailState.Hidden, false)]
-    [InlineData(Scrolled, RailState.Hidden, true)]
-    [InlineData(Scrolled, RailState.Hidden, false)]
-    public async Task ADoubleClickOnTheMarkIsOneToggleEitherWay(int height, RailState from, bool coloured)
-    {
-        var collapsed = from is RailState.Hidden;
-        var toggled = collapsed ? RailState.Shown : RailState.Hidden;
-        var built = new AShell { HiddenRail = collapsed };
-        using var drawn = await DrawnShell.Of(80, height, Theme(coloured), built);
-
-        drawn.Shell.Rail.GoTo(DestinationKind.Messages);
-        drawn.Built.Host.Drain();
-        drawn.Redraw();
-
-        var columns = collapsed ? CollapsedRailWidth(coloured) : RailLines.Width;
-        var mark = collapsed ? '»' : '«';
-        var row = Array.FindIndex(drawn.Rail(columns), line => line.Contains(mark, StringComparison.Ordinal));
-        var screen = drawn.Shell.Screen;
-
-        drawn.DoubleClick(drawn.Rail(columns)[row].IndexOf(mark, StringComparison.Ordinal), row);
-        drawn.Built.Host.Drain();
-        drawn.Redraw();
-
-        Assert.Equal(toggled, drawn.Shell.RailState);
-        Assert.Same(screen, drawn.Shell.Screen);
-        Assert.Equal([toggled], built.ShellPreferences.Rails);
-    }
-
-    /// <summary>
-    ///     On a rail too short to keep any heading in view there is no mark, expanded or collapsed, rather than one
-    ///     drawn over an entry's count: every digit of <c>40+</c> stays, and a click on its last cell arrives as any
-    ///     click on the entry does.
-    /// </summary>
-    [Theory]
-    [InlineData(RailState.Shown, true)]
-    [InlineData(RailState.Shown, false)]
-    [InlineData(RailState.Hidden, true)]
-    [InlineData(RailState.Hidden, false)]
-    public async Task WithNoHeadingInViewThereIsNoMarkAndEveryCountIsWhole(RailState state, bool coloured)
-    {
-        var collapsed = state is RailState.Hidden;
-        var built = new AShell { HiddenRail = collapsed };
-        using var drawn = await DrawnShell.Of(80, Headless, Theme(coloured), built);
-        var rail = drawn.Shell.Rail;
-
-        rail.GoTo(DestinationKind.Messages);
-        rail.Update(rail.Destinations.Single(place => place.Kind == DestinationKind.Notifications) with
-        {
-            Unread = 40,
-            Full = true,
-        });
-        drawn.Built.Host.Drain();
-        drawn.Redraw();
-
-        var columns = collapsed ? CollapsedRailWidth(coloured) : RailLines.Width;
-        var rows = drawn.Rail(columns);
-        var notifications = Array.FindIndex(rows, row => row.Contains("40+", StringComparison.Ordinal));
-
-        Assert.Equal(0, notifications);
-        Assert.EndsWith(collapsed ? "40+ " : "40+", rows[0], StringComparison.Ordinal);
-        Assert.DoesNotContain(rows, row => row.Contains('«', StringComparison.Ordinal));
-        Assert.DoesNotContain(rows, row => row.Contains('»', StringComparison.Ordinal));
-
-        drawn.Click(rows[0].IndexOf('+', StringComparison.Ordinal), 0);
-        drawn.Built.Host.Drain();
-        drawn.Redraw();
-
-        Assert.Equal(state, drawn.Shell.RailState);
-        Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
     }
 
     /// <summary>
@@ -349,9 +182,6 @@ public class RailToggleMarkTests
             drawn.Rows(),
             row => row.Contains("click «/» to collapse or expand the rail", StringComparison.Ordinal));
     }
-
-    /// <summary>How wide the collapsed rail is: seven columns in colour, and nine with the mark column kept.</summary>
-    private static int CollapsedRailWidth(bool coloured) => coloured ? 7 : 9;
 
     private static ITheme Theme(bool coloured) => coloured ? Themes.Dark : Themes.Plain;
 }

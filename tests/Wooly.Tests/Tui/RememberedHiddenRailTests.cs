@@ -7,13 +7,13 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The <b>collapsed rail</b> remembered (#442): each toggle saves which rail shows, and a launch opens on what was
-///     saved, as the <b>Shell width</b> is remembered. Pressed and read back off a headless terminal, with what was
+///     The <b>hidden rail</b> remembered (#442, #445): each toggle saves which rail shows, and a launch opens on what
+///     was saved, as the <b>Shell width</b> is remembered. Pressed and read back off a headless terminal, with what was
 ///     saved read off the port the shell saves it through.
 /// </summary>
-public class RememberedCollapsedRailTests
+public class RememberedHiddenRailTests
 {
-    /// <summary>The key that collapses and expands the rail.</summary>
+    /// <summary>The key that hides and shows the rail.</summary>
     private static readonly Key Toggle = new('\\');
 
     [Fact]
@@ -33,17 +33,17 @@ public class RememberedCollapsedRailTests
     }
 
     /// <summary>
-    ///     A launch opens on the collapsed rail where that is what was saved, the content panel starting where the
-    ///     collapsed rail ends — and saves nothing, as opening on it is not a toggle. <c>\</c> then expands it.
+    ///     A launch opens on the hidden rail where that is what was saved, the content panel starting at the shell's
+    ///     first column — and saves nothing, as opening on it is not a toggle. <c>\</c> then shows it.
     /// </summary>
     [Fact]
-    public async Task ALaunchOpensOnTheSavedCollapsedRail()
+    public async Task ALaunchOpensOnTheSavedHiddenRail()
     {
         var built = new AShell { HiddenRail = true };
         using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built, launch: true);
 
         Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
-        Assert.Equal(7, ContentStarts(drawn));
+        Assert.Equal(0, ContentStarts(drawn));
         Assert.Empty(built.ShellPreferences.Rails);
 
         drawn.Press(Toggle);
@@ -52,9 +52,9 @@ public class RememberedCollapsedRailTests
         Assert.Equal([RailState.Shown], built.ShellPreferences.Rails);
     }
 
-    /// <summary>Where nothing was saved, as on a fresh install, a launch opens on the expanded rail.</summary>
+    /// <summary>Where nothing was saved, as on a fresh install, a launch opens on the shown rail.</summary>
     [Fact]
-    public async Task ALaunchWithNothingSavedOpensOnTheExpandedRail()
+    public async Task ALaunchWithNothingSavedOpensOnTheShownRail()
     {
         using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, new AShell(), launch: true);
 
@@ -64,7 +64,7 @@ public class RememberedCollapsedRailTests
 
     /// <summary>
     ///     A config file edited by hand, while the TUI runs, into something that no longer reads cannot be saved to.
-    ///     The status row says why, as it does for a width, and the rail stays collapsed for this session, since it was
+    ///     The status row says why, as it does for a width, and the rail stays hidden for this session, since it was
     ///     seen.
     /// </summary>
     [Fact]
@@ -77,15 +77,15 @@ public class RememberedCollapsedRailTests
         drawn.Press(Toggle);
 
         Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
-        Assert.Equal(7, ContentStarts(drawn));
+        Assert.Equal(0, ContentStarts(drawn));
         Assert.Contains("'bell' must be true or false.", drawn.Shell.Notice, StringComparison.Ordinal);
         Assert.True(drawn.Shell.NoticeIsError);
         Assert.Empty(built.ShellPreferences.Rails);
     }
 
     /// <summary>
-    ///     Where there is no rail — nobody acted as, the add screen alone on a launch — <c>\</c> collapses nothing, so
-    ///     it saves nothing either: a setting the reader cannot see is not changed behind their back.
+    ///     Where there is no rail — nobody acted as, the add screen alone on a launch — <c>\</c> hides nothing, so it
+    ///     saves nothing either: a setting the reader cannot see is not changed behind their back.
     /// </summary>
     [Fact]
     public async Task WithNoRailBackslashSavesNothing()
@@ -107,7 +107,8 @@ public class RememberedCollapsedRailTests
     }
 
     /// <summary>
-    ///     Where the content panel's top-left corner is drawn, which is the column after the rail's last.
+    ///     Where the content panel's top-left corner is drawn, which is the column after the rail's last, or the
+    ///     shell's first with the rail hidden.
     /// </summary>
     private static int ContentStarts(DrawnShell drawn) => drawn.Rows()[0].IndexOf("╭ Home", StringComparison.Ordinal);
 }

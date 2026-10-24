@@ -295,10 +295,10 @@ internal sealed class DrawnShell : IDisposable
 
     /// <summary>
     ///     The rail's columns of every row above the status row: the first of the shell's, wherever a narrowed shell
-    ///     starts — <paramref name="columns" /> of them, which is fewer for the collapsed rail.
+    ///     starts.
     /// </summary>
-    public string[] Rail(int columns = RailLines.Width) =>
-        Rows(Application.Driver!.Contents!.GetLength(0) - 1, columns, from: Window.Frame.X);
+    public string[] Rail() =>
+        Rows(Application.Driver!.Contents!.GetLength(0) - 1, RailLines.Width, from: Window.Frame.X);
 
     public Attribute Cell(int row, int column) => Application.Driver!.Contents![row, column].Attribute!.Value;
 
