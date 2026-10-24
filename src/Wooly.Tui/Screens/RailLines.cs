@@ -71,10 +71,10 @@ public static class RailLines
     private const int Sides = 2;
 
     /// <summary>
-    ///     The columns of a gauge row that are not its bar: a space in, a space after the bar, and the percentage's
-    ///     four.
+    ///     The columns of a gauge row after its bar: a space, and the percentage's four. What comes before the bar is
+    ///     measured, since the compact rail's carries the toggle's mark.
     /// </summary>
-    private const int GaugeMargin = 6;
+    private const int PercentColumns = 5;
 
     /// <summary>The rail, drawn to <paramref name="height" /> rows with the budget held at the bottom.</summary>
     /// <param name="rail">The destinations, the cursor, and the selection.</param>
@@ -187,8 +187,8 @@ public static class RailLines
         // is the one thing able to spend. With no frame to carry it, the gauge row carries the toggle's mark in its
         // first cell, the shell's bottom-left, so that a pointer finds it at every height (#445).
         List<Line> foot = instance is not null && spare >= 1
-            ? [Fact(instance, Width), Gauge(quota, Width, marked: true)]
-            : [Gauge(quota, Width, marked: true)];
+            ? [Fact(instance, Width), Gauge(quota, Width, hides: true)]
+            : [Gauge(quota, Width, hides: true)];
 
         var room = Math.Max(0, height - foot.Count);
 
@@ -341,29 +341,29 @@ public static class RailLines
     /// </summary>
     /// <param name="quota">What the instance last said is left, or <see langword="null" /> before anything did.</param>
     /// <param name="width">How many columns the row takes.</param>
-    /// <param name="marked">
-    ///     Whether the row carries the toggle's mark at <see cref="ToggleColumn" />, after the space in, as the compact
-    ///     rail's does — the bar a cell shorter for it, rather than a cell of it drawn over (#445).
+    /// <param name="hides">
+    ///     Whether the row carries the shown rail's <c>«</c> at <see cref="ToggleColumn" />, after the space in, as the
+    ///     compact rail's does — the bar a cell shorter for it, rather than a cell of it drawn over (#445).
     /// </param>
-    private static Line Gauge(RateLimitQuota? quota, int width, bool marked = false)
+    private static Line Gauge(RateLimitQuota? quota, int width, bool hides = false)
     {
-        Span[] lead = marked ? [new Span(" ", Role.Quota), new Span(Hides, Role.Quota)] : [new Span(" ", Role.Quota)];
+        var lead = new Span(hides ? $" {Hides}" : " ", Role.Quota);
 
         if (quota is null)
         {
-            return Line.Of([.. lead, new Span(new string(' ', Math.Max(0, width - lead.Length)), Role.Quota)]);
+            return Line.Of([lead, new Span(new string(' ', Math.Max(0, width - lead.Width)), Role.Quota)]);
         }
 
         var low = quota.Fraction <= NearlySpent;
-        var cells = Math.Max(0, width - GaugeMargin - (lead.Length - 1));
+        var cells = Math.Max(0, width - lead.Width - PercentColumns);
         var full = (int)Math.Round(cells * quota.Fraction, MidpointRounding.AwayFromZero);
         var percent = ((int)(quota.Fraction * 100)).ToString(CultureInfo.CurrentCulture);
 
         return Line.Of([
-            .. lead,
+            lead,
             .. full > 0 ? [new Span(new string('█', full), low ? Role.QuotaLow : Role.Gauge)] : Array.Empty<Span>(),
             .. cells - full > 0 ? [new Span(new string('░', cells - full), Role.GaugeEmpty)] : Array.Empty<Span>(),
-            new Span(Glyphs.Cut($" {percent,3}%", width - lead.Length - cells), low ? Role.QuotaLow : Role.Quota),
+            new Span(Glyphs.Cut($" {percent,3}%", width - lead.Width - cells), low ? Role.QuotaLow : Role.Quota),
         ]);
     }
 
