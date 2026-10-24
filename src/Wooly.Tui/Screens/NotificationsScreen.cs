@@ -69,7 +69,7 @@ public sealed class NotificationsScreen(
     ///     Something the shell has to say about the inbox rather than about anything in it — that it is empty, or that
     ///     a rate limit cut the read short.
     /// </summary>
-    public string? Notice => $"PROTOTYPE #450 · {NotificationGroupsPrototype.Variants[NotificationGroupsPrototype.Variant]} · F2 next" + (notice is null ? "" : $"  {notice}");
+    public string? Notice => $"PROTOTYPE #450 · {NotificationGroupsPrototype.Variants[NotificationGroupsPrototype.Variant]} · F1 back · F2 next" + (notice is null ? "" : $"  {notice}");
 
     /// <summary>
     ///     Whether <paramref name="notification" /> was newer than the read marker when the reader arrived, and so is

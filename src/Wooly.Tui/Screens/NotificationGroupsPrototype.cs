@@ -2,7 +2,7 @@
 //
 // The real Notifications screen, with the real notifications grouped on screen by kind and post (a stand-in for the
 // instance's grouping, #453), and five made-up groups on top built from the real actors so the avatars are real
-// faces: one actor, two, three follows, eight, forty. F2 cycles the layouts:
+// faces: one actor, two, three follows, eight, forty. F2 cycles the layouts forward, F1 back:
 //   A  4×2 strip on its own row under the names line
 //   A5 A with faces two columns apart, no extra rows
 //   A6 A5 with a thin muted rule down the group's left edge, strip and preview alike
@@ -48,6 +48,8 @@ internal static class NotificationGroupsPrototype
     public static int Variant { get; private set; }
 
     public static void Next() => Variant = (Variant + 1) % Variants.Length;
+
+    public static void Previous() => Variant = (Variant + Variants.Length - 1) % Variants.Length;
 
     public sealed record Actor(string Name, string Account, string? Avatar);
 
