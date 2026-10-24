@@ -81,7 +81,7 @@ try
             provider.GetRequiredService<IAccessTokenVerifier>()),
 
         // The shell width, saved in the config file's preferences for the next launch: the local config too (#415).
-        new ShellWidthStore(provider.GetRequiredService<IConfigStore>()),
+        new ShellPreferenceStore(provider.GetRequiredService<IConfigStore>()),
         new TerminalHost(application),
 
         // The same browser the sign-in sends somebody to (ADR-0004), and deliberately not one of the ports above:

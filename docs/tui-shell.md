@@ -159,7 +159,7 @@ rail's 20, the 58 columns at 80 — is the shell's, which is the terminal's at 1
 - **The steps.** Narrower is the largest multiple of ten below the share and at least 50; wider is the smallest above it
   and at most 100. Narrower is refused where there is none, or where it would take the shell under 80 columns on this
   terminal, and says `Narrowest`; wider is refused only at 100, and says `Full width`. A step taken says `Width 90%`
-  and is saved straight away, through the shell's one narrow port for it (`IShellWidthStore`); a refused one saves
+  and is saved straight away, through the shell's one narrow port for it (`IShellPreferenceStore`); a refused one saves
   nothing, so what is saved is always a width that was seen. A share written by hand between the steps, such as 73, is
   drawn as written, and a step takes it back onto them: 70 narrower, 80 wider. Each of the three is said for two
   seconds (`ShellTiming.WidthSaidFor`) and then let go of, the status row going back to its keys; why a step could not

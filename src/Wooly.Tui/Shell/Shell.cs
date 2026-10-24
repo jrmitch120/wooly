@@ -113,7 +113,7 @@ public sealed class Shell
     ///     Where each step of the <see cref="ShellWidth" /> is saved, for the next launch to open at (#415). Not one of
     ///     <see cref="ShellPorts" /> either, for the profiles' reason: it reaches the local config.
     /// </summary>
-    private readonly IShellWidthStore _shellWidths;
+    private readonly IShellPreferenceStore _shellPreferences;
 
     /// <summary>
     ///     The instance the rail's foot names, read when the shell is built and again when a profile is added: the
@@ -157,7 +157,7 @@ public sealed class Shell
         Opening opening,
         ShellPorts ports,
         ProfilePorts profiles,
-        IShellWidthStore shellWidths,
+        IShellPreferenceStore shellPreferences,
         IShellHost host,
         IWebBrowser browser,
         IClipboard clipboard,
@@ -169,7 +169,7 @@ public sealed class Shell
     {
         _ports = ports;
         _profiles = profiles;
-        _shellWidths = shellWidths;
+        _shellPreferences = shellPreferences;
         _host = host;
         _browser = browser;
         _clock = clock;
@@ -2211,7 +2211,7 @@ public sealed class Shell
         // saved still holds for this session, since it was seen; the status row says why, as D does.
         try
         {
-            _shellWidths.Save(width);
+            _shellPreferences.SaveWidth(width);
         }
         catch (WoolyException failure)
         {

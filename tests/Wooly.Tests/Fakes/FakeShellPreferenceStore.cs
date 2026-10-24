@@ -4,12 +4,13 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tests.Fakes;
 
 /// <summary>
-///     Where the shell width is saved, without a config file: it only remembers each width it was asked to save (#415).
+///     Where the shell's preferences are saved, without a config file: it only remembers each one it was asked to save
+///     (#415, #442).
 /// </summary>
-internal sealed class FakeShellWidthStore : IShellWidthStore
+internal sealed class FakeShellPreferenceStore : IShellPreferenceStore
 {
     /// <summary>Every width saved, as its percentage, in order — where a test proves what was saved and how often.</summary>
-    public List<int> Saved { get; } = [];
+    public List<int> Widths { get; } = [];
 
     /// <summary>
     ///     Where the config file has been edited by hand into something that no longer reads, what saving says — or
@@ -18,13 +19,19 @@ internal sealed class FakeShellWidthStore : IShellWidthStore
     public string? Unreadable { get; set; }
 
     /// <inheritdoc />
-    public void Save(ShellWidth width)
+    public void SaveWidth(ShellWidth width)
+    {
+        Refuse();
+
+        Widths.Add(width.Percent);
+    }
+
+    /// <summary>Throws what saving says where the file no longer reads, as the real store would on loading it.</summary>
+    private void Refuse()
     {
         if (Unreadable is { } problem)
         {
             throw new ConfigurationException("/home/jeff/.config/wooly/config.toml", problem);
         }
-
-        Saved.Add(width.Percent);
     }
 }

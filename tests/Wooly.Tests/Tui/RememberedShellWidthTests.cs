@@ -19,13 +19,13 @@ public class RememberedShellWidthTests
 
         drawn.Press(new Key('-'));
 
-        Assert.Equal([90], built.ShellWidths.Saved);
+        Assert.Equal([90], built.ShellPreferences.Widths);
 
         drawn.Press(new Key('-'));
         drawn.Press(new Key('+'));
         drawn.Press(new Key('='));
 
-        Assert.Equal([90, 80, 90, 100], built.ShellWidths.Saved);
+        Assert.Equal([90, 80, 90, 100], built.ShellPreferences.Widths);
     }
 
     /// <summary>
@@ -45,7 +45,7 @@ public class RememberedShellWidthTests
         drawn.Press(new Key('-'));
 
         Assert.Contains("Narrowest", drawn.Rows()[^1], StringComparison.Ordinal);
-        Assert.Empty(built.ShellWidths.Saved);
+        Assert.Empty(built.ShellPreferences.Widths);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class RememberedShellWidthTests
         Assert.StartsWith("╭ Add a profile ─", drawn.Rows()[0][30..], StringComparison.Ordinal);
         Assert.Equal(new string(' ', 30), drawn.Rows()[0][..30]);
         Assert.Equal(new string(' ', 30), drawn.Rows()[0][170..]);
-        Assert.Empty(built.ShellWidths.Saved);
+        Assert.Empty(built.ShellPreferences.Widths);
     }
 
     /// <summary>
@@ -99,7 +99,7 @@ public class RememberedShellWidthTests
 
         Assert.Equal((left, columns), Shell(drawn));
         Assert.Contains($"Width {percent}%", drawn.Rows()[^1], StringComparison.Ordinal);
-        Assert.Equal([percent], built.ShellWidths.Saved);
+        Assert.Equal([percent], built.ShellPreferences.Widths);
     }
 
     /// <summary>
@@ -117,7 +117,7 @@ public class RememberedShellWidthTests
         drawn.Resize(200, 24);
 
         Assert.Equal((50, 100), Shell(drawn));
-        Assert.Empty(built.ShellWidths.Saved);
+        Assert.Empty(built.ShellPreferences.Widths);
     }
 
     /// <summary>
@@ -128,7 +128,7 @@ public class RememberedShellWidthTests
     public async Task AStepThatCannotBeSavedSaysWhy_AndStillHoldsForTheSession()
     {
         var built = new AShell();
-        built.ShellWidths.Unreadable = "'bell' must be true or false.";
+        built.ShellPreferences.Unreadable = "'bell' must be true or false.";
         using var drawn = await DrawnShell.Of(200, 24, Midnight(), built);
 
         drawn.Press(new Key('-'));
@@ -149,7 +149,7 @@ public class RememberedShellWidthTests
         using var drawn = await DrawnShell.Of(200, 24, Midnight(), built);
 
         drawn.Press(new Key('-'));
-        built.ShellWidths.Unreadable = "'bell' must be true or false.";
+        built.ShellPreferences.Unreadable = "'bell' must be true or false.";
         drawn.Press(new Key('-'));
 
         built.Host.SettleAll();
