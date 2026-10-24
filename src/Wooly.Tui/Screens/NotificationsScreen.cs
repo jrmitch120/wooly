@@ -1,3 +1,4 @@
+using Wooly.Core.Accounts;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
@@ -18,8 +19,9 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 /// <remarks>
 ///     A notification is not the post it is about (GLOSSARY.md), and the difference is load-bearing here: <c>d</c>
-///     dismisses the notification by its own id and leaves the post exactly where it was, while every other key on the
-///     row acts on the post — so the two ids are kept apart rather than one standing in for the other.
+///     dismisses the notification by its own id and leaves the post exactly where it was, and <c>a</c> opens its actor
+///     rather than the post's author (#451), while every other key on the row acts on the post — so the two are kept
+///     apart rather than one standing in for the other.
 /// </remarks>
 /// <param name="notifications">What is waiting, newest first.</param>
 /// <param name="notice">What the shell has to say about the inbox as a whole, if anything.</param>
@@ -46,6 +48,7 @@ public sealed class NotificationsScreen(
         PostKeys.Around(
             new KeyHint("j/k", "notification"),
             [
+                new KeyHint("a", "actor", NeedsAPick: true),
                 new KeyHint("d", "dismiss", NeedsAPick: true),
                 new KeyHint("D", "clear all", NeedsAPick: true),
                 Refreshing,
@@ -138,11 +141,17 @@ public sealed class NotificationsScreen(
         return put.Count;
     }
 
-    /// <summary>What this screen's own keys do: <c>d</c> dismisses the picked notification, and <c>D</c> all of them.</summary>
+    /// <summary>
+    ///     What this screen's own keys do: <c>a</c> opens the picked notification's actor, <c>d</c> dismisses it, and
+    ///     <c>D</c> all of them.
+    /// </summary>
     public override Task Answer(Verb verb, Reach reach)
     {
         switch (verb)
         {
+            case Verb.OpenActor:
+                return OpenActor(reach);
+
             case Verb.Dismiss:
                 return Dismiss(reach);
 
@@ -154,6 +163,16 @@ public sealed class NotificationsScreen(
 
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    ///     Opens the account of whoever did what the picked notification reports (GLOSSARY.md's <b>Actor</b>) — not the
+    ///     author of the post it is about, who on a favorite or a boost is the reader, and who a follow does not have
+    ///     (#451).
+    /// </summary>
+    private Task OpenActor(Reach reach) =>
+        PickedNotification is { } picked
+            ? reach.Open(new Subject.Account(AccountAddress.Parse(picked.Actor.Address), WithReplies: false))
+            : Task.CompletedTask;
 
     /// <summary>Clears the picked notification, which is named by its own id and not by the post's (GLOSSARY.md).</summary>
     private Task Dismiss(Reach reach)
