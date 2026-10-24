@@ -13,7 +13,7 @@ Panels, since ADR-0021. The rail and the content are each a rounded frame with a
 the dividing, so there is no breadcrumb row, no blank row under it and no gutter column.
 
 ```
-╭ Timelines ───────╮╭ Home › Post by @ben  ✱ ──────────────────────────────────╮
+╭ Timelines ──────«╮╭ Home › Post by @ben  ✱ ──────────────────────────────────╮
 │Home             3││ content                                                  │
 │Local             ││ (feed · post · account · conversation · search)          │
 │Federated         ││                                                          │
@@ -39,7 +39,7 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 
 | Region | Size | Holds |
 |---|---|---|
-| Rail | 20 columns including its frames, full height less the status row; collapsed, 7 in colour and 9 without (**Collapsed rail**, below) | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. On a terminal too short to frame every group the rail steps down (below) |
+| Rail | 20 columns including its frames, full height less the status row; collapsed, 7 in colour and 9 without (**Collapsed rail**, below) | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. `«` ends the Timelines panel's top edge, the toggle's mark (**Collapsed rail**, below). On a terminal too short to frame every group the rail steps down (below) |
 | Content | the rest of the width, full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1 |
 | Status | 1 row, the shell's full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest; or a notice; or a confirmation |
 
@@ -107,7 +107,7 @@ text is the client's own rather than an author's — the Lang list — it is wri
 the cursor, the selection, the settle window, arrivals and the stack mean the same either way.
 
 ```
-╭─────╮╭ Home ─────────────────────────────────────────────────────────────────╮
+╭────»╮╭ Home ─────────────────────────────────────────────────────────────────╮
 │H    ││▌Jeff @jeff@mastodon.social                                         2h │
 │L    ││▌Hello world                                                           │
 │F    ││                                                                       │
@@ -147,6 +147,17 @@ the cursor, the selection, the settle window, arrivals and the stack mean the sa
   port (`IShellPreferenceStore`); opening on it is not a toggle, and saves nothing. A fresh install opens expanded. A
   toggle that cannot be saved still holds for the session, and the status row says why as a failure, which stays until
   something else is said. A toggle that is saved says nothing: the rail changing is answer enough.
+- **The mark.** `«` on the expanded rail and `»` on the strip, the way a click would send the rail, sit in the top-right
+  corner of the Timelines panel's top edge, just inside the corner. Compact, where there are no frames, the mark ends
+  the Timelines heading, over where the counts end: the last column expanded, the one before it on the strip, whose
+  heading is blank. Scrolled past that heading, it ends the first heading in view, and on a rail too short for any
+  heading it takes the last cell of the top row, so there is always one to click (#443). A left click on it is `\`,
+  through the **Keymap** on the screen in front, so it toggles and saves exactly as the key does and does nothing where
+  the key does nothing: on compose, the description editor and the public profile form, where the mark is still drawn,
+  and where an open question is declined instead. The mark's glyph is the whole of what it says, in the role of the
+  edge or heading it is on, so it reads the same with colour and without. Both are Latin-1 and not East Asian
+  ambiguous, so a column wide on every terminal. No hover, no drag, the wheel over it does nothing, and a double click
+  is its first click alone, the second landing where the mark was once the rail has moved it.
 
 ## Shell width
 
@@ -2136,7 +2147,8 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Click | Anywhere outside the open list of people to mention | Closes it, as `esc` does, and nothing more: the caret stays, the draft or the bio is as it was, and what is under the pointer is not clicked (#335, #408) |
 | Click | A destination on the rail | Arrives there at once, through the rail's immediate path: the cursor and the selection move together, there is no settle window, and any landing the tabbing left waiting is abandoned, so only the destination clicked is read (#288). Which entry a row is comes off the rail's own rows, each carrying its destination's place as its `Line.Item`, so the click lands on what is drawn under the pointer whether the rail is framed, compact or compact and scrolled |
 | Click | The destination already shown | Walks back out to its own screen: drilled in from it, the stack goes back to its one bottom screen with the page and **Picked** it was left on, as any pop keeps, and nothing is asked of the instance — the way a sidebar's entry takes you back to its top page (#289). On its own screen already, nothing. With a touched compose drilled in it asks first, as every way out of one does (#373). The first crumb of the breadcrumb is the same click (#308). One of the two moves the mouse has that the keys do not: tabbing back onto the destination shown is still a walk that ended where it began |
-| Click | A group's title, a compact heading, the API panel | Nothing. Only destinations answer a click |
+| Click | The `«`/`»` mark at the end of the Timelines panel's top edge, or of the first compact heading in view | `\` through the **Keymap**: the rail collapsed or expanded and saved, or nothing where `\` means nothing (#443; **Collapsed rail**, above). Which cell is the mark comes off the rail's own spans, its own carrying `RailLines.Toggle` as its `Span.Item` |
+| Click | A group's title, a compact heading, the API panel, the rest of the edge the mark is on | Nothing. Only destinations and the mark answer a click |
 | Click | A crumb of the breadcrumb, behind the one in front | Walks back to that screen in one move: everything drilled in above it comes off the stack, as that many presses of `esc` would take it off, and the screen is in front as it was left — its **Page**, its **Picked** and any **Reference** picked on it — with nothing asked of the instance. What the screens taken off asked for is dropped, as with any pop. The first crumb is the click on the destination shown above. Which crumb a column is comes off the breadcrumb's own spans, each carrying its place in the stack as its `Span.Item`, as the rail's rows carry theirs, so the click lands on the crumb drawn under the pointer however the trail is elided. A crumb whose walk back would take a touched compose off the stack asks first, as every way out of one does (#373); a crumb above a compose still walks back. Crumbs are not drawn as clickable. The other move the keys do not have (#308) |
 | Click | The crumb in front, the `… ›` lead of an elided trail, a separator, the fetch mark, the edge after the trail | Nothing. Only a crumb behind the one in front answers a click |
 | Click | A row of a thing in the content | Picks that thing, through the same pick `[`/`]` make: any row of it counts — a tall post's byline, its text, a picture on it — since which thing a row is part of is its `Line.Item`, the ordinal `Screen.Pick` takes. The remark on the status row goes, as it does for `j`/`k`, and a **Reference** walked to inside the thing is let go, so the `⏎` after it opens the thing rather than the reference. The page stays where it is rather than following the pick, so what was clicked never moves out from under the pointer. The same on every listing screen, the account screen's header block (after which the post keys go quiet, as after `j`/`k`) and a search's results in their sections among them (#290) |
@@ -2182,7 +2194,8 @@ click on it and no `⏎`, since Terminal.Gui reports the second of two quick cli
 Mouse tracking stays on, and nothing turns it off: drag means nothing, and selecting text to copy goes through the
 terminal's modifier bypass (`⌥` in iTerm2, `Fn` in Terminal.app) until selection is a feature of its own. The `?`
 screen says what the mouse does beside the frame's keys, ending `right click back` and carried on to a second line with
-no key of its own, `click a crumb to walk back to it`, since one line no longer fits beside the key column at 80 columns.
+no key of its own, `click a crumb to walk back to it`, since one line no longer fits beside the key column at 80 columns,
+and a third, `click «/» to collapse or expand the rail` (#443).
 
 ## Starting it, and the one destination that needs configuring
 

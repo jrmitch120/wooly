@@ -446,10 +446,11 @@ internal sealed class ShellWindow : Window
 
     /// <summary>
     ///     A click at <paramref name="at" />. An open question takes it wherever it lands, and is all it does; otherwise
-    ///     a click on a destination on the rail arrives there (#288), a click on a crumb of the breadcrumb walks back to
-    ///     it (#308), and a click on a row of a thing in the content picks it (#290), the first half of a double click
-    ///     among them (<see cref="DoubleClicked" />). Everything else — a title, a heading, the API panel, a separator,
-    ///     the fetch mark, a rule, a blank — is part of nothing and ignores it.
+    ///     a click on a destination on the rail arrives there (#288), one on the rail's <c>«</c>/<c>»</c> is <c>\</c>
+    ///     (#443), a click on a crumb of the breadcrumb walks back to it (#308), and a click on a row of a thing in the
+    ///     content picks it (#290), the first half of a double click among them (<see cref="DoubleClicked" />).
+    ///     Everything else — a title, a heading, the API panel, a separator, the fetch mark, a rule, a blank — is part of
+    ///     nothing and ignores it.
     /// </summary>
     /// <param name="at">Where the click was.</param>
     /// <param name="chorded">Whether ctrl or shift was held, which on some rows means more than a pick (#376).</param>
