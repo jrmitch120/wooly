@@ -382,27 +382,32 @@ public sealed class Shell
         HidesRail ? Unwalked(Screen.Keys, BackslashShowsTheRail) : Screen.Keys;
 
     /// <summary>
-    ///     Whether <c>\</c> pressed now would show the hidden rail: not on a screen whose fields take it as a letter
-    ///     (#441, #445) nor on the file browser, whose filter does, but on any other prompt taking letters it would
-    ///     (#447). The status row and the locked walk name it only where it would.
+    ///     Whether <c>\</c> pressed now would show the hidden rail, rather than being typed as a letter by the screen in
+    ///     front (#447). The status row and the locked walk name it only where it would.
     /// </summary>
     private bool BackslashShowsTheRail => Keymap.Means(ShellKey.Backslash, Screen) is Verb.ToggleRail;
 
     /// <summary>
     ///     <paramref name="keys" /> without those that walk the rail (<see cref="KeyHint.WalksTheRail" />), and with
-    ///     <c>\</c> where the first of them stood — so that the row keeps its order, and nothing after them moves for
-    ///     a key that does nothing (#445). Nothing in their place unless <c>\</c> <paramref name="shows" /> the rail,
-    ///     rather than being typed as a letter.
+    ///     <c>\</c> where the first of them stood, so that the row keeps its order and nothing after them moves for a
+    ///     key that does nothing (#445). Where none stood, <c>\</c> goes just before <c>?</c>, or at the end where
+    ///     there is no <c>?</c>, so that the way to show the rail is said wherever it is the way (#447). Nothing is
+    ///     added unless <c>\</c> <paramref name="shows" /> the rail, rather than being typed as a letter.
     /// </summary>
     private static List<KeyHint> Unwalked(IReadOnlyList<KeyHint> keys, bool shows)
     {
         var unwalked = keys.Where(key => !key.WalksTheRail).ToList();
-        var at = keys.ToList().FindIndex(key => key.WalksTheRail);
 
-        if (at >= 0 && shows)
+        if (!shows)
         {
-            unwalked.Insert(at, PostKeys.ShowingTheRail);
+            return unwalked;
         }
+
+        var walked = keys.ToList().FindIndex(key => key.WalksTheRail);
+        var asking = unwalked.IndexOf(PostKeys.Asking);
+        var at = walked >= 0 ? walked : asking >= 0 ? asking : unwalked.Count;
+
+        unwalked.Insert(at, PostKeys.ShowingTheRail);
 
         return unwalked;
     }

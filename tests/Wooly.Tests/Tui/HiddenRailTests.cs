@@ -175,60 +175,66 @@ public class HiddenRailTests
     }
 
     /// <summary>
-    ///     On the one-line prompts — Search's while it takes letters, and the follow list's filter — <c>\</c> hides a
-    ///     shown rail and shows a hidden one rather than being typed, so that the keys never leave the rail out of reach
-    ///     there (#447). Nothing is added to what was typed either way.
+    ///     On Search's prompt while it takes letters <c>\</c> hides a shown rail and shows a hidden one rather than
+    ///     being typed, so that the keys never leave the rail out of reach there (#447). Nothing is added to the query.
     /// </summary>
-    [Theory]
-    [InlineData("search")]
-    [InlineData("filter")]
-    public async Task OnAOneLinePromptBackslashHidesAndShowsTheRail(string where)
+    [Fact]
+    public async Task OnTheSearchPromptBackslashHidesAndShowsTheRail()
     {
-        var built = new AShell
-        {
-            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
-            Accounts = FakeAccountRelationships.Holding(
-                AnAccount.With(address: "ben@hachyderm.io"),
-                AnAccount.With(id: "1", address: "ann@hachyderm.io", author: "Ann")),
-        };
-        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, built);
+        using var drawn = await Searching();
 
-        if (where == "search")
-        {
-            drawn.Press(new Key('/'));
-            drawn.Settle();
-        }
-        else
-        {
-            await drawn.Shell.OpenAuthor();
-            built.Host.Drain();
-            drawn.Press(Key.W);
-            built.Host.Drain();
-            drawn.Press(Key.F);
-        }
+        TogglesWhileTyping(drawn);
 
-        drawn.Press(new Key('a'));
+        Assert.Equal("a", Assert.IsType<SearchScreen>(drawn.Shell.Screen).Query);
+    }
 
-        Assert.True(drawn.Shell.Screen.IsTyping);
+    /// <summary>And on the follow list's filter, the same (#447): nothing is added to the filter.</summary>
+    [Fact]
+    public async Task OnTheFollowFilterBackslashHidesAndShowsTheRail()
+    {
+        using var drawn = await FilteringFollows();
+
+        TogglesWhileTyping(drawn);
+
+        Assert.Equal("a", Assert.IsType<FollowsScreen>(drawn.Shell.Screen).Filter);
+    }
+
+    /// <summary>
+    ///     While the rail is hidden the follow list's filter offers <c>Rail: \</c> on the status row, since <c>\</c>
+    ///     shows the rail from there: at the end of the row, which has no walk hint for it to stand in for, and no
+    ///     <c>?</c>, a letter there (#447).
+    /// </summary>
+    [Fact]
+    public async Task OnTheFollowFilterTheStatusRowOffersBackslashWhileTheRailIsHidden()
+    {
+        using var drawn = await FilteringFollows();
+
+        Assert.DoesNotContain(@"Rail: \", drawn.Rows()[^1], StringComparison.Ordinal);
+
+        drawn.Press(Toggle);
+
+        Assert.EndsWith(@"| Rail: \", drawn.Rows()[^1].TrimEnd(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     And on Add a profile, reached from <c>ctrl-p</c> so that there is a rail to hide: <c>\</c> shows the rail
+    ///     from its instance prompt, and the status row says so at its end (#447).
+    /// </summary>
+    [Fact]
+    public async Task OnAddAProfileTheStatusRowOffersBackslashWhileTheRailIsHidden()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
+
+        drawn.Press(Key.P.WithCtrl);
+        drawn.Press(Key.A);
+
+        Assert.IsType<AddProfileScreen>(drawn.Shell.Screen);
+        Assert.DoesNotContain(@"Rail: \", drawn.Rows()[^1], StringComparison.Ordinal);
 
         drawn.Press(Toggle);
 
         Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
-        Assert.Equal(0, drawn.Content.Frame.X);
-
-        drawn.Press(Toggle);
-
-        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
-        Assert.Equal(RailLines.Width, drawn.Content.Frame.X);
-        Assert.True(drawn.Shell.Screen.IsTyping);
-        Assert.Equal(
-            "a",
-            drawn.Shell.Screen switch
-            {
-                SearchScreen search => search.Query,
-                FollowsScreen follows => follows.Filter,
-                var other => throw new InvalidOperationException($"Not a prompt: {other.Crumb}"),
-            });
+        Assert.EndsWith(@"| Rail: \", drawn.Rows()[^1].TrimEnd(), StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -645,6 +651,60 @@ public class HiddenRailTests
         const string said = @"\               hide or show the rail, even from a search or the follow list's filter";
 
         Assert.Contains(drawn.Rows(), row => row.Contains(said, StringComparison.Ordinal));
+    }
+
+    /// <summary>On Search's prompt, with <c>a</c> typed into it.</summary>
+    private static async Task<DrawnShell> Searching()
+    {
+        var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
+
+        drawn.Press(new Key('/'));
+        drawn.Settle();
+        drawn.Press(new Key('a'));
+
+        return drawn;
+    }
+
+    /// <summary>On the filter of an author's follow list, with <c>a</c> typed into it.</summary>
+    private static async Task<DrawnShell> FilteringFollows()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Accounts = FakeAccountRelationships.Holding(
+                AnAccount.With(address: "ben@hachyderm.io"),
+                AnAccount.With(id: "1", address: "ann@hachyderm.io", author: "Ann")),
+        };
+        var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, built);
+
+        await drawn.Shell.OpenAuthor();
+        built.Host.Drain();
+        drawn.Press(Key.W);
+        built.Host.Drain();
+        drawn.Press(Key.F);
+        drawn.Press(new Key('a'));
+
+        return drawn;
+    }
+
+    /// <summary>
+    ///     <c>\</c> pressed twice on the prompt <paramref name="drawn" /> is typing into: the rail hidden and the content
+    ///     panel on the shell's first column, then the rail shown again, and the prompt still taking letters.
+    /// </summary>
+    private static void TogglesWhileTyping(DrawnShell drawn)
+    {
+        Assert.True(drawn.Shell.Screen.IsTyping);
+
+        drawn.Press(Toggle);
+
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
+        Assert.Equal(0, drawn.Content.Frame.X);
+
+        drawn.Press(Toggle);
+
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
+        Assert.Equal(RailLines.Width, drawn.Content.Frame.X);
+        Assert.True(drawn.Shell.Screen.IsTyping);
     }
 
     /// <summary>
