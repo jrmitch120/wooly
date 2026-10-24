@@ -4,6 +4,9 @@
 // instance's grouping, #453), and five made-up groups on top built from the real actors so the avatars are real
 // faces: one actor, two, three follows, eight, forty. F2 cycles the layouts:
 //   A  4×2 strip on its own row under the names line
+//   A5 A with faces two columns apart, no extra rows
+//   A6 A5 with a thin muted rule down the group's left edge, strip and preview alike
+//   A7 A5 with the kind's icon in front of the names and the sentence in the kind's colour
 //   A1 A with air: two columns between faces, a blank row above and below the strip
 //   A2 A with the strip above the sentence, as Mastodon's web app has it
 //   A3 A with the kind's icon (★ ↺ + @) in the gutter beside the strip
@@ -29,6 +32,9 @@ internal static class NotificationGroupsPrototype
     public static readonly string[] Variants =
     [
         "A · 4×2 strip on its own row",
+        "A5 · A with faces two columns apart, no extra rows",
+        "A6 · A5 with a thin rule down the group's left edge",
+        "A7 · A5 with the kind's icon and sentence in the kind's colour",
         "A1 · A with air: two columns between faces, a blank row above and below",
         "A2 · A with the strip above the sentence, as the web app has it",
         "A3 · A with the kind's icon in the gutter beside the strip",
@@ -161,6 +167,8 @@ internal static class NotificationGroupsPrototype
         // the face twice, so a mention (or any post shown whole, by its actor) gets no strip.
         var variant = group.Post is { IsMine: false } whole && whole.Account == group.Actors[0].Account ? Variants.Length - 1 : Variant;
 
+        var edged = false;
+
         switch (variant)
         {
             case 0:
@@ -170,6 +178,25 @@ internal static class NotificationGroupsPrototype
                 break;
 
             case 1:
+                rows.Add(Names(group, unread, room, drawing.Now, lead: []));
+                rows.AddRange(Strip(group, columns: 4, high: 2, room, drawing, indent: 2, gap: 2));
+
+                break;
+
+            case 2:
+                rows.Add(Names(group, unread, room, drawing.Now, lead: [], edge: true));
+                rows.AddRange(Strip(group, columns: 4, high: 2, room, drawing, indent: 2, gap: 2, edge: true));
+                edged = true;
+
+                break;
+
+            case 3:
+                rows.Add(Names(group, unread, room, drawing.Now, lead: [Coloured(Icon(group), group), new Span(" ", Role.Body)], didRole: KindRole(group)));
+                rows.AddRange(Strip(group, columns: 4, high: 2, room, drawing, indent: 2, gap: 2));
+
+                break;
+
+            case 4:
             {
                 rows.Add(Names(group, unread, room, drawing.Now, lead: []));
                 var strip = Strip(group, columns: 4, high: 2, room, drawing, indent: 2, gap: 2, plusRow: 1);
@@ -184,13 +211,13 @@ internal static class NotificationGroupsPrototype
                 break;
             }
 
-            case 2:
+            case 5:
                 rows.AddRange(Strip(group, columns: 4, high: 2, room, drawing, indent: 2));
                 rows.Add(Names(group, unread, room, drawing.Now, lead: []));
 
                 break;
 
-            case 3:
+            case 6:
             {
                 var strip = Strip(group, columns: 4, high: 2, room, drawing, indent: 3, icon: Icon(group));
 
@@ -200,7 +227,7 @@ internal static class NotificationGroupsPrototype
                 break;
             }
 
-            case 4:
+            case 7:
             {
                 var strip = Strip(group, columns: 4, high: 2, room, drawing, indent: 3, gap: 2, plusRow: 1, icon: Icon(group));
 
@@ -216,13 +243,13 @@ internal static class NotificationGroupsPrototype
                 break;
             }
 
-            case 5:
+            case 8:
                 rows.Add(Names(group, unread, room, drawing.Now, lead: []));
                 rows.AddRange(Strip(group, columns: 3, high: 1, room, drawing, indent: 2));
 
                 break;
 
-            case 6:
+            case 9:
             {
                 var strip = Strip(group, columns: 3, high: 1, Math.Min(room, 3 + (5 * 4) + 4), drawing, indent: 0, gapAfter: 1);
 
@@ -245,7 +272,7 @@ internal static class NotificationGroupsPrototype
                 break;
             }
 
-            case 7:
+            case 10:
             {
                 var strip = Strip(group, columns: 4, high: 2, Math.Min(room, (3 * 5) + 5), drawing, indent: 0, gapAfter: 1);
 
@@ -278,7 +305,7 @@ internal static class NotificationGroupsPrototype
 
         if (group.Post is { } post)
         {
-            rows.AddRange(post.IsMine ? Preview(post, room - 2) : fullPost(post));
+            rows.AddRange(post.IsMine ? Preview(post, room - 2, edged) : fullPost(post));
         }
 
         return rows;
@@ -308,8 +335,22 @@ internal static class NotificationGroupsPrototype
             : "•",
             Role.Muted);
 
-    private static Line Names(Group group, bool unread, int width, DateTimeOffset now, Span[] lead)
+    private static Line Names(
+        Group group,
+        bool unread,
+        int width,
+        DateTimeOffset now,
+        Span[] lead,
+        Role didRole = Role.Muted,
+        bool edge = false)
     {
+        if (edge)
+        {
+            lead = [new Span("╷ ", Role.Muted), .. lead];
+        }
+
+        width -= lead.Sum(span => span.Width);
+
         var age = Elapsed.Since(group.At, now);
         var mark = unread ? $"{ConversationLines.UnreadMark} " : string.Empty;
         var did = $" {Sentence(group)}";
@@ -320,12 +361,20 @@ internal static class NotificationGroupsPrototype
         return Line.Of([
             .. lead,
             name,
-            new Span(did, Role.Muted),
+            new Span(did, didRole),
             new Span(new string(' ', Math.Max(1, width - used - Glyphs.Columns(age))), Role.Muted),
             .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),
             new Span(age, Role.Muted),
         ]);
     }
+
+    private static Role KindRole(Group group) =>
+        group.Kind == NotificationKind.Favorite ? Role.Favorite
+        : group.Kind == NotificationKind.Boost ? Role.Boost
+        : group.Kind == NotificationKind.Mention ? Role.Mention
+        : Role.BylineHandle;
+
+    private static Span Coloured(Span icon, Group group) => icon with { Role = KindRole(group) };
 
     private static Line NamesOnly(Group group, bool unread, int width, DateTimeOffset now)
     {
@@ -357,7 +406,8 @@ internal static class NotificationGroupsPrototype
         int gapAfter = 0,
         int gap = 1,
         int plusRow = 0,
-        Span? icon = null)
+        Span? icon = null,
+        bool edge = false)
     {
         var rows = Enumerable.Range(0, high).Select(_ => new List<Span>()).ToArray();
         var insets = new List<Inset>();
@@ -366,6 +416,14 @@ internal static class NotificationGroupsPrototype
         foreach (var row in rows)
         {
             row.Add(new Span(new string(' ', indent), Role.Body));
+        }
+
+        if (edge)
+        {
+            foreach (var row in rows)
+            {
+                row[0] = new Span("│".PadRight(indent), Role.Muted);
+            }
         }
 
         if (icon is { } shown0)
@@ -440,7 +498,7 @@ internal static class NotificationGroupsPrototype
         ];
     }
 
-    private static IReadOnlyList<Line> Preview(Post post, int width)
+    private static IReadOnlyList<Line> Preview(Post post, int width, bool edged = false)
     {
         var text = post.ContentWarning is { Length: > 0 } warning ? $"⚠ {warning}" : post.Content;
         var wrapped = TextWrap.Wrap(text.ReplaceLineEndings(" "), Math.Max(1, width));
@@ -451,6 +509,6 @@ internal static class NotificationGroupsPrototype
             shown[1] = TextWrap.Clip(shown[1], Math.Max(1, width - 1)) + "…";
         }
 
-        return [.. shown.Select(row => Line.Of(new Span("  ", Role.Body), new Span(row, Role.Muted)))];
+        return [.. shown.Select(row => Line.Of(new Span(edged ? "│ " : "  ", Role.Muted), new Span(row, Role.Muted)))];
     }
 }
