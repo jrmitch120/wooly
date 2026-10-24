@@ -215,6 +215,19 @@ public class RailToggleMarkTests
         Assert.Equal(rows, drawn.Rows());
     }
 
+    /// <summary>The <c>?</c> screen's mouse summary says a click on the mark collapses or expands the rail.</summary>
+    [Fact]
+    public async Task TheHelpScreenSaysTheMarkTogglesTheRail()
+    {
+        using var drawn = await DrawnShell.Of(80, 40, Themes.Plain);
+
+        drawn.Press(new Key('?'));
+
+        Assert.Contains(
+            drawn.Rows(),
+            row => row.Contains("click «/» to collapse or expand the rail", StringComparison.Ordinal));
+    }
+
     /// <summary>How wide the strip is: seven columns in colour, and nine with the mark column kept.</summary>
     private static int Strip(bool coloured) => coloured ? 7 : 9;
 

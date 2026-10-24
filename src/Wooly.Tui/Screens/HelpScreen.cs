@@ -31,6 +31,8 @@ public sealed class HelpScreen(Screen about) : Screen
         // the first with no key of its own, since one no longer fits beside the key column at 80 columns (#308).
         new("mouse", "wheel scrolls the content; a click arrives on the rail and picks a row; a double click is ⏎; right click back"),
         new(string.Empty, "click a crumb to walk back to it"),
+        // A line of its own for the same reason (#443).
+        new(string.Empty, "click «/» to collapse or expand the rail"),
     ];
 
     /// <summary>The screen whose keys these are.</summary>
