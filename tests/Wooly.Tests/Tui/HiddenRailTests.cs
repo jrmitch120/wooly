@@ -152,12 +152,11 @@ public class HiddenRailTests
     }
 
     /// <summary>
-    ///     On Search while its prompt takes letters, where <c>\</c> is one of them, walking the hidden rail is as locked
-    ///     and says so, but names no key to show it by: <c>\</c> pressed there types a backslash rather than showing
-    ///     anything.
+    ///     On Search while its prompt takes letters walking the hidden rail is as locked, and says how to show it as it
+    ///     does anywhere: <c>\</c> shows the rail from the prompt too (#447).
     /// </summary>
     [Fact]
-    public async Task WhereBackslashIsALetterTheLockedWalkNamesNoKey()
+    public async Task OnTheSearchPromptTheLockedWalkSaysHowToShowIt()
     {
         using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
 
@@ -171,11 +170,65 @@ public class HiddenRailTests
 
         drawn.Press(Key.Tab);
 
-        var said = drawn.Rows()[^1];
-
-        Assert.Contains("Rail hidden", said, StringComparison.Ordinal);
-        Assert.DoesNotContain("\\", said, StringComparison.Ordinal);
+        Assert.Contains(@"Rail hidden — \ to show", drawn.Rows()[^1], StringComparison.Ordinal);
         Assert.Equal(cursor, drawn.Shell.Rail.Cursor);
+    }
+
+    /// <summary>
+    ///     On the one-line prompts — Search's while it takes letters, and the follow list's filter — <c>\</c> hides a
+    ///     shown rail and shows a hidden one rather than being typed, so that the keys never leave the rail out of reach
+    ///     there (#447). Nothing is added to what was typed either way.
+    /// </summary>
+    [Theory]
+    [InlineData("search")]
+    [InlineData("filter")]
+    public async Task OnAOneLinePromptBackslashHidesAndShowsTheRail(string where)
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Accounts = FakeAccountRelationships.Holding(
+                AnAccount.With(address: "ben@hachyderm.io"),
+                AnAccount.With(id: "1", address: "ann@hachyderm.io", author: "Ann")),
+        };
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, built);
+
+        if (where == "search")
+        {
+            drawn.Press(new Key('/'));
+            drawn.Settle();
+        }
+        else
+        {
+            await drawn.Shell.OpenAuthor();
+            built.Host.Drain();
+            drawn.Press(Key.W);
+            built.Host.Drain();
+            drawn.Press(Key.F);
+        }
+
+        drawn.Press(new Key('a'));
+
+        Assert.True(drawn.Shell.Screen.IsTyping);
+
+        drawn.Press(Toggle);
+
+        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
+        Assert.Equal(0, drawn.Content.Frame.X);
+
+        drawn.Press(Toggle);
+
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
+        Assert.Equal(RailLines.Width, drawn.Content.Frame.X);
+        Assert.True(drawn.Shell.Screen.IsTyping);
+        Assert.Equal(
+            "a",
+            drawn.Shell.Screen switch
+            {
+                SearchScreen search => search.Query,
+                FollowsScreen follows => follows.Filter,
+                var other => throw new InvalidOperationException($"Not a prompt: {other.Crumb}"),
+            });
     }
 
     /// <summary>
@@ -210,8 +263,8 @@ public class HiddenRailTests
     /// <summary>
     ///     Hidden, the status row no longer offers the walk it has locked: the destination and group hints come off,
     ///     and <c>Rail: \</c> stands where they stood. Shown again, the row is as it was, and without <c>\</c>. On
-    ///     Search while its prompt takes letters, where the destination hint is offered alone, it comes off with
-    ///     nothing in its place: <c>\</c> is a letter there.
+    ///     Search while its prompt takes letters, where the destination hint is offered alone, <c>Rail: \</c> stands in
+    ///     its place too, since <c>\</c> shows the rail from there (#447).
     /// </summary>
     [Fact]
     public async Task WhileTheRailIsHiddenTheStatusRowOffersBackslashInPlaceOfTheWalk()
@@ -245,13 +298,12 @@ public class HiddenRailTests
         var searching = drawn.Rows()[^1];
 
         Assert.DoesNotContain("Destination: tab", searching, StringComparison.Ordinal);
-        Assert.DoesNotContain("\\", searching, StringComparison.Ordinal);
+        Assert.Contains(@"Rail: \", searching, StringComparison.Ordinal);
         Assert.Contains("Search: ⏎", searching, StringComparison.Ordinal);
 
-        // Not offered there, since the prompt takes `\` as a letter, as it takes every other.
         drawn.Press(Toggle);
 
-        Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
+        Assert.Equal(RailState.Shown, drawn.Shell.RailState);
     }
 
     /// <summary>

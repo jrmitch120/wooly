@@ -122,17 +122,20 @@ inside its edges. Hiding changes nothing about the stack or about where you are.
   while it is hidden, and a badge rising still rings the bell; only the count is not drawn.
 - **Walking it is locked**, since a cursor nobody can see would land somewhere nobody chose. `tab`, `shift-tab`, `` ` ``
   and `~` move neither the cursor nor the selection and start no settle window, and say `Rail hidden — \ to show` on
-  the status row for a moment — only `Rail hidden` on a prompt taking letters, where `\` would be typed. Going straight
-  to a named destination still works, because the breadcrumb says where you landed: `/` arrives at Search, and
-  choosing a profile on `ctrl-p` starts again on its Home. A walk under way when the rail is hidden, inside its settle
-  window, still lands.
+  the status row for a moment — only `Rail hidden` where `\` means nothing — on a prompt taking letters too. Going
+  straight to a named destination still works, because the breadcrumb says where you landed: `/` arrives at Search,
+  and choosing a profile on `ctrl-p` starts again on its Home. A walk under way when the rail is hidden, inside its
+  settle window, still lands.
 - **The status row** drops the `Destination: tab` and `Group: `` ` `` hints, which name the locked walk, and says
-  `Rail: \` where the first of them stood — but on a prompt taking letters, Search's, where `\` is one of them and
-  nothing takes their place. Shown, the row is as it was, and does not offer `\`.
+  `Rail: \` where the first of them stood, Search's prompt taking letters included. Shown, the row is as it was, and
+  does not offer `\`.
 - **A toggle** lays the content out again at its new width, pictures with it (ADR-0025), and keeps the picked post on
   the page row it was drawn on as near as rewrapping allows; with nothing picked the page is left where it begins. `\`
-  is typed as a letter wherever letters are typed, means nothing on compose, the description editor and the public
-  profile form, and does nothing where there is no rail. It is listed on the `?` screen under the frame's keys.
+  hides and shows the rail on a prompt taking letters too — Search's and the follow list's filter — rather than being
+  typed, so that the hidden rail is never out of the keys' reach there; a search or a filter has no use for a
+  backslash (#447). It is typed as a letter only on compose, the description editor and the public profile form, whose
+  fields take it before the shell sees it, and does nothing where there is no rail. It is listed on the `?` screen
+  under the frame's keys.
 - **Remembered.** One setting for every profile, as the **Shell width** is, and saved straight away through the same
   port (`IShellPreferenceStore`); opening on it is not a toggle, and saves nothing. A fresh install opens on the shown
   rail. A toggle that cannot be saved still holds for the session, and the status row says why as a failure, which
@@ -233,7 +236,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
 | `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
-| `\` | Hides the rail, the content taking the whole width of the shell, or shows it again, saved for the next launch (#442, #445). Typed as a letter wherever letters are typed, nothing on compose, the description editor or the public profile form, and nothing where there is no rail. Listed on the `?` screen, and on the status row only while the rail is hidden, as `Rail: \` (#445). See **Hidden rail**, above. |
+| `\` | Hides the rail, the content taking the whole width of the shell, or shows it again, saved for the next launch (#442, #445). On a prompt taking letters too — Search's, the follow list's filter — rather than typed (#447); typed as a letter only on compose, the description editor and the public profile form, whose fields take it, and nothing where there is no rail. Listed on the `?` screen, and on the status row only while the rail is hidden, as `Rail: \` (#445). See **Hidden rail**, above. |
 
 Feed and post:
 
@@ -382,8 +385,9 @@ not answer them differently:
 - **A prompt taking letters takes `/`, `?`, `` ` `` and `~` too**, which is the one exception to the frame keys above.
   A web address and a question are both things somebody is entitled to search for, and a prompt that could not take a
   slash would refuse the query most likely to be pasted into it; code in backticks and a path under `~` are the same
-  (#265). Every other frame key — `esc`, `ctrl-q`, `tab` — still means what it means everywhere, and the status row
-  says what the prompt answers to.
+  (#265). Every other frame key — `esc`, `ctrl-q`, `tab`, and `\`, which hides and shows the rail rather than typing a
+  backslash no search or filter needs (#447) — still means what it means everywhere, and the status row says what the
+  prompt answers to.
 - **`/` from the search screen's results starts a fresh prompt** rather than doing nothing, since that is the one place
   the key is most likely to be pressed twice.
 - **A screen's own keys go in front of the shared ones on the status row.** The row is one row and draws what it has
@@ -2197,8 +2201,8 @@ click «/»       hide or show the rail
 ```
 
 A meaning too long for the screen's width, the mouse's or any key's, carries on to the rows under it, each starting in
-the meaning column, rather than being cut with `…`: at 80 columns with the rail shown that is `tab / shift-tab`'s and
-`` ` `` / `~`'s (#446).
+the meaning column, rather than being cut with `…`: at 80 columns with the rail shown that is `tab / shift-tab`'s,
+`` ` `` / `~`'s (#446) and `\`'s, which says it hides or shows the rail even from a search or a filter (#447).
 
 ## Starting it, and the one destination that needs configuring
 

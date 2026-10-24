@@ -382,11 +382,11 @@ public sealed class Shell
         HidesRail ? Unwalked(Screen.Keys, BackslashShowsTheRail) : Screen.Keys;
 
     /// <summary>
-    ///     Whether <c>\</c> pressed now would show the hidden rail: not where a prompt takes it as a letter, nor on a
-    ///     screen whose fields do (#441, #445). The status row and the locked walk name it only where it would.
+    ///     Whether <c>\</c> pressed now would show the hidden rail: not on a screen whose fields take it as a letter
+    ///     (#441, #445), but on a prompt taking letters it would (#447). The status row and the locked walk name it only
+    ///     where it would.
     /// </summary>
-    private bool BackslashShowsTheRail =>
-        !Screen.IsTyping && Keymap.Means(ShellKey.Backslash, Screen) is Verb.ToggleRail;
+    private bool BackslashShowsTheRail => Keymap.Means(ShellKey.Backslash, Screen) is Verb.ToggleRail;
 
     /// <summary>
     ///     <paramref name="keys" /> without those that walk the rail (<see cref="KeyHint.WalksTheRail" />), and with

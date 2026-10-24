@@ -336,8 +336,10 @@ internal sealed class ShellWindow : Window
         // a compose and two more besides. Ahead of the keymap rather than inside it: this is the one place a key the
         // contract has settled means something else, and what it means instead is a letter rather than another verb.
         // Which screens do that is a fact about the screen, not a mode kept here. All but a space the keymap gives a
-        // meaning on the screen — choosing, in the file browser, whose fuzzy filter never needs one typed (#376).
-        if (_shell.Screen.IsTyping && !Chooses(key) && Typing(key))
+        // meaning on the screen — choosing, in the file browser, whose fuzzy filter never needs one typed (#376) — and
+        // `\`, which hides and shows the rail from a prompt too, so that the hidden rail is never out of the keys' reach
+        // there (#447).
+        if (_shell.Screen.IsTyping && !TakenAheadOfTheTyping(key) && Typing(key))
         {
             return true;
         }
@@ -603,11 +605,12 @@ internal sealed class ShellWindow : Window
     private bool Declined() => _shell.StatusRow.Answered(press: null);
 
     /// <summary>
-    ///     Whether <paramref name="key" /> is a space the keymap means something by on the screen in front, rather than a
-    ///     letter for whatever it is typing into (#376).
+    ///     Whether <paramref name="key" /> is a space or a <c>\</c> the keymap means something by on the screen in front,
+    ///     rather than a letter for whatever it is typing into (#376, #447).
     /// </summary>
-    private bool Chooses(Key key) =>
-        ShellKeys.Of(key) is ShellKey.Space && Keymap.Means(ShellKey.Space, _shell.Screen) != Verb.None;
+    private bool TakenAheadOfTheTyping(Key key) =>
+        ShellKeys.Of(key) is (ShellKey.Space or ShellKey.Backslash) and var pressed
+        && Keymap.Means(pressed, _shell.Screen) != Verb.None;
 
     /// <summary>
     ///     The left button held down at <paramref name="at" />: a press notes the row of the content it is on, and each
