@@ -110,8 +110,9 @@ public sealed class Shell
     private readonly ProfilePorts _profiles;
 
     /// <summary>
-    ///     Where each step of the <see cref="ShellWidth" /> is saved, for the next launch to open at (#415). Not one of
-    ///     <see cref="ShellPorts" /> either, for the profiles' reason: it reaches the local config.
+    ///     Where each step of the <see cref="ShellWidth" /> and each toggle of the rail is saved, for the next launch to
+    ///     open at (#415, #442). Not one of <see cref="ShellPorts" /> either, for the profiles' reason: it reaches the
+    ///     local config.
     /// </summary>
     private readonly IShellPreferenceStore _shellPreferences;
 
@@ -147,7 +148,8 @@ public sealed class Shell
     /// </param>
     /// <param name="preferences">
     ///     The config file's preferences: the hashtag the rail keeps a place for, what compose starts on, whether a
-    ///     rising Inbox badge rings the bell, and the shell width the launch opens at. None where the file sets none.
+    ///     rising Inbox badge rings the bell, and the shell width and the rail the launch opens at. None where the file
+    ///     sets none.
     /// </param>
     /// <param name="launchedFrom">
     ///     The folder Wooly was launched from, where the file browser first opens (#376): the working folder, where
@@ -187,6 +189,7 @@ public sealed class Shell
             new PostDefaults(preferences?.DefaultVisibility, preferences?.DefaultLanguage),
             launchedFrom ?? Environment.CurrentDirectory);
         ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
+        RailCollapsed = preferences?.CollapsedRail ?? false;
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
         _badges = new InboxBadges(ports, Rail, host, clock, timing, ringing: preferences?.Bell ?? true, Landed);
@@ -285,6 +288,7 @@ public sealed class Shell
     /// <summary>
     ///     Whether the rail is the <b>collapsed rail</b> (<c>GLOSSARY.md</c>), a strip of one mark a destination, rather
     ///     than the expanded rail with its labels: how the rail is drawn and how wide, and nothing else about it (#441).
+    ///     What the config file saved, or expanded, until <c>\</c> toggles it (#442).
     /// </summary>
     public bool RailCollapsed { get; private set; }
 
@@ -971,6 +975,17 @@ public sealed class Shell
     public void ToggleRail()
     {
         RailCollapsed = !RailCollapsed;
+
+        // Saved straight away, as a width step is, so the next launch opens on the rail this one was left on (#442).
+        // One that cannot be saved still holds for this session, since it was seen; the status row says why.
+        try
+        {
+            _shellPreferences.SaveRail(RailCollapsed);
+        }
+        catch (WoolyException failure)
+        {
+            StatusRow.Say(failure.Message, isError: true);
+        }
 
         Changed?.Invoke();
     }

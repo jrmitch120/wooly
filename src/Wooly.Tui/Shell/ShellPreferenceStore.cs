@@ -16,6 +16,9 @@ public sealed class ShellPreferenceStore(IConfigStore config) : IShellPreference
     /// <inheritdoc />
     public void SaveWidth(ShellWidth width) => Saved(preferences => preferences with { ShellWidth = width.Percent });
 
+    /// <inheritdoc />
+    public void SaveRail(bool collapsed) => Saved(preferences => preferences with { CollapsedRail = collapsed });
+
     private void Saved(Func<Preferences, Preferences> set)
     {
         var stored = config.Load();

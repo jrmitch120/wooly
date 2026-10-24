@@ -6,8 +6,8 @@ using Wooly.Tui.Shell;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The shell width saved into a real config file, in a folder of its own (#415): the one preference set, and
-///     everything else in the file left as it was.
+///     The shell's preferences saved into a real config file, in a folder of its own (#415, #442): the one preference
+///     set, and everything else in the file left as it was.
 /// </summary>
 public class ShellPreferenceStoreTests
 {
@@ -51,5 +51,30 @@ public class ShellPreferenceStoreTests
         store.SaveWidth(ShellWidth.Full);
 
         Assert.Empty(File.ReadAllText(paths.ConfigFile));
+    }
+
+    /// <summary>
+    ///     Collapsing the rail writes it beside the width, and expanding it again takes the line away, leaving the width
+    ///     where it was.
+    /// </summary>
+    [Fact]
+    public void SavingTheRailWritesItBesideTheWidth_AndExpandingItTakesTheLineAway()
+    {
+        using var directory = new TemporaryDirectory();
+        var paths = new WoolyPaths(directory.Path);
+        var config = new TomlConfigStore(paths);
+        var store = new ShellPreferenceStore(config);
+
+        store.SaveWidth(ShellWidth.Of(90));
+        store.SaveRail(collapsed: true);
+
+        Assert.True(config.Load().Preferences.CollapsedRail);
+        Assert.Equal(90, config.Load().Preferences.ShellWidth);
+
+        store.SaveRail(collapsed: false);
+
+        var toml = File.ReadAllText(paths.ConfigFile);
+        Assert.DoesNotContain("collapsed_rail", toml);
+        Assert.Contains("shell_width = 90", toml);
     }
 }

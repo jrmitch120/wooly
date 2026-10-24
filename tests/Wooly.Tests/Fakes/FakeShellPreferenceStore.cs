@@ -12,6 +12,9 @@ internal sealed class FakeShellPreferenceStore : IShellPreferenceStore
     /// <summary>Every width saved, as its percentage, in order — where a test proves what was saved and how often.</summary>
     public List<int> Widths { get; } = [];
 
+    /// <summary>Every rail saved, <see langword="true" /> where it was the collapsed rail, in order.</summary>
+    public List<bool> Rails { get; } = [];
+
     /// <summary>
     ///     Where the config file has been edited by hand into something that no longer reads, what saving says — or
     ///     <see langword="null" /> where it saves.
@@ -24,6 +27,14 @@ internal sealed class FakeShellPreferenceStore : IShellPreferenceStore
         Refuse();
 
         Widths.Add(width.Percent);
+    }
+
+    /// <inheritdoc />
+    public void SaveRail(bool collapsed)
+    {
+        Refuse();
+
+        Rails.Add(collapsed);
     }
 
     /// <summary>Throws what saving says where the file no longer reads, as the real store would on loading it.</summary>

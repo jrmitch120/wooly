@@ -13,4 +13,10 @@ public interface IShellPreferenceStore
 {
     /// <summary>Saves <paramref name="width" />, so that the next launch opens at it.</summary>
     void SaveWidth(ShellWidth width);
+
+    /// <summary>
+    ///     Saves whether the rail is the collapsed rail (<paramref name="collapsed" />) or the expanded one, so that the
+    ///     next launch opens on it.
+    /// </summary>
+    void SaveRail(bool collapsed);
 }
