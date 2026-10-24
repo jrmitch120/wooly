@@ -3,6 +3,7 @@ using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using static Wooly.Tests.Tui.RailHeights;
 
 namespace Wooly.Tests.Tui;
 
@@ -14,15 +15,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class RailToggleMarkTests
 {
-    /// <summary>Tall enough that every group is framed, as <see cref="ShellRailClickTests" /> counts it.</summary>
-    private const int Framed = 24;
-
-    /// <summary>Too short to frame the groups, tall enough for the compact rail whole.</summary>
-    private const int Compact = 18;
-
-    /// <summary>Too short even for the compact rail, which scrolls to keep the cursor's group in view.</summary>
-    private const int Scrolled = 12;
-
     /// <summary>
     ///     So short that the scrolled rail keeps two rows of the cursor's group over the gauge, and no heading.
     /// </summary>
@@ -40,7 +32,7 @@ public class RailToggleMarkTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task AClickOnTheMarkHidesTheRailAndAClickOnItsOtherShowsIt(bool coloured)
+    public async Task AClickOnTheMarkHidesTheRailAndAClickOnTheHiddenRailsMarkShowsIt(bool coloured)
     {
         var built = new AShell();
         using var drawn = await DrawnShell.Of(80, Framed, Theme(coloured), built);
@@ -91,7 +83,7 @@ public class RailToggleMarkTests
     [InlineData(Compact, false)]
     [InlineData(Scrolled, true)]
     [InlineData(Scrolled, false)]
-    public async Task CompactTheMarkIsTheFirstCellOfTheGaugeRow(int height, bool coloured)
+    public async Task OnTheCompactRailTheMarkIsTheFirstCellOfTheGaugeRow(int height, bool coloured)
     {
         var built = new AShell();
         using var drawn = await DrawnShell.Of(80, height, Theme(coloured), built);
@@ -273,7 +265,7 @@ public class RailToggleMarkTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task EveryOtherClickIsAsItWas(bool coloured)
+    public async Task AClickAnywhereButTheMarkIsAsItWas(bool coloured)
     {
         var built = new AShell();
         using var drawn = await DrawnShell.Of(80, Framed, Theme(coloured), built);
@@ -314,7 +306,7 @@ public class RailToggleMarkTests
     ///     leave the rail as it was, and the right button is <c>esc</c> there as anywhere.
     /// </summary>
     [Fact]
-    public async Task NoHoverNoDragAndNoWheelOverTheMark()
+    public async Task HoveringDraggingOrWheelingOverTheMarkTogglesNothing()
     {
         var built = new AShell();
         using var drawn = await DrawnShell.Of(80, Framed, Themes.Dark, built);

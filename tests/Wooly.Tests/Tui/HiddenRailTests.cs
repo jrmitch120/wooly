@@ -4,6 +4,7 @@ using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using static Wooly.Tests.Tui.RailHeights;
 
 namespace Wooly.Tests.Tui;
 
@@ -14,15 +15,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class HiddenRailTests
 {
-    /// <summary>Tall enough that every group is framed, as <see cref="ShellRailClickTests" /> counts it.</summary>
-    private const int Framed = 24;
-
-    /// <summary>Too short to frame the groups, tall enough for the compact rail whole.</summary>
-    private const int Compact = 18;
-
-    /// <summary>Too short even for the compact rail, which scrolls to keep the cursor's group in view.</summary>
-    private const int Scrolled = 12;
-
     /// <summary>The key that hides and shows the rail.</summary>
     private static readonly Key Toggle = new('\\');
 
@@ -222,7 +214,7 @@ public class HiddenRailTests
     ///     nothing in its place: <c>\</c> is a letter there.
     /// </summary>
     [Fact]
-    public async Task HiddenTheStatusRowOffersTheRailInPlaceOfTheWalk()
+    public async Task WhileTheRailIsHiddenTheStatusRowOffersBackslashInPlaceOfTheWalk()
     {
         using var drawn = await DrawnShell.Of(300, Framed, Themes.Plain);
 
@@ -395,7 +387,7 @@ public class HiddenRailTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task ThePickedPostStaysOnItsRow(bool coloured)
+    public async Task AToggleKeepsThePickedPostOnItsRow(bool coloured)
     {
         using var drawn = await DrawnShell.Of(80, Framed, Theme(coloured), Long());
 
@@ -426,7 +418,7 @@ public class HiddenRailTests
     ///     just past the panel's edge and gutter, to the column before the panel's right edge — and back.
     /// </summary>
     [Fact]
-    public async Task APictureIsLaidOutAgainAtTheNewWidth()
+    public async Task AToggleLaysAPictureOutAgainAtTheNewWidth()
     {
         using var drawn = await DrawnShell.Of(
             80,
@@ -458,7 +450,7 @@ public class HiddenRailTests
     ///     what was at the top is still at the top.
     /// </summary>
     [Fact]
-    public async Task WithNothingPickedTheTopStaysAtTheTop()
+    public async Task WithNothingPickedAToggleLeavesThePageAtItsTop()
     {
         using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
 
