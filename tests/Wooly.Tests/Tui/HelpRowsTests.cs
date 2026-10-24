@@ -99,4 +99,60 @@ public class HelpRowsTests
         Assert.Contains(rows, row => row.Contains("Everywhere", StringComparison.Ordinal));
         Assert.DoesNotContain(rows[..^1], row => row[panel..].Contains('…'));
     }
+
+    /// <summary>
+    ///     Nor inside a narrowed shell, whose content panel is narrower than the terminal: 160 narrowed to its
+    ///     narrowest, 80 columns, and 200 narrowed to half, with the rail shown or hidden.
+    /// </summary>
+    [Theory]
+    [InlineData(160, 5, false)]
+    [InlineData(160, 5, true)]
+    [InlineData(200, 5, false)]
+    [InlineData(200, 5, true)]
+    public async Task NothingOnHelpIsClippedInANarrowedShell(int width, int narrowed, bool hidden)
+    {
+        using var drawn = await DrawnShell.Of(width, Tall, Themes.Plain);
+
+        for (var step = 0; step < narrowed; step++)
+        {
+            drawn.Press(new Key('-'));
+        }
+
+        if (hidden)
+        {
+            drawn.Press(new Key('\\'));
+        }
+
+        drawn.Press(new Key('?'));
+
+        var rows = drawn.Rows();
+        var panel = drawn.Window.Frame.X + drawn.Content.Frame.X;
+
+        Assert.Equal(width / 2, drawn.Window.Frame.Width);
+        Assert.Contains(rows, row => row.Contains("Everywhere", StringComparison.Ordinal));
+        Assert.DoesNotContain(rows[..^1], row => row[panel..].Contains('…'));
+    }
+
+    /// <summary>
+    ///     Help is taller than an 80 by 16 terminal, and <c>↓</c> reads down it to its last row, the mouse's last
+    ///     action, rather than stopping short of it.
+    /// </summary>
+    [Fact]
+    public async Task HelpScrollsToItsLastRow()
+    {
+        using var drawn = await DrawnShell.Of(80, 16, Themes.Plain);
+
+        drawn.Press(new Key('?'));
+
+        Assert.DoesNotContain(drawn.Rows(), row => row.Contains("click «/»", StringComparison.Ordinal));
+
+        for (var row = 0; row < Tall; row++)
+        {
+            drawn.Press(Key.CursorDown);
+        }
+
+        Assert.Contains(
+            drawn.Rows(),
+            row => row.Contains("click «/»       hide or show the rail", StringComparison.Ordinal));
+    }
 }
