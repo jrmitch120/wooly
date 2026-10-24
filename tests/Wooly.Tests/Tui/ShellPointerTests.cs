@@ -355,7 +355,9 @@ public class ShellPointerTests
         Assert.DoesNotContain(sources, file => File.ReadAllText(file).Contains("IsMouseDisabled", StringComparison.Ordinal));
     }
 
-    /// <summary>The keymap says among the frame's keys what the mouse does, the wheel on a row of its own (#446).</summary>
+    /// <summary>
+    ///     The keymap says among the frame's keys what the mouse does, the wheel on a row of its own (#446).
+    /// </summary>
     [Fact]
     public async Task Help_SaysWhatTheMouseDoesAmongTheFrameKeys()
     {

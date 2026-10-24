@@ -337,8 +337,9 @@ internal sealed class ShellWindow : Window
         // contract has settled means something else, and what it means instead is a letter rather than another verb.
         // Which screens do that is a fact about the screen, not a mode kept here. Two keys are left to the keymap
         // wherever it gives them a meaning on the screen. A space is choosing in the file browser, whose fuzzy filter
-        // never needs one typed (#376). `\` hides and shows the rail from a prompt too, so that the hidden rail is never
-        // out of the keys' reach there; a screen that types it as a letter gets no meaning for it, and types it (#447).
+        // never needs one typed (#376). `\` hides and shows the rail from a prompt too, so that the hidden rail is
+        // never out of the keys' reach there; a screen that types it as a letter gets no meaning for it, and types it
+        // (#447).
         if (_shell.Screen.IsTyping && !TakenAheadOfTheTyping(key) && Typing(key))
         {
             return true;
@@ -605,8 +606,8 @@ internal sealed class ShellWindow : Window
     private bool Declined() => _shell.StatusRow.Answered(press: null);
 
     /// <summary>
-    ///     Whether <paramref name="key" /> is a space or a <c>\</c> the keymap means something by on the screen in front,
-    ///     rather than a letter for whatever it is typing into (#376, #447).
+    ///     Whether <paramref name="key" /> is a space or a <c>\</c> the keymap means something by on the screen in
+    ///     front, rather than a letter for whatever it is typing into (#376, #447).
     /// </summary>
     private bool TakenAheadOfTheTyping(Key key) =>
         ShellKeys.Of(key) is (ShellKey.Space or ShellKey.Backslash) and var pressed
@@ -985,11 +986,11 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     The click a drag ends in, taken before any view is asked wherever it lands (story 58): it is the drop, already
-    ///     carried out row by row as the pointer moved, so it puts the row down and is spent. Asked here rather than by
-    ///     <see cref="OnMouseEvent" /> because a drop on a cell some view keeps from the window — the content panel's
-    ///     bottom edge, the hidden rail's <c>»</c> on it — would leave the drag standing, and the next click there lost
-    ///     to it.
+    ///     The click a drag ends in, taken before any view is asked wherever it lands (story 58): it is the drop,
+    ///     already carried out row by row as the pointer moved, so it puts the row down and is spent. Asked here rather
+    ///     than by <see cref="OnMouseEvent" /> because a drop on a cell some view keeps from the window — the content
+    ///     panel's bottom edge, the hidden rail's <c>»</c> on it — would leave the drag standing, and the next click
+    ///     there lost to it.
     /// </summary>
     private void Dropped(Mouse mouse)
     {

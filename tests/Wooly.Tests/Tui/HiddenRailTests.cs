@@ -389,9 +389,9 @@ public class HiddenRailTests
     }
 
     /// <summary>
-    ///     On the attachments file browser <c>\</c> is typed into the filter, as it is on the screens with fields, since a
-    ///     Windows path is typed with it (#447): the rail does not move, shown or hidden, and hidden the locked walk says
-    ///     only <c>Rail hidden</c>, naming no key that would be typed.
+    ///     On the attachments file browser <c>\</c> is typed into the filter, as it is on the screens with fields,
+    ///     since a Windows path is typed with it (#447): the rail does not move, shown or hidden, and hidden the locked
+    ///     walk says only <c>Rail hidden</c>, naming no key that would be typed.
     /// </summary>
     [Theory]
     [InlineData(RailState.Shown)]
@@ -689,8 +689,8 @@ public class HiddenRailTests
     }
 
     /// <summary>
-    ///     <c>\</c> pressed twice on the prompt <paramref name="drawn" /> is typing into: the rail hidden and the content
-    ///     panel on the shell's first column, then the rail shown again, and the prompt still taking letters.
+    ///     <c>\</c> pressed twice on the prompt <paramref name="drawn" /> is typing into: the rail hidden and the
+    ///     content panel on the shell's first column, then the rail shown again, and the prompt still taking letters.
     /// </summary>
     private static void TogglesWhileTyping(DrawnShell drawn)
     {

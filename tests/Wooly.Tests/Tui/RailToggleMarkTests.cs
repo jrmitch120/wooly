@@ -185,7 +185,8 @@ public class RailToggleMarkTests
         var built = new AShell
         {
             Accounts = FakeAccountRelationships.Holding(me),
-            PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(displayName: string.Empty, account: me)),
+            PublicProfile = FakePublicProfileEditor.Holding(
+                APublicProfile.With(displayName: string.Empty, account: me)),
             HiddenRail = rail is RailState.Hidden,
         };
         using var drawn = await DrawnShell.Of(80, 30, Themes.Plain, built);

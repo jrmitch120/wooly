@@ -108,9 +108,9 @@ public class ComposeAttachmentsScreenTests : IDisposable
 
     /// <summary>
     ///     A drag let go of on the content panel's bottom edge, whose cells the panel's own frame takes — the middle of
-    ///     it, or the hidden rail's <c>»</c> on its corner — is a drop there as anywhere: the rows stay as the drag left
-    ///     them, the rail as it was, and the next click is a click, not a second drop: here on the toggle's mark, which
-    ///     hides or shows the rail.
+    ///     it, or the hidden rail's <c>»</c> on its corner — is a drop there as anywhere: the rows stay as the drag
+    ///     left them, the rail as it was, and the next click is a click, not a second drop: here on the toggle's mark,
+    ///     which hides or shows the rail.
     /// </summary>
     [Theory]
     [InlineData(false)]

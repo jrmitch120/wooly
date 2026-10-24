@@ -4,8 +4,8 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The <c>?</c> screen's rows as the shell draws them (#446): the mouse an action a row, its input in the key column
-///     as every key's is, and a meaning too long for the panel carried on under its own column rather than cut.
+///     The <c>?</c> screen's rows as the shell draws them (#446): the mouse an action a row, its input in the key
+///     column as every key's is, and a meaning too long for the panel carried on under its own column rather than cut.
 /// </summary>
 public class HelpRowsTests
 {
@@ -13,8 +13,8 @@ public class HelpRowsTests
     private const int Tall = 80;
 
     /// <summary>
-    ///     At 80 columns with the rail shown, the mouse is six rows of the <i>Everywhere</i> block, one action each, read
-    ///     from the key column to the panel's right edge.
+    ///     At 80 columns with the rail shown, the mouse is six rows of the <i>Everywhere</i> block, one action each,
+    ///     read from the key column to the panel's right edge.
     /// </summary>
     [Fact]
     public async Task TheMouseIsOneActionARowWithItsInputInTheKeyColumn()
