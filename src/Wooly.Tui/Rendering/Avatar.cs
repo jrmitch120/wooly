@@ -45,7 +45,16 @@ public readonly record struct Avatar(PictureBox? Box, int Gap)
     /// </remarks>
     /// <inheritdoc cref="Of" path="/param" />
     public static Avatar Byline(string account, string? address, IPictures? pictures, Raster? raster) =>
-        Of(account, address, pictures, raster, columns: 4, rows: 2, gap: 1);
+        Of(account, address, pictures, raster, BylineColumns, BylineRows, gap: 1);
+
+    /// <summary>
+    ///     How wide a byline's box is — and a notification group's avatar strip's faces, which are the same faces
+    ///     at the same size (#454).
+    /// </summary>
+    internal const int BylineColumns = 4;
+
+    /// <summary>How tall a byline's box is, and so how many rows an avatar strip takes.</summary>
+    internal const int BylineRows = 2;
 
     /// <summary>
     ///     What an account screen's header block spends on the same face: twice the byline's box, beside four rows

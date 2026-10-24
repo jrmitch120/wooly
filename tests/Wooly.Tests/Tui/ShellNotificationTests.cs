@@ -42,11 +42,11 @@ public class ShellNotificationTests
     }
 
     /// <summary>
-    ///     A notification is not the post it is about (GLOSSARY.md): dismissing takes the notification's own id, and
-    ///     dismissing by the post's would clear nothing.
+    ///     A notification is not the post it is about (GLOSSARY.md): dismissing names the picked group by its own key,
+    ///     and dismissing by the post's id would clear nothing.
     /// </summary>
     [Fact]
-    public async Task Dismiss_ClearsThePickedNotificationByItsOwnId()
+    public async Task Dismiss_ClearsThePickedGroupByItsOwnKey()
     {
         var shell = new AShell
         {
@@ -63,7 +63,7 @@ public class ShellNotificationTests
         opened.Press(ShellKey.D);
         shell.Host.Drain();
 
-        Assert.Equal("34", Assert.Single(shell.Notifications.Dismissals).NotificationId);
+        Assert.Equal("ungrouped-34", Assert.Single(shell.Notifications.GroupDismissals).Key);
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
         Assert.Equal(["36"], screen.Groups.Select(group => group.NewestId));

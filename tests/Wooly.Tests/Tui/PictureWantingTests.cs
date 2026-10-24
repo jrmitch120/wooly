@@ -192,6 +192,24 @@ public class PictureWantingTests
     }
 
     /// <summary>
+    ///     A row of several boxes side by side — a notification group's avatar strip (#454) — wants every picture on it,
+    ///     in the order the row names them, and a row that has scrolled out of reach wants none of them.
+    /// </summary>
+    [Fact]
+    public void ARowOfSeveralBoxesWantsEveryPictureOnIt()
+    {
+        var pictures = new FakePictures();
+        var rows = Enumerable.Range(0, 100).Select(at => Line.Of($"row {at}", Role.Body)).ToArray();
+
+        rows[21] = rows[21] with { Wants = Picture("a"), AlsoWants = [Picture("b"), Picture("c")] };
+        rows[90] = rows[90] with { Wants = Picture("x"), AlsoWants = [Picture("y")] };
+
+        Placed(pictures).Frame(rows, 20, Width, Height, ARaster.Sixel());
+
+        Assert.Equal(["a", "b", "c"], pictures.Frames[^1].Select(wanted => wanted.Drawn.Id));
+    }
+
+    /// <summary>
     ///     Rows each wanting a picture named for the row, at the edges of every reach a page at rows 35 to 45 could
     ///     have — so that which of them a frame says is exactly where its reach begins and ends.
     /// </summary>
