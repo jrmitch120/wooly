@@ -317,6 +317,38 @@ public class CollapsedRailTests
         Assert.Equal(0, drawn.Content.Frame.X);
     }
 
+    /// <summary>The keymap lists <c>\</c> with the frame's keys, everywhere.</summary>
+    [Fact]
+    public async Task TheKeymapListsBackslashWithTheFrame()
+    {
+        using var drawn = await DrawnShell.Of(80, 40, Themes.Plain);
+
+        drawn.Press(new Key('?'));
+
+        var rows = drawn.Rows();
+        var everywhere = Array.FindIndex(rows, row => row.Contains("Everywhere", StringComparison.Ordinal));
+        var key = Array.FindIndex(rows, row => row.Contains("│\\ ", StringComparison.Ordinal));
+
+        Assert.InRange(everywhere, 0, key - 1);
+        Assert.Contains("collapse or expand the rail", rows[key], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     And the status row does not, as it does not list the Shell width keys: set and forgotten, it would take room
+    ///     on every screen.
+    /// </summary>
+    [Fact]
+    public async Task TheStatusRowDoesNotOfferBackslash()
+    {
+        using var drawn = await DrawnShell.Of(300, 24, Themes.Plain);
+
+        Assert.DoesNotContain("\\", drawn.Rows()[^1], StringComparison.Ordinal);
+
+        drawn.Press(Toggle);
+
+        Assert.DoesNotContain("\\", drawn.Rows()[^1], StringComparison.Ordinal);
+    }
+
     /// <summary>
     ///     Which of <paramref name="rail" />'s rows <paramref name="label" /> is drawn on, found by its start, since a
     ///     long handle is clipped.
