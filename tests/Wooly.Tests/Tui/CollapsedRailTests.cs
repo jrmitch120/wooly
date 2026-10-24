@@ -129,7 +129,9 @@ public class CollapsedRailTests
         Assert.Equal(theme.For(Role.RailUnread), drawn.Cell(messages, 5));
     }
 
-    /// <summary>Without colour, the kept mark column carries them: the cursor's mark, and the selection's while it lags.</summary>
+    /// <summary>
+    ///     Without colour, the kept mark column carries them: the cursor's mark, and the selection's while it lags.
+    /// </summary>
     [Fact]
     public async Task WithoutColourTheMarkColumnCarriesTheCursorAndTheSelection()
     {
@@ -175,7 +177,7 @@ public class CollapsedRailTests
 
         var strip = drawn.Rail(Strip(coloured));
 
-        Assert.Equal(rows, drawn.Shell.Rail.Destinations.Select(destination => RowOf(drawn.Shell, destination.Kind, strip)));
+        Assert.Equal(rows, drawn.Shell.Rail.Destinations.Select(place => RowOf(drawn.Shell, place.Kind, strip)));
         Assert.Equal(expanded.Select(Framing), strip.Select(Framing));
         Assert.Equal(height == Scrolled, rows.Contains(-1));
     }
@@ -417,7 +419,7 @@ public class CollapsedRailTests
         drawn.Press(Key.Tab);
         drawn.Press(new Key('`'));
 
-        var discover = drawn.Shell.Rail.Destinations.ToList().FindIndex(destination => destination.Kind == DestinationKind.Discover);
+        var discover = drawn.Shell.Rail.Destinations.ToList().FindIndex(place => place.Kind == DestinationKind.Discover);
 
         Assert.Equal(discover, drawn.Shell.Rail.Cursor);
         Assert.Equal(0, drawn.Shell.Rail.Current);
@@ -432,7 +434,9 @@ public class CollapsedRailTests
         Assert.Equal(Strip(coloured), drawn.Rows()[0].IndexOf("╭ Discover", StringComparison.Ordinal));
     }
 
-    /// <summary>A click on a mark arrives there at once, as a click on a label does: no settle window is waited out.</summary>
+    /// <summary>
+    ///     A click on a mark arrives there at once, as a click on a label does: no settle window is waited out.
+    /// </summary>
     [Theory]
     [InlineData(Framed, true)]
     [InlineData(Framed, false)]
@@ -548,7 +552,7 @@ public class CollapsedRailTests
     private static int RowOf(string[] rail, string label) =>
         Array.FindIndex(rail, row => row.Contains(label[..Math.Min(6, label.Length)], StringComparison.Ordinal));
 
-    /// <summary>Which row of <paramref name="strip" /> is <paramref name="kind" />'s, read off the strip by its mark.</summary>
+    /// <summary>Which row of <paramref name="strip" /> is <paramref name="kind" />'s, read off it by its mark.</summary>
     private static int RowOf(Shell shell, DestinationKind kind, string[] strip)
     {
         var mark = Marks[shell.Rail.Destinations.ToList().FindIndex(destination => destination.Kind == kind)];
@@ -568,12 +572,12 @@ public class CollapsedRailTests
     private static string Gauge(DrawnShell drawn, bool coloured) =>
         drawn.Rail(Strip(coloured)).Single(row => row.Contains('%', StringComparison.Ordinal));
 
-    /// <summary><paramref name="kind" />'s unread count set to <paramref name="unread" />, and the shell drawn again.</summary>
+    /// <summary><paramref name="kind" />'s count set to <paramref name="unread" />, and the shell drawn again.</summary>
     private static void Counted(DrawnShell drawn, DestinationKind kind, int unread, bool full = false)
     {
         var rail = drawn.Shell.Rail;
 
-        rail.Update(rail.Destinations.Single(destination => destination.Kind == kind) with { Unread = unread, Full = full });
+        rail.Update(rail.Destinations.Single(place => place.Kind == kind) with { Unread = unread, Full = full });
         drawn.Redraw();
     }
 

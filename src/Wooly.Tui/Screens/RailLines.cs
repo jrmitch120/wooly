@@ -10,7 +10,7 @@ namespace Wooly.Tui.Screens;
 ///     The rail as rows: the four rail groups, each a panel titled with its name and holding its destinations with
 ///     their unread counts, and an <c>API</c> panel at the foot holding the budget as a gauge — with the instance above
 ///     it where there are profiles to tell apart. Twenty columns, frames included, full height less the status row
-///     (<c>docs/tui-shell.md</c>, ADR-0021).
+///     (<c>docs/tui-shell.md</c>, ADR-0021) — or, collapsed, a strip of one mark a destination (#441).
 /// </summary>
 /// <remarks>
 ///     On a terminal too short to frame every group the rail steps down rather than clipping: compact, with each
@@ -33,7 +33,9 @@ public static class RailLines
     /// </summary>
     public const int CollapsedWidth = 7;
 
-    /// <summary>The collapsed rail is wider by the mark column where colour is not drawn, which carries the cursor.</summary>
+    /// <summary>
+    ///     The collapsed rail is wider by the mark column where colour is not drawn, which carries the cursor.
+    /// </summary>
     public const int CollapsedPlainWidth = CollapsedWidth + MarkColumns;
 
     /// <summary>
@@ -61,7 +63,7 @@ public static class RailLines
     /// <summary>The columns the one mark column takes with the space after it.</summary>
     private const int MarkColumns = 2;
 
-    /// <summary>The columns the widest count takes, <c>40+</c>, which the collapsed rail keeps whatever is waiting.</summary>
+    /// <summary>The columns the widest count takes, <c>40+</c>, kept on the collapsed rail whatever is waiting.</summary>
     private const int CountColumns = 3;
 
     /// <summary>The columns a panel's two sides take off the rows inside it.</summary>
@@ -192,7 +194,8 @@ public static class RailLines
             // with a column after the count, so the marks and the counts stand where they do framed.
             var lead = collapsed ? " " : coloured ? new string(' ', MarkColumns) : string.Empty;
 
-            body.AddRange(places.Select(at => Entry(rail, at, width, lead + (coloured ? string.Empty : Mark(rail, at)), drawing)));
+            body.AddRange(places.Select(at =>
+                Entry(rail, at, width, lead + (coloured ? string.Empty : Mark(rail, at)), drawing)));
         }
 
         var spare = height - body.Count - 1;

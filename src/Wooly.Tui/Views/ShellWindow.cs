@@ -198,7 +198,8 @@ internal sealed class ShellWindow : Window
 
         var rail = _rail = new PaintedView(
             theme,
-            (_, height) => RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance, theme.DrawsColour, shell.RailCollapsed))
+            (_, height) =>
+                RailLines.Of(shell.Rail, shell.Quota, height, shell.Instance, theme.DrawsColour, shell.RailCollapsed))
         {
             X = 0,
             Y = 0,
