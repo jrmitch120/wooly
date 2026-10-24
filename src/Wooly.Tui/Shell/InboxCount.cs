@@ -265,8 +265,9 @@ internal sealed class InboxCount(
     /// <param name="Badge">What the rail's badge says.</param>
     /// <param name="Unread">
     ///     What names the rows to draw unread for this visit — a notification group's key — or
-    ///     <see langword="null" /> for none. Only Notifications has any: arriving there moves the read marker past them, so the badge no longer says which were new, and
-    ///     the screen does instead. A conversation carries its own unread flag, and a request waits until answered.
+    ///     <see langword="null" /> for none. Only Notifications has any: arriving there moves the read marker past
+    ///     them, so the badge no longer says which were new, and the screen does instead. A conversation carries its
+    ///     own unread flag, and a request waits until answered.
     /// </param>
     public sealed record Tally(Found.Badge Badge, IReadOnlySet<string>? Unread = null)
     {

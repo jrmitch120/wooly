@@ -320,9 +320,9 @@ not answer them differently:
   nothing at all and are untouched, and the search prompt drops its arrows while it is taking letters for that reason
   rather than this one.
 - **A notification is not the post it is about.** `d` dismisses by the group's own key (#457), or on an instance too old
-  to group by the notification's own id; every other key on the
-  row acts on the post it carries, so a mention can be answered without leaving the inbox. A follow carries no post,
-  and picking one leaves those keys with nothing to act on rather than guessing — which is why they are off its row.
+  to group by the notification's own id; every other key on the row acts on the post it carries, so a mention can be
+  answered without leaving the inbox. A follow carries no post, and picking one leaves those keys with nothing to act
+  on rather than guessing — which is why they are off its row.
 - **Notifications are drawn as the instance groups them** (ADR-0032, #453). Each row is a **Notification group**, read
   from `GET /api/v2/notifications` with no `grouped_types`, or one notification a group where the instance has no
   grouped read. Its names line names two actors and counts the rest by the instance's count (`Alice, Bob and 6 others
