@@ -185,6 +185,7 @@ internal sealed class ShellWindow : Window
 
             if (App is { } application)
             {
+                application.Mouse.MouseEvent += (_, mouse) => Dropped(mouse);
                 application.Mouse.MouseEvent += (_, mouse) => InTheMargins(mouse);
                 application.Mouse.MouseEvent += (_, mouse) => AtTheToggleMark(mouse);
             }
@@ -379,16 +380,9 @@ internal sealed class ShellWindow : Window
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
-            // A click puts down whatever its press picked up, its let-go reported or not.
+            // A click puts down whatever its press picked up, its let-go reported or not. One a drag ends in never
+            // reaches here: it is the drop, already carried out (Dropped).
             _pressedOn = null;
-
-            // The click a drag ends in is the drop, already carried out.
-            if (_dragged)
-            {
-                _dragged = false;
-
-                return true;
-            }
 
             return Clicked(mouse.ScreenPosition, Chorded(mouse)) || base.OnMouseEvent(mouse);
         }
@@ -982,6 +976,25 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
+    ///     The click a drag ends in, taken before any view is asked wherever it lands (story 58): it is the drop, already
+    ///     carried out row by row as the pointer moved, so it puts the row down and is spent. Asked here rather than by
+    ///     <see cref="OnMouseEvent" /> because a drop on a cell some view keeps from the window — the content panel's
+    ///     bottom edge, the hidden rail's <c>»</c> on it — would leave the drag standing, and the next click there lost
+    ///     to it.
+    /// </summary>
+    private void Dropped(Mouse mouse)
+    {
+        if (mouse.Handled || !_dragged || !mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
+        {
+            return;
+        }
+
+        _pressedOn = null;
+        _dragged = false;
+        mouse.Handled = true;
+    }
+
+    /// <summary>
     ///     A mouse event in either margin of a narrowed shell, taken before any view is asked (#416): those cells are the
     ///     terminal's, not the shell's, so every button there does nothing — but the wheel scrolls the content panel, as
     ///     it does over the panel itself, so that a reader need not aim for the panel to scroll.
@@ -1012,11 +1025,11 @@ internal sealed class ShellWindow : Window
     /// </summary>
     /// <remarks>
     ///     A view holding the mouse keeps every event, as <see cref="InTheMargins" /> leaves it, and a drag ending on
-    ///     the mark is the drop it already is.
+    ///     the mark is the drop it already is (<see cref="Dropped" />).
     /// </remarks>
     private void AtTheToggleMark(Mouse mouse)
     {
-        if (mouse.Handled || App?.Mouse.IsGrabbed() == true || _dragged || !OnTheToggleMark(mouse.ScreenPosition))
+        if (mouse.Handled || App?.Mouse.IsGrabbed() == true || !OnTheToggleMark(mouse.ScreenPosition))
         {
             return;
         }

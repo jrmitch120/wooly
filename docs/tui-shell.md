@@ -1215,7 +1215,8 @@ lists them under a read-only Media header of its own (#381).
   rows about after a click as the pointer passed over them. Two quick clicks on `x` take two rows off — the second the
   row that took the first one's place — though Terminal.Gui reports the second as a double click, which anywhere else
   on a row describes; the same on `retry (r)`. The attachments screen's rows drag the same way, a press there picking
-  the row as it picks it up, and none of them is ever on the band.
+  the row as it picks it up, and none of them is ever on the band. A drag let go of anywhere — the content panel's
+  frame and the hidden rail's `»` on it too — ends there, so the next click is a click.
 - **Past the limit**, a drop attaches as many as fit and the status row says `2 left out — 4 is the most a post can
   carry.`, or `Nothing attached — …` onto a full post.
 - **Anything attached touches the draft** (#373), so leaving it asks first.

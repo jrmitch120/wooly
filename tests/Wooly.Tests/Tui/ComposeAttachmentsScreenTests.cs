@@ -107,6 +107,53 @@ public class ComposeAttachmentsScreenTests : IDisposable
     }
 
     /// <summary>
+    ///     A drag let go of on the content panel's bottom edge, whose cells the panel's own frame takes — the middle of
+    ///     it, or the hidden rail's <c>»</c> on its corner — is a drop there as anywhere: the rows stay as the drag left
+    ///     them, the rail as it was, and the next click is a click, not a second drop: here on the toggle's mark, which
+    ///     hides or shows the rail.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task InTheWindowADragLetGoOfOnTheBottomEdgeEndsThere(bool onTheMark)
+    {
+        var built = new AShell { LaunchedFrom = _files.Path, HiddenRail = onTheMark };
+        using var drawn = await DrawnShell.Of(80, Short + 3, Themes.Plain, built);
+
+        drawn.Shell.Press(ShellKey.C);
+        drawn.Redraw();
+
+        foreach (var name in new[] { "one.png", "two.png", "three.png" })
+        {
+            Assert.True(drawn.Shell.Paste(_files.WriteFile(name)));
+        }
+
+        drawn.Redraw();
+
+        var (column, row) = At(drawn, "Media", "3 of 4");
+
+        drawn.Click(column + 1, row);
+
+        var listed = Assert.IsType<AttachmentsScreen>(drawn.Shell.Screen);
+        var bottom = drawn.Rows().Length - 2;
+        var dropped = onTheMark ? 1 : 40;
+
+        (column, row) = At(drawn, "three.png", "three.png");
+        drawn.Point(column, row, MouseFlags.LeftButtonPressed);
+        drawn.Point(column, row - 1, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+        drawn.Point(dropped, bottom, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+        drawn.Point(dropped, bottom, MouseFlags.LeftButtonReleased);
+        drawn.Point(dropped, bottom, MouseFlags.LeftButtonClicked);
+
+        Assert.Equal(["one.png", "three.png", "two.png"], Names(listed.Compose));
+        Assert.Equal(onTheMark ? RailState.Hidden : RailState.Shown, drawn.Shell.RailState);
+
+        drawn.Click(1, bottom);
+
+        Assert.Equal(onTheMark ? RailState.Shown : RailState.Hidden, drawn.Shell.RailState);
+    }
+
+    /// <summary>
     ///     On the attachments screen as under the Media header: a click is not a drag, and nor is the pointer moving with
     ///     no press made on a row, however the terminal reports it.
     /// </summary>
