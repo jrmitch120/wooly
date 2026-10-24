@@ -107,6 +107,114 @@ public class RailToggleMarkTests
         Assert.False(drawn.Shell.RailCollapsed);
     }
 
+    /// <summary>
+    ///     Where <c>\</c> means nothing the click means nothing either — on compose, where it is typed — so the rail
+    ///     stays as it was, nothing is saved, and the draft is still in front.
+    /// </summary>
+    [Fact]
+    public async Task OnComposeAClickOnTheMarkDoesNothing()
+    {
+        var built = new AShell();
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, built);
+
+        ComposeRows.Open(drawn.Shell, ComposeFor.Post);
+        drawn.Redraw();
+
+        var compose = drawn.Shell.Screen;
+
+        drawn.Click(RailLines.Width - 2, 0);
+
+        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Empty(built.ShellPreferences.Rails);
+        Assert.Same(compose, drawn.Shell.Screen);
+        Assert.Equal(RailLines.Width, drawn.Content.Frame.X);
+    }
+
+    /// <summary>
+    ///     An open confirmation wins, as it does over any click and over <c>\</c>: the click declines it, and the rail
+    ///     is left as it was.
+    /// </summary>
+    [Fact]
+    public async Task AClickOnTheMarkDeclinesAnOpenConfirmationAndTogglesNothing()
+    {
+        var answers = Enumerable.Range(1, 3).Select(at => APost.AnAnswer($"Answer {at}", at)).ToList();
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", poll: APost.APoll(options: answers))),
+        };
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, built);
+
+        drawn.Press(new Key('2'));
+        drawn.Press(Key.V);
+
+        Assert.NotNull(drawn.Shell.Asking);
+
+        drawn.Click(RailLines.Width - 2, 0);
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Empty(built.ShellPreferences.Rails);
+    }
+
+    /// <summary>
+    ///     Only the mark's own cell answers: the rest of the top edge it is on, the title and the corner after it, ignore
+    ///     the click as they did, and a click on a destination still arrives there, the rail left expanded.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task EveryOtherClickOnTheRailIsAsItWas(bool coloured)
+    {
+        var built = new AShell();
+        using var drawn = await DrawnShell.Of(80, Framed, Theme(coloured), built);
+
+        foreach (var column in new[] { 0, 3, RailLines.Width - 3, RailLines.Width - 1 })
+        {
+            drawn.Click(column, 0);
+        }
+
+        drawn.Built.Host.Settle();
+
+        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+
+        var notifications = Array.FindIndex(drawn.Rail(), row => row.Contains("Notifications", StringComparison.Ordinal));
+
+        drawn.Click(RailLines.Width / 2, notifications);
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
+        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Empty(built.ShellPreferences.Rails);
+    }
+
+    /// <summary>
+    ///     Nothing but a left click: the pointer passing over the mark, a press dragged off it, and the wheel over it
+    ///     leave the rail as it was, and the right button is <c>esc</c> there as anywhere.
+    /// </summary>
+    [Fact]
+    public async Task NoHoverNoDragAndNoWheelOverTheMark()
+    {
+        var built = new AShell();
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Dark, built);
+
+        var rows = drawn.Rows();
+        var mark = RailLines.Width - 2;
+
+        drawn.Point(mark, 0, MouseFlags.PositionReport);
+        drawn.Wheel(mark, 0);
+        drawn.Wheel(mark, 0, down: false);
+        drawn.Point(mark, 0, MouseFlags.LeftButtonPressed);
+        drawn.Point(mark, 3, MouseFlags.LeftButtonPressed | MouseFlags.PositionReport);
+        drawn.Point(mark, 3, MouseFlags.LeftButtonReleased);
+        drawn.RightClick(mark, 0);
+
+        Assert.False(drawn.Shell.RailCollapsed);
+        Assert.Empty(built.ShellPreferences.Rails);
+        Assert.Equal(rows, drawn.Rows());
+    }
+
     /// <summary>How wide the strip is: seven columns in colour, and nine with the mark column kept.</summary>
     private static int Strip(bool coloured) => coloured ? 7 : 9;
 
