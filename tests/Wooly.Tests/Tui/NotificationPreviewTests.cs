@@ -202,7 +202,8 @@ public class NotificationPreviewTests
     public void WalkReference_FindsNothingInAPreview()
     {
         var mine = APost.With(content: "Grouping, as #wooly does it: https://example.com/groups", isMine: true);
-        var screen = new NotificationsScreen([ANotification.With(kind: NotificationKind.Favorite, post: mine)]);
+        var screen = new NotificationsScreen(
+            [ANotification.Alone(ANotification.With(kind: NotificationKind.Favorite, post: mine))]);
 
         Assert.Empty(screen.References);
         Assert.False(screen.WalkReference(1));

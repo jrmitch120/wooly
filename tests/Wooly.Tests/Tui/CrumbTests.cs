@@ -136,7 +136,7 @@ public class CrumbTests
                 return new FeedScreen(new Destination(DestinationKind.Home, "Home"), [post]);
 
             case "notifications":
-                return new NotificationsScreen([ANotification.Follow()]);
+                return new NotificationsScreen([ANotification.Alone(ANotification.Follow())]);
 
             case "messages":
                 return new DirectMessagesScreen([AConversation.With(latest: post)]);

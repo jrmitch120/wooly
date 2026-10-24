@@ -1934,7 +1934,7 @@ public sealed class Shell
         Grew?.Invoke();
         Changed?.Invoke();
 
-        return Screen is NotificationsScreen { Notifications: [var newest, ..] } ? newest.Id : null;
+        return Screen is NotificationsScreen { Groups: [var newest, ..] } ? newest.NewestId : null;
     }
 
     /// <summary>

@@ -29,6 +29,18 @@ public interface INotificationInbox
     Task<Fetch<Notification>> Read(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Reads up to <paramref name="limit" /> <b>Notification groups</b>, newest first, grouped as the instance groups
+    ///     them — or, on an instance too old to group, every notification a group of one (ADR-0032).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="limit">
+    ///     How many groups are wanted. More than one page's worth is fetched by following the instance's link to the
+    ///     next page, which the caller never sees (ADR-0007).
+    /// </param>
+    /// <returns>The groups, and whether a rate limit stopped the read part way, as <see cref="Read" /> reports it.</returns>
+    Task<Fetch<NotificationGroup>> ReadGroups(ActiveProfile profile, int limit, CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Reads up to <paramref name="limit" /> of the notifications newer than the account's read marker, newest
     ///     first — every kind, as <see cref="Read" /> reads them (ADR-0010) — or learns that the account has no marker,
     ///     and so nothing unread (ADR-0027).

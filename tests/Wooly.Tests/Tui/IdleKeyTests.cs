@@ -147,7 +147,7 @@ public class IdleKeyTests
     public void Keys_TheEarlierDropsStillHoldBesideThisOne()
     {
         var empty = Said(new FeedScreen(new Destination(DestinationKind.Home, "Home"), [], "Nothing here yet."));
-        var follow = Said(new NotificationsScreen([ANotification.Follow()]));
+        var follow = Said(new NotificationsScreen([ANotification.Alone(ANotification.Follow())]));
 
         foreach (var said in new[] { empty, follow })
         {
@@ -227,7 +227,7 @@ public class IdleKeyTests
                 return account;
 
             case "notifications-mention":
-                return new NotificationsScreen([ANotification.With(post: post)]);
+                return new NotificationsScreen([ANotification.Alone(ANotification.With(post: post))]);
 
             case "search-post":
                 var search = new SearchScreen();

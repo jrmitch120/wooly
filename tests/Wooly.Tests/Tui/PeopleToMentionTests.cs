@@ -167,7 +167,8 @@ public class PeopleToMentionTests
     [Fact]
     public void ANotificationsScreenOffersWhoTheyCameFrom()
     {
-        var screen = new NotificationsScreen([ANotification.Follow(account: "bob@mastodon.social")]);
+        var screen = new NotificationsScreen(
+            [ANotification.Alone(ANotification.Follow(account: "bob@mastodon.social"))]);
 
         Assert.Contains(screen.Seen, person => person.Address == "bob@mastodon.social");
     }

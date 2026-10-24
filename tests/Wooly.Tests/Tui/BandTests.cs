@@ -224,7 +224,11 @@ public class BandTests
                 posts),
             "post" => new PostScreen(posts[0], new PostThread([], [posts[1], posts[2]])),
             "notifications" => new NotificationsScreen(
-                [ANotification.With(id: "1"), ANotification.Follow(id: "2"), ANotification.With(id: "3")]),
+                [
+                    ANotification.Alone(ANotification.With(id: "1")),
+                    ANotification.Alone(ANotification.Follow(id: "2")),
+                    ANotification.Alone(ANotification.With(id: "3")),
+                ]),
             "conversation" => new ConversationScreen(AConversation.Thread(
                 AConversation.With(),
                 AConversation.DirectPost("1"),

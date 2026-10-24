@@ -320,6 +320,13 @@ not answer them differently:
 - **A notification is not the post it is about.** `d` dismisses by the notification's own id; every other key on the
   row acts on the post it carries, so a mention can be answered without leaving the inbox. A follow carries no post,
   and picking one leaves those keys with nothing to act on rather than guessing — which is why they are off its row.
+- **Notifications are drawn as the instance groups them** (ADR-0032, #453). Each row is a **Notification group**, read
+  from `GET /api/v2/notifications` with no `grouped_types`, or one notification a group where the instance has no
+  grouped read. Its names line names two actors and counts the rest by the instance's count (`Alice, Bob and 6 others
+  ★ favorited your post`), with the kind's icon and sentence in the kind's colour and the unread mark and newest age at
+  the right; above a post drawn whole by its actor — a mention — the line is the kind alone (`@ mentioned you`) and
+  the post's byline is left as on every feed. A group is `unread` when its newest notification is past the marker.
+  Rows are never merged by post: two groups about one post are two rows.
 - **`D` asks first.** Emptying the inbox takes away a list nobody has necessarily read and nothing brings it back, so
   it is confirmed on the same terms `post delete` is — the same confirmation, saying `clear` rather than `delete`.
 - **A count and the list under it are one fact.** Arriving at a destination sets its badge from the same answer the

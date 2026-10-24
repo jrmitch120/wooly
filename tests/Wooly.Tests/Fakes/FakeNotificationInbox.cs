@@ -72,6 +72,44 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
     }
 
     /// <summary>
+    ///     The groups it holds, where a test says them: from here on the grouped read answers with these. Where not
+    ///     said, what it holds is read as an instance too old to group would answer — each notification a group of one —
+    ///     so that a test about single notifications reads the same on the grouped screen.
+    /// </summary>
+    public IReadOnlyList<NotificationGroup>? Groups { get; set; }
+
+    /// <summary>Every grouped read it was asked for, in order.</summary>
+    public List<Call> GroupReads { get; } = [];
+
+    public async Task<Fetch<NotificationGroup>> ReadGroups(
+        ActiveProfile profile,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        GroupReads.Add(new Call(profile.Name, limit));
+        Tokens.Add(profile.AccessToken);
+
+        if (Groups is { } groups)
+        {
+            return Fetch<NotificationGroup>.Complete([.. groups.Take(limit)]);
+        }
+
+        var held = _fetch;
+
+        if (ReadsWaitFor is { } waiting)
+        {
+            await waiting.Task;
+        }
+
+        var read = ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : held;
+        var alone = read.Items.Take(limit).Select(ANotification.Alone).ToList();
+
+        return read.StoppedBy is { } stoppedBy
+            ? Fetch<NotificationGroup>.StoppedShort(alone, stoppedBy)
+            : Fetch<NotificationGroup>.Complete(alone);
+    }
+
+    /// <summary>
     ///     The account's read marker: the id of the newest notification it has read, or <see langword="null" /> for an
     ///     account that has never had one. Nothing read by default — <c>"0"</c>, below every id a test hands it — so
     ///     what the inbox holds is all unread unless a test says otherwise.

@@ -42,8 +42,8 @@ public class LiveInsertionTests
         Passes(shell, Minute);
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal(["103", "102", "101"], screen.Notifications.Select(notification => notification.Id));
-        Assert.True(screen.IsUnread(screen.Notifications[0]));
+        Assert.Equal(["103", "102", "101"], screen.Groups.Select(group => group.NewestId));
+        Assert.True(screen.IsUnread(screen.Groups[0]));
         Assert.Equal("103", shell.Notifications.MarkerMoves[^1].NotificationId);
         Assert.Equal(0, Badge(opened, DestinationKind.Notifications).Unread);
     }
@@ -72,7 +72,7 @@ public class LiveInsertionTests
         Passes(shell, Minute);
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal("101", screen.PickedNotification?.Id);
+        Assert.Equal("101", screen.PickedGroup?.NewestId);
         Assert.Equal(3, screen.At);
     }
 
@@ -97,8 +97,8 @@ public class LiveInsertionTests
         Passes(shell, Minute);
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal(41, screen.Notifications.Count);
-        Assert.Equal("145", screen.Notifications[0].Id);
+        Assert.Equal(41, screen.Groups.Count);
+        Assert.Equal("145", screen.Groups[0].NewestId);
         Assert.Equal(moves, shell.Notifications.MarkerMoves.Count);
         Assert.Equal("100", shell.Notifications.Marker);
         Assert.True(Badge(opened, DestinationKind.Notifications).Full);
@@ -124,7 +124,7 @@ public class LiveInsertionTests
         Passes(shell, Minute);
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal(41, screen.Notifications.Count);
+        Assert.Equal(41, screen.Groups.Count);
         Assert.Equal("140", shell.Notifications.Marker);
         Assert.Equal(0, Badge(opened, DestinationKind.Notifications).Unread);
         Assert.False(Badge(opened, DestinationKind.Notifications).Full);
@@ -159,15 +159,15 @@ public class LiveInsertionTests
             ANotification.With(id: "101"));
         Passes(shell, Minute);
 
-        Assert.Empty(Assert.IsType<NotificationsScreen>(opened.Screen).Notifications);
+        Assert.Empty(Assert.IsType<NotificationsScreen>(opened.Screen).Groups);
         Assert.Empty(shell.Notifications.MarkerMoves);
 
         arriving.SetResult();
         shell.Host.Settle();
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal(["103", "102", "101"], screen.Notifications.Select(notification => notification.Id));
-        Assert.True(screen.IsUnread(screen.Notifications[0]));
+        Assert.Equal(["103", "102", "101"], screen.Groups.Select(group => group.NewestId));
+        Assert.True(screen.IsUnread(screen.Groups[0]));
         Assert.Equal("103", Assert.Single(shell.Notifications.MarkerMoves).NotificationId);
     }
 
@@ -203,8 +203,8 @@ public class LiveInsertionTests
         Passes(shell, Minute);
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal("103", screen.Notifications[0].Id);
-        Assert.True(screen.IsUnread(screen.Notifications[0]));
+        Assert.Equal("103", screen.Groups[0].NewestId);
+        Assert.True(screen.IsUnread(screen.Groups[0]));
         Assert.Equal("103", shell.Notifications.MarkerMoves[^1].NotificationId);
     }
 
@@ -345,7 +345,7 @@ public class LiveInsertionTests
         shell.Notifications.NowHolding(ANotification.With(id: "103"), ANotification.With(id: "102"));
         Passes(shell, Minute);
 
-        Assert.Equal(["102"], left.Notifications.Select(notification => notification.Id));
+        Assert.Equal(["102"], left.Groups.Select(group => group.NewestId));
         Assert.Equal(moves, shell.Notifications.MarkerMoves.Count);
         Assert.Equal(1, Badge(opened, DestinationKind.Notifications).Unread);
     }
@@ -378,8 +378,8 @@ public class LiveInsertionTests
         shell.Host.Settle();
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
-        Assert.Equal(["103", "102"], screen.Notifications.Select(notification => notification.Id));
-        Assert.True(screen.IsUnread(screen.Notifications[0]));
+        Assert.Equal(["103", "102"], screen.Groups.Select(group => group.NewestId));
+        Assert.True(screen.IsUnread(screen.Groups[0]));
         Assert.Equal("103", shell.Notifications.MarkerMoves[^1].NotificationId);
     }
 
@@ -413,7 +413,7 @@ public class LiveInsertionTests
         built.Clock.Advance(Minute);
         drawn.Settle();
 
-        Assert.Equal("101", Assert.IsType<NotificationsScreen>(drawn.Shell.Screen).PickedNotification?.Id);
+        Assert.Equal("101", Assert.IsType<NotificationsScreen>(drawn.Shell.Screen).PickedGroup?.NewestId);
         Assert.Equal(before, RowOf(drawn, "Cuthbert"));
     }
 

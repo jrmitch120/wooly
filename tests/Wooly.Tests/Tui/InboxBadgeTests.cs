@@ -74,7 +74,7 @@ public class InboxBadgeTests
         opened.Step(ToNotifications);
         shell.Host.Settle();
 
-        Assert.Equal(5, Assert.IsType<NotificationsScreen>(opened.Screen).Notifications.Count);
+        Assert.Equal(5, Assert.IsType<NotificationsScreen>(opened.Screen).Groups.Count);
         Assert.Equal(3, Badge(opened, DestinationKind.Notifications).Unread);
     }
 

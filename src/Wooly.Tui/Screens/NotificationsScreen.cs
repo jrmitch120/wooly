@@ -8,34 +8,35 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     What is waiting for this profile: who mentioned it, followed it, boosted or favorited one of its posts — and
-///     anything else the instance thought worth saying, under the instance's own word for it (ADR-0010). A rail
-///     destination, not a modal: it carries the unread count that was already on screen.
+///     What is waiting for this profile, as <b>Notification groups</b>: who mentioned it, followed it, boosted or
+///     favorited one of its posts — eight favorites of one post one row, as the instance groups them and never as this
+///     client would (ADR-0032) — and anything else the instance thought worth saying, under its own word for it
+///     (ADR-0010). A rail destination, not a modal: it carries the unread count that was already on screen.
 ///     <para>
 ///         Arriving here reads what is waiting, which moves the read marker past it and clears the badge (ADR-0027) —
-///         so the rows that were unread when the reader arrived are marked here instead, for as long as this visit
+///         so the groups that were unread when the reader arrived are marked here instead, for as long as this visit
 ///         lasts (#397). Reading is never dismissing: they stay in the list.
 ///     </para>
 /// </summary>
 /// <remarks>
 ///     A notification is not the post it is about (GLOSSARY.md), and the difference is load-bearing here: <c>d</c>
-///     dismisses the notification by its own id and leaves the post exactly where it was, and <c>a</c> opens its actor
-///     rather than the post's author (#451), while every other key on the row acts on the post — so the two are kept
-///     apart rather than one standing in for the other.
+///     dismisses the notification and leaves the post exactly where it was, and <c>a</c> opens its actor rather than
+///     the post's author (#451), while every other key on the row acts on the post — so the two are kept apart rather
+///     than one standing in for the other.
 /// </remarks>
-/// <param name="notifications">What is waiting, newest first.</param>
+/// <param name="groups">What is waiting, newest first.</param>
 /// <param name="notice">What the shell has to say about the inbox as a whole, if anything.</param>
-/// <param name="unread">The ids of the notifications to draw unread for this visit; none where not said.</param>
+/// <param name="unread">The keys of the groups to draw unread for this visit; none where not said.</param>
 public sealed class NotificationsScreen(
-    IReadOnlyList<Notification> notifications,
+    IReadOnlyList<NotificationGroup> groups,
     string? notice = null,
     IReadOnlySet<string>? unread = null) : Screen
 {
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
-    // Named by the notification's own id, which is not the id of the post it is about (GLOSSARY.md) — and is what a
-    // refresh puts the reader back on (#84).
-    private readonly Picked<Notification> _notifications = new(notifications);
+    // Named by the group's own key, which is not the id of the post it is about (GLOSSARY.md) — and is what a refresh
+    // puts the reader back on (#84).
+    private readonly Picked<NotificationGroup> _groups = new(groups);
 
     /// <inheritdoc />
     public override string Crumb => "Notifications";
@@ -55,14 +56,14 @@ public sealed class NotificationsScreen(
             ],
             PostKeys.AlongTheRail);
 
-    /// <summary>Which notification is picked out, as an index into what is on screen.</summary>
-    public int At => _notifications.At;
+    /// <summary>Which group is picked out, as an index into what is on screen.</summary>
+    public int At => _groups.At;
 
     /// <summary>What is waiting, newest first.</summary>
-    public IReadOnlyList<Notification> Notifications => _notifications.All;
+    public IReadOnlyList<NotificationGroup> Groups => _groups.All;
 
     /// <inheritdoc />
-    public override IEnumerable<Mentionable> Seen => Notifications.SelectMany(Mentionable.In);
+    public override IEnumerable<Mentionable> Seen => Groups.SelectMany(Mentionable.In);
 
     /// <summary>
     ///     Something the shell has to say about the inbox rather than about anything in it — that it is empty, or that
@@ -71,23 +72,23 @@ public sealed class NotificationsScreen(
     public string? Notice { get; } = notice;
 
     /// <summary>
-    ///     Whether <paramref name="notification" /> was newer than the read marker when the reader arrived, and so is
-    ///     drawn unread for this visit.
+    ///     Whether anything in <paramref name="group" /> was newer than the read marker when the reader arrived, or
+    ///     arrived since, and so it is drawn unread for this visit.
     /// </summary>
-    public bool IsUnread(Notification notification) => _unread.Contains(notification.Id);
+    public bool IsUnread(NotificationGroup group) => _unread.Contains(group.Key);
 
-    /// <summary>The notification picked out, or <see langword="null" /> where nothing is waiting.</summary>
-    public Notification? PickedNotification => _notifications.Out;
+    /// <summary>The group picked out, or <see langword="null" /> where nothing is waiting.</summary>
+    public NotificationGroup? PickedGroup => _groups.Out;
 
     /// <inheritdoc />
     /// <remarks>
-    ///     The post the picked notification is about, so that reading it, answering it and marking it mean the same
-    ///     thing here as on a feed. A follow is somebody arriving rather than something they wrote, so it has none.
+    ///     The post the picked group is about, so that reading it, answering it and marking it mean the same thing here
+    ///     as on a feed. A follow is somebody arriving rather than something they wrote, so it has none.
     /// </remarks>
-    public override Post? Picked => PickedNotification?.Post;
+    public override Post? Picked => PickedGroup?.Post;
 
     /// <inheritdoc />
-    protected override IPicked Walking => _notifications;
+    protected override IPicked Walking => _groups;
 
     /// <inheritdoc />
     /// <remarks>
@@ -98,20 +99,20 @@ public sealed class NotificationsScreen(
 
     /// <inheritdoc />
     /// <remarks>
-    ///     A notification about a post that is no longer there is a row about nothing, so it goes with it — the
-    ///     instance still has the notification, and the next read will say so, which is the honest thing to draw.
+    ///     A group about a post that is no longer there is a row about nothing, so it goes with it — the instance still
+    ///     has the notifications, and the next read will say so, which is the honest thing to draw.
     /// </remarks>
     public override bool Heard(Change change)
     {
         switch (change)
         {
             case Change.PostChanged(var post):
-                _notifications.Rewrite(held => held.Post?.Id == post.Id ? held with { Post = post } : held);
+                _groups.Rewrite(held => held.Post?.Id == post.Id ? held with { Post = post } : held);
 
                 break;
 
             case Change.PostGone(var id):
-                _notifications.Remove(notification => notification.Post?.Id == id);
+                _groups.Remove(group => group.Post?.Id == id);
 
                 break;
 
@@ -121,7 +122,7 @@ public sealed class NotificationsScreen(
                 break;
 
             case Change.AllNotificationsGone:
-                _notifications.Remove(_ => true);
+                _groups.Remove(_ => true);
 
                 break;
         }
@@ -131,8 +132,10 @@ public sealed class NotificationsScreen(
 
     /// <inheritdoc />
     /// <remarks>
-    ///     The unread ones not already on screen, drawn unread for the rest of this visit — the shell moves the read
-    ///     marker past them as it would have on arriving, so this screen is the only thing left saying they are new.
+    ///     The unread notifications newer than every group on screen, each put on top as a group of its own and drawn
+    ///     unread for the rest of this visit — the shell moves the read marker past them as it would have on arriving,
+    ///     so this screen is the only thing left saying they are new. Anything not newer than the newest group is
+    ///     already in a group on screen, or was dismissed. Joining an arrival to the group it belongs in is #458's.
     /// </remarks>
     public override int PutOnTop(InboxList found)
     {
@@ -141,16 +144,21 @@ public sealed class NotificationsScreen(
             return 0;
         }
 
-        var put = _notifications.TakeIn(unread, notification => notification.Id);
+        var newest = Groups.Count > 0 ? Groups[0].NewestId : null;
+        var arrived = unread.Where(notification => newest is null || NotificationIds.Newer(notification.Id, newest))
+                            .Select(NotificationGroup.Alone)
+                            .ToList();
 
-        _unread.UnionWith(put.Select(notification => notification.Id));
+        var put = _groups.TakeIn(arrived, group => group.Key);
+
+        _unread.UnionWith(put.Select(group => group.Key));
 
         return put.Count;
     }
 
     /// <summary>
-    ///     What this screen's own keys do: <c>a</c> opens the picked notification's actor, <c>d</c> dismisses it, and
-    ///     <c>D</c> all of them.
+    ///     What this screen's own keys do: <c>a</c> opens the picked group's actor, <c>d</c> dismisses it, and <c>D</c>
+    ///     all of them.
     /// </summary>
     public override Task Answer(Verb verb, Reach reach)
     {
@@ -172,28 +180,31 @@ public sealed class NotificationsScreen(
     }
 
     /// <summary>
-    ///     Opens the account of whoever did what the picked notification reports (GLOSSARY.md's <b>Actor</b>) — not the
-    ///     author of the post it is about, who on a favorite or a boost is the reader, and who a follow does not have
-    ///     (#451).
+    ///     Opens the account of whoever did what the picked group reports (GLOSSARY.md's <b>Actor</b>) — not the author
+    ///     of the post it is about, who on a favorite or a boost is the reader, and who a follow does not have (#451).
+    ///     On a group of several, the most recent of them; the screen listing all of them is #455's.
     /// </summary>
     private Task OpenActor(Reach reach) =>
-        PickedNotification is { } picked
-            ? reach.Open(new Subject.Account(AccountAddress.Parse(picked.Actor.Address), WithReplies: false))
+        PickedGroup is { Actors: [var actor, ..] }
+            ? reach.Open(new Subject.Account(AccountAddress.Parse(actor.Address), WithReplies: false))
             : Task.CompletedTask;
 
-    /// <summary>Clears the picked notification, which is named by its own id and not by the post's (GLOSSARY.md).</summary>
+    /// <summary>
+    ///     Clears the picked group's newest notification, named by its own id and not by the post's (GLOSSARY.md) —
+    ///     which is the whole of a group of one. Dismissing a group of several whole, by its key, is #457's.
+    /// </summary>
     private Task Dismiss(Reach reach)
     {
-        if (PickedNotification is not { } picked)
+        if (PickedGroup is not { } picked)
         {
             return Task.CompletedTask;
         }
 
         return reach.Put(
-            ask => ask.Of(token => reach.Ports.Notifications.Dismiss(reach.Profile, picked.Id, token)),
+            ask => ask.Of(token => reach.Ports.Notifications.Dismiss(reach.Profile, picked.NewestId, token)),
             // Whether or not the reader is still here: the notification was dismissed on the instance, and what that
             // makes stale is a fact about the instance rather than about where anybody is standing (#233, #234).
-            eitherWay: () => reach.Tell(new Change.NotificationsGone([picked.Id])));
+            eitherWay: () => reach.Tell(new Change.NotificationsGone([picked.NewestId])));
     }
 
     /// <summary>
@@ -202,7 +213,7 @@ public sealed class NotificationsScreen(
     /// </summary>
     private void AskToClear(Reach reach)
     {
-        if (Notifications.Count == 0)
+        if (Groups.Count == 0)
         {
             return;
         }
@@ -220,12 +231,15 @@ public sealed class NotificationsScreen(
                 reach.Say("Cleared.", isError: false);
             });
 
-    /// <summary>Takes the notifications <paramref name="ids" /> names off the screen, once the instance has cleared them.</summary>
+    /// <summary>
+    ///     Takes the groups whose newest notification <paramref name="ids" /> names off the screen, once the instance
+    ///     has cleared it.
+    /// </summary>
     private void TakeOff(IEnumerable<string> ids)
     {
         var going = ids.ToHashSet(StringComparer.Ordinal);
 
-        _notifications.Remove(notification => going.Contains(notification.Id));
+        _groups.Remove(group => going.Contains(group.NewestId));
     }
 
     /// <inheritdoc />
@@ -239,7 +253,7 @@ public sealed class NotificationsScreen(
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(_notifications.Rows(drawing.Width, Draw));
+        lines.AddRange(_groups.Rows(drawing.Width, Draw));
 
         return lines;
 
@@ -248,11 +262,17 @@ public sealed class NotificationsScreen(
         // The drawing goes down whole. Before #148 this site named four arguments and passed three, so a reader who
         // had asked for hide_drawn_caption got it honoured everywhere but here — which is the failure #148 is about
         // rather than a preference this screen was exempt from (#71).
-        IReadOnlyList<Line> Draw(Notification notification, int at, int room)
+        IReadOnlyList<Line> Draw(NotificationGroup group, int at, int room)
         {
-            var rows = new List<Line> { Happened(notification, IsUnread(notification), room, drawing.Now) };
+            var unread = IsUnread(group);
+            var rows = new List<Line>
+            {
+                NotificationGroupLines.ByItsActor(group)
+                    ? NotificationGroupLines.KindAlone(group, unread, room)
+                    : NotificationGroupLines.Names(group, unread, room, drawing.Now),
+            };
 
-            if (notification.Post is { } post)
+            if (group.Post is { } post)
             {
                 // The reader's own post is a reminder of which one it was, and anyone else's is what the notification
                 // is for — told apart by who wrote it rather than by the kind, so a kind this client has no word for
@@ -267,34 +287,5 @@ public sealed class NotificationsScreen(
 
             return rows;
         }
-    }
-
-    /// <summary>
-    ///     What happened, in one row: who did it, what they did, and how long ago. What they did is asked of the kind
-    ///     itself, so that a mention is described here in the same words the CLI's report describes it in — and a kind
-    ///     this client has never heard of is drawn under the instance's own word rather than dropped from a list whose
-    ///     whole job is to say what is waiting (ADR-0010). One that was unread when the reader arrived says so before
-    ///     its age, in <see cref="Role.RailUnread" />, the role of the badge that counted it.
-    /// </summary>
-    private static Line Happened(Notification notification, bool unread, int width, DateTimeOffset now)
-    {
-        var age = Elapsed.Since(notification.ReceivedAt, now);
-
-        // The word, as an unread conversation carries it, and for the same reason (ConversationLines.With) — and so
-        // that it reads with no colour (ADR-0014).
-        var mark = unread ? $"{ConversationLines.UnreadMark} " : string.Empty;
-        var did = $" {notification.Kind.Does}";
-        var room = Math.Max(0, width - Glyphs.Columns(age) - Glyphs.Columns(mark) - Glyphs.Columns(did) - 2);
-
-        var name = new Span(TextWrap.Clip(notification.Actor.Author, room), Role.BylineName);
-        var used = name.Width + Glyphs.Columns(did) + Glyphs.Columns(mark);
-
-        return Line.Of([
-            name,
-            new Span(did, Role.Muted),
-            new Span(new string(' ', Math.Max(1, width - used - Glyphs.Columns(age))), Role.Muted),
-            .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),
-            new Span(age, Role.Muted),
-        ]);
     }
 }

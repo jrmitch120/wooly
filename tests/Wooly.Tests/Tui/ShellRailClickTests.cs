@@ -25,7 +25,7 @@ public class ShellRailClickTests
     {
         using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain);
 
-        var read = drawn.Built.Notifications.Reads.Count;
+        var read = drawn.Built.Notifications.GroupReads.Count;
 
         drawn.Click(OverRail, RowOf(drawn, "Notifications"));
         drawn.Built.Host.Drain();
@@ -37,7 +37,7 @@ public class ShellRailClickTests
         Assert.Equal(at, drawn.Shell.Rail.Current);
         Assert.Equal(0, drawn.Built.Host.Waiting);
         Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
-        Assert.Equal(read + 1, drawn.Built.Notifications.Reads.Count);
+        Assert.Equal(read + 1, drawn.Built.Notifications.GroupReads.Count);
     }
 
     /// <summary>
@@ -177,7 +177,7 @@ public class ShellRailClickTests
 
         Assert.NotNull(drawn.Shell.Asking);
 
-        var read = drawn.Built.Notifications.Reads.Count;
+        var read = drawn.Built.Notifications.GroupReads.Count;
 
         drawn.Click(OverRail, RowOf(drawn, "Notifications"));
         drawn.Built.Host.Settle();
@@ -186,7 +186,7 @@ public class ShellRailClickTests
         Assert.Null(drawn.Shell.Asking);
         Assert.Equal(0, drawn.Shell.Rail.Current);
         Assert.Empty(drawn.Built.Engagement.Votes);
-        Assert.Equal(read, drawn.Built.Notifications.Reads.Count);
+        Assert.Equal(read, drawn.Built.Notifications.GroupReads.Count);
     }
 
     /// <summary>
