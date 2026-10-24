@@ -518,11 +518,11 @@ public class LiveInsertionTests
     }
 
     /// <summary>
-    ///     The pick stays on its group when that group is the one joined: brought up to date where it stands rather
-    ///     than moved out from under the reader, as a conversation spoken in again is (story 24 of #395).
+    ///     The group joined is the group picked: it moves to the top like any other, and the pick goes with it — the
+    ///     pick follows the group it was on (#458), so the screen reads as a fresh read would.
     /// </summary>
     [Fact]
-    public async Task OnNotifications_ThePickedGroupJoinedIsUpdatedWhereItStands()
+    public async Task OnNotifications_ThePickedGroupJoinedMovesToTheTopAndThePickGoesWithIt()
     {
         var (shell, opened) = await OnGroups(
             ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "102", noPost: true),
@@ -535,10 +535,47 @@ public class LiveInsertionTests
             ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "102", noPost: true));
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal(["favourite-110-493000", "follow-493000"], screen.Groups.Select(group => group.Key));
         Assert.Equal("favourite-110-493000", screen.PickedGroup?.Key);
+        Assert.Equal(0, screen.At);
         Assert.Equal(2, screen.PickedGroup?.Count);
-        Assert.Equal(2, screen.Groups.Count);
         Assert.True(screen.IsUnread(screen.PickedGroup!));
+    }
+
+    /// <summary>
+    ///     Arrival after arrival, the picked group joined in some and others raised past it, the list stays newest
+    ///     first — as a fresh read would draw it — and the pick stays on its group throughout.
+    /// </summary>
+    [Fact]
+    public async Task OnNotifications_RepeatedArrivalsKeepTheListNewestFirst()
+    {
+        var (shell, opened) = await OnGroups(
+            ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "103", noPost: true),
+            ANotification.Group(key: "reblog-110-493000", kind: NotificationKind.Boost, newestId: "102", actors: ["Carol"]),
+            ANotification.Group(key: "favourite-110-493000", newestId: "101", actors: ["Alice"]));
+        opened.Screen.Move(2);
+
+        Arrives(
+            shell,
+            ANotification.Group(key: "favourite-110-493000", count: 2, newestId: "104", actors: ["Bob", "Alice"]),
+            ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "103", noPost: true),
+            ANotification.Group(key: "reblog-110-493000", kind: NotificationKind.Boost, newestId: "102", actors: ["Carol"]));
+        Arrives(
+            shell,
+            ANotification.Group(key: "reblog-110-493000", kind: NotificationKind.Boost, count: 2, newestId: "105", actors: ["Dan", "Carol"]),
+            ANotification.Group(key: "favourite-110-493000", count: 2, newestId: "104", actors: ["Bob", "Alice"]),
+            ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "103", noPost: true));
+        Arrives(
+            shell,
+            ANotification.Group(key: "favourite-110-493000", count: 3, newestId: "107", actors: ["Eve", "Bob", "Alice"]),
+            ANotification.Group(key: "mention-106", kind: NotificationKind.Mention, newestId: "106", actors: ["Fay"]),
+            ANotification.Group(key: "reblog-110-493000", kind: NotificationKind.Boost, count: 2, newestId: "105", actors: ["Dan", "Carol"]),
+            ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "103", noPost: true));
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal(["107", "106", "105", "103"], screen.Groups.Select(group => group.NewestId));
+        Assert.Equal("favourite-110-493000", screen.PickedGroup?.Key);
+        Assert.Equal(3, screen.PickedGroup?.Count);
     }
 
     /// <summary>

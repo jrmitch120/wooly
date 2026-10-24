@@ -140,8 +140,9 @@ public sealed class NotificationsScreen(
     ///     on top as the instance groups them now, and drawn unread for the rest of this visit: the shell moves the read
     ///     marker past them as it would have on arriving, so this screen is the only thing left saying they are new. A
     ///     group already on screen is joined rather than drawn twice — its count, actors and age are the re-read's —
-    ///     and moves up, but for the one picked, which is brought up to date where it stands (#458). Anything not newer
-    ///     than the newest group is already on screen as it was, or was dismissed.
+    ///     and moves up, the picked one too, with the pick going along: the list reads newest first as a fresh read
+    ///     would, and the pick follows the group it was on (#458). Anything not newer than the newest group is already
+    ///     on screen as it was, or was dismissed.
     ///     <para>
     ///         Where the re-read read no groups, each unread notification arrives as a group of its own, as it would
     ///         from an instance too old to group.
@@ -162,7 +163,8 @@ public sealed class NotificationsScreen(
         var put = _groups.TakeIn(
             arrived,
             group => group.Key,
-            changed: (was, now) => !string.Equals(was.NewestId, now.NewestId, StringComparison.Ordinal));
+            changed: (was, now) => !string.Equals(was.NewestId, now.NewestId, StringComparison.Ordinal),
+            pickRises: true);
 
         _unread.UnionWith(put.Select(group => group.Key));
 

@@ -400,7 +400,9 @@ not answer them differently:
   on (`Shell.Grew` → `PaintedView.KeepPickOnItsRow`), so the page moves with what went in above it and nothing jumps. Where the
   picked thing is itself what changed — the conversation the reader is on spoken in again — it is brought up to date
   where it stands rather than moved to the top, and the pick stays on it: the row the reader is on never jumps, and it
-  takes its place at the top the next time the list is read (`Picked.TakeIn`). Nothing is put on screen while the
+  takes its place at the top the next time the list is read (`Picked.TakeIn`). A notification group is the
+  exception: the picked group joined moves to the top like any other and the pick goes with it, so Notifications
+  always reads newest first, as a fresh read would draw it (#458). Nothing is put on screen while the
   destination's own list read — its arrival or refresh — is in flight: arriving draws an empty screen until its list
   lands, and that arrival draws the list and moves the marker itself, so a re-read landing first only counts, and the
   count is read again once the list read is over, for whatever arrived after the list was read (`ListReads`). A
