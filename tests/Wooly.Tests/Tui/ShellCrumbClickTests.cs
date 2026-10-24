@@ -442,7 +442,7 @@ public class ShellCrumbClickTests
         Assert.Equal("a", follows.Filter);
     }
 
-    /// <summary>The <c>?</c> screen's mouse line says a crumb walks back.</summary>
+    /// <summary>The <c>?</c> screen's mouse rows say a crumb walks back (#446).</summary>
     [Fact]
     public async Task TheHelpScreenSaysACrumbWalksBack()
     {
@@ -450,7 +450,7 @@ public class ShellCrumbClickTests
 
         drawn.Press(new Key('?'));
 
-        Assert.Contains(drawn.Rows(), row => row.Contains("click a crumb to walk back to it", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("click a crumb   walk back to it", StringComparison.Ordinal));
     }
 
     /// <summary>

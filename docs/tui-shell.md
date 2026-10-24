@@ -2184,9 +2184,17 @@ click on it and no `⏎`, since Terminal.Gui reports the second of two quick cli
 
 Mouse tracking stays on, and nothing turns it off: drag means nothing, and selecting text to copy goes through the
 terminal's modifier bypass (`⌥` in iTerm2, `Fn` in Terminal.app) until selection is a feature of its own. The `?`
-screen says what the mouse does beside the frame's keys, ending `right click back` and carried on to a second line with
-no key of its own, `click a crumb to walk back to it`, since one line no longer fits beside the key column at 80
-columns, and a third, `click «/» bottom left to toggle the rail` (#443, #445).
+screen says what the mouse does beside the frame's keys, an action a row with its input in the key column, as every
+key's is (#446):
+
+```
+wheel           scroll the content
+click           arrive on the rail; pick a row
+double click    read (⏎)
+right click     up one level, as esc
+click a crumb   walk back to it
+click «/»       hide or show the rail
+```
 
 ## Starting it, and the one destination that needs configuring
 

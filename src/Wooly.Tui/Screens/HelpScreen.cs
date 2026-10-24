@@ -27,12 +27,14 @@ public sealed class HelpScreen(Screen about) : Screen
         new("- / + or =", "narrow or widen the shell by 10%"),
         // On no status row either, for the same reason, but where the rail is hidden (#441, #445).
         new("\\", "hide or show the rail"),
-        // The pointer: it adds no keys of its own, only another way to ask for these (#286). Two lines, the second under
-        // the first with no key of its own, since one no longer fits beside the key column at 80 columns (#308).
-        new("mouse", "wheel scrolls the content; a click arrives on the rail and picks a row; a double click is ⏎; right click back"),
-        new(string.Empty, "click a crumb to walk back to it"),
-        // A line of its own for the same reason (#443, #445).
-        new(string.Empty, "click «/» bottom left to toggle the rail"),
+        // The pointer: it adds no keys of its own, only another way to ask for these (#286). An action a row, its input
+        // in the key column as a key's is (#446).
+        new("wheel", "scroll the content"),
+        new("click", "arrive on the rail; pick a row"),
+        new("double click", "read (⏎)"),
+        new("right click", "up one level, as esc"),
+        new("click a crumb", "walk back to it"),
+        new("click «/»", "hide or show the rail"),
     ];
 
     /// <summary>The screen whose keys these are.</summary>

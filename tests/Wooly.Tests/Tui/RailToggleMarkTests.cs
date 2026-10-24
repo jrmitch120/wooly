@@ -375,7 +375,7 @@ public class RailToggleMarkTests
         Assert.Empty(built.ShellPreferences.Rails);
     }
 
-    /// <summary>The <c>?</c> screen's mouse summary says where the mark is and what a click on it does.</summary>
+    /// <summary>The <c>?</c> screen's mouse rows say what a click on the mark does (#446).</summary>
     [Fact]
     public async Task TheHelpScreenSaysTheMarkTogglesTheRail()
     {
@@ -385,7 +385,7 @@ public class RailToggleMarkTests
 
         Assert.Contains(
             drawn.Rows(),
-            row => row.Contains("click «/» bottom left to toggle the rail", StringComparison.Ordinal));
+            row => row.Contains("click «/»       hide or show the rail", StringComparison.Ordinal));
     }
 
     /// <summary>The shell's bottom frame row: the last row above the status row.</summary>

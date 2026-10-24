@@ -278,7 +278,7 @@ public class ShellRightClickTests
         Assert.Equal(rows, drawn.Rows());
     }
 
-    /// <summary>The <c>?</c> screen's mouse line says what a right click is.</summary>
+    /// <summary>The <c>?</c> screen's mouse rows say what a right click is (#446).</summary>
     [Fact]
     public async Task TheHelpScreenSaysARightClickIsBack()
     {
@@ -286,7 +286,7 @@ public class ShellRightClickTests
 
         drawn.Press(new Key('?'));
 
-        Assert.Contains(drawn.Rows(), row => row.Contains("mouse") && row.Contains("right click back"));
+        Assert.Contains(drawn.Rows(), row => row.Contains("right click     up one level, as esc"));
     }
 
     /// <summary>
