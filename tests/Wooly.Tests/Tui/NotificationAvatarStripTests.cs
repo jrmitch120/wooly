@@ -57,6 +57,32 @@ public class NotificationAvatarStripTests
         Assert.EndsWith("  +35", top.Text, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    ///     However many are left over, the count fits the columns held for it after the last face the width has room
+    ///     for — exact while it fits, then in thousands, millions or billions, rounded down so it never says more than
+    ///     there are — so a group growing past a thousand never pushes the row past its width.
+    /// </summary>
+    [Theory]
+    [InlineData(999, "+999")]
+    [InlineData(9_999, "+9999")]
+    [InlineData(12_345, "+12k")]
+    [InlineData(999_999, "+999k")]
+    [InlineData(1_500_000, "+1M")]
+    [InlineData(2_000_000_000, "+2G")]
+    public async Task TheCountOfTheRestAlwaysFitsItsColumns(int rest, string drawn)
+    {
+        var screen = await Arrived(ANotification.Group(
+            count: 5 + rest,
+            actors: ["A1", "A2", "A3", "A4", "A5", "A6"]));
+
+        // 38 columns: the gutter and the indent leave 35, which is room for five faces and a count of five columns.
+        var top = screen.Lines(Drawing(38))[1];
+
+        Assert.Equal(5, Faces(top).Count);
+        Assert.Equal(new Span(drawn, Role.Muted), top.Spans[^1]);
+        Assert.True(top.Width <= 38, $"{top.Text} is {top.Width} columns");
+    }
+
     /// <summary>A group of one shows its one face, and no count, since nobody is left over.</summary>
     [Fact]
     public async Task AGroupOfOneShowsOneFaceAndNoCount()

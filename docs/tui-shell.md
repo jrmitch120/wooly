@@ -333,7 +333,8 @@ not answer them differently:
 - **A group's actors stand in an avatar strip under its names line** (#454, layout A7b of #450): their faces at a
   byline's 4×2, in the instance's order, indented two columns with two between faces, as many as the width has room for
   up to the sample sent, then a muted `+N` on the top row counting the rest of the group. Face `n` starts `6n` columns
-  in whatever the group holds, so nothing moves as a group grows. Where the terminal draws no pictures the strip takes
+  in whatever the group holds, and five columns are always held for the `+N` — exact up to `+9999`, then `+12k`,
+  `+3M`, `+2G`, rounded down — so nothing moves as a group grows. Where the terminal draws no pictures the strip takes
   no rows, and a post drawn whole by its actor has none — its byline has the face.
 - **The mouse reaches every actor the keyboard does** (#456, `NotificationsScreen.Clicked`). A click on a face in the
   strip, either of its two rows, opens that actor's account; a click on the names or the kind's sentence of a names line
