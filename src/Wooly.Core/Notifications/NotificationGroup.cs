@@ -55,7 +55,7 @@ public sealed record NotificationGroup
     /// <summary>
     ///     <paramref name="notification" /> as a group of one, under the key Mastodon gives a notification it does not
     ///     group: what every notification is on an instance too old to group (ADR-0032), and what one arriving live is
-    ///     until it can be joined to its group (#458).
+    ///     where its group was not read with it (#458).
     /// </summary>
     public static NotificationGroup Alone(Notification notification) => new()
     {

@@ -250,7 +250,7 @@ public class ShellNotificationTests
     {
         var shell = new AShell
         {
-            Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "34"), ANotification.With(id: "36")),
+            Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "36"), ANotification.With(id: "34")),
         };
 
         var opened = await shell.Opened();

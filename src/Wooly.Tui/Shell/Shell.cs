@@ -192,7 +192,8 @@ public sealed class Shell
         RailState = preferences?.HiddenRail is true ? RailState.Hidden : RailState.Shown;
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
-        _badges = new InboxBadges(ports, Rail, host, clock, timing, ringing: preferences?.Bell ?? true, Landed);
+        _badges = new InboxBadges(ports, Rail, host, clock, timing, ringing: preferences?.Bell ?? true, Landed,
+            showing: kind => Rail.Showing.Kind == kind && _acting?.Lists.Reading(kind) == false);
 
         Begin(opening.Profile);
 

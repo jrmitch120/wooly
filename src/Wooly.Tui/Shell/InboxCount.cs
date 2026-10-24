@@ -42,15 +42,24 @@ internal sealed class InboxCount(
     ///     Reads the badge for <paramref name="kind" />, and what the read found waiting there — for the screen in
     ///     front to put at its top whatever of it is new (#400).
     /// </summary>
+    /// <param name="kind">Which destination.</param>
+    /// <param name="showing">
+    ///     Whether the destination's screen is in front to put what is new on. Notifications reads its groups as well
+    ///     where it is and anything is unread, so that what arrived joins the group it belongs in (#458) — and not
+    ///     otherwise, since nothing else draws them and a count is read on every stream event.
+    /// </param>
     /// <exception cref="ArgumentOutOfRangeException">Not one of the Inbox's three.</exception>
-    public async Task<Waiting> Read(DestinationKind kind)
+    public async Task<Waiting> Read(DestinationKind kind, bool showing = false)
     {
         switch (kind)
         {
             case DestinationKind.Notifications:
                 var unread = await Unread();
+                var groups = showing && unread.Unread.Count > 0
+                    ? (await ports.Notifications.ReadGroups(profile, Arrival.CountedAtMost, cancellationToken)).Items
+                    : null;
 
-                return new Waiting(unread.Badge, new InboxList.Notifications(unread.Unread));
+                return new Waiting(unread.Badge, new InboxList.Notifications(unread.Unread, groups));
 
             case DestinationKind.Messages:
                 var listed = (await Conversations(ports, profile, cancellationToken)).Items;

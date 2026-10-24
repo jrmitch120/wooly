@@ -351,6 +351,25 @@ public class LiveInsertionTests
     }
 
     /// <summary>
+    ///     A poll with Notifications not in front only counts: the groups are read for the screen that draws them, and
+    ///     nothing else does (#458).
+    /// </summary>
+    [Fact]
+    public async Task ElsewhereOnTheRail_APollReadsNoNotificationGroups()
+    {
+        var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "102")) };
+        shell.Notifications.Marker = "101";
+        var opened = await shell.Opened();
+        var reads = shell.Notifications.GroupReads.Count;
+
+        shell.Notifications.NowHolding(ANotification.With(id: "103"), ANotification.With(id: "102"));
+        Passes(shell, Minute);
+
+        Assert.Equal(reads, shell.Notifications.GroupReads.Count);
+        Assert.Equal(2, Badge(opened, DestinationKind.Notifications).Unread);
+    }
+
+    /// <summary>
     ///     Coming back inside the cache window after a re-read raised the count reads the list again, rather than
     ///     drawing the list held from before it and putting that visit's cleared badge back over what arrived since.
     /// </summary>
@@ -416,6 +435,146 @@ public class LiveInsertionTests
         Assert.Equal("101", Assert.IsType<NotificationsScreen>(drawn.Shell.Screen).PickedGroup?.NewestId);
         Assert.Equal(before, RowOf(drawn, "Cuthbert"));
     }
+
+    /// <summary>
+    ///     A notification arriving for a group already on screen joins it (#458): the group's count, actors and newest
+    ///     come from the re-read, it is drawn unread, and it goes to the top — one row, not a second one beside it.
+    /// </summary>
+    [Fact]
+    public async Task OnNotifications_ANewFavoriteJoinsItsGroupOnScreenAndRaisesIt()
+    {
+        var (shell, opened) = await OnGroups(
+            ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "102", noPost: true),
+            ANotification.Group(key: "favourite-110-493000", newestId: "101", actors: ["Alice"]));
+
+        Arrives(
+            shell,
+            ANotification.Group(key: "favourite-110-493000", count: 2, newestId: "103", actors: ["Bob", "Alice"]),
+            ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "102", noPost: true));
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal(["favourite-110-493000", "follow-493000"], screen.Groups.Select(group => group.Key));
+        Assert.Equal(2, screen.Groups[0].Count);
+        Assert.Equal(["Bob", "Alice"], screen.Groups[0].Actors.Select(actor => actor.Author));
+        Assert.Equal("103", screen.Groups[0].NewestId);
+        Assert.True(screen.IsUnread(screen.Groups[0]));
+        Assert.False(screen.IsUnread(screen.Groups[1]));
+        Assert.Equal("103", shell.Notifications.MarkerMoves[^1].NotificationId);
+    }
+
+    /// <summary>A notification for a group that is not on screen is a new group, put on top unread.</summary>
+    [Fact]
+    public async Task OnNotifications_ANotificationForAGroupNotOnScreenIsAddedAtTheTop()
+    {
+        var (shell, opened) = await OnGroups(
+            ANotification.Group(key: "favourite-110-493000", newestId: "102", actors: ["Alice"]));
+
+        Arrives(
+            shell,
+            ANotification.Group(key: "reblog-110-493000", kind: NotificationKind.Boost, newestId: "103", actors: ["Bob"]),
+            ANotification.Group(key: "favourite-110-493000", newestId: "102", actors: ["Alice"]));
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal(["reblog-110-493000", "favourite-110-493000"], screen.Groups.Select(group => group.Key));
+        Assert.True(screen.IsUnread(screen.Groups[0]));
+    }
+
+    /// <summary>
+    ///     A group the reader had read turns unread when a new actor joins it, so the unread mark always means
+    ///     something new arrived (story 17 of #448).
+    /// </summary>
+    [Fact]
+    public async Task OnNotifications_AReadGroupTurnsUnreadWhenANewActorJoinsIt()
+    {
+        var (shell, opened) = await OnGroups(
+            ANotification.Group(key: "favourite-110-493000", newestId: "102", actors: ["Alice"]));
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.False(screen.IsUnread(screen.Groups[0]));
+
+        Arrives(
+            shell,
+            ANotification.Group(key: "favourite-110-493000", count: 2, newestId: "103", actors: ["Bob", "Alice"]));
+
+        Assert.Single(screen.Groups);
+        Assert.True(screen.IsUnread(screen.Groups[0]));
+    }
+
+    /// <summary>The pick stays on the group it was on while another moves above it.</summary>
+    [Fact]
+    public async Task OnNotifications_ThePickStaysOnItsGroupWhenAnotherJoinsAndRises()
+    {
+        var (shell, opened) = await OnGroups(
+            ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "102", noPost: true),
+            ANotification.Group(key: "favourite-110-493000", newestId: "101", actors: ["Alice"]));
+
+        Arrives(
+            shell,
+            ANotification.Group(key: "favourite-110-493000", count: 2, newestId: "103", actors: ["Bob", "Alice"]),
+            ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "102", noPost: true));
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal("follow-493000", screen.PickedGroup?.Key);
+        Assert.Equal(1, screen.At);
+    }
+
+    /// <summary>
+    ///     The pick stays on its group when that group is the one joined: brought up to date where it stands rather
+    ///     than moved out from under the reader, as a conversation spoken in again is (story 24 of #395).
+    /// </summary>
+    [Fact]
+    public async Task OnNotifications_ThePickedGroupJoinedIsUpdatedWhereItStands()
+    {
+        var (shell, opened) = await OnGroups(
+            ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "102", noPost: true),
+            ANotification.Group(key: "favourite-110-493000", newestId: "101", actors: ["Alice"]));
+        opened.Screen.Move(1);
+
+        Arrives(
+            shell,
+            ANotification.Group(key: "favourite-110-493000", count: 2, newestId: "103", actors: ["Bob", "Alice"]),
+            ANotification.Group(key: "follow-493000", kind: NotificationKind.Follow, newestId: "102", noPost: true));
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Equal("favourite-110-493000", screen.PickedGroup?.Key);
+        Assert.Equal(2, screen.PickedGroup?.Count);
+        Assert.Equal(2, screen.Groups.Count);
+        Assert.True(screen.IsUnread(screen.PickedGroup!));
+    }
+
+    /// <summary>
+    ///     Notifications open on <paramref name="groups" />, every one of them read: the read marker is at the newest,
+    ///     and each group's newest notification is held so the unread count can see past it.
+    /// </summary>
+    private static async Task<(AShell Shell, Shell Opened)> OnGroups(params NotificationGroup[] groups)
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding([.. groups.Select(Newest)]),
+        };
+        shell.Notifications.Groups = groups;
+        shell.Notifications.Marker = groups.Max(group => long.Parse(group.NewestId)).ToString();
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications);
+        shell.Host.Settle();
+
+        return (shell, opened);
+    }
+
+    /// <summary>
+    ///     The instance now groups what it holds as <paramref name="groups" />, and a poll re-reads it — as a stream
+    ///     event would.
+    /// </summary>
+    private static void Arrives(AShell shell, params NotificationGroup[] groups)
+    {
+        shell.Notifications.NowHolding([.. groups.Select(Newest)]);
+        shell.Notifications.Groups = groups;
+        Passes(shell, Minute);
+    }
+
+    /// <summary>The newest notification in <paramref name="group" />, as the unread count reads it.</summary>
+    private static Notification Newest(NotificationGroup group) =>
+        ANotification.With(id: group.NewestId);
 
     /// <summary>The terminal row the first mention of <paramref name="author" /> is drawn on.</summary>
     private static int RowOf(DrawnShell drawn, string author) =>

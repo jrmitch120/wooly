@@ -45,12 +45,18 @@ internal sealed class ListReads
     }
 
     /// <summary>
+    ///     Whether a list read of <paramref name="kind" /> is in flight — asked without holding anything back, by a
+    ///     re-read deciding whether to read the list too: one in flight is about to fill the screen itself (#458).
+    /// </summary>
+    public bool Reading(DestinationKind kind) => _inFlight.ContainsKey(kind);
+
+    /// <summary>
     ///     Whether what a re-read of <paramref name="kind" /> found is to be kept off the screen, because its own list
     ///     read is in flight — noted, where it is, so that the count is read again once that read is over.
     /// </summary>
     public bool HoldsBack(DestinationKind kind)
     {
-        if (!_inFlight.ContainsKey(kind))
+        if (!Reading(kind))
         {
             return false;
         }
