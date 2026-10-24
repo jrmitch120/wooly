@@ -383,7 +383,8 @@ public sealed class Shell
 
     /// <summary>
     ///     Whether <c>\</c> pressed now would show the hidden rail, rather than being typed as a letter by the screen in
-    ///     front (#447). The status row and the locked walk name it only where it would.
+    ///     front (<see cref="Screen.TypesBackslash" />, #447). The status row and the locked walk name it only where it
+    ///     would.
     /// </summary>
     private bool BackslashShowsTheRail => Keymap.Means(ShellKey.Backslash, Screen) is Verb.ToggleRail;
 

@@ -152,6 +152,10 @@ public sealed class FileBrowserScreen : Screen
     public override bool IsTyping => true;
 
     /// <inheritdoc />
+    /// <remarks>A Windows path is typed with it (#447).</remarks>
+    public override bool TypesBackslash => true;
+
+    /// <inheritdoc />
     protected override IPicked Walking => _walking;
 
     /// <inheritdoc />

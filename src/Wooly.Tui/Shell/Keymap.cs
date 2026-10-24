@@ -50,16 +50,12 @@ public static class Keymap
         (ShellKey.CtrlQ, _) => Verb.Quit,
         (ShellKey.Escape, _) => Verb.Back,
 
-        // Nothing on compose, the description editor or the public profile form, whose fields take `?`, the Shell
-        // width's `-`, `+` and `=`, and the hidden rail's `\` as letters before the window sees them (#320, #414,
-        // #441, #445): a keymap opened only where no widget has the typing would be one a reader can never reach, over
-        // a draft, and where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
-        (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign or ShellKey.Backslash, _)
+        // Nothing on compose, the description editor or the public profile form, whose fields take `?` and the Shell
+        // width's `-`, `+` and `=` as letters before the window sees them (#320, #414): a keymap opened only where no
+        // widget has the typing would be one a reader can never reach, over a draft, and where the typing is in none —
+        // Media, a picture, a toggle — a key from under a draft is no-one's.
+        (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign, _)
             when HasWidgetsOfItsOwn(screen) => Verb.None,
-
-        // Nor `\` on the file browser, whose filter takes it as a letter as those fields do, since a Windows path is
-        // typed with it (#447). Every other prompt taking letters hides and shows the rail by it instead.
-        (ShellKey.Backslash, FileBrowserScreen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -75,7 +71,8 @@ public static class Keymap
         (ShellKey.Minus, _) => Verb.Narrower,
         (ShellKey.Plus or ShellKey.EqualsSign, _) => Verb.Wider,
 
-        // The hidden rail (#441, #445).
+        // The hidden rail (#441, #445), but on a screen that types `\` as a letter, where it is that letter (#447).
+        (ShellKey.Backslash, { TypesBackslash: true }) => Verb.None,
         (ShellKey.Backslash, _) => Verb.ToggleRail,
 
         // Screen-local, and the reason this pair is here rather than on the editor widget alone: the editor gives up
@@ -265,9 +262,8 @@ public static class Keymap
 
     /// <summary>
     ///     Whether <paramref name="screen" /> is one with widgets of its own — compose, the description editor pushed
-    ///     over it, or the edit public profile form — whose fields take <c>?</c>, <c>-</c>, <c>+</c>, <c>=</c> and
-    ///     <c>\</c> as letters before the window sees them, so that those keys mean nothing there (#320, #414, #441,
-    ///     #445).
+    ///     over it, or the edit public profile form — whose fields take <c>?</c>, <c>-</c>, <c>+</c> and <c>=</c> as
+    ///     letters before the window sees them, so that those keys mean nothing there (#320, #414).
     /// </summary>
     private static bool HasWidgetsOfItsOwn(Screen screen) =>
         screen is ComposeScreen or DescriptionScreen or PublicProfileScreen;

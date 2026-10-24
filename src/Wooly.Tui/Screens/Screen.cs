@@ -253,6 +253,14 @@ public abstract class Screen
     public virtual bool IsTyping => false;
 
     /// <summary>
+    ///     Whether this screen types <c>\</c> as a letter, so that it does not hide or show the rail here (#445, #447):
+    ///     compose, the description editor and the public profile form, whose fields take it before the window sees it,
+    ///     and the file browser, whose filter takes it since a Windows path is typed with it. Every other screen, a
+    ///     prompt taking letters among them, leaves <c>\</c> to the rail.
+    /// </summary>
+    public virtual bool TypesBackslash => false;
+
+    /// <summary>
     ///     Whether something on this screen keeps to the page rather than to its rows, and so reads
     ///     <see cref="Drawing.Top" />: the content region lays it out again whenever the page moves (#382).
     /// </summary>
