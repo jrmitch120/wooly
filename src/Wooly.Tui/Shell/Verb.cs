@@ -94,6 +94,12 @@ public enum Verb
     /// </summary>
     Wider,
 
+    /// <summary>
+    ///     <c>\</c>: the rail collapsed to its strip of marks, or expanded again to its labels, for the session (#441).
+    ///     Nothing where there is no rail.
+    /// </summary>
+    ToggleRail,
+
     /// <summary><c>a</c> on the profiles screen: add a profile, from the instance up (#245).</summary>
     AddProfile,
 

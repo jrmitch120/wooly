@@ -283,6 +283,12 @@ public sealed class Shell
     public ShellWidth ShellWidth { get; private set; }
 
     /// <summary>
+    ///     Whether the rail is the <b>collapsed rail</b> (<c>GLOSSARY.md</c>), a strip of one mark a destination, rather
+    ///     than the expanded rail with its labels: how the rail is drawn and how wide, and nothing else about it (#441).
+    /// </summary>
+    public bool RailCollapsed { get; private set; }
+
+    /// <summary>
     ///     The row at the foot of the shell, which keeps what is said and asked on it and takes every press while a
     ///     confirmation is open (#436). The shell keeps only what sets it going: a push clears it, and <c>esc</c> and a
     ///     profile switch dismiss the confirmation.
@@ -596,6 +602,7 @@ public sealed class Shell
         Verb.Vote => Ran(AskToVote),
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
+        Verb.ToggleRail => Ran(ToggleRail),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
         Verb.None => false,
@@ -956,6 +963,17 @@ public sealed class Shell
 
     /// <summary><c>+</c> or <c>=</c>: the <see cref="ShellWidth" /> one step wider, refused at the whole terminal (#414).</summary>
     public void Widen() => Stepped(ShellWidth.Wider(), refused: "Full width");
+
+    /// <summary>
+    ///     <c>\</c>: the rail collapsed, or expanded again (#441). Only how it is drawn: the cursor, the selection, a
+    ///     settle window under way and the stack are left as they are.
+    /// </summary>
+    public void ToggleRail()
+    {
+        RailCollapsed = !RailCollapsed;
+
+        Changed?.Invoke();
+    }
 
     /// <summary>
     ///     <c>a</c> on the profiles screen: adds a profile, from the instance up (#245). Nothing is read or sent until

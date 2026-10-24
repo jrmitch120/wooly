@@ -71,6 +71,10 @@ public static class Keymap
         (ShellKey.Minus, _) => Verb.Narrower,
         (ShellKey.Plus or ShellKey.EqualsSign, _) => Verb.Wider,
 
+        // The collapsed rail (#441), nothing on those same three screens for the same reason: a backslash is typed there.
+        (ShellKey.Backslash, _) when HasWidgetsOfItsOwn(screen) => Verb.None,
+        (ShellKey.Backslash, _) => Verb.ToggleRail,
+
         // Screen-local, and the reason this pair is here rather than on the editor widget alone: the editor gives up
         // focus while the warning is taking letters, and from there neither key would reach it (#123). Off a compose
         // screen they mean nothing and are left to whatever else wants them.

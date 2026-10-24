@@ -87,6 +87,7 @@ internal static class ShellKeys
         ['-'] = ShellKey.Minus,
         ['+'] = ShellKey.Plus,
         ['='] = ShellKey.EqualsSign,
+        ['\\'] = ShellKey.Backslash,
         ['1'] = ShellKey.One,
         ['2'] = ShellKey.Two,
         ['3'] = ShellKey.Three,
