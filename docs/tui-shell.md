@@ -1449,7 +1449,7 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   to the posts. **Every section brings its own separator**, so an account with none of the middle or bottom collapses
   to four rows and a divider with no gaps left behind.
 - **It draws whole and cuts nothing.** Worst case is around 29 rows — a long bio wraps to nine, four fields to eight —
-  and that is fine, because the screen scrolls and one `j` puts the posts on screen. A truncated bio would be permanent
+  and that is fine, because the screen scrolls and one `k` puts the posts on screen. A truncated bio would be permanent
   damage done to solve a problem one keypress already solves.
 - **An avatar is an 8×4 inset that takes its columns back** where the terminal cannot paint one, rather than holding a
   placeholder open — what #62 already settled on a byline.
@@ -1513,7 +1513,7 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   Under the threshold it holds the whole list, walkable from the first page of 80 with the rest landing behind a pick
   that does not move; while what is on screen is not the whole of it — still coming, or stopped short by a rate limit
   — the count says both numbers, so a thin filter result reads as *still reading* rather than as *nobody matches*. At
-  or above it the screen browses paged on demand — `j` past the bottom fetches the next 80 — **with no filter at all**,
+  or above it the screen browses paged on demand — `k` past the bottom fetches the next 80 — **with no filter at all**,
   `f` off the status row and the count reading `240 of 877,000 read` (`Number.Of`, which is how this client writes
   every count).
   The rest of a held list arrives in **one further ask rather than 24**, which is where the implementation departs from
@@ -1584,7 +1584,7 @@ The answer generalised: three screens use it (#166, amended by #171 and #172):
   capitalised precisely so a slip cannot fire one. `n`/`N` lost on reading as "next match" — a within-results search
   that does not exist, and sitting beside `/` it would advertise one.
 - **It moves the pick, not the page**, and brings the heading with it under the rule in "What moving settled" above.
-  It is "take me to the posts", and a reader who arrives at a post wants to press `⏎`, not `j` first.
+  It is "take me to the posts", and a reader who arrives at a post wants to press `⏎`, not `k` first.
 - **Headed runs only, and the account screen's header block is not a stop.** The jump brings a run's heading with it,
   and the header has no heading to bring; `[` from the first pinned post clamps. Nothing is unreachable — `k` from
   there lands on the header, and `Home` always has.
@@ -1658,7 +1658,7 @@ to follow (#171):
   of the reader's being destroyed and the cost of a mis-press being one suggestion out of forty on a list the server
   regenerates. A dismissed row **stays walkable** and still answers `⏎` and `F`: dismissing says "stop suggesting", not
   "hide", and a row that vanished would take its own undo with it. No row reorders and no heading recounts as you act —
-  the feature was admitted for `j j j F F`, and a list that reflows under your fingers is the one thing that breaks it.
+  the feature was admitted for `k k k F F`, and a list that reflows under your fingers is the one thing that breaks it.
 - **Empty is a real answer, so there is no not-asked to draw.** A destination always asks on arrival, so an empty
   screen means the instance answered "nobody": one muted `Nobody suggested.`, on the same construction as search's
   `Nothing found for …`, and no apology for a new account or a small instance. A failure is not an empty screen either

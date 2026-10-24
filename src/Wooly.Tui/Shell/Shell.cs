@@ -1701,7 +1701,7 @@ public sealed class Shell
 
     /// <summary>
     ///     Reads the next page where the reader has walked onto the end of a list browsed a page at a time, which is
-    ///     what <c>j</c> past the bottom means there (#180). Whether that is where they are is the screen's to say,
+    ///     what <c>k</c> past the bottom means there (#180). Whether that is where they are is the screen's to say,
     ///     and what the next page is its subject's.
     /// </summary>
     private void Paging()

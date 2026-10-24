@@ -25,7 +25,7 @@ namespace Wooly.Tui.Screens;
 ///     <para>
 ///         <strong>Nothing moves.</strong> No row vanishes, no row reorders and no heading recounts as the reader
 ///         acts: the grouping is settled once, when the answer arrives, and both keys only ever rewrite a row where it
-///         stands. The feature was admitted for <c>j j j F F</c>, and a list that reflows under somebody's fingers is
+///         stands. The feature was admitted for <c>k k k F F</c>, and a list that reflows under somebody's fingers is
 ///         the one thing that breaks it.
 ///     </para>
 ///     <para>
@@ -135,7 +135,7 @@ public sealed class DiscoverScreen : Screen
     /// <inheritdoc />
     /// <remarks>
     ///     A tie or a dismissal rewrites the row where it stands. Nothing is added, taken away or reordered, so a
-    ///     reader part way through <c>j j j F F</c> is still standing where they were — which is the one rule this
+    ///     reader part way through <c>k k k F F</c> is still standing where they were — which is the one rule this
     ///     screen exists to keep.
     /// </remarks>
     public override bool Heard(Change change)
