@@ -1,4 +1,3 @@
-using Wooly.Core.Accounts;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
@@ -237,15 +236,14 @@ public sealed class NotificationsScreen(
     public static Task OpenActors(NotificationGroup group, Reach reach) => group switch
     {
         { Count: > 1 } => reach.Open(new Subject.Actors(group)),
-        { Actors: [var actor, ..] } => reach.Open(
-            new Subject.Account(AccountAddress.Parse(actor.Address), WithReplies: false)),
+        { Actors: [var actor, ..] } => reach.Open(Subject.Account.Of(actor)),
         _ => Task.CompletedTask,
     };
 
     /// <summary>Opens the account of the actor whose face was clicked in the picked group's strip.</summary>
     private Task OpenFace(Reach reach) =>
         PickedGroup is { } picked && _face < picked.Actors.Count
-            ? reach.Open(new Subject.Account(AccountAddress.Parse(picked.Actors[_face].Address), WithReplies: false))
+            ? reach.Open(Subject.Account.Of(picked.Actors[_face]))
             : Task.CompletedTask;
 
     /// <summary>

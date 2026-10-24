@@ -13,8 +13,7 @@ namespace Wooly.Tui.Screens;
 /// <remarks>
 ///     The icon carries the kind where there is no colour, as a post's marks carry theirs (ADR-0014): <c>★</c> a
 ///     favorite, <c>↺</c> a boost, <c>@</c> a mention, <c>+</c> a follow, and <c>•</c> any kind this client has no word
-///     for. A follow and an unfamiliar kind take <see cref="Role.BylineHandle" />, the role of an account named — a
-///     follow is somebody arriving, and a kind with no word of its own has no mark's colour to borrow.
+///     for, each in its kind's role (<see cref="KindLook" />).
 /// </remarks>
 public static class NotificationGroupLines
 {
@@ -66,7 +65,8 @@ public static class NotificationGroupLines
         // The word, as an unread conversation carries it, and for the same reason (ConversationLines.With) — and so
         // that it reads with no colour (ADR-0014).
         var mark = unread ? $"{ConversationLines.UnreadMark} " : string.Empty;
-        var did = $" {Icon(group.Kind)} {group.Kind.Does}";
+        var look = KindLook.Of(group.Kind);
+        var did = $" {look.Icon} {group.Kind.Does}";
         var room = Math.Max(0, width - Glyphs.Columns(age) - Glyphs.Columns(mark) - Glyphs.Columns(did) - 2);
 
         var name = new Span(TextWrap.Clip(Who(group), room), Role.BylineName) { Item = NamesPart };
@@ -74,7 +74,7 @@ public static class NotificationGroupLines
 
         return Line.Of([
             name,
-            new Span(did, KindRole(group.Kind)) { Item = NamesPart },
+            new Span(did, look.Role) { Item = NamesPart },
             new Span(new string(' ', Math.Max(1, width - used - Glyphs.Columns(age))), Role.Muted),
             .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),
             new Span(age, Role.Muted),
@@ -87,9 +87,8 @@ public static class NotificationGroupLines
     /// </summary>
     public static Line KindAlone(NotificationGroup group, bool unread, int width)
     {
-        var said = new Span(
-            TextWrap.Clip($"{Icon(group.Kind)} {group.Kind.Does}", Math.Max(1, width - 1)),
-            KindRole(group.Kind));
+        var look = KindLook.Of(group.Kind);
+        var said = new Span(TextWrap.Clip($"{look.Icon} {group.Kind.Does}", Math.Max(1, width - 1)), look.Role);
         var mark = unread ? ConversationLines.UnreadMark : string.Empty;
 
         return Line.Of([
@@ -98,19 +97,4 @@ public static class NotificationGroupLines
             .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),
         ]);
     }
-
-    /// <summary>The mark that says the kind without colour.</summary>
-    private static string Icon(NotificationKind kind) =>
-        kind == NotificationKind.Favorite ? "★"
-        : kind == NotificationKind.Boost ? "↺"
-        : kind == NotificationKind.Mention ? "@"
-        : kind == NotificationKind.Follow ? "+"
-        : "•";
-
-    /// <summary>The kind's colour: a post's mark's where the kind is one, and an account's handle's where it is not.</summary>
-    private static Role KindRole(NotificationKind kind) =>
-        kind == NotificationKind.Favorite ? Role.Favorite
-        : kind == NotificationKind.Boost ? Role.Boost
-        : kind == NotificationKind.Mention ? Role.Mention
-        : Role.BylineHandle;
 }
