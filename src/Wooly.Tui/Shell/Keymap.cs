@@ -56,6 +56,10 @@ public static class Keymap
         // a draft, and where the typing is in none — Media, a picture, a toggle — a key from under a draft is no-one's.
         (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign or ShellKey.Backslash, _)
             when HasWidgetsOfItsOwn(screen) => Verb.None,
+
+        // Nor `\` on the file browser, whose filter takes it as a letter as those fields do, since a Windows path is
+        // typed with it (#447). Every other prompt taking letters hides and shows the rail by it instead.
+        (ShellKey.Backslash, FileBrowserScreen) => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,

@@ -383,6 +383,51 @@ public class HiddenRailTests
     }
 
     /// <summary>
+    ///     On the attachments file browser <c>\</c> is typed into the filter, as it is on the screens with fields, since a
+    ///     Windows path is typed with it (#447): the rail does not move, shown or hidden, and hidden the locked walk says
+    ///     only <c>Rail hidden</c>, naming no key that would be typed.
+    /// </summary>
+    [Theory]
+    [InlineData(RailState.Shown)]
+    [InlineData(RailState.Hidden)]
+    public async Task OnTheFileBrowserBackslashIsTypedIntoTheFilter(RailState state)
+    {
+        using var files = new TemporaryDirectory();
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, new AShell { LaunchedFrom = files.Path });
+
+        if (state is RailState.Hidden)
+        {
+            drawn.Press(Toggle);
+        }
+
+        drawn.Shell.Press(ShellKey.C);
+        drawn.Redraw();
+        drawn.Press(Key.O.WithCtrl);
+
+        var browser = Assert.IsType<FileBrowserScreen>(drawn.Shell.Screen);
+
+        foreach (var letter in "a\\b")
+        {
+            drawn.Press(new Key(letter));
+        }
+
+        Assert.Equal("a\\b", browser.Filter);
+        Assert.Equal(state, drawn.Shell.RailState);
+        Assert.Equal(state is RailState.Shown ? RailLines.Width : 0, drawn.Content.Frame.X);
+        Assert.DoesNotContain(@"Rail: \", drawn.Rows()[^1], StringComparison.Ordinal);
+
+        if (state is RailState.Hidden)
+        {
+            drawn.Press(Key.Tab);
+
+            var said = drawn.Rows()[^1];
+
+            Assert.Contains("Rail hidden", said, StringComparison.Ordinal);
+            Assert.DoesNotContain("\\", said, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
     ///     Where there is no rail — nobody acted as, the add screen alone on a launch — <c>\</c> hides nothing, so that
     ///     a rail coming back once a profile is signed in is the one the reader last saw.
     /// </summary>
@@ -586,8 +631,9 @@ public class HiddenRailTests
     }
 
     /// <summary>
-    ///     And says that <c>\</c> does so from a search or a filter too, since nothing else says a backslash cannot be
-    ///     typed into one (#447).
+    ///     And says that <c>\</c> does so from a search or the follow list's filter too, since nothing else says a
+    ///     backslash cannot be typed into one — naming that filter rather than every one, since the file browser's takes
+    ///     it (#447).
     /// </summary>
     [Fact]
     public async Task TheKeymapSaysBackslashShowsTheRailFromAPromptToo()
@@ -596,7 +642,7 @@ public class HiddenRailTests
 
         drawn.Press(new Key('?'));
 
-        const string said = @"\               hide or show the rail, even from a search or a filter";
+        const string said = @"\               hide or show the rail, even from a search or the follow list's filter";
 
         Assert.Contains(drawn.Rows(), row => row.Contains(said, StringComparison.Ordinal));
     }

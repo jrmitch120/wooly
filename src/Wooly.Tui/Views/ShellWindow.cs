@@ -338,7 +338,7 @@ internal sealed class ShellWindow : Window
         // Which screens do that is a fact about the screen, not a mode kept here. All but a space the keymap gives a
         // meaning on the screen — choosing, in the file browser, whose fuzzy filter never needs one typed (#376) — and
         // `\`, which hides and shows the rail from a prompt too, so that the hidden rail is never out of the keys' reach
-        // there (#447).
+        // there — but on the file browser, whose filter the keymap leaves it to (#447).
         if (_shell.Screen.IsTyping && !TakenAheadOfTheTyping(key) && Typing(key))
         {
             return true;

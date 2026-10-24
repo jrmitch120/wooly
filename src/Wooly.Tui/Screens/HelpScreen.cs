@@ -26,8 +26,9 @@ public sealed class HelpScreen(Screen about) : Screen
         // Listed here and on no status row: set and forgotten, they would take room on every screen (#414).
         new("- / + or =", "narrow or widen the shell by 10%"),
         // On no status row either, for the same reason, but where the rail is hidden (#441, #445). Never typed into a
-        // search or a filter, which is said here since nowhere else is (#447).
-        new("\\", "hide or show the rail, even from a search or a filter"),
+        // search or the follow list's filter, which is said here since nowhere else is; the file browser's filter takes
+        // it as a letter, for a Windows path, and is not named (#447).
+        new("\\", "hide or show the rail, even from a search or the follow list's filter"),
         // The pointer: it adds no keys of its own, only another way to ask for these (#286). An action a row, its input
         // in the key column as a key's is (#446).
         new("wheel", "scroll the content"),

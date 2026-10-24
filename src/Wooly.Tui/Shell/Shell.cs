@@ -383,8 +383,8 @@ public sealed class Shell
 
     /// <summary>
     ///     Whether <c>\</c> pressed now would show the hidden rail: not on a screen whose fields take it as a letter
-    ///     (#441, #445), but on a prompt taking letters it would (#447). The status row and the locked walk name it only
-    ///     where it would.
+    ///     (#441, #445) nor on the file browser, whose filter does, but on any other prompt taking letters it would
+    ///     (#447). The status row and the locked walk name it only where it would.
     /// </summary>
     private bool BackslashShowsTheRail => Keymap.Means(ShellKey.Backslash, Screen) is Verb.ToggleRail;
 
