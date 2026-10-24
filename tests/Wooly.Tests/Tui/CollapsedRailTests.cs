@@ -402,6 +402,113 @@ public class CollapsedRailTests
         Assert.Equal(top, drawn.Rows()[1][(Strip(false) + 1)..^1].Trim());
     }
 
+    /// <summary>
+    ///     <c>tab</c> and <c>`</c> walk the strip as they walk the expanded rail — the cursor moving at once, the
+    ///     selection after the settle window — and the rail stays collapsed throughout: walking it never opens it.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task WalkingTheStripMovesTheCursorAndSettlesWithoutOpeningIt(bool coloured)
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Theme(coloured));
+
+        drawn.Press(Toggle);
+        drawn.Press(Key.Tab);
+        drawn.Press(new Key('`'));
+
+        var discover = drawn.Shell.Rail.Destinations.ToList().FindIndex(destination => destination.Kind == DestinationKind.Discover);
+
+        Assert.Equal(discover, drawn.Shell.Rail.Cursor);
+        Assert.Equal(0, drawn.Shell.Rail.Current);
+        Assert.Equal(Strip(coloured), ContentStarts(drawn));
+        Assert.Equal(ShellTiming.Default.Settle, drawn.Built.Host.Delays[^1]);
+
+        drawn.Built.Host.Settle();
+        drawn.Redraw();
+
+        Assert.Equal(discover, drawn.Shell.Rail.Current);
+        Assert.Equal(["Discover"], drawn.Shell.Crumbs);
+        Assert.Equal(Strip(coloured), drawn.Rows()[0].IndexOf("╭ Discover", StringComparison.Ordinal));
+    }
+
+    /// <summary>A click on a mark arrives there at once, as a click on a label does: no settle window is waited out.</summary>
+    [Theory]
+    [InlineData(Framed, true)]
+    [InlineData(Framed, false)]
+    [InlineData(Compact, true)]
+    [InlineData(Compact, false)]
+    public async Task ClickingAMarkArrivesThereAtOnce(int height, bool coloured)
+    {
+        using var drawn = await DrawnShell.Of(80, height, Theme(coloured));
+
+        drawn.Press(Toggle);
+        drawn.Click(coloured ? 1 : 3, RowOf(drawn.Shell, DestinationKind.Notifications, drawn.Rail(Strip(coloured))));
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
+        Assert.Equal(drawn.Shell.Rail.Current, drawn.Shell.Rail.Cursor);
+        Assert.Equal(0, drawn.Built.Host.Waiting);
+        Assert.True(drawn.Shell.RailCollapsed);
+    }
+
+    /// <summary>
+    ///     Drilled two screens into Home, a toggle leaves the stack and the breadcrumb alone; a click on the mark of the
+    ///     destination shown then walks back out to it, as a click on its label does.
+    /// </summary>
+    [Fact]
+    public async Task AToggleLeavesTheDrillAloneAndClickingTheShownMarkWalksBack()
+    {
+        using var drawn = await DrawnShell.Of(80, Framed, Themes.Plain, Long());
+
+        drawn.Press(Key.Enter);
+        drawn.Built.Host.Drain();
+        await drawn.Shell.OpenAuthor();
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        var screen = drawn.Shell.Screen;
+        var crumbs = drawn.Shell.Crumbs;
+        var requests = drawn.Built.Requests;
+
+        drawn.Press(Toggle);
+
+        Assert.Same(screen, drawn.Shell.Screen);
+        Assert.Equal(crumbs, drawn.Shell.Crumbs);
+        Assert.Equal(requests, drawn.Built.Requests);
+        Assert.Contains(crumbs[^1], drawn.Rows()[0], StringComparison.Ordinal);
+
+        drawn.Click(3, RowOf(drawn.Shell, DestinationKind.Home, drawn.Rail(Strip(false))));
+        drawn.Built.Host.Settle();
+        drawn.Redraw();
+
+        Assert.Equal(["Home"], drawn.Shell.Crumbs);
+        Assert.Equal(requests, drawn.Built.Requests);
+    }
+
+    /// <summary>
+    ///     Inside a narrowed shell the strip gives its columns to the content: the panel starts where the strip ends,
+    ///     past the margin, and still ends on the shell's last column.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task InsideANarrowedShellTheStripGivesItsWidthToTheContent(bool coloured)
+    {
+        using var drawn = await DrawnShell.Of(200, Framed, Theme(coloured));
+
+        drawn.Press(new Key('-'));
+        drawn.Press(Toggle);
+
+        var top = drawn.Rows()[0];
+
+        Assert.Equal(10, top.IndexOf('╭', StringComparison.Ordinal));
+        Assert.Equal(10 + Strip(coloured), top.IndexOf("╭ Home", StringComparison.Ordinal));
+        Assert.Equal(189, top.LastIndexOf('╮'));
+        Assert.Equal(180 - Strip(coloured), drawn.Content.Frame.Width);
+    }
+
     /// <summary>The keymap lists <c>\</c> with the frame's keys, everywhere.</summary>
     [Fact]
     public async Task TheKeymapListsBackslashWithTheFrame()
