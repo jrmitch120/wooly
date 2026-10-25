@@ -51,6 +51,45 @@ public static class Scroll
     public static int ToReference(IReadOnlyList<Line> lines, int height, int from, int pinned = 0) =>
         Bringing(lines, height, from, pinned, Role.ReferencePicked);
 
+    /// <summary>
+    ///     Whether the reference walked to has gone off the page starting at <paramref name="from" />: none of its rows
+    ///     are on it, which is what lets it go (#478).
+    /// </summary>
+    /// <remarks>
+    ///     Its rows run from the first its brackets are drawn on to the last, so the middle row of an address wrapped
+    ///     across three rows, which carries neither bracket, counts as one of them: a reference is off only when no
+    ///     part of it shows. Rows with no brackets on them at all say nothing either way, so they never let it go.
+    /// </remarks>
+    /// <param name="lines">The rows drawn.</param>
+    /// <param name="height">How many rows there is room for.</param>
+    /// <param name="from">Where the page starts.</param>
+    /// <param name="pinned">
+    ///     How many rows at the top of the page are pinned there (<see cref="To" />): a row scrolled under them is not on
+    ///     the page, since nobody can see it.
+    /// </param>
+    public static bool LeftReference(IReadOnlyList<Line> lines, int height, int from, int pinned = 0)
+    {
+        var first = -1;
+        var last = -1;
+
+        for (var at = 0; at < lines.Count; at++)
+        {
+            if (!lines[at].Has(Role.ReferencePicked))
+            {
+                continue;
+            }
+
+            if (first < 0)
+            {
+                first = at;
+            }
+
+            last = at;
+        }
+
+        return first >= 0 && (last < from + pinned || first >= from + height);
+    }
+
     /// <summary>Where to scroll to so that every row with a span of <paramref name="role" /> is on the page.</summary>
     private static int Bringing(IReadOnlyList<Line> lines, int height, int from, int pinned, Role role)
     {

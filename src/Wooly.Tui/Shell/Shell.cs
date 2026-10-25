@@ -766,6 +766,18 @@ public sealed class Shell
         return true;
     }
 
+    /// <summary>
+    ///     Lets the reference walked to go because none of its rows are on the page any more, so that <c>⏎</c> never opens
+    ///     something the reader cannot see and <c>esc</c> is never spent on it (#478). The pick stays where it is.
+    /// </summary>
+    public void LetReferenceGo()
+    {
+        if (Screen.ClearReference())
+        {
+            Changed?.Invoke();
+        }
+    }
+
     /// <summary>Shows what the picked post is hiding — its warned text, its sensitive attachments, or both.</summary>
     public void Reveal()
     {

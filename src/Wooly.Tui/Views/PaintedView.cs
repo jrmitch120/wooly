@@ -151,6 +151,24 @@ internal sealed class PaintedView : View
     public Action<int, int>? Settled { get; init; }
 
     /// <summary>
+    ///     Whether a reference is walked to on the screen drawn here, which is the only time a frame looks at whether it
+    ///     has gone off the page (<see cref="LetReferenceGo" />). None where nobody said.
+    /// </summary>
+    public Func<bool> HoldsAReference { get; init; } = () => false;
+
+    /// <summary>
+    ///     Told, from inside the frame that settles the page, that the reference walked to has none of its rows on it any
+    ///     more — after an arrow, a page key, a wheel notch or a resize — so that it is let go (#478). Nobody is told where
+    ///     nobody said.
+    /// </summary>
+    /// <remarks>
+    ///     Asked only while <see cref="HoldsAReference" /> says one is held, and answered off the rows the frame lays out
+    ///     anyway, so that scrolling with none held lays nothing out it did not before (#51). Whoever is told lets it go
+    ///     and redraws: this frame's brackets are off the page already, so nothing on it shows them.
+    /// </remarks>
+    public Action? LetReferenceGo { get; init; }
+
+    /// <summary>
     ///     How this terminal paints pixels as of the last frame settled, or <see cref="Media.Raster.None" /> before the
     ///     first. Worked out once a frame, before the rows are, and read rather than asked again everywhere else — the
     ///     rows laid out for a click or a key between frames included — so the rows, the boxes and the picture cache
@@ -716,6 +734,13 @@ internal sealed class PaintedView : View
         {
             _top = shown;
             _following = false;
+        }
+
+        // A reference with none of its rows left on the page the scroll came to is let go, whatever moved the page or
+        // reflowed it (#478). Looked at only while one is held, so scrolling with none costs what it did.
+        if (LetReferenceGo is { } letGo && Scrolls && HoldsAReference() && Scroll.LeftReference(lines, height, _top, pinned))
+        {
+            letGo();
         }
 
         _drawnPick = FirstPicked(lines) - _top;
