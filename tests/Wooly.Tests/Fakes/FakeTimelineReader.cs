@@ -18,6 +18,10 @@ internal sealed class FakeTimelineReader : ITimelineReader
 
     private Func<Onward?, int, Fetch<Post>>? _reading;
 
+    private Func<Onward, int, Task<Fetch<Post>>>? _nextReadOn;
+
+    private Exception? _refusing;
+
     private bool _holding;
 
     private FakeTimelineReader(Func<Timeline, Task<Fetch<Post>>> answer) => _answer = answer;
@@ -117,6 +121,29 @@ internal sealed class FakeTimelineReader : ITimelineReader
         return _reading is { } reading ? Task.FromResult(reading(null, limit)) : _answer(timeline);
     }
 
+    /// <summary>
+    ///     Every read on fails with <paramref name="refusal" /> from here on, having been recorded, until
+    ///     <see cref="StopsRefusingReadsOn" /> — where the question is what a read on that did not succeed leaves
+    ///     behind, and what tries it again (#462).
+    /// </summary>
+    public void RefusesReadsOn(Exception refusal) => _refusing = refusal;
+
+    /// <summary>Reads on succeed again, as an instance that has come back does.</summary>
+    public void StopsRefusingReadsOn() => _refusing = null;
+
+    /// <summary>
+    ///     The next read on hands out <paramref name="posts" /> of what it would have and is then stopped by
+    ///     <paramref name="limit" />, keeping where it stopped — as a rate limit part way through a read does (#462).
+    /// </summary>
+    public void RateLimitsNextReadOnAfter(int posts, RateLimitedException limit) =>
+        _nextReadOn = (from, _) =>
+        {
+            var arrived = _reading?.Invoke(from, posts).Items ?? [];
+
+            return Task.FromResult(
+                Fetch<Post>.StoppedShort(arrived, limit, arrived.Count > 0 ? new Onward(arrived[^1].Id) : from));
+        };
+
     public Task<Fetch<Post>> ReadOn(
         ActiveProfile profile,
         Timeline timeline,
@@ -126,6 +153,18 @@ internal sealed class FakeTimelineReader : ITimelineReader
     {
         ReadsOn.Add(new OnwardCall(timeline, from, limit));
         Tokens.Add(profile.AccessToken);
+
+        if (_refusing is { } refusal)
+        {
+            return Task.FromException<Fetch<Post>>(refusal);
+        }
+
+        if (_nextReadOn is { } next)
+        {
+            _nextReadOn = null;
+
+            return next(from, limit);
+        }
 
         // A reader nobody said reads on has nothing behind what it handed out, which is a list read whole.
         var answer = _reading?.Invoke(from, limit) ?? Fetch<Post>.Complete([]);
