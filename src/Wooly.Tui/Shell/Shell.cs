@@ -629,18 +629,23 @@ public sealed class Shell
     ///     what is on the post, and asking it in two places is how two places come to disagree. So can a paste from the
     ///     clipboard, which holds nothing to attach as often as not, and leaves the key to the field's own paste.
     /// </returns>
-    public bool Do(Verb verb, int? answer) => (_acting is not null || WithNobody(verb)) && _drafting.Do(verb) switch
-    {
-        Drafted.Used => true,
-        Drafted.Declined => false,
-        _ => Carried(verb, answer),
-    };
+    /// <param name="page">
+    ///     What the view says of the page, which <c>→</c> and <c>←</c> reclaim and enter a walk by
+    ///     (<see cref="WalkReference" />), and nothing to any other verb.
+    /// </param>
+    public bool Do(Verb verb, int? answer, OnThePage? page = null) =>
+        (_acting is not null || WithNobody(verb)) && _drafting.Do(verb) switch
+        {
+            Drafted.Used => true,
+            Drafted.Declined => false,
+            _ => Carried(verb, answer, page),
+        };
 
     /// <summary>What <see cref="Do" /> carries out of a verb that is not a draft's, which is every one it names.</summary>
-    private bool Carried(Verb verb, int? answer) => verb switch
+    private bool Carried(Verb verb, int? answer, OnThePage? page) => verb switch
     {
-        Verb.NextReference => WalkReference(1),
-        Verb.PreviousReference => WalkReference(-1),
+        Verb.NextReference => WalkReference(1, page),
+        Verb.PreviousReference => WalkReference(-1, page),
         Verb.Toggle => answer is { } option && Toggle(option),
 
         Verb.Back => Ran(Back),
@@ -750,13 +755,25 @@ public sealed class Shell
     ///     What <c>←</c> and <c>→</c> do: walk the references inside the picked post — <c>→</c> entering at the first
     ///     and <c>←</c> at the last, clamping at either end (#83).
     /// </summary>
+    /// <remarks>
+    ///     Told of the page by the view (<paramref name="page" />), since only it knows the room and the scroll: with the
+    ///     pick off the page, the press reclaims first and enters the reclaimed thing's references in the same press,
+    ///     even mid-walk, and either way it enters at the first or last reference on the page (#477).
+    /// </remarks>
     /// <returns>
-    ///     Whether the screen had any references to walk, which is what settles whether the key was used: a screen
-    ///     with none — the compose editor above all — leaves the arrows to whatever else wants them.
+    ///     Whether the press was used: it reclaimed, or the screen had references to walk. A screen with none — the
+    ///     compose editor above all — leaves the arrows to whatever else wants them.
     /// </returns>
-    public bool WalkReference(int by)
+    public bool WalkReference(int by, OnThePage? page = null)
     {
-        if (!Screen.WalkReference(by))
+        var reclaiming = page?.Reclaiming;
+
+        if (reclaiming is { } at)
+        {
+            Section(at);
+        }
+
+        if (!Screen.WalkReference(by, page?.References) && reclaiming is null)
         {
             return false;
         }

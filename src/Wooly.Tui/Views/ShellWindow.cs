@@ -752,10 +752,13 @@ internal sealed class ShellWindow : Window
             return Carry(verb);
         }
 
-        var used = _shell.Do(verb, Keymap.Answer(pressed));
+        var walking = verb is Verb.NextReference or Verb.PreviousReference;
+
+        // The arrows reclaim an off-page pick and enter a walk at the page, which only the content can say (#477).
+        var used = _shell.Do(verb, Keymap.Answer(pressed), walking ? _content.OnThePage : null);
 
         // A reference walked to is brought onto the page, the least move that does it (#473).
-        if (used && verb is Verb.NextReference or Verb.PreviousReference)
+        if (used && walking)
         {
             _content.ShowReference();
         }

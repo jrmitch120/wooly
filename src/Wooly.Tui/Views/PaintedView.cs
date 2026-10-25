@@ -185,6 +185,36 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
+    ///     What <c>→</c> and <c>←</c> are to walk from: the reclaim <see cref="Reclaimable" /> would answer, and the
+    ///     references on the page of the thing reclaimed, or of the pick where nothing is (#477).
+    /// </summary>
+    /// <remarks>
+    ///     Answered from one lot of rows, for the reason <see cref="Along" /> is, and nothing known where this view does
+    ///     not scroll: a walk there enters at the first reference or the last, as it always has.
+    /// </remarks>
+    public OnThePage OnThePage
+    {
+        get
+        {
+            var width = Viewport.Width;
+            var height = Viewport.Height;
+
+            if (!Scrolls || width <= 0 || height <= 0)
+            {
+                return OnThePage.Unknown;
+            }
+
+            var lines = _rows(width, height);
+            var reclaiming = Reclaiming(lines, height);
+            var walked = reclaiming ?? (FirstPicked(lines) is { } picked ? lines[picked].Item : null);
+
+            return new OnThePage(
+                reclaiming,
+                walked is { } item ? Scroll.ReferencesOn(lines, height, _top, item, Pinned()) : []);
+        }
+    }
+
+    /// <summary>
     ///     Which thing <c>[</c> or <c>]</c> lands on — the first of the headed run <paramref name="by" /> along — or
     ///     <see langword="null" /> where there is no run that way and the press does nothing at all (#166).
     /// </summary>
