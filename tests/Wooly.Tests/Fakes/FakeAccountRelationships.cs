@@ -160,7 +160,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
 
         // A page at a time, the most the instance serves of one, as the adapter hands them on — and no more than was
         // asked for, which is where the adapter stops.
-        var read = _list with { Items = [.. _list.Items.Take(limit)] };
+        var read = Run(from: null, limit);
 
         foreach (var page in read.Items.Chunk(80))
         {
@@ -168,6 +168,50 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         }
 
         return _unfinished ? new TaskCompletionSource<Fetch<Account>>().Task : Task.FromResult(read);
+    }
+
+    /// <summary>Every read on of a follow list it was asked for, in order — where a test proves where it went on from.</summary>
+    public List<ListedOn> ListsOn { get; } = [];
+
+    /// <summary>
+    ///     The next <paramref name="limit" /> of whoever every list holds, from just past the one
+    ///     <paramref name="from" /> names — as a <see cref="List" /> that stopped short of the whole of them said to.
+    /// </summary>
+    public Task<Fetch<Account>> ListOn(
+        ActiveProfile profile,
+        FollowSide side,
+        NamedAccount? account,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ListsOn.Add(new ListedOn(profile.Name, side, account, from, limit));
+        Tokens.Add(profile.AccessToken);
+
+        return _refusal is null
+            ? Task.FromResult(Run(from, limit))
+            : Task.FromException<Fetch<Account>>(_refusal);
+    }
+
+    /// <summary>
+    ///     <paramref name="limit" /> of whoever the list holds from just past the one <paramref name="from" /> names, and
+    ///     where to read on from after them unless that was the last of them — the account's own id standing in for
+    ///     the instance's cursor, which nobody above the port ever reads. A list a rate limit stopped stays stopped.
+    /// </summary>
+    private Fetch<Account> Run(Onward? from, int limit)
+    {
+        var everyone = _list.Items;
+        var start = from?.MaxId is { } after ? everyone.ToList().FindIndex(person => person.Id == after) + 1 : 0;
+        var run = everyone.Skip(start).Take(limit).ToList();
+
+        if (_list.StoppedBy is not null)
+        {
+            return _list with { Items = run };
+        }
+
+        return start + run.Count < everyone.Count
+            ? Fetch<Account>.Complete(run, new Onward(run[^1].Id))
+            : Fetch<Account>.Complete(run);
     }
 
     /// <summary>
@@ -247,6 +291,9 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     ///     was holding rather than paying for another (#184).
     /// </summary>
     internal sealed record Listed(string Profile, FollowSide? Side, NamedAccount? Account, int Limit);
+
+    /// <summary>One read on of a follow list: which profile asked, which side, about whom, from where and how many more.</summary>
+    internal sealed record ListedOn(string Profile, FollowSide Side, NamedAccount? Account, Onward From, int Limit);
 
     /// <summary>One answered request: which profile answered, whose request, and what they said.</summary>
     internal sealed record Answered(string Profile, string AccountId, bool Accepted);

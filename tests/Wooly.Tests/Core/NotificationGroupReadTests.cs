@@ -203,6 +203,55 @@ public class NotificationGroupReadTests
     }
 
     /// <summary>
+    ///     Reading on (#467): a read of a group's actors that stopped at what was asked for says where to read on from,
+    ///     and handing that back asks for the page the instance named next rather than reading the group from the top.
+    /// </summary>
+    [Fact]
+    public async Task ReadGroupActorsOn_AsksForThePageTheLastReadNamedNext()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            GroupedResponse(
+                $"[{AccountJson("2", "alice@hachyderm.io")},{AccountJson("3", "bob")}]",
+                nextMaxId: "338"),
+            GroupedResponse($"[{AccountJson("4", "carol@carpdiem.online")}]", nextMaxId: "301"));
+        var inbox = NewInbox(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await inbox.ReadGroupActors(Profile, "favourite-110-493000", 2, token);
+        var onward = await inbox.ReadGroupActorsOn(Profile, "favourite-110-493000", first.Onward!, 1, token);
+
+        Assert.False(first.IsWhole);
+        Assert.Equal(2, network.Requests.Count);
+        Assert.Equal(
+            "https://mastodon.social/api/v2/notifications/favourite-110-493000/accounts?limit=1&max_id=338",
+            network.Requests[1].RequestUri?.ToString());
+        Assert.Equal("4", Assert.Single(onward.Items).Id);
+        Assert.False(onward.IsWhole);
+    }
+
+    /// <summary>
+    ///     And where the instance names no page after the one read on, the group is whole: its accounts endpoint pages
+    ///     by notification ids, so nothing read can stand in for a link the instance did not send.
+    /// </summary>
+    [Fact]
+    public async Task ReadGroupActorsOn_IsWholeWhereTheInstanceNamesNoFurtherPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            GroupedResponse(
+                $"[{AccountJson("2", "alice@hachyderm.io")},{AccountJson("3", "bob")}]",
+                nextMaxId: "338"),
+            GroupedResponse($"[{AccountJson("4", "carol@carpdiem.online")}]"));
+        var inbox = NewInbox(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await inbox.ReadGroupActors(Profile, "favourite-110-493000", 2, token);
+        var onward = await inbox.ReadGroupActorsOn(Profile, "favourite-110-493000", first.Onward!, 80, token);
+
+        Assert.Equal("4", Assert.Single(onward.Items).Id);
+        Assert.True(onward.IsWhole);
+    }
+
+    /// <summary>
     ///     <c>d</c> on a group clears every notification in it with one request, named by the group's key — never one
     ///     dismissal per notification (#457, #449).
     /// </summary>
