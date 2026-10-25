@@ -1156,6 +1156,34 @@ public class TimelineReaderTests
             network.Requests[1].RequestUri?.ToString());
     }
 
+    /// <summary>
+    ///     A read on that a rate limit stops part way through is the same (#462): it keeps what arrived, is not whole,
+    ///     and the next read on asks for the page the limit refused.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_StoppedPartWayByARateLimit_KeepsWhatArrivedAndTheNextReadOnResumesWhereItStopped()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "161"),
+            PageResponse(PageOf(count: 40, firstId: 160), nextMaxId: "121"),
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests),
+            PageResponse(PageOf(count: 3, firstId: 120)));
+        var reader = NewReader(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await reader.Read(Profile, Timeline.Home, 40, token);
+        var stopped = await reader.ReadOn(Profile, Timeline.Home, first.Onward!, 80, token);
+        await reader.ReadOn(Profile, Timeline.Home, stopped.Onward!, 40, token);
+
+        Assert.NotNull(stopped.StoppedBy);
+        Assert.Equal(40, stopped.Items.Count);
+        Assert.Equal("160", stopped.Items[0].Id);
+        Assert.False(stopped.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/timelines/home?max_id=121&limit=40",
+            network.Requests[3].RequestUri?.ToString());
+    }
+
     private static Timeline TimelineFor(TimelineScope scope) => scope switch
     {
         TimelineScope.Home => Timeline.Home,
