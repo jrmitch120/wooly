@@ -265,7 +265,7 @@ public sealed class Arrival(
         }
 
         return enquiry.Put(
-            ask => subject.ReadOn(ask, ports, profile, from),
+            ask => subject.ReadOn(ask, ports, profile, showing, from),
             ifStillHere: found => Land(subject, Move.Page, showing, found),
             ended: reading.Ended);
     }

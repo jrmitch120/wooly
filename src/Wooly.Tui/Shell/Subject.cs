@@ -73,8 +73,17 @@ public abstract record Subject
     /// <param name="ask">What every call it makes is put through.</param>
     /// <param name="ports">What it is read through.</param>
     /// <param name="profile">Who is asking.</param>
+    /// <param name="standing">
+    ///     The screen being read on, which a subject that reads on through what its screen holds reads on from — an
+    ///     account's, whose posts are asked for by the id it was answered with (#464).
+    /// </param>
     /// <param name="from">Where the instance said to read on from.</param>
-    internal virtual Task<Found> ReadOn(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from) =>
+    internal virtual Task<Found> ReadOn(
+        Enquiry.Ask ask,
+        ShellPorts ports,
+        ActiveProfile profile,
+        Screen standing,
+        Onward from) =>
         throw new InvalidOperationException($"{GetType().Name} does not read on, and its screen was never told to.");
 
     /// <summary>
@@ -144,7 +153,12 @@ public abstract record Subject
             Table().Read(ask, ports, profile, Entry, token => new InboxCount(ports, profile, SessionMarkers, token));
 
         /// <inheritdoc />
-        internal override Task<Found> ReadOn(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from) =>
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
             Table().ReadOn(ask, ports, profile, from);
 
         /// <inheritdoc />
@@ -359,7 +373,30 @@ public abstract record Subject
                 pins,
                 familiar,
                 WithReplies,
-                profile.SignsInAs(account.Address));
+                profile.SignsInAs(account.Address),
+                posts.Onward);
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        ///     Their posts alone or their <b>Posts and replies</b>, whichever run the screen is showing, and never the
+        ///     pinned run, which is one page in the account's own order (#464). Asked by the id the screen's account was
+        ///     answered with, as the first read's three calls after <c>Show</c> are, so reading on costs no lookup of
+        ///     its own (ADR-0012's second amendment).
+        /// </remarks>
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from)
+        {
+            var whose = NamedAccount.Resolved(((AccountScreen)standing).Account);
+
+            return TimelineReadsOn(
+                    WithReplies ? Timeline.WithReplies(whose) : Timeline.By(whose),
+                    (screen, older) => ((AccountScreen)screen).ReadOn(older))
+                .From(ask, ports, profile, from);
         }
     }
 
@@ -609,7 +646,12 @@ public abstract record Subject
         }
 
         /// <inheritdoc />
-        internal override Task<Found> ReadOn(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from) =>
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
             FeedReadsOn(Timeline.Tag(Hashtag)).From(ask, ports, profile, from);
     }
 

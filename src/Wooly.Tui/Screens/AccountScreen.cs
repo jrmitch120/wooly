@@ -299,12 +299,30 @@ public sealed class AccountScreen : Screen
         {
             lines.Add(Line.Of("Nothing to read here yet.", Role.Muted));
 
-            return lines;
+            return ReadingOn?.Under(lines, holding: false) ?? lines;
         }
 
         lines.AddRange(_walking.PostRows(drawing, from: pinned, howMany: _posts.Count - pinned));
 
-        return lines;
+        // The foot goes under their posts, which are what reads on, and so under everything (#464).
+        return ReadingOn?.Under(lines, holding: true) ?? lines;
+    }
+
+    /// <summary>
+    ///     Puts <paramref name="older" /> under their posts already held, as a read on brought them: below everything,
+    ///     with the pick left where it was and nothing above it moved (#464).
+    /// </summary>
+    /// <remarks>
+    ///     A post the fetch found pinned is left out, being drawn in the pinned run already: an old pin comes back in
+    ///     an older page of their timeline as a recent one does in the first, and the two runs reach the screen
+    ///     disjoint either way (#182).
+    /// </remarks>
+    public void ReadOn(IReadOnlyList<Post> older)
+    {
+        foreach (var post in older.Where(post => !_pins.Contains(post.Id)))
+        {
+            _posts.Add(post);
+        }
     }
 
     /// <summary>Whether a follow is in place or waiting to be let in, which <c>F</c> treats the same way.</summary>
