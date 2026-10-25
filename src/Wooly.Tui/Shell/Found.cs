@@ -39,11 +39,15 @@ internal abstract record Found
     public virtual Found? Holding(Found readOn) => null;
 
     /// <summary>
-    ///     Whether the rest of the subject is to be read at once, behind the reader, rather than waiting for them to
-    ///     walk onto the end of what arrived.
+    ///     Whether the rest of the subject is read at once, behind the reader, as soon as this has landed — a
+    ///     <b>Follow list</b> held whole, the rest of which streams in while the reader walks the first page of it.
     /// </summary>
+    /// <remarks>
+    ///     Not <b>reading on</b>, which a list does as the page nears the end of it, and only ever a page at a time
+    ///     (<see cref="Subject.ReadOn" />): a list read whole is never read on, and one read on is never read whole.
+    /// </remarks>
     /// <param name="screen">The screen the answer became.</param>
-    public virtual bool ReadsOn(Screen screen) => false;
+    public virtual bool ReadsRestAtOnce(Screen screen) => false;
 
     /// <summary>
     ///     Whether anything in this answer is the post <paramref name="postId" /> names, or a boost of it — which is

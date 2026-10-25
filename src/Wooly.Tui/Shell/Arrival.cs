@@ -435,7 +435,7 @@ public sealed class Arrival(
 
                     landed?.Invoke();
 
-                    if (found.ReadsOn(screen))
+                    if (found.ReadsRestAtOnce(screen))
                     {
                         _ = Read(subject, Move.Page, screen);
                     }

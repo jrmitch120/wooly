@@ -534,7 +534,7 @@ public abstract record Subject
             /// <inheritdoc />
             /// <remarks>
             ///     Read into the screen standing for the list, which is already up. A browsed list reads on from here,
-            ///     and a held one never does: the rest of it is read at once instead (<see cref="ReadsOn" />).
+            ///     and a held one never does: the rest of it is read at once instead (<see cref="ReadsRestAtOnce" />).
             /// </remarks>
             public override Screen Becomes(Screen? standing)
             {
@@ -566,7 +566,7 @@ public abstract record Subject
             ///     A list held whole goes on to read the rest at once, which is what streaming in behind the reader
             ///     is; a browsed one stops here and reads on as the page nears the end of what arrived.
             /// </remarks>
-            public override bool ReadsOn(Screen screen) =>
+            public override bool ReadsRestAtOnce(Screen screen) =>
                 screen is FollowsScreen { Holds: true } follows && More(follows);
 
             /// <inheritdoc />
