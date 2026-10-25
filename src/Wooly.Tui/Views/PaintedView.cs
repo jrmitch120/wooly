@@ -43,6 +43,9 @@ internal sealed class PaintedView : View
     private bool _following = true;
     private bool _anchoring;
 
+    /// <summary>Whether the next frame is to bring the reference walked to onto the page (<see cref="ShowReference" />).</summary>
+    private bool _showingReference;
+
     /// <summary>How far down the page the last frame drew the pick's first row, if it drew one at all.</summary>
     private int? _drawnPick;
 
@@ -354,6 +357,22 @@ internal sealed class PaintedView : View
     {
         _following = true;
         _anchoring = true;
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>
+    ///     On the very next frame only, moves the page the least it must to bring the reference just walked to onto it —
+    ///     what <c>→</c> and <c>←</c> ask for, the way <c>j</c> and <c>k</c> bring the pick back (#473).
+    /// </summary>
+    /// <remarks>
+    ///     A page that has to move for it stops following the pick, since following would snap a post taller than the
+    ///     room back to its top on the next frame and take the reference off again. One that need not move is left
+    ///     exactly as it was, following or not.
+    /// </remarks>
+    public void ShowReference()
+    {
+        _showingReference = true;
 
         SetNeedsDraw();
     }
@@ -684,8 +703,10 @@ internal sealed class PaintedView : View
     {
         var lines = _rows(width, height);
         var anchoring = _anchoring;
+        var showingReference = _showingReference;
 
         _anchoring = false;
+        _showingReference = false;
 
         var was = _top;
 
@@ -703,6 +724,12 @@ internal sealed class PaintedView : View
                 ? anchoring ? Scroll.ToSection(lines, height, _top, pinned) : Scroll.To(lines, height, _top, pinned)
                 : Scroll.By(lines, _top, 0)
             : 0;
+
+        if (showingReference && Scrolls && Scroll.ToReference(lines, height, _top, pinned) is var shown && shown != _top)
+        {
+            _top = shown;
+            _following = false;
+        }
 
         _drawnPick = FirstPicked(lines) - _top;
 
