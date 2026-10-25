@@ -34,8 +34,10 @@ public sealed class NotificationsScreen(
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
     // Named by the group's own key, which is not the id of the post it is about (GLOSSARY.md) — and is what a refresh
-    // puts the reader back on (#84).
-    private readonly Picked<NotificationGroup> _groups = new(groups);
+    // puts the reader back on (#84). Each key once, under its newest: the instance groups a page at a time, so a list
+    // read on, and the cache holding it, can name a group twice (#465).
+    private readonly Picked<NotificationGroup> _groups =
+        new([.. groups.DistinctBy(group => group.Key, StringComparer.Ordinal)]);
 
     // The face last clicked in a group's avatar strip, its slot in the group's actors: what the Verb.OpenFace a click
     // answers with opens once the shell has picked the group out. A verb carries no more than its name.
@@ -173,6 +175,26 @@ public sealed class NotificationsScreen(
     }
 
     /// <summary>
+    ///     Puts <paramref name="older" /> under the groups already held, as a read on brought them (#465): below
+    ///     everything, drawn read — they are behind the read marker — with the pick left on the group it was on and
+    ///     nothing above it moved, whatever arrived on top meanwhile.
+    ///     <para>
+    ///         The instance groups a page at a time, so a group already held can come back with older notifications of
+    ///         its own. It stays where it is, under its newest: one key drawn twice is two rows <c>d</c> and <c>w</c>
+    ///         could not tell apart.
+    ///     </para>
+    /// </summary>
+    public void ReadOn(IReadOnlyList<NotificationGroup> older)
+    {
+        var held = Groups.Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var group in older.Where(group => held.Add(group.Key)))
+        {
+            _groups.Add(group);
+        }
+    }
+
+    /// <summary>
     ///     What this screen's own keys do: <c>w</c> opens who did what the picked group reports, <c>d</c> dismisses
     ///     it, and <c>D</c> all of them.
     /// </summary>
@@ -299,7 +321,9 @@ public sealed class NotificationsScreen(
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(_groups.Rows(drawing.Width, Draw));
+        var groups = _groups.Rows(drawing.Width, Draw);
+
+        lines.AddRange(ReadingOn?.Under(groups, holding: groups.Count > 0) ?? groups);
 
         return lines;
 
