@@ -159,9 +159,9 @@ internal sealed class PaintedView : View
     public Raster Raster { get; private set; } = Raster.None;
 
     /// <summary>
-    ///     The item <c>j</c> and <c>k</c> should take back — the topmost one on the page — or <see langword="null" />
-    ///     while the selection is still on screen and they can simply move from it. Never a row of its own: what is
-    ///     reclaimed is the whole post the page begins on.
+    ///     The item <c>j</c> and <c>k</c> should take back — the first one whose top is on the page — or
+    ///     <see langword="null" /> while the selection is still on screen and they can simply move from it. Never a row
+    ///     of its own: what is reclaimed is a whole thing.
     /// </summary>
     /// <remarks>
     ///     Asked of the view because the view is the only thing that knows how much room there is and where the arrows
@@ -268,8 +268,9 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     What a key that moves the pick has to take back before it moves it: the topmost thing on the page, where
-    ///     the pick has none of its rows on it, and <see langword="null" /> while it is still visible.
+    ///     What a key that moves the pick has to take back before it moves it: the first thing whose top is on the
+    ///     page (<see cref="Scroll.Reclaim" />), where the pick has none of its rows on it, and
+    ///     <see langword="null" /> while it is still visible.
     /// </summary>
     /// <remarks>
     ///     Said once for the two keys that ask it — <c>j</c>/<c>k</c> through <see cref="Reclaimable" /> and
@@ -280,7 +281,7 @@ internal sealed class PaintedView : View
     {
         var pinned = Pinned();
 
-        return Scroll.Shows(lines, height, _top, pinned) ? null : Scroll.Topmost(lines, _top, pinned);
+        return Scroll.Shows(lines, height, _top, pinned) ? null : Scroll.Reclaim(lines, height, _top, pinned);
     }
 
     /// <summary>
