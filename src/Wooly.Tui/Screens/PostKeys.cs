@@ -140,14 +140,6 @@ public static class PostKeys
         [.. keys.Where(key => !ActingOnAPost.Contains(key))];
 
     /// <summary>
-    ///     Whether <paramref name="key" /> is one of those, and so needs a post picked to act on as surely as a key a
-    ///     screen declares <see cref="KeyHint.NeedsAPick" /> does — which is how the shell tells a key that acts on the
-    ///     pick from one that does not, with the pick scrolled off the page (#476).
-    /// </summary>
-    /// <remarks>By hint rather than by letter, for the reason <see cref="OffAPost" /> gives.</remarks>
-    public static bool ActsOnAPost(KeyHint key) => ActingOnAPost.Contains(key);
-
-    /// <summary>
     ///     <paramref name="keys" /> with pin, edit and delete taken out, for a screen whose picked post is somebody
     ///     else's — which an instance refuses all three on, so announcing them is announcing a refusal (#220).
     /// </summary>

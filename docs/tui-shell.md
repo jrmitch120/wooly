@@ -239,6 +239,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021), and is locked as `tab` is with the rail hidden (#445). |
 | `/` | Search. Goes to the search destination; what it opens onto is #29's. |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
+| off-page pick | Not a key but a rule over the keys that act on the pick: with no row of the pick on the page, the first such key only picks what is on the page, and the next acts on it ("What moving settled", #476). Listed on the `?` screen as `off-page pick   the first key picks what is on the page`, since the status row stays still as the page moves. |
 | `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
 | `\` | Hides the rail, the content taking the whole width of the shell, or shows it again, saved for the next launch (#442, #445). On a prompt taking letters too, rather than typed: Search's, the follow list's filter and Add a profile (#447). Typed as a letter only on compose, the description editor and the public profile form, whose fields take it, and on the file browser, whose filter takes a Windows path (#447). Nothing where there is no rail. Listed on the `?` screen, and on the status row only while the rail is hidden, as `Rail: \` (#445). See **Hidden rail**, above. |
 
@@ -625,8 +626,8 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   (`Shell.WalkReference`).
 - **The page follows a walked reference** (#473). Walking to a reference that is not on the page moves the page the
   least it must to bring its row onto it — onto the bottom row walking down, the top row walking up — the same
-  minimum move `j`/`k` bring the pick back with (`Scroll.ToReference`, keyed on the rows its brackets are drawn on, so
-  an address wrapped across two rows comes on whole where it fits). Walking to one already on the page leaves the page
+  minimum move `j`/`k` bring the pick back with (`Scroll.ToReference`, keyed on every row a run of it is drawn
+  on, `Span.Reference`, so an address wrapped across two rows comes on whole where it fits). Walking to one already on the page leaves the page
   where it is. A page that has to move stops following the pick, since following shows a post taller than the room
   from its top on every frame and would take the reference straight off again; the window asks for it after a walk
   step (`PaintedView.ShowReference`), spent on the next frame only, as `[`/`]`'s anchor is.
@@ -635,11 +636,12 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
 - **A reference that scrolls off is let go** (#478). The moment none of its rows are on the page — after `↓`/`↑`,
   `PgUp`/`PgDn`, a wheel notch, or a resize that reflows it off — the brackets go and the status row leaves reference
   mode, so `⏎` never opens something the reader cannot see and `esc` is never spent on it. Scrolling back does not
-  bring it back. Its rows run from the first its brackets are drawn on to the last (`Scroll.LeftReference`), so an
-  address wrapped across two rows is kept while either shows, and the middle row of one wrapped across three counts.
+  bring it back. Its rows are every row a run of it is drawn on (`Span.Reference`, asked by
+  `Scroll.ReferenceOffThePage`), so an address wrapped across two rows is kept while either shows, and the middle row
+  of one wrapped across three counts.
   The selection itself still stays where it is, by the "What moving settled" contract: only the reference is let go
   eagerly, because only a reference can be opened by mistake. It is checked on the rows each frame lays out anyway,
-  and only while a reference is held (`PaintedView.HoldsAReference`/`LetReferenceGo` → `Shell.LetReferenceGo`), so
+  and only while a reference is held (`PaintedView.HeldReference`/`LetReferenceGo` → `Shell.LetReferenceGo`), so
   scrolling with none held lays nothing out it did not before (#51). The status row is added to the window first so
   that Terminal.Gui, which draws the views added first last, draws it after the content: it says what the content's
   frame settled, in that same frame.
@@ -969,12 +971,15 @@ selection was the only scroll position a screen had and the foot of such a post 
   only its foot on the page is where the reader stands, and `j`/`k` move on from it. The reclaim is worked out once,
   in `Scroll.Reclaim`, and every key that reclaims asks that one answer through `PaintedView.Reclaimable`.
 - **The keys that act on the pick reclaim first.** With no row of the pick on the page, the first press of a key that
-  acts on it — `⏎ read`, `b`, `f`, `r`, and every other key the status row marks as needing a pick — only reclaims,
-  picking what `j`/`k` would; the next press acts on what is picked now, which is on the page. A favourite, a boost, a
-  reply or a read never lands on a post the reader cannot see, and the cost is one extra press. Which keys those are is
-  the status row's own marks, read in one place (`Shell.NeedsAPick`): a hint a screen declares `NeedsAPick`, or one of
-  the keys that act on a post (`PostKeys.ActsOnAPost`), so no key is taught it on its own and a key marked later
-  inherits it. `ShellWindow.Do` asks it before the key is carried out, and asks `PaintedView.Reclaimable` what to
+  acts on it — `⏎ read`, `b`, `f`, `r`, the poll's `1`–`0` and `v`, and every other key that needs a pick — only
+  reclaims, picking what `j`/`k` would; the next press acts on what is picked now, which is on the page. A favourite, a
+  boost, a reply, a vote or a read never lands on a post the reader cannot see, and the cost is one extra press. Which
+  keys those are is a property of what the key means, not of whether the status row offers it right now
+  (`Verbs.NeedsAPick`, and `Keymap.NeedsAPick` for `F` on Discover and `m` on the conversations list, whose meaning
+  turns on the screen): `d`, `p` and `e` on somebody else's post, `x` with nothing hidden, and the post keys while a
+  thing with no post is picked reclaim too, rather than being refused or ignored about a post the reader cannot see.
+  `D clear all` reclaims as well, needing a list to pick from. `ShellWindow.Do` asks it once an open question and a
+  prompt taking letters have had the key, before the key is carried out, and asks `PaintedView.Reclaimable` what to
   reclaim, as `j`/`k` do. A pick with its foot on the page is acted on at once, and keys that need no pick — `g`, `c`,
   `esc`, `?`, the rail — reclaim nothing. The status row does not change as the page moves, so it cannot say this; the
   `?` screen's *Everywhere* list does, in a row of its own: `off-page pick   the first key picks what is on the page`

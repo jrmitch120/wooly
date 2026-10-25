@@ -266,6 +266,22 @@ public static class Keymap
     };
 
     /// <summary>
+    ///     Whether <paramref name="verb" /> needs something picked to act on <paramref name="screen" />
+    ///     (<see cref="Verbs.NeedsAPick" />), which is what reclaims an off-page pick before the key does anything else
+    ///     (#476).
+    /// </summary>
+    /// <remarks>
+    ///     Here rather than on the verb alone for the two that act on the pick only on some screens: <c>F</c> follows
+    ///     whoever is picked on Discover and the account shown on an account screen, and <c>m</c> marks the picked
+    ///     conversation read on the conversations list and the one being read inside it.
+    /// </remarks>
+    public static bool NeedsAPick(Verb verb, Screen screen) => (verb, screen) switch
+    {
+        (Verb.Follow, DiscoverScreen) or (Verb.MarkRead, DirectMessagesScreen) => true,
+        _ => verb.NeedsAPick(),
+    };
+
+    /// <summary>
     ///     Whether <paramref name="screen" /> is one with widgets of its own — compose, the description editor pushed
     ///     over it, or the edit public profile form — whose fields take <c>?</c>, <c>-</c>, <c>+</c> and <c>=</c> as
     ///     letters before the window sees them, so that those keys mean nothing there (#320, #414).
