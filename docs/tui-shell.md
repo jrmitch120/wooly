@@ -1027,7 +1027,9 @@ who walked to the bottom had no way to see anything older without leaving the TU
 - **The minute counts from the last read on**, not from the first read. The cache asks whether this is still the list
   the reader just left, and a reader reading on was reading it a moment ago, however long ago its top was read. A read
   on adds only to a list the cache still holds: one that `g` or a change has forgotten stays forgotten, and is read
-  again on coming back.
+  again on coming back. Each read on that lands restarts the minute (spec #460's amendment): counted from the first
+  read, a reader who had read on for longer than a minute would come back to the list read again from the top, and
+  story 25 would rarely hold.
 - **`g` drops all of it.** Refresh forgets the subject's entry and reads it again from the top, so the list opens at
   the top on what came back and the cache holds that and nothing older.
 - **A change reaches a post read on exactly as it reaches one from the first read.** The change table asks the held
@@ -1055,13 +1057,15 @@ who walked to the bottom had no way to see anything older without leaving the TU
   read of a destination counted off its list sets its badge — so requests read on to 55, and then whole, say `55` rather
   than `40+`, and an older unread conversation read on is counted. Exact once the list is whole; while it is not,
   Requests says `N+` for the N held, every one of them waiting, and Messages says `N+` only where every conversation
-  held is unread, the one case where what is held cannot be the whole count. It is the list going further down, not
-  anything arriving, so it never rings the bell, and it is the count the next one rises against. The cache keeps it with
-  the list read on, so arriving there again within the minute says it too, not what the first read said. Answering a
-  request or marking a conversation moves it as before: by one under an exact badge, and read again under `N+`. The next
-  poll or stream re-read counts the first 40 again and sets the badge from those, as every re-read does. Notifications'
-  badge is counted against the read marker, not off the list, and older notifications are behind it, so reading on there
-  never moves it.
+  held is unread, the one case where what is held cannot be the whole count — so 3 unread among 80 held say `3`, as the
+  first read has always counted them (spec #460's amendment). It is the list going further down, not anything arriving,
+  so it never rings the bell, and it is the count the next one rises against. The cache keeps it with the list read on,
+  so arriving there again within the minute says it too, not what the first read said. Answering a request or marking a
+  conversation moves it as before: by one under an exact badge, and read again under `N+`. The next poll or stream
+  re-read counts the first 40 again and sets the badge from those, as every re-read does: the `55` holds until then, and
+  that re-read says `40+` again, which is still true, where a `55` kept over a fresher read could be wrong (spec #460's
+  amendment). Notifications' badge is counted against the read marker, not off the list, and older notifications are
+  behind it, so reading on there never moves it.
 - **A browsed Follow list and a group's actors read on too** (#467), in place of the paging they had, which re-read
   the list from the top to a longer limit each time `k` or `End` landed on its last row. They read on by the same
   trigger, from the same onward position, with the same foot (*What a follow list settled*), and ask where the profile
