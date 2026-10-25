@@ -843,6 +843,17 @@ public abstract record Subject
             };
 
         /// <inheritdoc />
+        /// <remarks>
+        ///     Under what was read first, in the order it arrived, with where the read on said to go on from — so a list
+        ///     held whole once its read on found nothing behind it is held whole. Everything the change table asks of a
+        ///     held list is asked of these items, so a post reached by reading on is reached by a change too.
+        /// </remarks>
+        public override Found? Holding(Found readOn) =>
+            readOn is ReadOnto<T> onto
+                ? this with { Fetch = Fetch<T>.Complete([.. Fetch.Items, .. onto.Fetch.Items], onto.Fetch.Onward) }
+                : null;
+
+        /// <inheritdoc />
         public override bool HoldsPost(string postId) =>
             Fetch.Items.Any(item => How.Carries(item) is { } post && PostChange.Names(post, postId));
 
