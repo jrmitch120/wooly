@@ -766,6 +766,22 @@ public sealed class Shell
         return true;
     }
 
+    /// <summary>
+    ///     What a click on a reference does once the rows have said which thing and which reference are under the
+    ///     pointer: the thing is picked out, as a click anywhere on it picks it (<see cref="Section" />), and the
+    ///     reference inside it walked to, exactly as <c>←</c> and <c>→</c> would have left it. Nothing is opened (#475).
+    /// </summary>
+    /// <remarks>
+    ///     A reference drawn and never walked — a mention in a bio — leaves the thing picked and nothing walked to,
+    ///     which is what a click anywhere else on it does.
+    /// </remarks>
+    public void PickReference(int at, Reference reference)
+    {
+        Section(at);
+        Screen.WalkToReference(reference);
+        Changed?.Invoke();
+    }
+
     /// <summary>Shows what the picked post is hiding — its warned text, its sensitive attachments, or both.</summary>
     public void Reveal()
     {
