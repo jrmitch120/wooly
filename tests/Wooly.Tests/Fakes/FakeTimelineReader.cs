@@ -16,9 +16,9 @@ internal sealed class FakeTimelineReader : ITimelineReader
 
     private Func<Timeline, Task<Fetch<Post>>> _answer;
 
-    private Func<Onward?, int, Fetch<Post>>? _reading;
+    private Func<Timeline, Onward?, int, Fetch<Post>>? _reading;
 
-    private Func<Onward, int, Task<Fetch<Post>>>? _nextReadOn;
+    private Func<Timeline, Onward, int, Task<Fetch<Post>>>? _nextReadOn;
 
     private Exception? _refusing;
 
@@ -81,11 +81,18 @@ internal sealed class FakeTimelineReader : ITimelineReader
     ///     many as were asked for and where to read on from — the last post it handed out — until the posts run out,
     ///     where the timeline is whole.
     /// </summary>
-    public static FakeTimelineReader ReadingOn(IReadOnlyList<Post> posts)
+    public static FakeTimelineReader ReadingOn(IReadOnlyList<Post> posts) => ReadingOn(_ => posts);
+
+    /// <summary>
+    ///     Every timeline holding what <paramref name="posts" /> says it holds, newest first, each read on the way
+    ///     <see cref="ReadingOn(IReadOnlyList{Post})" /> reads one — where a test proves which timeline a read on went
+    ///     to, an account's posts read on and their pinned run not (#464).
+    /// </summary>
+    public static FakeTimelineReader ReadingOn(Func<Timeline, IReadOnlyList<Post>> posts)
     {
         var reader = Holding();
 
-        reader._reading = (from, limit) => Run(posts, from, limit);
+        reader._reading = (timeline, from, limit) => Run(posts(timeline), from, limit);
 
         return reader;
     }
@@ -118,7 +125,7 @@ internal sealed class FakeTimelineReader : ITimelineReader
         Reads.Add(new Call(profile.Name, timeline, limit));
         Tokens.Add(profile.AccessToken);
 
-        return _reading is { } reading ? Task.FromResult(reading(null, limit)) : _answer(timeline);
+        return _reading is { } reading ? Task.FromResult(reading(timeline, null, limit)) : _answer(timeline);
     }
 
     /// <summary>
@@ -136,9 +143,9 @@ internal sealed class FakeTimelineReader : ITimelineReader
     ///     <paramref name="limit" />, keeping where it stopped — as a rate limit part way through a read does (#462).
     /// </summary>
     public void RateLimitsNextReadOnAfter(int posts, RateLimitedException limit) =>
-        _nextReadOn = (from, _) =>
+        _nextReadOn = (timeline, from, _) =>
         {
-            var arrived = _reading?.Invoke(from, posts).Items ?? [];
+            var arrived = _reading?.Invoke(timeline, from, posts).Items ?? [];
 
             return Task.FromResult(
                 Fetch<Post>.StoppedShort(arrived, limit, arrived.Count > 0 ? new Onward(arrived[^1].Id) : from));
@@ -163,11 +170,11 @@ internal sealed class FakeTimelineReader : ITimelineReader
         {
             _nextReadOn = null;
 
-            return next(from, limit);
+            return next(timeline, from, limit);
         }
 
         // A reader nobody said reads on has nothing behind what it handed out, which is a list read whole.
-        var answer = _reading?.Invoke(from, limit) ?? Fetch<Post>.Complete([]);
+        var answer = _reading?.Invoke(timeline, from, limit) ?? Fetch<Post>.Complete([]);
 
         if (!_holding)
         {
