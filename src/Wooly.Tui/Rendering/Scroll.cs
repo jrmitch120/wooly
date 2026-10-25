@@ -32,7 +32,27 @@ public static class Scroll
     ///     How many rows at the top of the page are pinned there, drawn over the rows scrolled under them, so that only
     ///     the rest of the page shows what has scrolled (<see cref="Screens.Screen.Pinned" />).
     /// </param>
-    public static int To(IReadOnlyList<Line> lines, int height, int from, int pinned = 0)
+    public static int To(IReadOnlyList<Line> lines, int height, int from, int pinned = 0) =>
+        Bringing(lines, height, from, pinned, Role.Selection);
+
+    /// <summary>
+    ///     Where to scroll to so that the reference walked to is on the page — the answer to <c>→</c> or <c>←</c> having
+    ///     walked to one off it (#473).
+    /// </summary>
+    /// <remarks>
+    ///     The same minimum move <see cref="To" /> makes for the selection, keyed on the rows its brackets are drawn on,
+    ///     so that a reference wrapped across two rows is brought on whole where it fits. With no reference picked out,
+    ///     the page stays where it is.
+    /// </remarks>
+    /// <param name="lines">The rows to be drawn.</param>
+    /// <param name="height">How many rows there is room for.</param>
+    /// <param name="from">Where the scroll is now.</param>
+    /// <param name="pinned">How many rows at the top of the page are pinned there (<see cref="To" />).</param>
+    public static int ToReference(IReadOnlyList<Line> lines, int height, int from, int pinned = 0) =>
+        Bringing(lines, height, from, pinned, Role.ReferencePicked);
+
+    /// <summary>Where to scroll to so that every row with a span of <paramref name="role" /> is on the page.</summary>
+    private static int Bringing(IReadOnlyList<Line> lines, int height, int from, int pinned, Role role)
     {
         if (height < 1)
         {
@@ -44,7 +64,7 @@ public static class Scroll
 
         for (var at = 0; at < lines.Count; at++)
         {
-            if (!lines[at].Has(Role.Selection))
+            if (!lines[at].Has(role))
             {
                 continue;
             }
