@@ -354,7 +354,8 @@ not answer them differently:
   counts and arriving at the destination count the same way (`InboxCount`), and a dismissal reads the Notifications
   count again rather than taking one off it. Nothing waiting draws no badge; an unread count that reaches the 40 one
   read counts draws `40+` — 40 or more unread conversations, a full list of requests — and Notifications reads one past
-  the 40 it counts, so exactly 40 draws `40` and only more draws `40+`.
+  the 40 it counts, so exactly 40 draws `40` and only more draws `40+`. Messages and Requests are counted again off the
+  whole list held after every read on (#466), as in "What reading on settled".
 - **Arriving at Notifications reads them** (ADR-0027, #397). The read marker moves to the newest notification shown, so
   the badge clears — on the web too — and the rows that were newer than the old marker carry the word `unread` before
   their age for that visit. Nothing unread is nothing to move; an account with no marker gets one at the newest. A move
@@ -999,8 +1000,23 @@ who walked to the bottom had no way to see anything older without leaving the TU
 - **A cached Home reads on from where its first read stopped.** The cache keeps the onward position with the posts
   (ADR-0014). A Home arrived at within the minute is a fresh screen of the first read's posts, opened at the top, and
   walking down reads on from the post after them. Holding everything read on is #463's.
-- **Only Home, for now.** Every other list still reads once and never asks, and draws no foot. Local, Federated, a
-  hashtag and an account's posts follow in #464, and the Inbox in #465 and #466.
+- **Direct messages and Follow requests read on too** (#466), the older conversations and the rest of the requests
+  waiting put under those held, with the same foot. Each read on asks where the profile stands only with the people it
+  brought. Whatever arrives live still goes on top (`Screen.PutOnTop`) while reading on adds at the bottom, and the two
+  never meet.
+- **Their badges are counted again off the whole list held after each read on** (`InboxCount.Held`), as every read of
+  a destination counted off its list sets its badge — so requests read on to 55, and then whole, say `55` rather than
+  `40+`, and an older unread conversation read on is counted. Exact once the list is whole; while it is not, Requests
+  says `N+` for the N held, every one of them waiting, and Messages says `N+` only where every conversation held is
+  unread, the one case where what is held cannot be the whole count. It is the list going further down, not anything
+  arriving, so it never rings the bell, and it is the count the next one rises against. Answering a request or marking
+  a conversation moves it as before: by one under an exact badge, and read again under `N+`. The next poll or stream
+  re-read counts the first 40 again and sets the badge from those, as every re-read does. Notifications' badge is
+  counted against the read marker, not off the list, and older notifications are behind it, so reading on there never
+  moves it.
+- **Only Home and the Inbox's Direct messages and Follow requests, for now.** Every other list still reads once and
+  never asks, and draws no foot. Local, Federated, a hashtag and an account's posts follow in #464, and Notifications
+  in #465.
 
 ### What conversations settled
 
