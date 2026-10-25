@@ -138,7 +138,7 @@ public interface IAccountRelationships
     ///     The accounts, and where to read on from next unless the requests are now whole — reported as
     ///     <see cref="PendingRequests" /> reports, a rate limit included.
     /// </returns>
-    Task<Fetch<Account>> ReadOnRequests(
+    Task<Fetch<Account>> PendingRequestsOn(
         ActiveProfile profile,
         Onward from,
         int limit,

@@ -186,26 +186,30 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
     }
 
     /// <inheritdoc />
-    public async Task<Fetch<Account>> PendingRequests(
+    public Task<Fetch<Account>> PendingRequests(
         ActiveProfile profile,
         int limit,
-        CancellationToken cancellationToken)
-    {
-        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
-
-        return await Collect(client.GetFollowRequests, profile.Instance, limit, cancellationToken);
-    }
+        CancellationToken cancellationToken) =>
+        Requests(profile, from: null, limit, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<Fetch<Account>> ReadOnRequests(
+    public Task<Fetch<Account>> PendingRequestsOn(
         ActiveProfile profile,
         Onward from,
         int limit,
+        CancellationToken cancellationToken) =>
+        Requests(profile, from, limit, cancellationToken);
+
+    /// <summary>One read of the follow requests, from the top or from where an earlier one said to read on.</summary>
+    private Task<Fetch<Account>> Requests(
+        ActiveProfile profile,
+        Onward? from,
+        int limit,
         CancellationToken cancellationToken)
     {
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
-        return await Collect(client.GetFollowRequests, profile.Instance, limit, cancellationToken, from: from);
+        return Collect(client.GetFollowRequests, profile.Instance, limit, cancellationToken, from: from);
     }
 
     /// <inheritdoc />

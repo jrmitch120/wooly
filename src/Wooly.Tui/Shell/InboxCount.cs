@@ -123,7 +123,7 @@ internal sealed class InboxCount(
         Onward from,
         CancellationToken cancellationToken)
     {
-        var asking = await ports.Accounts.ReadOnRequests(profile, from, Arrival.CountedAtMost, cancellationToken);
+        var asking = await ports.Accounts.PendingRequestsOn(profile, from, Arrival.CountedAtMost, cancellationToken);
 
         return asking with { Items = await ports.StoodOrSilent(profile, asking.Items, cancellationToken) };
     }

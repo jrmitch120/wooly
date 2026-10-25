@@ -285,7 +285,7 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
             : Task.FromResult(_list);
     }
 
-    public Task<Fetch<Account>> ReadOnRequests(
+    public Task<Fetch<Account>> PendingRequestsOn(
         ActiveProfile profile,
         Onward from,
         int limit,
