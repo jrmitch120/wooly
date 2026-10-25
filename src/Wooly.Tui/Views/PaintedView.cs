@@ -137,6 +137,17 @@ internal sealed class PaintedView : View
     public Func<int> Pinned { get; init; } = () => 0;
 
     /// <summary>
+    ///     Told where the page came to each time a frame settles it: how many of the rows lie under the bottom of the
+    ///     page, and how many rows the page is — which is what says whether a list is near enough its end to read on
+    ///     (#469). Nobody is told where nobody said.
+    /// </summary>
+    /// <remarks>
+    ///     Said from inside the frame, because that is where the scroll is worked out and the only place the two
+    ///     numbers are both in hand; whoever is told must only note it, and leave anything it draws to the next frame.
+    /// </remarks>
+    public Action<int, int>? Settled { get; init; }
+
+    /// <summary>
     ///     How this terminal paints pixels as of the last frame settled, or <see cref="Media.Raster.None" /> before the
     ///     first. Worked out once a frame, before the rows are, and read rather than asked again everywhere else — the
     ///     rows laid out for a click or a key between frames included — so the rows, the boxes and the picture cache
@@ -641,6 +652,8 @@ internal sealed class PaintedView : View
         _placed = _placing?.Frame(lines, _top, width, height, Raster) ?? [];
 
         _settled = lines;
+
+        Settled?.Invoke(Math.Max(0, lines.Count - (_top + height)), height);
     }
 
     /// <summary>The rows to draw, and where the scroll has got to.</summary>

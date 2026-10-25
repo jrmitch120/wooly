@@ -40,9 +40,14 @@ internal static class PagedReading
     ///     Handed each page as it arrives, before the next is asked for, where a caller has a use for the first of a
     ///     long list before the last of it is in.
     /// </param>
+    /// <param name="from">
+    ///     Where to read on from, as a fetch of this same list handed it out — or <see langword="null" /> to start at
+    ///     the top. Reading on resumes at the instance's own next page rather than re-reading everything before it,
+    ///     which is what ADR-0007's amendment is for.
+    /// </param>
     /// <returns>
-    ///     What arrived, and the rate limit that stopped the rest if one did. Nothing waits here — ADR-0006 leaves that
-    ///     choice to whichever front end is reading.
+    ///     What arrived, the rate limit that stopped the rest if one did, and where to read on from unless the list is
+    ///     whole. Nothing waits here — ADR-0006 leaves that choice to whichever front end is reading.
     /// </returns>
     public static Task<Fetch<TItem>> Collect<TWire, TItem>(
         int limit,
@@ -52,7 +57,8 @@ internal static class PagedReading
         Func<TWire, string>? idOf,
         CancellationToken cancellationToken,
         Func<TItem, bool>? stopWhen = null,
-        Action<IReadOnlyList<TItem>>? arrived = null) =>
+        Action<IReadOnlyList<TItem>>? arrived = null,
+        Onward? from = null) =>
         Collect(
             limit,
             pageSize,
@@ -66,9 +72,10 @@ internal static class PagedReading
             idOf,
             cancellationToken,
             stopWhen,
-            arrived);
+            arrived,
+            from);
 
-    /// <inheritdoc cref="Collect{TWire,TItem}(int,int,Func{ArrayOptions,Task{MastodonList{TWire}}},Func{TWire,TItem},Func{TWire,string}?,CancellationToken,Func{TItem,bool}?,Action{IReadOnlyList{TItem}}?)" />
+    /// <inheritdoc cref="Collect{TWire,TItem}(int,int,Func{ArrayOptions,Task{MastodonList{TWire}}},Func{TWire,TItem},Func{TWire,string}?,CancellationToken,Func{TItem,bool}?,Action{IReadOnlyList{TItem}}?,Onward?)" />
     /// <summary>
     ///     The same loop over pages read around Mastonet (<see cref="Http.RawMastodonCall" />), which come with no
     ///     <see cref="MastodonList{T}" /> to carry the instance's link to the next page — so the reader says where it
@@ -82,10 +89,11 @@ internal static class PagedReading
         Func<TWire, string>? idOf,
         CancellationToken cancellationToken,
         Func<TItem, bool>? stopWhen = null,
-        Action<IReadOnlyList<TItem>>? arrived = null)
+        Action<IReadOnlyList<TItem>>? arrived = null,
+        Onward? from = null)
     {
         var items = new List<TItem>();
-        string? nextPage = null;
+        string? nextPage = from?.MaxId;
 
         while (items.Count < limit)
         {
@@ -104,7 +112,9 @@ internal static class PagedReading
             }
             catch (RateLimitedException rateLimit)
             {
-                return Fetch<TItem>.StoppedShort(items, rateLimit);
+                // Where the refused page would have started is where the next read picks up, so nothing is skipped
+                // and nothing already in hand is asked for twice.
+                return Fetch<TItem>.StoppedShort(items, rateLimit, new Onward(nextPage));
             }
 
             var read = page.Select(asItem).ToList();
@@ -112,18 +122,11 @@ internal static class PagedReading
             items.AddRange(read);
             arrived?.Invoke(read);
 
-            // Nothing came back, so asking again cannot do better however much the instance says is left.
+            // Nothing came back, so asking again cannot do better however much the instance says is left — which
+            // makes the list whole.
             if (page.Count == 0)
             {
-                break;
-            }
-
-            // What the caller was looking for has turned up, so there is nothing further to ask for. The rest of this
-            // page comes back with it rather than being trimmed away: it arrived, and which of a page's items a caller
-            // wanted is the caller's business.
-            if (stopWhen is not null && read.Any(stopWhen))
-            {
-                break;
+                return Fetch<TItem>.Complete(items);
             }
 
             // The instance names where the next page starts in a link header, and that is the authority on whether
@@ -134,12 +137,23 @@ internal static class PagedReading
             // endpoint pages by, and takes the missing link header as the end of the list.
             nextPage = named ?? (page.Count < wanted || idOf is null ? null : idOf(page[^1]));
 
+            // No next page is the end of the list, which is whole.
             if (nextPage is null)
+            {
+                return Fetch<TItem>.Complete(items);
+            }
+
+            // What the caller was looking for has turned up, so there is nothing further to ask for. The rest of this
+            // page comes back with it rather than being trimmed away: it arrived, and which of a page's items a caller
+            // wanted is the caller's business.
+            if (stopWhen is not null && read.Any(stopWhen))
             {
                 break;
             }
         }
 
-        return Fetch<TItem>.Complete(items);
+        // Stopped at what was asked for, or at what was looked for, with the instance still naming more: what was
+        // asked for is in hand, and the list goes on behind it from where the next page starts.
+        return Fetch<TItem>.Complete(items, new Onward(nextPage));
     }
 }

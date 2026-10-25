@@ -177,6 +177,17 @@ public abstract class Screen
     public Subject? Subject { get; internal set; }
 
     /// <summary>
+    ///     How <b>reading on</b> stands for this screen's list — where to read on from, and whether a read is out — or
+    ///     <see langword="null" /> where its list does not read on, which is what keeps it from ever being asked (#469).
+    /// </summary>
+    /// <remarks>
+    ///     Set by the subject's answer as it lands, beside <see cref="Subject" /> and for the same reason: where to read
+    ///     on from is what the instance said, and a screen built in a test with no instance behind it reads on from
+    ///     nothing. A screen whose list reads on draws the foot of it (<see cref="Screens.ReadingOn.Under" />).
+    /// </remarks>
+    public ReadingOn? ReadingOn { get; internal set; }
+
+    /// <summary>
     ///     Whether the reader has walked onto the end of what this screen has read and there is more of it to ask
     ///     for — which is what <c>k</c> past the bottom means on a list browsed a page at a time (#180).
     /// </summary>

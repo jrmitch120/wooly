@@ -21,4 +21,23 @@ public interface ITimelineReader
     ///     it and is reported alongside what had already arrived, rather than losing it.
     /// </returns>
     Task<Fetch<Post>> Read(ActiveProfile profile, Timeline timeline, int limit, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Reads on: up to <paramref name="limit" /> more posts from <paramref name="timeline" />, from where a fetch of
+    ///     it said to read on from — the posts behind the last one it held, never anything newer (#460).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="timeline">The timeline <paramref name="from" /> was handed out for.</param>
+    /// <param name="from">Where to read on from, as an earlier fetch of <paramref name="timeline" /> said.</param>
+    /// <param name="limit">How many more posts are wanted, paged as <see cref="Read" /> pages.</param>
+    /// <returns>
+    ///     The posts, and where to read on from next unless the timeline is now whole — reported as <see cref="Read" />
+    ///     reports, a rate limit included.
+    /// </returns>
+    Task<Fetch<Post>> ReadOn(
+        ActiveProfile profile,
+        Timeline timeline,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken);
 }
