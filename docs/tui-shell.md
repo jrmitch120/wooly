@@ -646,8 +646,8 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
 - **`←/→` is announced before the walk starts too**, wherever the picked thing has a reference to walk to — the
   same `References` the walk itself asks, so the hint describes the **Picked** thing — even with the pick scrolled off
   the page, where the arrows would reclaim and act on another (#477), since a status row that changed as the pick
-  crossed the page edge would flicker as the reader scrolled. Otherwise the only
-  way to learn the walk exists is to press it. Ranked right behind `⏎:read`, so it never pushes the key used most on
+  crossed the page edge would flicker as the reader scrolled. Otherwise the only way to learn the walk exists is to
+  press it. Ranked right behind `⏎:read`, so it never pushes the key used most on
   a post off the row; where there is no `⏎:read` (inside a post, the account header, a conversation) it goes in
   front (`PostKeys.BeforeAReference`). On an 80-column feed that leaves it in `…+N` and `?`, which is accepted.
 - **`⏎` does four different things, refusals share one notice** (#85, #109). Which of the four is the role the
