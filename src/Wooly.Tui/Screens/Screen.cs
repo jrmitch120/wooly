@@ -188,12 +188,6 @@ public abstract class Screen
     public ReadingOn? ReadingOn { get; internal set; }
 
     /// <summary>
-    ///     Whether the reader has walked onto the end of what this screen has read and there is more of it to ask
-    ///     for — which is what <c>k</c> past the bottom means on a list browsed a page at a time (#180).
-    /// </summary>
-    public virtual bool WantsMore => false;
-
-    /// <summary>
     ///     Carries out <paramref name="verb" />, where it is one of this screen's own: what its keys do, in the file
     ///     that says what its keys are (#232).
     /// </summary>

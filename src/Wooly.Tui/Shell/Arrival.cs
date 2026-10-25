@@ -15,7 +15,7 @@ namespace Wooly.Tui.Shell;
 /// <remarks>
 ///     Three moves bring a screen up — arriving from the rail, drilling in, and refreshing in place — and they differ
 ///     only in what they do to the stack and whether a destination's placeholder goes up first. Everything a subject
-///     differs in, it says about itself: what it reads, what that becomes, whether it is held and whether it pages. A
+///     differs in, it says about itself: what it reads, what that becomes, whether it is held and whether it reads on. A
 ///     seventh kind of screen is a seventh subject rather than a seventh chance to state the sequence slightly
 ///     differently.
 ///     <para>
@@ -231,20 +231,6 @@ public sealed class Arrival(
 
         return Bring(subject, Move.Refresh, landed: landed);
     }
-
-    /// <summary>
-    ///     Reads the next page where the reader has walked onto the end of what <paramref name="showing" /> has, and
-    ///     there is more of it to be had (#180).
-    /// </summary>
-    /// <remarks>
-    ///     Asked after every walk rather than bound to a key, because the walk is what settles it: the screen answers
-    ///     whether it is standing at the end of what it has with more to be had. Nothing while anything is in flight,
-    ///     which on a list is the page already asked for.
-    /// </remarks>
-    public Task More(Screen showing) =>
-        showing is { WantsMore: true, Subject: { Pages: true } subject } && !enquiry.Fetching
-            ? Read(subject, Move.Page, showing)
-            : Task.CompletedTask;
 
     /// <summary>
     ///     <b>Reads on</b> the list <paramref name="showing" /> holds, which the page has come within a screenful of the

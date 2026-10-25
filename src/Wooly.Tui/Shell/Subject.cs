@@ -19,9 +19,9 @@ namespace Wooly.Tui.Shell;
 /// </summary>
 /// <remarks>
 ///     A closed set of values, each of which carries its own read and builds its own screen, and says whether what it
-///     read is held for a while and whether it is read a page at a time. Everything else about bringing a screen up —
-///     the stale rule, the cache, the placeholder, the rail's badge, the paging — is <see cref="Arrival" />'s, and is
-///     the same for all six.
+///     read is held for a while and how it reads on. Everything else about bringing a screen up — the stale rule, the
+///     cache, the placeholder, the rail's badge, when to read on — is <see cref="Arrival" />'s, and is the same for all
+///     six.
 ///     <para>
 ///         Compared by value, which is what the cache is keyed by and what <c>g</c> asks again: two follow lists of the
 ///         same side of the same account are the same subject however the account was last answered about, and a rail
@@ -51,9 +51,6 @@ public abstract record Subject
     ///     costs no fetch. The rail's destinations and follow lists, and nothing else (ADR-0014, #180).
     /// </summary>
     public virtual bool Cached => false;
-
-    /// <summary>Whether it is read a page at a time as the reader walks onto the end of what has arrived.</summary>
-    public virtual bool Pages => false;
 
     /// <summary>Reads it, given the ports, the profile and the enquiry the reading is put under.</summary>
     /// <param name="ask">What every call it makes is put through.</param>
@@ -543,7 +540,8 @@ public abstract record Subject
 
     /// <summary>
     ///     Every <b>Actor</b> in one notification group, read from the group's own accounts so that it is exactly the
-    ///     group the row counted (#455). Read a page at a time, the way a follow list too long to hold is browsed.
+    ///     group the row counted (#455). Read on as the page nears the end, the way a follow list too long to hold is
+    ///     browsed (#467).
     /// </summary>
     /// <remarks>
     ///     Never held: a group grows as notifications arrive and shrinks as they are dismissed, so what was read a
@@ -553,9 +551,6 @@ public abstract record Subject
     /// <param name="Group">The group whose actors these are, as the Notifications screen was holding it.</param>
     public sealed record Actors(NotificationGroup Group) : Subject
     {
-        /// <inheritdoc />
-        public override bool Pages => true;
-
         /// <inheritdoc />
         public bool Equals(Actors? other) => other is not null && other.Group.Key == Group.Key;
 
@@ -568,9 +563,8 @@ public abstract record Subject
 
         /// <inheritdoc />
         /// <remarks>
-        ///     A page is asked for by re-reading the group to a longer limit, the port taking a count rather than a
-        ///     cursor, so only the tail of what comes back is new — and only that is asked where the reader stands,
-        ///     once for the page, as a follow list asks it.
+        ///     The first page of the group, and where the reader stands with everyone on it — once for the page, as a
+        ///     follow list asks it. The rest is read on from where this stopped (<see cref="ReadOn" />).
         /// </remarks>
         internal override async Task<Found> Read(
             Enquiry.Ask ask,
@@ -578,37 +572,49 @@ public abstract record Subject
             ActiveProfile profile,
             Screen? standing)
         {
-            var screen = (ActorsScreen)standing!;
-            var already = screen.Read;
-            var wanted = already + ActorsPage;
+            var fetch = await ask.Of(token =>
+                ports.Notifications.ReadGroupActors(profile, Group.Key, ActorsPage, token));
+            var stood = await ask.Of(token => ports.StoodOrSilent(profile, fetch.Items, token));
 
-            var fetch = await ask.Of(token => ports.Notifications.ReadGroupActors(profile, Group.Key, wanted, token));
-            var read = fetch.Items.Skip(already).ToList();
-            var stood = read.Count > 0 ? await ask.Of(token => ports.StoodOrSilent(profile, read, token)) : [];
-
-            return new Filled([.. fetch.Items.Take(already), .. stood], fetch.StoppedBy, wanted);
+            return new Filled(stood, fetch.StoppedBy, fetch.Onward);
         }
 
-        /// <summary>What one read of a group's actors came back with, and how many it asked for.</summary>
-        /// <param name="People">Everyone read so far, whoever is new among them carrying their standing.</param>
+        /// <inheritdoc />
+        /// <remarks>
+        ///     The next page from where the last read stopped, and where the reader stands with whoever is on it — the
+        ///     actors already on screen are never asked about again (#467).
+        /// </remarks>
+        internal override async Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Onward from)
+        {
+            var fetch = await ask.Of(token =>
+                ports.Notifications.ReadGroupActorsOn(profile, Group.Key, from, ActorsPage, token));
+            var stood = await ask.Of(token => ports.StoodOrSilent(profile, fetch.Items, token));
+
+            return new ReadOnto<Person>((screen, people) => ((ActorsScreen)screen).ReadOn(people), fetch with
+            {
+                Items = stood,
+            });
+        }
+
+        /// <summary>What the first read of a group's actors came back with, and where to read on from.</summary>
+        /// <param name="People">Everyone read, each carrying their standing where the instance answered.</param>
         /// <param name="StoppedBy">The rate limit that cut the read short, or nothing where none did.</param>
-        /// <param name="Wanted">How many were asked for, which is what says whether the instance filled the ask.</param>
-        private sealed record Filled(IReadOnlyList<Person> People, RateLimitedException? StoppedBy, int Wanted)
+        /// <param name="Onward">Where to read on from, or nothing where the instance has no more of the group.</param>
+        private sealed record Filled(IReadOnlyList<Person> People, RateLimitedException? StoppedBy, Onward? Onward)
             : Found
         {
             /// <inheritdoc />
-            /// <remarks>
-            ///     There is more only where the instance filled the ask: a short read is the end of the group, and a
-            ///     rate limit the end of the reading.
-            /// </remarks>
+            /// <remarks>Read into the screen standing for the group, which is already up, and read on from there.</remarks>
             public override Screen Becomes(Screen? standing)
             {
                 var screen = (ActorsScreen)standing!;
 
-                screen.Arrived(
-                    People,
-                    StoppedBy is null && People.Count >= Wanted,
-                    Arrival.Emptiness(People.Count, ActorsScreen.Nobody, of: null, StoppedBy));
+                screen.Arrived(People, Arrival.Emptiness(People.Count, ActorsScreen.Nobody, of: null, StoppedBy));
+                screen.ReadingOn = new ReadingOn(Onward);
 
                 return screen;
             }

@@ -690,8 +690,6 @@ public sealed class Shell
     {
         Screen.Move(by);
 
-        Paging();
-
         // The remark goes with the post it was said over, for the reason <see cref="Walk" /> gives.
         StatusRow.Clear();
     }
@@ -720,8 +718,6 @@ public sealed class Shell
         {
             Screen.Move(by);
         }
-
-        Paging();
 
         // A remark is about the post it was said over, and the reader has walked off it — so it goes with them, the
         // same way esc takes it off on the way out of a screen. It is not a small thing to leave standing: the status
@@ -1698,19 +1694,6 @@ public sealed class Shell
         new(DestinationKind.Requests, "Follow requests"),
         new(DestinationKind.Profile, profile?.Handle ?? "Profile"),
     ];
-
-    /// <summary>
-    ///     Reads the next page where the reader has walked onto the end of a list browsed a page at a time, which is
-    ///     what <c>k</c> past the bottom means there (#180). Whether that is where they are is the screen's to say,
-    ///     and what the next page is its subject's.
-    /// </summary>
-    private void Paging()
-    {
-        if (Screen.WantsMore)
-        {
-            _ = Actor.Arrival.More(Screen);
-        }
-    }
 
     /// <summary>
     ///     Where the page has come to on the screen in front, as the window settled it: how many rows of the list lie
