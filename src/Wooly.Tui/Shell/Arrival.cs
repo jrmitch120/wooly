@@ -108,7 +108,7 @@ public sealed class Arrival(
 
     /// <summary>
     ///     Raised, on the drawing thread, with a destination whose own list is being read — arrived at or refreshed,
-    ///     and not paged — as the read is put (<see cref="ListReads" />).
+    ///     and not read further — as the read is put (<see cref="ListReads" />).
     /// </summary>
     internal event Action<DestinationKind>? ListReading;
 
@@ -266,7 +266,7 @@ public sealed class Arrival(
             ask => subject.ReadOn(ask, ports, profile, showing, from),
             ifStillHere: found =>
             {
-                Land(subject, Move.Page, showing, found);
+                Land(subject, Move.Further, showing, found);
 
                 if (subject.Cached)
                 {
@@ -411,7 +411,8 @@ public sealed class Arrival(
         Action? beneath = null,
         Action? landed = null)
     {
-        DestinationKind? listing = move != Move.Page && subject is Subject.Destination { Kind: var kind } ? kind : null;
+        DestinationKind? listing =
+            move != Move.Further && subject is Subject.Destination { Kind: var kind } ? kind : null;
 
         if (listing is { } reading)
         {
@@ -437,7 +438,7 @@ public sealed class Arrival(
 
                     if (found.ReadsRestAtOnce(screen))
                     {
-                        _ = Read(subject, Move.Page, screen);
+                        _ = Read(subject, Move.Further, screen);
                     }
                 });
         }
@@ -469,7 +470,7 @@ public sealed class Arrival(
 
         if (found.Counted is { } badge)
         {
-            (move == Move.Page ? Recounts : Counts)?.Invoke(badge);
+            (move == Move.Further ? Recounts : Counts)?.Invoke(badge);
         }
 
         return screen;

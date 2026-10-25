@@ -173,7 +173,7 @@ public abstract class Screen
     public virtual IEnumerable<Mentionable> Seen => [];
 
     /// <summary>
-    ///     What this screen was read from, which is what <c>g</c> asks again and what a page more is read from — or
+    ///     What this screen was read from, which is what <c>g</c> asks again and what its list reads on from — or
     ///     <see langword="null" /> on a screen that is read from nothing: the search prompt, which is its own question
     ///     (#84), the compose editor, the keymap, a notice (#233).
     /// </summary>

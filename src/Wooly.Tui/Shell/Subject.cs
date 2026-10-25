@@ -57,8 +57,8 @@ public abstract record Subject
     /// <param name="ports">What it is read through.</param>
     /// <param name="profile">Who is asking.</param>
     /// <param name="standing">
-    ///     The screen already up for it where one is — its placeholder, or the screen being paged — which a subject
-    ///     read into a screen rather than into a new one reads on from.
+    ///     The screen already up for it where one is — its placeholder, or the screen the rest of a held list is read
+    ///     into — which a subject read into a screen rather than into a new one fills.
     /// </param>
     internal abstract Task<Found> Read(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Screen? standing);
 
