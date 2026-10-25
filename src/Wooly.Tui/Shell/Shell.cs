@@ -868,6 +868,15 @@ public sealed class Shell
             return Task.CompletedTask;
         }
 
+        // Asked before the reference is let go, because who a mention names is read off the reference held.
+        var mentioned = Screen.Mentioned;
+
+        // Let go as part of opening, before the outcome is known, so every outcome lets it go the same way: a screen
+        // pushed comes back to nothing held and its first esc goes back, an address handed to the browser leaves the
+        // next → starting again at the first reference, and a refusal is no exception (#474).
+        Screen.ClearReference();
+        Changed?.Invoke();
+
         switch (reference.Role)
         {
             case Role.Hashtag:
@@ -876,7 +885,7 @@ public sealed class Shell
                 return Actor.Arrival.Open(new Subject.Tag(reference.Text.TrimStart('#')));
 
             case Role.Mention:
-                return OpenMention();
+                return OpenMention(mentioned);
 
             case Role.Link:
             case Role.Media:
@@ -1727,11 +1736,12 @@ public sealed class Shell
     ///     spend a request on a guess — a bare <c>@maria</c> means nothing without an instance to put after it, and
     ///     guessing this profile's own would open somebody else under somebody's name.
     /// </remarks>
-    private Task OpenMention()
+    /// <param name="mentioned">Who the picked mention names, read before the reference was let go.</param>
+    private Task OpenMention(string? mentioned)
     {
         // Well-formed as well as named, because a handle an instance sent is not something a reader can do anything
         // about, and one this client cannot look up is as good as one it was never given.
-        if (Screen.Mentioned is not { } handle || !AccountAddress.IsWellFormed(handle))
+        if (mentioned is not { } handle || !AccountAddress.IsWellFormed(handle))
         {
             StatusRow.Say(MentionUnresolved, isError: true);
 

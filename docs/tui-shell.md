@@ -650,6 +650,12 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   An attachment's own address needs no elided-form or scheme check the way body text does — it arrives off the wire
   already well-formed (`PostMedia.Url`) rather than matched by pattern out of prose — so it goes through the exact
   same `Shell.OpenAddress` call a picked link already does, refusal for refusal.
+- **`⏎` lets the reference go, on every outcome** (#474): a hashtag pushed, a mention opened, an address or an
+  attachment's or link preview's address handed to the browser, and a refusal alike. `Shell.OpenReference` lets it go
+  as part of opening, before the outcome is known, so no outcome is an exception. Walking back out of the hashtag or
+  account it opened, the first `esc` goes back rather than being spent on an old bracket; after a link, the next `→`
+  starts again at the first reference; and the status row leaves reference mode at once. A refused reference costs one
+  `→` to pick again.
 - **The launch is decided apart from the act, and outside `ShellPorts`.** This is the first thing in the shell that
   leaves the terminal, so it lives in its own small seam rather than folded into the ports (which are specifically
   "everything the shell reaches an *instance* through" — a browser reaches outside the instance). `BrowserLaunch`

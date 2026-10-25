@@ -25,8 +25,8 @@ public class ShellCrumbClickTests
 
     /// <summary>
     ///     Drilled from Home into a post with a hashtag walked to, then into the tag and on into an author off it, a click
-    ///     on the post's crumb walks back to the post's screen: its page, its pick and the reference picked on it as they
-    ///     were left, and nothing asked of the instance.
+    ///     on the post's crumb walks back to the post's screen: its page and its pick as they were left, the reference let
+    ///     go by the <c>⏎</c> that opened it (#474), and nothing asked of the instance.
     /// </summary>
     [Fact]
     public async Task ClickingAnAncestorCrumbWalksBackToItAsItWasLeft()
@@ -43,10 +43,9 @@ public class ShellCrumbClickTests
         drawn.Press(Key.CursorRight);
 
         var picked = post.Picked?.Id;
-        var reference = post.Reference;
         var top = drawn.Content.Top;
 
-        Assert.True(reference is not null, string.Join('\n', drawn.Rows()) + post.Picked?.Id);
+        Assert.True(post.Reference is not null, string.Join('\n', drawn.Rows()) + post.Picked?.Id);
 
         drawn.Press(Key.Enter);
         drawn.Settle();
@@ -63,7 +62,7 @@ public class ShellCrumbClickTests
         Assert.Same(post, drawn.Shell.Screen);
         Assert.Equal(2, drawn.Shell.Depth);
         Assert.Equal(picked, post.Picked?.Id);
-        Assert.Equal(reference, post.Reference);
+        Assert.Null(post.Reference);
         Assert.Equal(top, drawn.Content.Top);
         Assert.Equal(requests, drawn.Built.Requests);
     }
