@@ -275,7 +275,7 @@ internal sealed class ShellWindow : Window
             KeepsToThePage = () => shell.Screen.KeepsToThePage,
             Pinned = () => shell.Screen.Pinned,
             Settled = Paged,
-            HoldsAReference = () => shell.Screen.Reference is not null,
+            HeldReference = () => shell.Screen.Reference,
             LetReferenceGo = shell.LetReferenceGo,
         };
 

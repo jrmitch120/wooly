@@ -151,10 +151,11 @@ internal sealed class PaintedView : View
     public Action<int, int>? Settled { get; init; }
 
     /// <summary>
-    ///     Whether a reference is walked to on the screen drawn here, which is the only time a frame looks at whether it
-    ///     has gone off the page (<see cref="LetReferenceGo" />). None where nobody said.
+    ///     The reference walked to on the screen drawn here, which is what a frame brings onto the page
+    ///     (<see cref="ShowReference" />) and looks at to see whether it has gone off it (<see cref="LetReferenceGo" />).
+    ///     None where nobody said.
     /// </summary>
-    public Func<bool> HoldsAReference { get; init; } = () => false;
+    public Func<Reference?> HeldReference { get; init; } = () => null;
 
     /// <summary>
     ///     Told, from inside the frame that settles the page, that the reference walked to has none of its rows on it any
@@ -162,7 +163,7 @@ internal sealed class PaintedView : View
     ///     nobody said.
     /// </summary>
     /// <remarks>
-    ///     Asked only while <see cref="HoldsAReference" /> says one is held, and answered off the rows the frame lays out
+    ///     Asked only while <see cref="HeldReference" /> says one is held, and answered off the rows the frame lays out
     ///     anyway, so that scrolling with none held lays nothing out it did not before (#51). Whoever is told lets it go
     ///     and redraws: this frame's brackets are off the page already, so nothing on it shows them.
     /// </remarks>
@@ -774,7 +775,10 @@ internal sealed class PaintedView : View
                 : Scroll.By(lines, _top, 0)
             : 0;
 
-        if (showingReference && Scrolls && Scroll.ToReference(lines, height, _top, pinned) is var shown && shown != _top)
+        var held = Scrolls ? HeldReference() : null;
+
+        if (showingReference && held is { } walked
+            && Scroll.ToReference(lines, height, _top, walked, pinned) is var shown && shown != _top)
         {
             _top = shown;
             _following = false;
@@ -782,7 +786,7 @@ internal sealed class PaintedView : View
 
         // A reference with none of its rows left on the page the scroll came to is let go, whatever moved the page or
         // reflowed it (#478). Looked at only while one is held, so scrolling with none costs what it did.
-        if (LetReferenceGo is { } letGo && Scrolls && HoldsAReference() && Scroll.LeftReference(lines, height, _top, pinned))
+        if (LetReferenceGo is { } letGo && held is { } off && Scroll.ReferenceOffThePage(lines, height, _top, off, pinned))
         {
             letGo();
         }

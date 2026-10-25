@@ -138,6 +138,12 @@ public sealed record Line
     /// <summary>Whether any span on this row takes <paramref name="role" />.</summary>
     public bool Has(Role role) => Spans.Any(span => span.Role == role);
 
+    /// <summary>
+    ///     Whether any span on this row is drawn for <paramref name="reference" /> (<see cref="Span.Reference" />): a
+    ///     bracket, its text, or a row of it the wrap carried on to.
+    /// </summary>
+    public bool Has(Reference reference) => Spans.Any(span => span.Reference == reference);
+
     /// <summary>This row, said to be part of the <paramref name="item" />th thing on the screen.</summary>
     public Line PartOf(int item) => this with { Item = item };
 
