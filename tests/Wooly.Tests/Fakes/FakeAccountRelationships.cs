@@ -17,6 +17,9 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     private readonly bool _unfinished;
     private Account _subject;
 
+    /// <summary>Everyone asking to follow, where the requests read on (<see cref="AskingReadingOn" />).</summary>
+    private IReadOnlyList<Account>? _asking;
+
     private FakeAccountRelationships(
         Account subject,
         Fetch<Account> list,
@@ -37,6 +40,11 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
 
     /// <summary>Every list it was asked for, in order.</summary>
     public List<Listed> Lists { get; } = [];
+
+    /// <summary>
+    ///     Every read on of the requests it was asked for, in order — where a test proves where a read went on from.
+    /// </summary>
+    public List<OnwardCall> RequestsReadOn { get; } = [];
 
     /// <summary>Every follow request it was asked to answer, in order.</summary>
     public List<Answered> Answers { get; } = [];
@@ -97,7 +105,24 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     public void NowShowing(Account subject) => _subject = subject;
 
     /// <summary>Who every list holds from here on — a follow request arriving between two reads, say (#399).</summary>
-    public void NowListing(params Account[] listing) => _list = Fetch<Account>.Complete(listing);
+    /// <remarks>Who is asking, too, where the requests read on.</remarks>
+    public void NowListing(params Account[] listing)
+    {
+        _list = Fetch<Account>.Complete(listing);
+
+        if (_asking is not null)
+        {
+            _asking = listing;
+        }
+    }
+
+    /// <summary>
+    ///     An instance with <paramref name="asking" /> waiting to follow, in the order it lists them, whose requests read
+    ///     on (#466): every read hands out as many as were asked for and where to read on from, until they run out,
+    ///     where the requests are whole.
+    /// </summary>
+    public static FakeAccountRelationships AskingReadingOn(IReadOnlyList<Account> asking) =>
+        new(AnAccount.With(), Fetch<Account>.Complete(asking)) { _asking = asking };
 
     /// <summary>An instance whose lists have nobody on them.</summary>
     public static FakeAccountRelationships HoldingNobody() => new(AnAccount.With(), Fetch<Account>.Complete([]));
@@ -264,7 +289,25 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
         Lists.Add(new Listed(profile.Name, Side: null, Account: null, limit));
         Tokens.Add(profile.AccessToken);
 
-        return _refusal is null ? Task.FromResult(_list) : Task.FromException<Fetch<Account>>(_refusal);
+        return _refusal is not null ? Task.FromException<Fetch<Account>>(_refusal)
+            : _asking is { } all ? Task.FromResult(OnwardRun.Of(all, account => account.Id, null, limit))
+            : Task.FromResult(_list);
+    }
+
+    public Task<Fetch<Account>> ReadOnRequests(
+        ActiveProfile profile,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        RequestsReadOn.Add(new OnwardCall(from, limit));
+        Tokens.Add(profile.AccessToken);
+
+        // Requests nobody said read on have nothing behind what was handed out, which is a list read whole.
+        return _refusal is not null ? Task.FromException<Fetch<Account>>(_refusal)
+            : Task.FromResult(_asking is { } all
+                ? OnwardRun.Of(all, account => account.Id, from, limit)
+                : Fetch<Account>.Complete([]));
     }
 
     public Task<Account> Answer(
@@ -294,6 +337,9 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
 
     /// <summary>One read on of a follow list: which profile asked, which side, about whom, from where and how many more.</summary>
     internal sealed record ListedOn(string Profile, FollowSide Side, NamedAccount? Account, Onward From, int Limit);
+
+    /// <summary>One read on of the requests: from where, and how many more it wanted.</summary>
+    internal sealed record OnwardCall(Onward From, int Limit);
 
     /// <summary>One answered request: which profile answered, whose request, and what they said.</summary>
     internal sealed record Answered(string Profile, string AccountId, bool Accepted);

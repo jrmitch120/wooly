@@ -88,6 +88,12 @@ public sealed class Arrival(
     /// </summary>
     internal event Action<Found.Badge>? Counts;
 
+    /// <summary>
+    ///     Raised with what a destination's badge says counted again off a list <b>read on</b> (#466): what was waiting
+    ///     all along, further down, rather than anything that arrived.
+    /// </summary>
+    internal event Action<Found.Badge>? Recounts;
+
     /// <summary>Raised with how far a destination's badge moves, for a change made between reads of it.</summary>
     public event Action<DestinationKind, int>? Moves;
 
@@ -463,7 +469,7 @@ public sealed class Arrival(
 
         if (found.Counted is { } badge)
         {
-            Counts?.Invoke(badge);
+            (move == Move.Page ? Recounts : Counts)?.Invoke(badge);
         }
 
         return screen;

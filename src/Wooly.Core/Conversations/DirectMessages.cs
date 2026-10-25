@@ -39,18 +39,16 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
     private const int ConversationsSearched = 200;
 
     /// <inheritdoc />
-    public async Task<Fetch<Conversation>> List(ActiveProfile profile, int limit, CancellationToken cancellationToken)
-    {
-        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+    public Task<Fetch<Conversation>> List(ActiveProfile profile, int limit, CancellationToken cancellationToken) =>
+        Collect(profile, from: null, limit, cancellationToken);
 
-        return await PagedReading.Collect(
-            limit,
-            PageSize,
-            client.GetConversations,
-            conversation => ConversationWire.ToConversation(conversation, profile),
-            conversation => conversation.Id,
-            cancellationToken);
-    }
+    /// <inheritdoc />
+    public Task<Fetch<Conversation>> ReadOn(
+        ActiveProfile profile,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken) =>
+        Collect(profile, from, limit, cancellationToken);
 
     /// <inheritdoc />
     public async Task<ConversationThread> Show(
@@ -140,5 +138,24 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
             latest,
             .. context.Descendants.Select(status => PostWire.ToPost(status, reader)),
         ];
+    }
+
+    /// <summary>One listing, from the top or from where an earlier one said to read on.</summary>
+    private async Task<Fetch<Conversation>> Collect(
+        ActiveProfile profile,
+        Onward? from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        return await PagedReading.Collect(
+            limit,
+            PageSize,
+            client.GetConversations,
+            conversation => ConversationWire.ToConversation(conversation, profile),
+            conversation => conversation.Id,
+            cancellationToken,
+            from: from);
     }
 }

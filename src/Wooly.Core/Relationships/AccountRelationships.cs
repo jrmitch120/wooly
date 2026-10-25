@@ -197,6 +197,18 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
     }
 
     /// <inheritdoc />
+    public async Task<Fetch<Account>> ReadOnRequests(
+        ActiveProfile profile,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        return await Collect(client.GetFollowRequests, profile.Instance, limit, cancellationToken, from: from);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<Account>?> FamiliarFollowers(
         ActiveProfile profile,
         string accountId,
