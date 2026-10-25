@@ -1,5 +1,6 @@
 using System.Drawing;
 using Terminal.Gui.Input;
+using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
@@ -134,6 +135,76 @@ public class OffPagePickKeysTests
         Assert.Null(drawn.Shell.StatusRow.Notice);
     }
 
+    /// <summary>
+    ///     <c>d</c>, <c>p</c> and <c>e</c> on somebody else's post, and <c>x</c> on one with nothing hidden, are off the
+    ///     status row; pressed with the pick off the page they still only reclaim, rather than being refused about a post
+    ///     the reader cannot see.
+    /// </summary>
+    [Theory]
+    [InlineData('d')]
+    [InlineData('p')]
+    [InlineData('e')]
+    [InlineData('x')]
+    public async Task AKeyOffTheRowStillOnlyReclaims(char key)
+    {
+        using var drawn = await Feed();
+        var screen = drawn.Shell.Screen;
+
+        drawn.Press(new Key(key));
+        drawn.Built.Host.Drain();
+
+        Assert.Same(screen, drawn.Shell.Screen);
+        Assert.Equal(Reclaimed, drawn.Shell.Screen.Picked?.Id);
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Null(drawn.Shell.StatusRow.Notice);
+    }
+
+    /// <summary>
+    ///     With a follow notification picked, which carries no post, the post keys are off the row; pressed once it is off
+    ///     the page, <c>f</c> reclaims the post on the page and marks nothing, and the next <c>f</c> marks that post.
+    /// </summary>
+    [Fact]
+    public async Task APostKeyReclaimsFromAThingWithNoPost()
+    {
+        using var drawn = await Notifications(
+        [
+            .. Six().Take(5).Select((post, at) => ANotification.With(id: $"{at + 1}", post: post)),
+            ANotification.Follow(id: "6"),
+        ]);
+
+        drawn.Press(new Key('f'));
+        drawn.Built.Host.Drain();
+
+        Assert.Empty(drawn.Built.Engagement.Marks);
+        Assert.Equal(Reclaimed, drawn.Shell.Screen.Picked?.Id);
+
+        drawn.Press(new Key('f'));
+        drawn.Built.Host.Drain();
+
+        Assert.Equal(Reclaimed, Assert.Single(drawn.Built.Engagement.Marks).PostId);
+    }
+
+    /// <summary>
+    ///     A question open on the status row takes the next key before anything reclaims: <c>f</c> declines it, and
+    ///     neither reclaims nor marks.
+    /// </summary>
+    [Fact]
+    public async Task AnOpenQuestionTakesTheKeyBeforeAnyReclaim()
+    {
+        using var drawn = await Feed();
+        var agreed = false;
+
+        drawn.Shell.StatusRow.Ask(new Confirmation("Go ahead?", () => Task.FromResult(agreed = true)));
+
+        drawn.Press(new Key('f'));
+        drawn.Built.Host.Drain();
+
+        Assert.Null(drawn.Shell.Asking);
+        Assert.False(agreed);
+        Assert.Empty(drawn.Built.Engagement.Marks);
+        Assert.Equal("660", drawn.Shell.Screen.Picked?.Id);
+    }
+
     /// <summary>With the foot of the pick still on the page, <c>f</c> favourites it at once.</summary>
     [Fact]
     public async Task APickWithItsFootShowingIsActedOnAtOnce()
@@ -253,13 +324,16 @@ public class OffPagePickKeysTests
     }
 
     /// <summary>The same on notifications, one notification on each of the six posts.</summary>
-    private static async Task<DrawnShell> Notifications()
+    private static Task<DrawnShell> Notifications() =>
+        Notifications([.. Six().Select((post, at) => ANotification.With(id: $"{at + 1}", post: post))]);
+
+    /// <summary>The same over <paramref name="notifications" />.</summary>
+    private static async Task<DrawnShell> Notifications(Notification[] notifications)
     {
         var built = new AShell
         {
             Timelines = FakeTimelineReader.Holding(APost.With(id: "1")),
-            Notifications = FakeNotificationInbox.Holding(
-                [.. Six().Select((post, at) => ANotification.With(id: $"{at + 1}", post: post))]),
+            Notifications = FakeNotificationInbox.Holding(notifications),
         };
 
         var drawn = await DrawnShell.Of(80, Short, Themes.Plain, built);
