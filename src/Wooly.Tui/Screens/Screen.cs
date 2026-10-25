@@ -473,9 +473,10 @@ public abstract class Screen
         var shown = onThePage?.Where(references.Contains).ToList() ?? [];
         Reference? entered = shown.Count == 0 ? null : by > 0 ? shown[0] : shown[^1];
 
-        _reference = entered is { } reference
-            ? references.ToList().IndexOf(reference)
-            : by > 0 ? 0 : references.Count - 1;
+        if (entered is not { } reference || !WalkToReference(reference))
+        {
+            _reference = by > 0 ? 0 : references.Count - 1;
+        }
 
         return true;
     }
