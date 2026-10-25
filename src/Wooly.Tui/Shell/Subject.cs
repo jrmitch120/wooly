@@ -73,8 +73,17 @@ public abstract record Subject
     /// <param name="ask">What every call it makes is put through.</param>
     /// <param name="ports">What it is read through.</param>
     /// <param name="profile">Who is asking.</param>
+    /// <param name="standing">
+    ///     The screen being read on, which a subject that reads on through what its screen holds reads on from — an
+    ///     account's, whose posts are asked for by the id it was answered with (#464).
+    /// </param>
     /// <param name="from">Where the instance said to read on from.</param>
-    internal virtual Task<Found> ReadOn(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from) =>
+    internal virtual Task<Found> ReadOn(
+        Enquiry.Ask ask,
+        ShellPorts ports,
+        ActiveProfile profile,
+        Screen standing,
+        Onward from) =>
         throw new InvalidOperationException($"{GetType().Name} does not read on, and its screen was never told to.");
 
     /// <summary>
@@ -144,7 +153,12 @@ public abstract record Subject
             Table().Read(ask, ports, profile, Entry, token => new InboxCount(ports, profile, SessionMarkers, token));
 
         /// <inheritdoc />
-        internal override Task<Found> ReadOn(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from) =>
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
             Table().ReadOn(ask, ports, profile, from);
 
         /// <inheritdoc />
@@ -183,13 +197,8 @@ public abstract record Subject
                     Counting: null,
                     Carries: post => post,
 
-                    // Home alone for now: the other three follow it in #464.
-                    ReadsOn: timeline == Timeline.Home
-                        ? new OnwardRead<Post>(
-                            (ports, profile, from, token) =>
-                                ports.Timelines.ReadOn(profile, timeline, from, Arrival.PostsWanted, token),
-                            (screen, older) => ((FeedScreen)screen).ReadOn(older))
-                        : null);
+                    // All four, the same way: a timeline is a timeline whichever scope is in it (#464).
+                    ReadsOn: FeedReadsOn(timeline));
             }
 
             return entry.Kind switch
@@ -364,7 +373,30 @@ public abstract record Subject
                 pins,
                 familiar,
                 WithReplies,
-                profile.SignsInAs(account.Address));
+                profile.SignsInAs(account.Address),
+                posts.Onward);
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        ///     Their posts alone or their <b>Posts and replies</b>, whichever run the screen is showing, and never the
+        ///     pinned run, which is one page in the account's own order (#464). Asked by the id the screen's account was
+        ///     answered with, as the first read's three calls after <c>Show</c> are, so reading on costs no lookup of
+        ///     its own (ADR-0012's second amendment).
+        /// </remarks>
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from)
+        {
+            var whose = NamedAccount.Resolved(((AccountScreen)standing).Account);
+
+            return TimelineReadsOn(
+                    WithReplies ? Timeline.WithReplies(whose) : Timeline.By(whose),
+                    (screen, older) => ((AccountScreen)screen).ReadOn(older))
+                .From(ask, ports, profile, from);
         }
     }
 
@@ -606,8 +638,21 @@ public abstract record Subject
             return new Found.Drawn(() => new FeedScreen(
                 showing,
                 posts.Items,
-                Arrival.Emptiness(posts.Items.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy)));
+                Arrival.Emptiness(posts.Items.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy))
+            {
+                // Read on as the rail's own hashtag is, being the same timeline walked to another way (#464).
+                ReadingOn = new ReadingOn(posts.Onward),
+            });
         }
+
+        /// <inheritdoc />
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
+            FeedReadsOn(Timeline.Tag(Hashtag)).From(ask, ports, profile, from);
     }
 
     /// <summary>
@@ -662,7 +707,25 @@ public abstract record Subject
     /// <param name="Adds">Puts what came back under what the destination's screen already holds.</param>
     private sealed record OnwardRead<T>(
         Func<ShellPorts, ActiveProfile, Onward, CancellationToken, Task<Fetch<T>>> Reads,
-        Action<Screen, IReadOnlyList<T>> Adds);
+        Action<Screen, IReadOnlyList<T>> Adds)
+    {
+        /// <summary>Reads on from <paramref name="from" />, as an answer that adds what came back to the screen asked from.</summary>
+        public async Task<Found> From(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from) =>
+            new ReadOnto<T>(this, await ask.ReadOn(from, (at, token) => Reads(ports, profile, at, token)));
+    }
+
+    /// <summary>
+    ///     How <paramref name="timeline" /> reads on onto the feed showing it: the rail's four timelines and a hashtag
+    ///     walked to alike, which are one screen over a different timeline (#464).
+    /// </summary>
+    private static OnwardRead<Post> FeedReadsOn(Timeline timeline) =>
+        TimelineReadsOn(timeline, (screen, older) => ((FeedScreen)screen).ReadOn(older));
+
+    /// <summary>How <paramref name="timeline" /> reads on, its older posts put where <paramref name="adds" /> says.</summary>
+    private static OnwardRead<Post> TimelineReadsOn(Timeline timeline, Action<Screen, IReadOnlyList<Post>> adds) =>
+        new(
+            (ports, profile, from, token) => ports.Timelines.ReadOn(profile, timeline, from, Arrival.PostsWanted, token),
+            adds);
 
     /// <inheritdoc cref="Listing" />
     /// <param name="Reads">What the instance is asked for.</param>
@@ -717,9 +780,7 @@ public abstract record Subject
         {
             var reading = ReadsOn ?? throw new InvalidOperationException("This destination's list does not read on.");
 
-            return new ReadOnto<T>(
-                reading,
-                await ask.ReadOn(from, (at, token) => reading.Reads(ports, profile, at, token)));
+            return await reading.From(ask, ports, profile, from);
         }
 
         /// <summary>

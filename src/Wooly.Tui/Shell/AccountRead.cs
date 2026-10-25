@@ -1,4 +1,5 @@
 using Wooly.Core.Accounts;
+using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Tui.Screens;
 
@@ -24,18 +25,26 @@ namespace Wooly.Tui.Shell;
 /// </param>
 /// <param name="WithReplies">Whether <paramref name="Posts" /> was read with their replies in.</param>
 /// <param name="IsOwnAccount">Whether they are the <b>Own account</b>: the one the profile reading them signs in as (#406).</param>
+/// <param name="Onward">
+///     Where <paramref name="Posts" /> reads on from, or <see langword="null" /> where the instance has nothing behind
+///     them (#464).
+/// </param>
 internal sealed record AccountRead(
     Account Account,
     IReadOnlyList<Post> Posts,
     IReadOnlyList<Post>? Pinned,
     IReadOnlyList<Account>? Familiar,
     bool WithReplies,
-    bool IsOwnAccount) : Found
+    bool IsOwnAccount,
+    Onward? Onward) : Found
 {
     /// <inheritdoc />
     /// <remarks>
     ///     Said once, so that the run a screen says it shows is the run it was read with.
     /// </remarks>
     public override Screen Becomes(Screen? standing) =>
-        new AccountScreen(Account, Posts, Pinned, Familiar, WithReplies, IsOwnAccount);
+        new AccountScreen(Account, Posts, Pinned, Familiar, WithReplies, IsOwnAccount)
+        {
+            ReadingOn = new ReadingOn(Onward),
+        };
 }

@@ -1031,8 +1031,14 @@ who walked to the bottom had no way to see anything older without leaving the TU
   list about every item in it, so a post marked or deleted forgets every cached list holding it, however it was
   reached, and a tie forgets Home with everything read on it. The screen showing the post hears the change and patches
   it in place, as it does any post.
-- **Only Home, for now.** Every other list still reads once and never asks, and draws no foot. Local, Federated, a
-  hashtag and an account's posts follow in #464, and the Inbox in #465 and #466.
+- **Every timeline reads on, and so do an account's posts (#464).** These screens read on, the same way Home does:
+  - Home, Local, Federated and the rail's Hashtag;
+  - a hashtag walked to from a post or a search, which is the same timeline reached another way;
+  - an account's posts, below the pinned run, following whichever run is showing: their posts, or **Posts and
+    replies** once `s` has widened it. The pinned run is never read on. It is one page in the account's own order, and
+    a post pinned long ago that comes back in an older page is still drawn once, in the pinned run (#182).
+
+  Every other list still reads once and never asks, and draws no foot. The Inbox follows in #465 and #466.
 
 ### What conversations settled
 
@@ -1547,7 +1553,8 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
 - **The duplicate is dropped from the timeline run, never from pinned**, and dropped by id in
   the `Account` subject's read, so the screen is handed two disjoint lists and cannot disagree with itself about which run a post is
   in. On their posts alone only a recent pinned *normal* post can be in both, that call excluding replies; with
-  replies in, a recent pinned reply can be too, and is drawn in the pinned run alone the same way.
+  replies in, a recent pinned reply can be too, and is drawn in the pinned run alone the same way. Reading on keeps it
+  so: an older pin coming back in a page read on is left out of the timeline run as it is added (#464).
 - **Empty draws nothing; not asked draws a row.** No pinned posts is no heading, no rows and no gap, which is the
   common case. A pinned read a rate limit stopped draws `Pinned posts not asked for.`, the same distinction
   `AccountLines.Standing` already draws `Standing not asked for.` for — which is why pinned is asked *before* familiar
