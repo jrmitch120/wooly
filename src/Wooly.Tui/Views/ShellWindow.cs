@@ -770,16 +770,17 @@ internal sealed class ShellWindow : Window
     /// </returns>
     private bool Do(ShellKey pressed)
     {
+        var verb = Keymap.Means(pressed, _shell.Screen);
+
         // With the pick scrolled off the page, a key that acts on it only reclaims, so that nothing lands on a post the
-        // reader cannot see; the next press acts on what is picked now (#476).
-        if (ShellKeys.WrittenAs(pressed) is { } written && _shell.NeedsAPick(written) && _content.Reclaimable is { } at)
+        // reader cannot see; the next press acts on what is picked now (#476). Asked of what the key means here, after
+        // an open question and a prompt taking letters have had their turn at it (OnKeyDown).
+        if (Keymap.NeedsAPick(verb, _shell.Screen) && _content.Reclaimable is { } at)
         {
-            Reclaim(at);
+            Walk(0, reclaiming: at);
 
             return true;
         }
-
-        var verb = Keymap.Means(pressed, _shell.Screen);
 
         if (verb.NeedsATerminal())
         {
@@ -903,20 +904,15 @@ internal sealed class ShellWindow : Window
     ///     moves or reclaims is the content region's to answer, since it is the only thing that knows what is on
     ///     screen — this window translates keys and leaves what they mean to <see cref="Keymap" /> (ADR-0014, #147).
     /// </summary>
-    private void Walk(int by)
-    {
-        _shell.Walk(by, _content.Reclaimable);
-        _content.Follow();
-        _pageToTell = true;
-    }
+    private void Walk(int by) => Walk(by, _content.Reclaimable);
 
     /// <summary>
-    ///     A key that acts on the pick, pressed with the pick off the page: <paramref name="at" /> is picked as
-    ///     <see cref="Walk" /> would reclaim it, and the press does nothing else (#476).
+    ///     The same, with what is to be reclaimed already asked — which is all a key that acts on the pick does, pressed
+    ///     with the pick off the page: it walks nowhere, and picks <paramref name="reclaiming" /> (#476).
     /// </summary>
-    private void Reclaim(int at)
+    private void Walk(int by, int? reclaiming)
     {
-        _shell.Walk(0, reclaiming: at);
+        _shell.Walk(by, reclaiming);
         _content.Follow();
         _pageToTell = true;
     }

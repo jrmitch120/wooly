@@ -5,6 +5,7 @@ using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
 
@@ -84,7 +85,7 @@ public class OffPagePickKeysTests
     }
 
     /// <summary>
-    ///     Every key the status row marks as needing a pick, on a feed and on notifications alike, only reclaims on the
+    ///     Every key the status row offers that needs a pick, on a feed and on notifications alike, only reclaims on the
     ///     first press: nothing is asked of the instance, nothing is opened and nothing is asked of the reader.
     /// </summary>
     [Theory]
@@ -111,6 +112,26 @@ public class OffPagePickKeysTests
             Assert.Null(drawn.Shell.Asking);
             Assert.Null(drawn.Shell.StatusRow.Notice);
         }
+    }
+
+    /// <summary>
+    ///     A digit and <c>v</c> act on the picked post's poll, so the first press of either only reclaims: no answer is
+    ///     toggled on the poll off the page, and no vote is asked about.
+    /// </summary>
+    [Theory]
+    [InlineData('1')]
+    [InlineData('0')]
+    [InlineData('v')]
+    public async Task TheFirstVotingKeyOnlyReclaims(char key)
+    {
+        using var drawn = await Feed([.. Six().Select(post => post with { Poll = APost.APoll() })]);
+
+        drawn.Press(new Key(key));
+        drawn.Built.Host.Drain();
+
+        Assert.Equal(Reclaimed, drawn.Shell.Screen.Picked?.Id);
+        Assert.Null(drawn.Shell.Asking);
+        Assert.Null(drawn.Shell.StatusRow.Notice);
     }
 
     /// <summary>With the foot of the pick still on the page, <c>f</c> favourites it at once.</summary>
@@ -196,8 +217,8 @@ public class OffPagePickKeysTests
     }
 
     /// <summary>
-    ///     The keys the status row marks as needing a pick, on a feed or on notifications: the ones a screen declares
-    ///     so, and the ones that act on a post.
+    ///     The keys the status row offers on a feed or on notifications that mean something there needing a pick
+    ///     (<see cref="Keymap.NeedsAPick" />).
     /// </summary>
     private static async Task<IReadOnlyList<string>> MarkedKeys(bool notifications)
     {
@@ -206,8 +227,10 @@ public class OffPagePickKeysTests
         return
         [
             .. drawn.Shell.Keys
-                .Where(hint => hint.NeedsAPick || PostKeys.ActsOnAPost(hint))
                 .Select(hint => hint.Key)
+                .Where(key => key == "⏎" || key.Length == 1)
+                .Where(key => ShellKeys.Of(key == "⏎" ? Key.Enter : new Key(key[0])) is { } pressed
+                              && Keymap.NeedsAPick(Keymap.Means(pressed, drawn.Shell.Screen), drawn.Shell.Screen))
                 .Distinct(),
         ];
     }
@@ -217,9 +240,12 @@ public class OffPagePickKeysTests
         [.. new[] { "110", "220", "330", "440", "550", "660" }.Select(id => APost.With(id: id))];
 
     /// <summary>The shell drawn short over a feed, the last post picked and the second post's top on the page's first row.</summary>
-    private static async Task<DrawnShell> Feed()
+    private static async Task<DrawnShell> Feed() => await Feed(Six());
+
+    /// <summary>The same over <paramref name="posts" />.</summary>
+    private static async Task<DrawnShell> Feed(Post[] posts)
     {
-        var drawn = await DrawnShell.Of(80, Short, Themes.Plain, new AShell { Timelines = FakeTimelineReader.Holding(Six()) });
+        var drawn = await DrawnShell.Of(80, Short, Themes.Plain, new AShell { Timelines = FakeTimelineReader.Holding(posts) });
 
         LeaveThePickOff(drawn);
 

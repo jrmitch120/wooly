@@ -390,15 +390,6 @@ public sealed class Shell
         HidesRail ? Unwalked(Screen.Keys, BackslashShowsTheRail) : Screen.Keys;
 
     /// <summary>
-    ///     Whether the key written <paramref name="key" /> acts on the pick here, by the status row's own marks: a key
-    ///     the screen declares <see cref="KeyHint.NeedsAPick" />, or one that acts on a post (<see cref="PostKeys" />).
-    ///     Asked of what the row draws rather than of a list of verbs, so that a key is taught to reclaim by being
-    ///     marked, as it is taught to leave an empty list's row (#476).
-    /// </summary>
-    public bool NeedsAPick(string key) =>
-        Keys.Any(hint => hint.Key == key && (hint.NeedsAPick || PostKeys.ActsOnAPost(hint)));
-
-    /// <summary>
     ///     Whether <c>\</c> pressed now would show the hidden rail, rather than being typed as a letter by the screen
     ///     in front (<see cref="Screen.TypesBackslash" />, #447). The status row and the locked walk name it only where
     ///     it would.
