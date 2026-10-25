@@ -282,4 +282,36 @@ public class ReferenceLetGoTests
 
         Assert.Equal(1, drawn.Shell.Depth);
     }
+
+    /// <summary>
+    ///     A reference is let go once its own rows are off the page, even where another post that reads the same at the
+    ///     same place has come onto it: that copy is not the one walked to.
+    /// </summary>
+    [Fact]
+    public async Task AnotherPostsCopyOfTheReferenceDoesNotKeepIt()
+    {
+        var filler = string.Concat(Enumerable.Range(1, 1).Select(line => $"Line {line} of the fleece\n"));
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110", content: "#wool on the first"),
+                APost.With(id: "220", content: filler),
+                APost.With(id: "330", content: "#wool on the last")),
+        };
+
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Plain, built);
+
+        drawn.Press(Key.CursorRight);
+        Assert.Equal("#wool", drawn.Shell.Screen.Reference?.Text);
+
+        Assert.Contains(drawn.Rows()[..^2], row => row.Contains("on the last", StringComparison.Ordinal));
+
+        while (drawn.Rows()[..^2].Any(row => row.Contains("on the first", StringComparison.Ordinal)))
+        {
+            drawn.Press(Key.CursorDown);
+        }
+
+        Assert.Contains(drawn.Rows()[..^2], row => row.Contains("on the last", StringComparison.Ordinal));
+        Assert.Null(drawn.Shell.Screen.Reference);
+    }
 }

@@ -108,4 +108,29 @@ public class ReferenceFollowTests
         Assert.Equal(RowOf(drawn, "Shearing"), Array.FindIndex(before, row => row.Contains("Shearing")));
         Assert.Equal(before[PageBottom], drawn.Rows()[PageBottom]);
     }
+
+    /// <summary>
+    ///     A reference that reads the same, at the same place, as one in another post further down the page — the
+    ///     reader's own handle opening two replies to them — is still only the picked post's: walking to it on the page
+    ///     leaves the page where it is, rather than bringing the other post's copy on as well and showing the pair from
+    ///     the top.
+    /// </summary>
+    [Fact]
+    public async Task AReferenceAnotherPostAlsoOpensWithLeavesThePageAlone()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110", content: "#wool on the first"),
+                APost.With(id: "220", content: Filler),
+                APost.With(id: "330", content: "#wool on the last")),
+        };
+
+        using var drawn = await DrawnShell.Of(80, Height, Themes.Plain, built);
+
+        drawn.Press(Key.CursorRight);
+
+        Assert.Equal("#wool", drawn.Shell.Screen.Reference?.Text);
+        Assert.Equal(0, drawn.Content.Top);
+    }
 }

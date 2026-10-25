@@ -41,7 +41,7 @@ public static class Scroll
     /// </summary>
     /// <remarks>
     ///     The same minimum move <see cref="To" /> makes for the pick, keyed on every row drawn for the reference
-    ///     (<see cref="Line.Has(Reference)" />), so that a reference wrapped across two rows is brought on whole where
+    ///     (<see cref="Draws" />), so that a reference wrapped across two rows is brought on whole where
     ///     it fits. With no row drawn for it, the page stays where it is.
     /// </remarks>
     /// <param name="lines">The rows to be drawn.</param>
@@ -55,14 +55,14 @@ public static class Scroll
         int from,
         Reference reference,
         int pinned = 0) =>
-        ToShow(lines, height, from, pinned, line => line.Has(reference));
+        ToShow(lines, height, from, pinned, line => Draws(line, reference));
 
     /// <summary>
     ///     Whether <paramref name="reference" />, the one walked to, has gone off the page starting at
     ///     <paramref name="from" />: none of the rows drawn for it are on it, which is what lets it go (#478).
     /// </summary>
     /// <remarks>
-    ///     Its rows are every row drawn for it (<see cref="Line.Has(Reference)" />), the middle row of an address
+    ///     Its rows are every row drawn for it (<see cref="Draws" />), the middle row of an address
     ///     wrapped across three included: a reference is off only when no part of it shows. One drawn on no row at all
     ///     says nothing either way, so it is never let go for that.
     /// </remarks>
@@ -85,7 +85,7 @@ public static class Scroll
 
         for (var at = 0; at < lines.Count; at++)
         {
-            if (!lines[at].Has(reference))
+            if (!Draws(lines[at], reference))
             {
                 continue;
             }
@@ -100,6 +100,14 @@ public static class Scroll
 
         return drawn;
     }
+
+    /// <summary>
+    ///     Whether <paramref name="line" /> is drawn for <paramref name="reference" />, the one walked to: a row of the
+    ///     pick (<see cref="Role.Selection" />) carrying it. A reference is walked inside the pick, and one that reads the
+    ///     same at the same place in another post — the reader's own handle opening two replies to them — compares
+    ///     equal without being it.
+    /// </summary>
+    private static bool Draws(Line line, Reference reference) => line.Has(Role.Selection) && line.Has(reference);
 
     /// <summary>
     ///     Where to scroll to so that every row that is <paramref name="part" /> of what is to be shown is on the page.
