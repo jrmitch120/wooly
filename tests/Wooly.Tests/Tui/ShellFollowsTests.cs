@@ -13,6 +13,9 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellFollowsTests
 {
+    /// <summary>The height of the content region the reading-on tests say the page is, in rows.</summary>
+    private const int Screenful = 20;
+
     /// <summary><c>w</c> opens the following side of whichever account is showing.</summary>
     [Fact]
     public async Task OpenFollows_OpensTheFollowingSideOfTheAccountShowing()
@@ -168,34 +171,112 @@ public class ShellFollowsTests
     }
 
     /// <summary>
-    ///     A list too large to hold whole is browsed: the first page and no more, until the reader walks onto the end
-    ///     of it and the next 80 are asked for.
+    ///     A list too large to hold whole is browsed by reading on (#467): the first 80 and no more, until the page
+    ///     comes within a screenful of the end — and then the next 80 from where the first read stopped, put under
+    ///     those held with the pick left where it was, and the list never read again from the top.
     /// </summary>
     [Fact]
-    public async Task Walking_AsksForTheNextPageAtTheEndOfABrowsedList()
+    public async Task Viewed_ReadsABrowsedListOnFromWhereItsLastReadStopped()
     {
-        var (fakes, opened) = await OnAFollowList(
-            whose: AnAccount.With(address: "ben@hachyderm.io", following: 877_000),
-            listing: APage());
+        var (fakes, opened) = await OnABrowsedList(people: 200);
 
         var follows = Assert.IsType<FollowsScreen>(opened.Screen);
 
         Assert.False(follows.Holds);
-        Assert.Equal(80, Listed(fakes)[^1].Limit);
+        Assert.Equal(80, Assert.Single(Listed(fakes)).Limit);
 
-        var asked = Listed(fakes).Count;
-
-        // Onto the last of what was read, which is where the next page is wanted — and not before.
-        opened.Move(78);
+        opened.Move(3);
+        opened.Viewed(under: 0, screenful: Screenful);
         fakes.Host.Drain();
 
-        Assert.Equal(asked, Listed(fakes).Count);
+        var on = Assert.Single(fakes.Accounts.ListsOn);
+        Assert.Equal(FollowSide.Following, on.Side);
+        Assert.Equal("ben@hachyderm.io", on.Account?.Address.Text);
+        Assert.Equal(80, on.Limit);
+        Assert.Single(Listed(fakes));
+        Assert.Equal(Ids(0, 159), follows.People.Select(person => person.Id));
+        Assert.Equal("3", follows.PickedPerson?.Id);
+    }
 
-        opened.Move(1);
+    /// <summary>Further than a screenful from the end, a browsed list asks for nothing more.</summary>
+    [Fact]
+    public async Task Viewed_FurtherThanAScreenfulFromTheEndOfABrowsedList_AsksNothing()
+    {
+        var (fakes, opened) = await OnABrowsedList(people: 200);
+
+        opened.Viewed(under: Screenful + 1, screenful: Screenful);
         fakes.Host.Drain();
 
-        Assert.Equal(asked + 1, Listed(fakes).Count);
-        Assert.Equal(160, Listed(fakes)[^1].Limit);
+        Assert.Empty(fakes.Accounts.ListsOn);
+        Assert.Equal(80, Assert.IsType<FollowsScreen>(opened.Screen).Read);
+    }
+
+    /// <summary>
+    ///     Where the reader stands is asked only of the people a read on brought, in the one batched call — never again
+    ///     of everyone already on screen.
+    /// </summary>
+    [Fact]
+    public async Task Viewed_AsksWhereTheReaderStandsOnlyWithThoseReadOn()
+    {
+        var (fakes, opened) = await OnABrowsedList(people: 200);
+
+        fakes.Accounts.ForgetStandings();
+        opened.Viewed(under: 0, screenful: Screenful);
+        fakes.Host.Drain();
+
+        var stood = Assert.Single(fakes.Accounts.Standings);
+        Assert.Equal(Ids(80, 159), stood.AccountIds);
+        Assert.NotNull(Assert.IsType<FollowsScreen>(opened.Screen).People[^1].Standing);
+    }
+
+    /// <summary>
+    ///     The count row goes on saying how much of the list has been read, and once the instance has nothing behind
+    ///     what is held the foot says so — in place of the old "this instance offers no more", which said the same.
+    /// </summary>
+    [Fact]
+    public async Task Viewed_ToTheEndOfABrowsedList_CountsWhatWasReadAndSaysThatsEverythingAtTheFoot()
+    {
+        var (fakes, opened) = await OnABrowsedList(people: 200);
+
+        for (var read = 0; read < 3; read++)
+        {
+            opened.Viewed(under: 0, screenful: Screenful);
+            fakes.Host.Drain();
+        }
+
+        var rows = Rows(opened.Screen);
+
+        Assert.Equal(2, fakes.Accounts.ListsOn.Count);
+        Assert.Contains("200 of 877,000 read", rows);
+        Assert.DoesNotContain(rows, row => row.Contains("offers no more", StringComparison.Ordinal));
+        Assert.Equal("that's everything", rows[^1]);
+    }
+
+    /// <summary>Between reads, with more to come, a browsed list's foot says nothing.</summary>
+    [Fact]
+    public async Task Foot_OfABrowsedListSaysNothingBetweenReads()
+    {
+        var (_, opened) = await OnABrowsedList(people: 200);
+
+        Assert.DoesNotContain("that's everything", Rows(opened.Screen));
+    }
+
+    /// <summary>
+    ///     A list held whole does not read on: it is read whole at once and narrowed live, as before, and draws no foot.
+    /// </summary>
+    [Fact]
+    public async Task Viewed_OnAListHeldWhole_AsksNothing()
+    {
+        var (fakes, opened) = await OnAFollowList(
+            whose: AnAccount.With(address: "ben@hachyderm.io", following: 187),
+            listing: People(187));
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        fakes.Host.Drain();
+
+        Assert.Empty(fakes.Accounts.ListsOn);
+        Assert.Equal(187, Assert.IsType<FollowsScreen>(opened.Screen).Read);
+        Assert.DoesNotContain("that's everything", Rows(opened.Screen));
     }
 
     /// <summary>A list held whole reads the first page and then the rest of it, behind whoever is already reading.</summary>
@@ -204,7 +285,7 @@ public class ShellFollowsTests
     {
         var (fakes, opened) = await OnAFollowList(
             whose: AnAccount.With(address: "ben@hachyderm.io", following: 187),
-            listing: APage());
+            listing: People(80));
 
         var follows = Assert.IsType<FollowsScreen>(opened.Screen);
 
@@ -405,9 +486,25 @@ public class ShellFollowsTests
     private static IReadOnlyList<FakeAccountRelationships.Listed> Listed(AShell fakes) =>
         [.. fakes.Accounts.Lists.Where(listed => listed.Side is not null)];
 
-    /// <summary>A full page of people, which is what tells the shell the instance has more to give.</summary>
-    private static Account[] APage() =>
-        [.. Enumerable.Range(0, 80).Select(at => AnAccount.With(id: at.ToString(), address: $"person{at}@here.social"))];
+    /// <summary><paramref name="count" /> people, ids counting up from 0, in the order the instance lists them.</summary>
+    private static Account[] People(int count) =>
+    [
+        .. Enumerable.Range(0, count)
+            .Select(at => AnAccount.With(id: $"{at}", address: $"person{at}@here.social")),
+    ];
+
+    /// <summary>The ids from <paramref name="first" /> to <paramref name="last" />, in order.</summary>
+    private static IEnumerable<string> Ids(int first, int last) =>
+        Enumerable.Range(first, last - first + 1).Select(at => $"{at}");
+
+    /// <summary>
+    ///     A shell standing on Ben's following list of 877,000 — far too many to hold, so browsed — of whom the
+    ///     instance serves <paramref name="people" />.
+    /// </summary>
+    private static Task<(AShell Fakes, Shell Opened)> OnABrowsedList(int people) =>
+        OnAFollowList(
+            whose: AnAccount.With(address: "ben@hachyderm.io", following: 877_000),
+            listing: People(people));
 
     /// <summary>The rows a screen draws, as the strings a reader sees.</summary>
     private static IReadOnlyList<string> Rows(Screen screen) =>

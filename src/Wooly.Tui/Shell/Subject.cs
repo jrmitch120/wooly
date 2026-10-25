@@ -369,8 +369,8 @@ public abstract record Subject
     }
 
     /// <summary>
-    ///     One side of an account's follows: a list held whole where it is short enough, and browsed a page at a time
-    ///     where it is not — which of the two settled off the counts the account already carries (#180).
+    ///     One side of an account's follows: a list held whole where it is short enough, and browsed by <b>reading
+    ///     on</b> where it is not — which of the two settled off the counts the account already carries (#180, #467).
     /// </summary>
     /// <remarks>
     ///     Told apart by whose list it is and which side, since the account itself is answered about afresh every time
@@ -388,9 +388,6 @@ public abstract record Subject
         public override bool Cached => true;
 
         /// <inheritdoc />
-        public override bool Pages => true;
-
-        /// <inheritdoc />
         public bool Equals(Follows? other) => other is not null && other.Whose.Id == Whose.Id && other.Side == Side;
 
         /// <inheritdoc />
@@ -406,10 +403,10 @@ public abstract record Subject
 
         /// <inheritdoc />
         /// <remarks>
-        ///     A page is asked for by re-reading the list to a longer limit, the port taking a count rather than a
-        ///     cursor — so what comes back holds every page before it, and only the tail of it is new. How long a
-        ///     limit is the screen's own count settles: the first page, then — on a list held whole — the rest of it in
-        ///     one ask rather than 24 more, and on a browsed one a page past what is in hand.
+        ///     The first page, on either kind of list. A browsed one goes on from there by reading on
+        ///     (<see cref="ReadOn" />); a list held whole is read again for the rest of it in one ask rather than 24
+        ///     more, re-read to a longer limit — so what comes back holds the page before it, and only the tail of it
+        ///     is new.
         ///     <para>
         ///         Neither side of a follow list carries a standing, Mastodon sending one only from the relationship
         ///         endpoints, so it is asked for separately — once for the page rather than once a row. It answers
@@ -425,7 +422,7 @@ public abstract record Subject
         {
             var screen = (FollowsScreen)standing!;
             var already = screen.Read;
-            var wanted = already == 0 ? FollowsPage : screen.Holds ? (int)screen.Total : already + FollowsPage;
+            var wanted = already == 0 ? FollowsPage : (int)screen.Total;
 
             // The screen is holding the account whose list this is, id and all, so the list is asked for by naming
             // it rather than by handing back the address it was read from and paying to arrive at the same id again.
@@ -448,21 +445,56 @@ public abstract record Subject
                 stood.AddRange(await ask.Of(token => ports.StoodOrSilent(profile, page, token)));
             }
 
-            return new Filled([.. fetch.Items.Take(already), .. stood], fetch.StoppedBy, wanted);
+            return new Filled([.. fetch.Items.Take(already), .. stood], fetch.StoppedBy, wanted, fetch.Onward);
+        }
+
+        /// <inheritdoc />
+        /// <remarks>
+        ///     Only a browsed list is asked: the next page from where the last read stopped, and where the reader stands
+        ///     with whoever is on it — the people already on screen are never asked about again (#467).
+        /// </remarks>
+        internal override async Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Onward from)
+        {
+            var fetch = await ask.Of(token => ports.Accounts.ListOn(
+                profile,
+                Side,
+                NamedAccount.Resolved(Whose),
+                from,
+                FollowsPage,
+                token));
+
+            var stood = await ask.Of(token => ports.StoodOrSilent(profile, fetch.Items, token));
+
+            return new ReadOnto<Person>((screen, people) => ((FollowsScreen)screen).ReadOn(people), fetch with
+            {
+                Items = stood,
+            });
         }
 
         /// <summary>
         ///     What one read of a follow list came back with: everyone the instance has listed so far, whether a rate
-        ///     limit stopped it part way, and how many it was asked for.
+        ///     limit stopped it part way, how many it was asked for, and where to read on from.
         /// </summary>
         /// <param name="People">Everyone read so far, whoever is new among them carrying their standing.</param>
         /// <param name="StoppedBy">The rate limit that cut the read short, or nothing where none did.</param>
         /// <param name="Wanted">How many were asked for, which is what says whether the instance filled the ask.</param>
-        private sealed record Filled(IReadOnlyList<Person> People, RateLimitedException? StoppedBy, int Wanted)
+        /// <param name="Onward">Where a browsed list reads on from, or nothing where the instance has no more.</param>
+        private sealed record Filled(
+            IReadOnlyList<Person> People,
+            RateLimitedException? StoppedBy,
+            int Wanted,
+            Onward? Onward)
             : Found
         {
             /// <inheritdoc />
-            /// <remarks>Read into the screen standing for the list, which is already up.</remarks>
+            /// <remarks>
+            ///     Read into the screen standing for the list, which is already up. A browsed list reads on from here,
+            ///     and a held one never does: the rest of it is read at once instead (<see cref="ReadsOn" />).
+            /// </remarks>
             public override Screen Becomes(Screen? standing)
             {
                 var screen = (FollowsScreen)standing!;
@@ -471,6 +503,11 @@ public abstract record Subject
                     People,
                     More(screen),
                     Arrival.Emptiness(People.Count, screen.Nobody, of: null, StoppedBy));
+
+                if (!screen.Holds)
+                {
+                    screen.ReadingOn = new ReadingOn(Onward);
+                }
 
                 return screen;
             }
@@ -486,7 +523,7 @@ public abstract record Subject
             /// <inheritdoc />
             /// <remarks>
             ///     A list held whole goes on to read the rest at once, which is what streaming in behind the reader
-            ///     is; a browsed one stops here and waits for <c>k</c> to reach the end of what arrived.
+            ///     is; a browsed one stops here and reads on as the page nears the end of what arrived.
             /// </remarks>
             public override bool ReadsOn(Screen screen) =>
                 screen is FollowsScreen { Holds: true } follows && More(follows);
@@ -495,8 +532,9 @@ public abstract record Subject
             public override bool HoldsAccount(string accountId) => People.Any(person => person.Id == accountId);
 
             /// <summary>
-            ///     Whether there is more to come: only where the instance filled the ask and the list is longer than
-            ///     what is in hand. A short page is the end of the list, and a rate limit is the end of the reading.
+            ///     Whether there is more of a held list to come: only where the instance filled the ask and the list is
+            ///     longer than what is in hand. A short page is the end of the list, and a rate limit is the end of the
+            ///     reading. A browsed list's is where it reads on from, which only the instance can say.
             /// </summary>
             private bool More(FollowsScreen screen) =>
                 StoppedBy is null && People.Count >= Wanted && People.Count < screen.Total;
@@ -717,7 +755,7 @@ public abstract record Subject
         {
             var reading = ReadsOn ?? throw new InvalidOperationException("This destination's list does not read on.");
 
-            return new ReadOnto<T>(reading, await ask.Of(token => reading.Reads(ports, profile, from, token)));
+            return new ReadOnto<T>(reading.Adds, await ask.Of(token => reading.Reads(ports, profile, from, token)));
         }
 
         /// <summary>
@@ -809,10 +847,13 @@ public abstract record Subject
                     by => string.Equals(by?.Account, account, StringComparison.OrdinalIgnoreCase)));
     }
 
-    /// <summary>What one read on of a destination came back with, which is added to the screen it was asked from.</summary>
-    /// <param name="How">How the destination reads on.</param>
+    /// <summary>
+    ///     What one read on of a subject came back with — a destination's list, a follow list, a group's actors — which
+    ///     is added to the screen it was asked from.
+    /// </summary>
+    /// <param name="Adds">Puts what came back under what the screen already holds.</param>
     /// <param name="Fetch">What came back, and where to read on from next unless the list is now whole.</param>
-    private sealed record ReadOnto<T>(OnwardRead<T> How, Fetch<T> Fetch) : Found
+    private sealed record ReadOnto<T>(Action<Screen, IReadOnlyList<T>> Adds, Fetch<T> Fetch) : Found
     {
         /// <inheritdoc />
         /// <remarks>Read into the screen it was asked from, which is already up — so it is not put up again.</remarks>
@@ -821,7 +862,7 @@ public abstract record Subject
             var screen = standing
                          ?? throw new InvalidOperationException("A read on lands on the screen it was asked from.");
 
-            How.Adds(screen, Fetch.Items);
+            Adds(screen, Fetch.Items);
             screen.ReadingOn?.Arrived(Fetch.Onward);
 
             return screen;
