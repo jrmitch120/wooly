@@ -192,6 +192,44 @@ public static class Scroll
     }
 
     /// <summary>
+    ///     Which thing <c>j</c> reclaims once the pick is off the page starting at <paramref name="from" />: the first
+    ///     thing whose top is on it, or <see langword="null" /> for a screen with no items on it at all (#472).
+    /// </summary>
+    /// <remarks>
+    ///     A thing's top is the first row stamped with it — a boost line, a notification's strip, a byline, an
+    ///     account's header block — read off the rows as drawn, so no screen keeps its own record of where things
+    ///     begin. The foot of a post filling the top of the page is passed over for the first thing the reader can see
+    ///     beginning.
+    ///     <para>
+    ///         Where nothing begins on the page, because one post taller than it fills it, the answer is
+    ///         <see cref="Topmost" />'s: the post being read, so that <c>↓ ↓ ↓ j</c> keeps the reader on it, and past
+    ///         the last thing that last thing.
+    ///     </para>
+    /// </remarks>
+    /// <param name="lines">The rows drawn.</param>
+    /// <param name="height">How many rows there is room for.</param>
+    /// <param name="from">Where the page starts.</param>
+    /// <param name="pinned">
+    ///     How many rows at the top of the page are pinned there (<see cref="To" />): a top scrolled under them is not
+    ///     on the page.
+    /// </param>
+    public static int? Reclaim(IReadOnlyList<Line> lines, int height, int from, int pinned = 0)
+    {
+        var begun = new HashSet<int>();
+        var start = Math.Max(0, from + pinned);
+
+        for (var at = 0; at < Math.Min(lines.Count, from + height); at++)
+        {
+            if (lines[at].Item is { } item && begun.Add(item) && at >= start)
+            {
+                return item;
+            }
+        }
+
+        return Topmost(lines, from, pinned);
+    }
+
+    /// <summary>
     ///     Which item the page starting at <paramref name="from" /> begins on, or <see langword="null" /> for a screen
     ///     with no items on it at all. What <c>j</c> reclaims after the arrows have walked away from the selection.
     /// </summary>
