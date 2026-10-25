@@ -968,6 +968,17 @@ selection was the only scroll position a screen had and the foot of such a post 
   it, reclaims that last thing rather than nothing. "Off the page" still means *no* row of the pick shows: a pick with
   only its foot on the page is where the reader stands, and `j`/`k` move on from it. The reclaim is worked out once,
   in `Scroll.Reclaim`, and every key that reclaims asks that one answer through `PaintedView.Reclaimable`.
+- **The keys that act on the pick reclaim first.** With no row of the pick on the page, the first press of a key that
+  acts on it — `⏎ read`, `b`, `f`, `r`, and every other key the status row marks as needing a pick — only reclaims,
+  picking what `j`/`k` would; the next press acts on what is picked now, which is on the page. A favourite, a boost, a
+  reply or a read never lands on a post the reader cannot see, and the cost is one extra press. Which keys those are is
+  the status row's own marks, read in one place (`Shell.NeedsAPick`): a hint a screen declares `NeedsAPick`, or one of
+  the keys that act on a post (`PostKeys.ActsOnAPost`), so no key is taught it on its own and a key marked later
+  inherits it. `ShellWindow.Do` asks it before the key is carried out, and asks `PaintedView.Reclaimable` what to
+  reclaim, as `j`/`k` do. A pick with its foot on the page is acted on at once, and keys that need no pick — `g`, `c`,
+  `esc`, `?`, the rail — reclaim nothing. The status row does not change as the page moves, so it cannot say this; the
+  `?` screen's *Everywhere* list does, in a row of its own: `off-page pick   the first key picks what is on the page`
+  (#476).
 - **A row says which post it is part of.** `Role.Selection` marks only the post already picked out and so cannot name
   any other; every screen holding a selection numbers its rows with the same ordinal `Screen.Pick` takes, including the
   four that do not number a plain list of posts — the post screen, where the ancestors come first and the post itself
