@@ -152,8 +152,8 @@ internal sealed class PaintedView : View
 
     /// <summary>
     ///     The reference walked to on the screen drawn here, which is what a frame brings onto the page
-    ///     (<see cref="ShowReference" />) and looks at to see whether it has gone off it (<see cref="LetReferenceGo" />).
-    ///     None where nobody said.
+    ///     (<see cref="ShowReference" />) and looks at to see whether it has gone off it
+    ///     (<see cref="LetReferenceGo" />). None where nobody said.
     /// </summary>
     public Func<Reference?> HeldReference { get; init; } = () => null;
 
@@ -179,8 +179,8 @@ internal sealed class PaintedView : View
 
     /// <summary>
     ///     The item <c>j</c> and <c>k</c> should take back — the first one whose top is on the page — or
-    ///     <see langword="null" /> while the selection is still on screen and they can simply move from it. Never a row
-    ///     of its own: what is reclaimed is a whole thing.
+    ///     <see langword="null" /> while the pick is still on screen and they can simply move from it. Never a row of
+    ///     its own: what is reclaimed is a whole thing.
     /// </summary>
     /// <remarks>
     ///     Asked of the view because the view is the only thing that knows how much room there is and where the arrows
@@ -786,7 +786,8 @@ internal sealed class PaintedView : View
 
         // A reference with none of its rows left on the page the scroll came to is let go, whatever moved the page or
         // reflowed it (#478). Looked at only while one is held, so scrolling with none costs what it did.
-        if (LetReferenceGo is { } letGo && held is { } off && Scroll.ReferenceOffThePage(lines, height, _top, off, pinned))
+        if (LetReferenceGo is { } letGo && held is { } off
+            && Scroll.ReferenceOffThePage(lines, height, _top, off, pinned))
         {
             letGo();
         }

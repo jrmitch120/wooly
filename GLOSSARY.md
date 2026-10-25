@@ -676,8 +676,8 @@ _Avoid_: scroll state, viewport
 **Reclaim**:
 What the first key that needs the **Picked** thing does when none of its rows are on the **Page**: pick out the first
 thing whose top row is on the page — or, where no thing's top is, the topmost thing with any row showing — and do
-nothing else with that press, bar `←`/`→`, which go on to enter its **Reference**s (#51). A thing's top is the first row it draws, whatever that row is; it is not a
-**Section** heading, which heads a run of things rather than one.
+nothing else with that press, bar `←`/`→`, which go on to enter its **Reference**s (#51). A thing's top is the first
+row it draws, whatever that row is; it is not a **Section** heading, which heads a run of things rather than one.
 _Avoid_: snap, jump back, heading (for a thing's top)
 
 **Section**:

@@ -86,8 +86,8 @@ public class OffPagePickKeysTests
     }
 
     /// <summary>
-    ///     Every key the status row offers that needs a pick, on a feed and on notifications alike, only reclaims on the
-    ///     first press: nothing is asked of the instance, nothing is opened and nothing is asked of the reader.
+    ///     Every key the status row offers that needs a pick, on a feed and on notifications alike, only reclaims on
+    ///     the first press: nothing is asked of the instance, nothing is opened and nothing is asked of the reader.
     /// </summary>
     [Theory]
     [InlineData(false)]
@@ -136,9 +136,9 @@ public class OffPagePickKeysTests
     }
 
     /// <summary>
-    ///     <c>d</c>, <c>p</c> and <c>e</c> on somebody else's post, and <c>x</c> on one with nothing hidden, are off the
-    ///     status row; pressed with the pick off the page they still only reclaim, rather than being refused about a post
-    ///     the reader cannot see.
+    ///     <c>d</c>, <c>p</c> and <c>e</c> on somebody else's post, and <c>x</c> on one with nothing hidden, are off
+    ///     the status row; pressed with the pick off the page they still only reclaim, rather than being refused about
+    ///     a post the reader cannot see.
     /// </summary>
     [Theory]
     [InlineData('d')]
@@ -160,8 +160,9 @@ public class OffPagePickKeysTests
     }
 
     /// <summary>
-    ///     With a follow notification picked, which carries no post, the post keys are off the row; pressed once it is off
-    ///     the page, <c>f</c> reclaims the post on the page and marks nothing, and the next <c>f</c> marks that post.
+    ///     With a follow notification picked, which carries no post, the post keys are off the row; pressed once it is
+    ///     off the page, <c>f</c> reclaims the post on the page and marks nothing, and the next <c>f</c> marks that
+    ///     post.
     /// </summary>
     [Fact]
     public async Task APostKeyReclaimsFromAThingWithNoPost()
@@ -316,7 +317,11 @@ public class OffPagePickKeysTests
     /// <summary>The same over <paramref name="posts" />.</summary>
     private static async Task<DrawnShell> Feed(Post[] posts)
     {
-        var drawn = await DrawnShell.Of(80, Short, Themes.Plain, new AShell { Timelines = FakeTimelineReader.Holding(posts) });
+        var drawn = await DrawnShell.Of(
+            80,
+            Short,
+            Themes.Plain,
+            new AShell { Timelines = FakeTimelineReader.Holding(posts) });
 
         LeaveThePickOff(drawn);
 

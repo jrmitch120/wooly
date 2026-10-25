@@ -41,15 +41,20 @@ public static class Scroll
     /// </summary>
     /// <remarks>
     ///     The same minimum move <see cref="To" /> makes for the pick, keyed on every row drawn for the reference
-    ///     (<see cref="Line.Has(Reference)" />), so that a reference wrapped across two rows is brought on whole where it
-    ///     fits. With no row drawn for it, the page stays where it is.
+    ///     (<see cref="Line.Has(Reference)" />), so that a reference wrapped across two rows is brought on whole where
+    ///     it fits. With no row drawn for it, the page stays where it is.
     /// </remarks>
     /// <param name="lines">The rows to be drawn.</param>
     /// <param name="height">How many rows there is room for.</param>
     /// <param name="from">Where the scroll is now.</param>
     /// <param name="reference">The reference walked to.</param>
     /// <param name="pinned">How many rows at the top of the page are pinned there (<see cref="To" />).</param>
-    public static int ToReference(IReadOnlyList<Line> lines, int height, int from, Reference reference, int pinned = 0) =>
+    public static int ToReference(
+        IReadOnlyList<Line> lines,
+        int height,
+        int from,
+        Reference reference,
+        int pinned = 0) =>
         ToShow(lines, height, from, pinned, line => line.Has(reference));
 
     /// <summary>
@@ -57,9 +62,9 @@ public static class Scroll
     ///     <paramref name="from" />: none of the rows drawn for it are on it, which is what lets it go (#478).
     /// </summary>
     /// <remarks>
-    ///     Its rows are every row drawn for it (<see cref="Line.Has(Reference)" />), the middle row of an address wrapped
-    ///     across three included: a reference is off only when no part of it shows. One drawn on no row at all says
-    ///     nothing either way, so it is never let go for that.
+    ///     Its rows are every row drawn for it (<see cref="Line.Has(Reference)" />), the middle row of an address
+    ///     wrapped across three included: a reference is off only when no part of it shows. One drawn on no row at all
+    ///     says nothing either way, so it is never let go for that.
     /// </remarks>
     /// <param name="lines">The rows drawn.</param>
     /// <param name="height">How many rows there is room for.</param>
@@ -96,7 +101,9 @@ public static class Scroll
         return drawn;
     }
 
-    /// <summary>Where to scroll to so that every row that is <paramref name="part" /> of something is on the page.</summary>
+    /// <summary>
+    ///     Where to scroll to so that every row that is <paramref name="part" /> of what is to be shown is on the page.
+    /// </summary>
     private static int ToShow(IReadOnlyList<Line> lines, int height, int from, int pinned, Func<Line, bool> part)
     {
         if (height < 1)
@@ -337,7 +344,7 @@ public static class Scroll
 
     /// <summary>
     ///     Which item the page starting at <paramref name="from" /> begins on, or <see langword="null" /> for a screen
-    ///     with no items on it at all. What <c>j</c> reclaims after the arrows have walked away from the selection.
+    ///     with no items on it at all. <see cref="Reclaim" />'s fallback, where no thing's top is on the page.
     /// </summary>
     /// <remarks>
     ///     A post whose top has been scrolled off but whose lower rows are still on the page is the topmost post,

@@ -710,8 +710,8 @@ public sealed class Shell
     /// </remarks>
     /// <param name="by">How many posts to move, where the selection is still on the page.</param>
     /// <param name="reclaiming">
-    ///     The first thing whose top is on the page (<see cref="Rendering.Scroll.Reclaim" />), where the selection has
-    ///     none of its rows on it, or <see langword="null" /> while it is still visible.
+    ///     The first thing whose top is on the page (<see cref="Rendering.Scroll.Reclaim" />), where the pick has none
+    ///     of its rows on it, or <see langword="null" /> while it is still visible.
     /// </param>
     public void Walk(int by, int? reclaiming)
     {

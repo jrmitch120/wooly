@@ -907,8 +907,8 @@ internal sealed class ShellWindow : Window
     private void Walk(int by) => Walk(by, _content.Reclaimable);
 
     /// <summary>
-    ///     The same, with what is to be reclaimed already asked — which is all a key that acts on the pick does, pressed
-    ///     with the pick off the page: it walks nowhere, and picks <paramref name="reclaiming" /> (#476).
+    ///     The same, with what is to be reclaimed already asked — which is all a key that acts on the pick does,
+    ///     pressed with the pick off the page: it walks nowhere, and picks <paramref name="reclaiming" /> (#476).
     /// </summary>
     private void Walk(int by, int? reclaiming)
     {
