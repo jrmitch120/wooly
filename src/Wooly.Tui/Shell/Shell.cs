@@ -767,6 +767,18 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     Lets the reference walked to go because none of its rows are on the page any more, so that <c>⏎</c> never opens
+    ///     something the reader cannot see and <c>esc</c> is never spent on it (#478). The pick stays where it is.
+    /// </summary>
+    public void LetReferenceGo()
+    {
+        if (Screen.ClearReference())
+        {
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>
     ///     What a click on a reference does once the rows have said which thing and which reference are under the
     ///     pointer: the thing is picked out, as a click anywhere on it picks it (<see cref="Section" />), and the
     ///     reference inside it walked to, exactly as <c>←</c> and <c>→</c> would have left it. Nothing is opened (#475).

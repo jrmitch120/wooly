@@ -621,8 +621,18 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   from its top on every frame and would take the reference straight off again; the window asks for it after a walk
   step (`PaintedView.ShowReference`), spent on the next frame only, as `[`/`]`'s anchor is.
 - **`esc` clears the pick first**, popping the screen on the next press (above). **`j`/`k` clear it too**, since the
-  reader has left the post. **`↓`/`↑` (page scroll) do not** — they leave the selection alone by the existing
-  "What moving settled" contract, and a reference pick lives inside the selected post, not on a row.
+  reader has left the post.
+- **A reference that scrolls off is let go** (#478). The moment none of its rows are on the page — after `↓`/`↑`,
+  `PgUp`/`PgDn`, a wheel notch, or a resize that reflows it off — the brackets go and the status row leaves reference
+  mode, so `⏎` never opens something the reader cannot see and `esc` is never spent on it. Scrolling back does not
+  bring it back. Its rows run from the first its brackets are drawn on to the last (`Scroll.LeftReference`), so an
+  address wrapped across two rows is kept while either shows, and the middle row of one wrapped across three counts.
+  The selection itself still stays where it is, by the "What moving settled" contract: only the reference is let go
+  eagerly, because only a reference can be opened by mistake. It is checked on the rows each frame lays out anyway,
+  and only while a reference is held (`PaintedView.HoldsAReference`/`LetReferenceGo` → `Shell.LetReferenceGo`), so
+  scrolling with none held lays nothing out it did not before (#51). The status row is added to the window first so
+  that Terminal.Gui, which draws the views added first last, draws it after the content: it says what the content's
+  frame settled, in that same frame.
 - **Bracketed `‹reference›`** — brackets, always drawn, in colour and no-colour terminals alike. ("Marked" is the
   word `Post.Marks` has, which is the collision the rename was about — GLOSSARY.md.) The brackets take
   their own role (`Role.ReferencePicked`), independent of whatever role the bracketed text already carries, so a

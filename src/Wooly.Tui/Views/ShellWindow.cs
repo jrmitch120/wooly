@@ -275,6 +275,8 @@ internal sealed class ShellWindow : Window
             KeepsToThePage = () => shell.Screen.KeepsToThePage,
             Pinned = () => shell.Screen.Pinned,
             Settled = Paged,
+            HoldsAReference = () => shell.Screen.Reference is not null,
+            LetReferenceGo = shell.LetReferenceGo,
         };
 
         // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one
@@ -320,9 +322,12 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
+        // The status row first, because Terminal.Gui draws the views added first last: drawn after the content, it says
+        // what the content's frame settled — a reference that frame let go off the page leaves reference mode in that
+        // same frame rather than one frame late (#478). It overlaps nothing, so the order changes nothing else.
+        Add(status);
         Add(rail, _content, title);
         Add([.. _overlays]);
-        Add(status);
 
         _showing = shell.Screen;
 
