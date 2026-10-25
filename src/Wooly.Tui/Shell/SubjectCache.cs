@@ -57,5 +57,22 @@ public sealed class SubjectCache(TimeProvider clock, TimeSpan freshFor)
     /// <summary>Takes down what <paramref name="subject" /> holds now.</summary>
     internal void Keep(Subject subject, Found what) => _held[subject] = new Held(clock.GetUtcNow(), what);
 
+    /// <summary>
+    ///     Adds what <paramref name="subject" />'s screen read on to what it holds, so that coming back holds everything
+    ///     read rather than only the first read (#463).
+    /// </summary>
+    /// <remarks>
+    ///     Aged from now, as a read landing always is: the question is whether this is still the list just left, and
+    ///     the reader was reading it a moment ago however long ago its first read was. Nothing where nothing is held —
+    ///     <c>g</c> or a change forgot it, and what is read on does not bring back a list either one made stale.
+    /// </remarks>
+    internal void Add(Subject subject, Found readOn)
+    {
+        if (_held.TryGetValue(subject, out var held) && held.What.Holding(readOn) is { } more)
+        {
+            Keep(subject, more);
+        }
+    }
+
     private sealed record Held(DateTimeOffset At, Found What);
 }
