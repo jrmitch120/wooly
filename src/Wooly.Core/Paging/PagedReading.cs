@@ -154,6 +154,6 @@ internal static class PagedReading
 
         // Stopped at what was asked for, or at what was looked for, with the instance still naming more: what was
         // asked for is in hand, and the list goes on behind it from where the next page starts.
-        return Fetch<TItem>.Complete(items, new Onward(nextPage));
+        return Fetch<TItem>.GoesOn(items, new Onward(nextPage));
     }
 }

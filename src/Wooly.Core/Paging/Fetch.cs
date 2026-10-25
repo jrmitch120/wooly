@@ -48,10 +48,24 @@ public sealed record Fetch<T>
     /// </summary>
     public bool IsWhole => Onward is null;
 
-    /// <summary>A fetch that ran to the end of what was asked for.</summary>
+    /// <summary>
+    ///     A fetch that ran to the end of what was asked for and found the list ends there too: complete, and
+    ///     <b>whole</b>.
+    /// </summary>
     /// <param name="items">What arrived.</param>
-    /// <param name="onward">Where to read on from, or <see langword="null" /> where the list is whole.</param>
-    public static Fetch<T> Complete(IReadOnlyList<T> items, Onward? onward = null) =>
+    public static Fetch<T> Complete(IReadOnlyList<T> items) => new() { Items = items, StoppedBy = null };
+
+    /// <summary>
+    ///     A fetch that ran to the end of what was asked for, with the list going on behind it: complete, and not
+    ///     <b>whole</b>, so it reads on from <paramref name="onward" />.
+    /// </summary>
+    /// <remarks>
+    ///     Apart from <see cref="Complete" />, rather than an onward handed to it, so that what a fetch is called where
+    ///     it is built is what <see cref="IsComplete" /> and <see cref="IsWhole" /> go on to answer of it.
+    /// </remarks>
+    /// <param name="items">What arrived.</param>
+    /// <param name="onward">Where the list goes on from.</param>
+    public static Fetch<T> GoesOn(IReadOnlyList<T> items, Onward onward) =>
         new() { Items = items, StoppedBy = null, Onward = onward };
 
     /// <summary>A fetch the instance's rate limit stopped, holding whatever had already arrived.</summary>

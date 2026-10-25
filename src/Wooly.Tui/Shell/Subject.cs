@@ -912,9 +912,9 @@ public abstract record Subject
         public override Found Held(Screen screen) =>
             this with
             {
-                // Where to read on from is kept with it, so a list held reads on from where it was read to rather
-                // than being drawn whole.
-                Fetch = Fetch<T>.Complete(Fetch.Items, Fetch.Onward),
+                // No longer stopped, and with where to read on from kept, so a list held reads on from where it was
+                // read to rather than being drawn whole.
+                Fetch = Fetch with { StoppedBy = null },
                 Waiting = Waiting is { } waiting ? waiting with { Unread = InboxCount.Tally.NoneUnread } : null,
             };
 
@@ -932,7 +932,7 @@ public abstract record Subject
             readOn is ReadOnto<T> onto
                 ? this with
                 {
-                    Fetch = Fetch<T>.Complete([.. Fetch.Items, .. onto.Fetch.Items], onto.Fetch.Onward),
+                    Fetch = Fetch with { Items = [.. Fetch.Items, .. onto.Fetch.Items], Onward = onto.Fetch.Onward },
                     Waiting = Waiting is { } waiting && onto.Counted is { } recounted
                         ? waiting with { Badge = recounted }
                         : Waiting,

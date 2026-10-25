@@ -399,7 +399,9 @@ public sealed class Enquiry(
                 return fetch;
             });
 
-            return Fetch<T>.Complete(arrived, last.Onward);
+            // Never stopped, the last read, since a stopped one throws: so all that arrived is complete, and goes on
+            // from wherever the last read said, or is whole.
+            return last with { Items = arrived };
         }
     }
 }

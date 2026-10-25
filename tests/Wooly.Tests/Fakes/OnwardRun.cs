@@ -23,7 +23,7 @@ internal static class OnwardRun
         var run = all.Skip(start).Take(limit).ToList();
 
         return start + run.Count < all.Count
-            ? Fetch<T>.Complete(run, new Onward(idOf(run[^1])))
+            ? Fetch<T>.GoesOn(run, new Onward(idOf(run[^1])))
             : Fetch<T>.Complete(run);
     }
 }
