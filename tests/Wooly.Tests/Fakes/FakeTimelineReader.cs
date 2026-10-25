@@ -12,7 +12,7 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakeTimelineReader : ITimelineReader
 {
-    private readonly List<Action> _held = [];
+    private readonly HeldReadsOn _held = new();
 
     private Func<Timeline, Task<Fetch<Post>>> _answer;
 
@@ -23,8 +23,6 @@ internal sealed class FakeTimelineReader : ITimelineReader
     private Exception? _refusing;
 
     private RateLimitedException? _nextReadStoppedBy;
-
-    private bool _holding;
 
     private FakeTimelineReader(Func<Timeline, Task<Fetch<Post>>> answer) => _answer = answer;
 
@@ -94,29 +92,22 @@ internal sealed class FakeTimelineReader : ITimelineReader
     {
         var reader = Holding();
 
-        reader._reading = (timeline, from, limit) => Run(posts(timeline), from, limit);
+        reader._reading = (timeline, from, limit) => OnwardRun.Of(posts(timeline), post => post.Id, from, limit);
 
         return reader;
     }
 
     /// <summary>Every read on it was asked for, in order — where a test proves where a read went on from.</summary>
-    public List<OnwardCall> ReadsOn { get; } = [];
+    public List<TimelineReadOn> ReadsOn { get; } = [];
 
     /// <summary>
     ///     Holds every read on from here on until <see cref="LetReadsOnGo" /> — where the question is what happens
     ///     while one is in flight, or to one that lands after the reader has moved on.
     /// </summary>
-    public void HoldReadsOn() => _holding = true;
+    public void HoldReadsOn() => _held.Hold();
 
     /// <summary>Answers every read on held so far.</summary>
-    public void LetReadsOnGo()
-    {
-        var held = _held.ToList();
-
-        _held.Clear();
-        _holding = false;
-        held.ForEach(release => release());
-    }
+    public void LetReadsOnGo() => _held.LetGo();
 
     public Task<Fetch<Post>> Read(
         ActiveProfile profile,
@@ -173,7 +164,7 @@ internal sealed class FakeTimelineReader : ITimelineReader
         int limit,
         CancellationToken cancellationToken)
     {
-        ReadsOn.Add(new OnwardCall(timeline, from, limit));
+        ReadsOn.Add(new TimelineReadOn(timeline, from, limit));
         Tokens.Add(profile.AccessToken);
 
         if (_refusing is { } refusal)
@@ -189,37 +180,12 @@ internal sealed class FakeTimelineReader : ITimelineReader
         }
 
         // A reader nobody said reads on has nothing behind what it handed out, which is a list read whole.
-        var answer = _reading?.Invoke(timeline, from, limit) ?? Fetch<Post>.Complete([]);
-
-        if (!_holding)
-        {
-            return Task.FromResult(answer);
-        }
-
-        var held = new TaskCompletionSource<Fetch<Post>>();
-
-        _held.Add(() => held.SetResult(answer));
-
-        return held.Task;
-    }
-
-    /// <summary>
-    ///     <paramref name="limit" /> of <paramref name="posts" /> from just past the post <paramref name="from" />
-    ///     names, and where to read on from after them unless that was the last of them.
-    /// </summary>
-    private static Fetch<Post> Run(IReadOnlyList<Post> posts, Onward? from, int limit)
-    {
-        var start = from?.MaxId is { } after ? posts.ToList().FindIndex(post => post.Id == after) + 1 : 0;
-        var run = posts.Skip(start).Take(limit).ToList();
-
-        return start + run.Count < posts.Count
-            ? Fetch<Post>.Complete(run, new Onward(run[^1].Id))
-            : Fetch<Post>.Complete(run);
+        return _held.Answer(_reading?.Invoke(timeline, from, limit) ?? Fetch<Post>.Complete([]));
     }
 
     /// <summary>One call: which profile it was made as, which timeline it asked for, and how many posts it wanted.</summary>
     internal sealed record Call(string Profile, Timeline Timeline, int Limit);
 
     /// <summary>One read on: which timeline, from where, and how many more posts it wanted.</summary>
-    internal sealed record OnwardCall(Timeline Timeline, Onward From, int Limit);
+    internal sealed record TimelineReadOn(Timeline Timeline, Onward From, int Limit);
 }

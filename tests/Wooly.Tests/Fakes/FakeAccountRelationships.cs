@@ -225,18 +225,9 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
     /// </summary>
     private Fetch<Account> Run(Onward? from, int limit)
     {
-        var everyone = _list.Items;
-        var start = from?.MaxId is { } after ? everyone.ToList().FindIndex(person => person.Id == after) + 1 : 0;
-        var run = everyone.Skip(start).Take(limit).ToList();
+        var run = OnwardRun.Of(_list.Items, person => person.Id, from, limit);
 
-        if (_list.StoppedBy is not null)
-        {
-            return _list with { Items = run };
-        }
-
-        return start + run.Count < everyone.Count
-            ? Fetch<Account>.Complete(run, new Onward(run[^1].Id))
-            : Fetch<Account>.Complete(run);
+        return _list.StoppedBy is null ? run : _list with { Items = run.Items };
     }
 
     /// <summary>
@@ -337,9 +328,6 @@ internal sealed class FakeAccountRelationships : IAccountRelationships
 
     /// <summary>One read on of a follow list: which profile asked, which side, about whom, from where and how many more.</summary>
     internal sealed record ListedOn(string Profile, FollowSide Side, NamedAccount? Account, Onward From, int Limit);
-
-    /// <summary>One read on of the requests: from where, and how many more it wanted.</summary>
-    internal sealed record OnwardCall(Onward From, int Limit);
 
     /// <summary>One answered request: which profile answered, whose request, and what they said.</summary>
     internal sealed record Answered(string Profile, string AccountId, bool Accepted);
