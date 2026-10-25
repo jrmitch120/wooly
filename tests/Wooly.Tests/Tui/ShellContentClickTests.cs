@@ -222,8 +222,8 @@ public class ShellContentClickTests
 
     /// <summary>
     ///     Every listing screen picks off a click as it does off the keys: a click on the first thing, from the second,
-    ///     leaves the shell drawn exactly as <c>Home</c> does — the account screen's header block (after which the post
-    ///     keys go quiet) and the first result of a search, in its section, among them.
+    ///     leaves the shell drawn exactly as walking back to it with <c>j</c> does — the account screen's header block
+    ///     (after which the post keys go quiet) and the first result of a search, in its section, among them.
     /// </summary>
     [Theory]
     [InlineData("feed")]
@@ -251,7 +251,7 @@ public class ShellContentClickTests
         Assert.NotEqual(before, clicked);
 
         drawn.Press(Key.K);
-        drawn.Press(Key.Home);
+        drawn.Press(Key.J);
 
         Assert.Equal(drawn.Rows(), clicked);
 
@@ -274,7 +274,11 @@ public class ShellContentClickTests
 
         var clicked = drawn.Rows();
 
-        drawn.Press(Key.Home);
+        // Back to the first account with the keys, and down to the second hashtag again.
+        for (var step = 0; step < 3; step++)
+        {
+            drawn.Press(Key.J);
+        }
 
         for (var step = 0; step < 3; step++)
         {

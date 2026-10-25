@@ -88,19 +88,24 @@ public class ShellKeyTests
         }
     }
 
-    /// <summary><c>Home</c> and <c>End</c> are the ends of the list, which are things rather than places.</summary>
+    /// <summary>
+    ///     <c>Home</c> and <c>End</c> take the page to the ends of the list and leave the selection alone too — on a
+    ///     Mac they are fn-← and fn-→, pressed in passing, and they used to carry the selection off to the first post
+    ///     and the last (asked in review of #480).
+    /// </summary>
     [Theory]
-    [InlineData(true, "440")]
-    [InlineData(false, "110")]
-    public async Task HomeAndEndPickOutTheFirstPostAndTheLast(bool end, string expected)
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HomeAndEndLeaveTheSelectionAlone(bool end)
     {
         var (window, shell) = await Opened();
 
         using (window)
         {
+            window.NewKeyDownEvent(Key.K);
             window.NewKeyDownEvent(end ? Key.End : Key.Home);
 
-            Assert.Equal(expected, shell.Screen.Picked?.Id);
+            Assert.Equal("220", shell.Screen.Picked?.Id);
         }
     }
 

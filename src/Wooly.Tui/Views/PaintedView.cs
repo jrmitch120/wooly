@@ -43,6 +43,11 @@ internal sealed class PaintedView : View
     private bool _following = true;
     private bool _anchoring;
 
+    /// <summary>
+    ///     Whether the next frame is to bring the list's last row to the foot of the page (<see cref="ToTheFoot" />).
+    /// </summary>
+    private bool _footing;
+
     /// <summary>Whether the next frame is to bring the reference walked to onto the page (<see cref="ShowReference" />).</summary>
     private bool _showingReference;
 
@@ -371,6 +376,7 @@ internal sealed class PaintedView : View
 
         _top = (int)Math.Clamp((long)_top + rows, 0, int.MaxValue);
         _following = false;
+        _footing = false;
 
         SetNeedsDraw();
     }
@@ -382,10 +388,41 @@ internal sealed class PaintedView : View
     public void Turn(int pages) => Step(pages * Viewport.Height);
 
     /// <summary>
+    ///     Takes the screen to the top of the list and leaves the selection where it is, which is what <c>Home</c>
+    ///     does.
+    /// </summary>
+    public void ToTheTop() => Step(int.MinValue);
+
+    /// <summary>
+    ///     Takes the screen to the foot of the list, the last row on the page's last row, and leaves the selection
+    ///     where it is, which is what <c>End</c> does.
+    /// </summary>
+    /// <remarks>
+    ///     Settled on the next frame, for the reason <see cref="Step" /> is: only the draw knows how many rows there
+    ///     are. Once only, so that a read on putting more posts under the foot leaves the page where it came to.
+    /// </remarks>
+    public void ToTheFoot()
+    {
+        if (!Scrolls || Viewport.Width <= 0 || Viewport.Height <= 0)
+        {
+            return;
+        }
+
+        _footing = true;
+        _following = false;
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>
     ///     Puts the screen back to following the selection, which is what moving the selection means: from here it is
     ///     brought into view again and kept there until the arrows take the scroll back over.
     /// </summary>
-    public void Follow() => _following = true;
+    public void Follow()
+    {
+        _following = true;
+        _footing = false;
+    }
 
     /// <summary>
     ///     Leaves the page where it begins now, whatever is picked next, as the arrows do — which is what a click asks
@@ -407,6 +444,7 @@ internal sealed class PaintedView : View
     {
         _following = true;
         _anchoring = true;
+        _footing = false;
 
         SetNeedsDraw();
     }
@@ -511,6 +549,7 @@ internal sealed class PaintedView : View
     {
         _top = top;
         _following = following;
+        _footing = false;
 
         // Rows that are another lot, or the same lot come back to: either way nothing has been moved through yet.
         _placing?.Resume();
@@ -766,6 +805,12 @@ internal sealed class PaintedView : View
         }
 
         _keeping = null;
+
+        if (_footing)
+        {
+            _top = Math.Max(0, lines.Count - height);
+            _footing = false;
+        }
 
         var pinned = Pinned();
 

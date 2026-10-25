@@ -101,8 +101,9 @@ internal sealed class ShellWindow : Window
     /// <summary>
     ///     Whether the next frame's page is to be told to the shell, which is what reads a list on as the page nears
     ///     its end (#469): after the pick has been walked or jumped; after the page has been moved with the pick left
-    ///     where it was, by <c>↓</c>, <c>↑</c>, <c>PgDn</c>, <c>PgUp</c> or a notch of the wheel (#461); and on a
-    ///     screen coming in front — arrived at, drilled into, refreshed or walked back to — and on nothing else.
+    ///     where it was, by <c>↓</c>, <c>↑</c>, <c>PgDn</c>, <c>PgUp</c>, <c>Home</c>, <c>End</c> or a notch of the
+    ///     wheel (#461); and on a screen coming in front — arrived at, drilled into, refreshed or walked back to — and
+    ///     on nothing else.
     /// </summary>
     /// <remarks>
     ///     Once per move rather than on every frame, because a frame is drawn for many reasons that are not the reader
@@ -836,13 +837,23 @@ internal sealed class ShellWindow : Window
 
                 return true;
 
-            case Verb.FirstPost:
-                Jump(int.MinValue);
+            case Verb.FirstEntry:
+                WalkedToAnEnd(int.MinValue);
 
                 return true;
 
-            case Verb.LastPost:
-                Jump(int.MaxValue);
+            case Verb.LastEntry:
+                WalkedToAnEnd(int.MaxValue);
+
+                return true;
+
+            case Verb.ToTheTop:
+                Ended(foot: false);
+
+                return true;
+
+            case Verb.ToTheFoot:
+                Ended(foot: true);
 
                 return true;
 
@@ -988,11 +999,36 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     <c>Home</c> and <c>End</c>: the first post and the last. These move the selection rather than the screen,
-    ///     since the ends of a list are things rather than places, and nothing is reclaimed — a reader asking for the
-    ///     top of the list is not asking about the page they were on.
+    ///     <c>Home</c> and <c>End</c>: the screen to the top of the list or the foot of it, and the pick left where it
+    ///     is, as <c>↓</c>, <c>↑</c>, <c>PgUp</c> and <c>PgDn</c> leave it. On a Mac they are fn-← and fn-→, and taking
+    ///     the pick along with them took it from wherever the reader had put it. The next <c>j</c> or <c>k</c> reclaims
+    ///     from the page they came to, as after any other scroll (#472).
     /// </summary>
-    private void Jump(int by)
+    /// <remarks>
+    ///     Told to the shell as a move of the page, so that the foot of a list that reads on reads on (#469).
+    /// </remarks>
+    private void Ended(bool foot)
+    {
+        if (foot)
+        {
+            _content.ToTheFoot();
+        }
+        else
+        {
+            _content.ToTheTop();
+        }
+
+        _pageToTell = true;
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>
+    ///     <c>Home</c> and <c>End</c> on a list of entries — the file browser's, the attachments screen's — whose
+    ///     arrows walk the cursor rather than the screen: the cursor to the first entry or the last, the page following
+    ///     it.
+    /// </summary>
+    private void WalkedToAnEnd(int by)
     {
         _shell.Move(by);
         _content.Follow();

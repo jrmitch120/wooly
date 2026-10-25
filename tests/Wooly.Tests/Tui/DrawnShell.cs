@@ -4,6 +4,7 @@ using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
@@ -157,6 +158,37 @@ internal sealed class DrawnShell : IDisposable
         Window.NewKeyDownEvent(key);
         Redraw();
     }
+
+    /// <summary>
+    ///     The last thing on the screen picked, walked to with <c>k</c> until a press picks nothing new, and the page
+    ///     following it down there — where a test needs the pick at the foot of the list. <c>End</c> takes only the
+    ///     page there, and leaves the pick behind (asked in review of #480).
+    /// </summary>
+    public void WalkToTheLast()
+    {
+        var was = PickedItem();
+
+        for (var walked = 0; walked < 500; walked++)
+        {
+            Press(Key.K);
+
+            var now = PickedItem();
+
+            if (now == was)
+            {
+                return;
+            }
+
+            was = now;
+        }
+
+        Assert.Fail($"k never came to the last thing:\n{string.Join('\n', Rows())}");
+    }
+
+    /// <summary>Which thing the screen on top draws picked, read off its rows at the content region's width.</summary>
+    private int? PickedItem() =>
+        Shell.Screen.Lines(new Drawing(Content.Viewport.Width, Built.Clock.GetUtcNow()))
+            .FirstOrDefault(line => line.Picked)?.Item;
 
     /// <summary>
     ///     A key, drawn as the running loop draws one: only what it changed, onto the frame before — not the whole

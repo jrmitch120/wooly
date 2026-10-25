@@ -144,6 +144,8 @@ public static class Keymap
         (ShellKey.CtrlA, FileBrowserScreen) => Verb.EveryFile,
         (ShellKey.Down, FileBrowserScreen) => Verb.NextEntry,
         (ShellKey.Up, FileBrowserScreen) => Verb.PreviousEntry,
+        (ShellKey.Home, FileBrowserScreen) => Verb.FirstEntry,
+        (ShellKey.End, FileBrowserScreen) => Verb.LastEntry,
         (ShellKey.Space, FileBrowserScreen) => Verb.Choose,
 
         // The attachments screen, listing the rows a short terminal folded into the Media header's line (story 58):
@@ -155,6 +157,8 @@ public static class Keymap
         (_, AttachmentsScreen) when RowKey(key) is not Verb.None => RowKey(key),
         (ShellKey.Down, AttachmentsScreen) => Verb.NextEntry,
         (ShellKey.Up, AttachmentsScreen) => Verb.PreviousEntry,
+        (ShellKey.Home, AttachmentsScreen) => Verb.FirstEntry,
+        (ShellKey.End, AttachmentsScreen) => Verb.LastEntry,
 
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
@@ -198,8 +202,8 @@ public static class Keymap
         // other way round from vim (docs/tui-shell.md).
         (ShellKey.K, _) => Verb.NextPost,
         (ShellKey.J, _) => Verb.PreviousPost,
-        (ShellKey.Home, _) => Verb.FirstPost,
-        (ShellKey.End, _) => Verb.LastPost,
+        (ShellKey.Home, _) => Verb.ToTheTop,
+        (ShellKey.End, _) => Verb.ToTheFoot,
         (ShellKey.Down, _) => Verb.ScrollDown,
         (ShellKey.Up, _) => Verb.ScrollUp,
         (ShellKey.PageDown, _) => Verb.PageDown,

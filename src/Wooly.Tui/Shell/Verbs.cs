@@ -4,8 +4,8 @@ namespace Wooly.Tui.Shell;
 public static class Verbs
 {
     /// <summary>
-    ///     Whether <paramref name="verb" /> is one of the sixteen that need a terminal, and so are <c>ShellWindow</c>'s
-    ///     to carry out rather than the shell's or a screen's (<see cref="Verb" />).
+    ///     Whether <paramref name="verb" /> is one of the eighteen that need a terminal, and so are
+    ///     <c>ShellWindow</c>'s to carry out rather than the shell's or a screen's (<see cref="Verb" />).
     /// </summary>
     /// <remarks>
     ///     One list for the two places that have to agree on it: the window takes exactly these before it hands a verb
@@ -15,8 +15,8 @@ public static class Verbs
     /// </remarks>
     public static bool NeedsATerminal(this Verb verb) => verb is
         Verb.Quit or Verb.Send
-        or Verb.NextPost or Verb.PreviousPost or Verb.FirstPost or Verb.LastPost
-        or Verb.NextEntry or Verb.PreviousEntry
+        or Verb.NextPost or Verb.PreviousPost or Verb.ToTheTop or Verb.ToTheFoot
+        or Verb.NextEntry or Verb.PreviousEntry or Verb.FirstEntry or Verb.LastEntry
         or Verb.NextSection or Verb.PreviousSection
         or Verb.ScrollDown or Verb.ScrollUp or Verb.PageDown or Verb.PageUp
         or Verb.Narrower or Verb.Wider;

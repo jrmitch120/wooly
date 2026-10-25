@@ -248,7 +248,7 @@ public class OffPageReclaimTests
         DrawnShell.Of(80, Short, Themes.Plain, new AShell { Timelines = FakeTimelineReader.Holding(posts) });
 
     /// <summary>The last thing picked, which brings the page down to it, well below where these tests read.</summary>
-    private static void LeaveThePickBelow(DrawnShell drawn) => drawn.Press(Key.End);
+    private static void LeaveThePickBelow(DrawnShell drawn) => drawn.WalkToTheLast();
 
     /// <summary>
     ///     The page wheeled to where the <paramref name="item" />th thing's top is <paramref name="rows" /> rows above

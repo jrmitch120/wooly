@@ -65,7 +65,7 @@ public class ReferenceEnterAtThePageTests
     {
         using var drawn = await Feed(Six(Tagged));
 
-        drawn.Press(Key.End);
+        drawn.WalkToTheLast();
         drawn.Press(Key.CursorRight);
         Assert.Equal("#a660", drawn.Shell.Screen.Reference?.Text);
 
@@ -197,7 +197,7 @@ public class ReferenceEnterAtThePageTests
     /// <summary>The last thing picked, and the page wheeled back up to the top, leaving the pick well below it.</summary>
     private static void LeaveThePickBelowThePage(DrawnShell drawn)
     {
-        drawn.Press(Key.End);
+        drawn.WalkToTheLast();
         WheelToTheTop(drawn);
     }
 

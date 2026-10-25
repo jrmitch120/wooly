@@ -247,9 +247,10 @@ Feed and post:
 
 | Key | Does | Note |
 |---|---|---|
-| `k` `j` | The next post / the one before it, with the screen following the selection | `Home`/`End` too, for the first and the last |
+| `k` `j` | The next post / the one before it, with the screen following the selection | |
 | `↓` `↑` | Move the screen by a few rows, leaving the selection alone | The only way to read a post taller than the terminal to its end |
 | `PgDn` `PgUp` | The same, a screenful at a time | A screenful is however many rows there is room for |
+| `Home` `End` | The same, to the top of the list / the foot of it | fn-← and fn-→ on a Mac. On the file browser and the attachments screen, whose arrows walk the cursor, they take the cursor to the first entry and the last |
 | `⏎` | Open the post | Answers only, inside a post: the post itself is already open (#48) |
 | `a` | Open the author's account | |
 | `c` | Compose | |
@@ -1008,12 +1009,16 @@ selection was the only scroll position a screen had and the foot of such a post 
   the time it is walked back to, the terminal having been resized or a post deleted out of the screen while the reader
   was away; the clamp the draw already applies is the whole of the answer to that, since the page is then wrong by at
   most the height of whatever changed and `j` reclaims — which is strictly closer than starting again.
-- **`PgUp`/`PgDn` walk the screen, `Home`/`End` walk the selection.** A page is a screenful of rows, because that is
-  what a page is: somebody asking for the next one is asking about what they are looking at, not about how many posts
-  happen to be on it. They used to move the selection by ten posts, which on a feed with pictures on it was several
-  screens at once. The ends of a list are things rather than places, so `Home` and `End` still pick out the first post
-  and the last, and neither of the four reclaims anything — a reader asking for the top of the list is not asking about
-  the page they were on.
+- **`PgUp`/`PgDn` and `Home`/`End` walk the screen.** A page is a screenful of rows, because that is what a page is:
+  somebody asking for the next one is asking about what they are looking at, not about how many posts happen to be on
+  it. They used to move the selection by ten posts, which on a feed with pictures on it was several screens at once.
+  `Home` and `End` used to pick out the first post and the last, on the reading that the ends of a list are things
+  rather than places — but on a Mac they are fn-← and fn-→, pressed in passing, and they carried the pick off from
+  wherever the reader had put it (asked in review of #480). So they take the page to the top of the list and to the
+  foot of it, the last row on the page's last row, and leave the pick where it is, as `↓`, `↑`, `PgUp` and `PgDn`
+  do; none of the four reclaims anything, and the next `j` or `k` reclaims from the page they came to. On the file
+  browser and the attachments screen the arrows walk the cursor rather than the page, so there `Home` and `End` take
+  the cursor to the first entry and the last.
 - **`[` and `]` move the pick between headed runs, and bring the run's heading with them** — but only when that
   heading is not already on the page (#166). `Scroll.To` moves the minimum needed to show the selection, so an unaided
   jump downwards lands the picked row on the bottom row with the section just left still filling the screen, which
@@ -1039,8 +1044,8 @@ who walked to the bottom had no way to see anything older without leaving the TU
   last row of the list, the shell asks the instance for the older posts behind the last one held and adds them below.
   It is measured in the region's own height, so it starts at the same moment however tall the terminal is, and it
   rarely, if ever, lets a reader see the list stop and wait.
-- **The view starts it, whatever moved it (#461).** Walking the pick with `k` or `j` or jumping it with `Home` or `End`
-  moves the page with it, and `↓`, `↑`, `PgDn`, `PgUp` and the wheel move the page and leave the pick where it was.
+- **The view starts it, whatever moved it (#461).** Walking the pick with `k` or `j` moves the page with it, and `↓`,
+  `↑`, `PgDn`, `PgUp`, `Home`, `End` and the wheel move the page and leave the pick where it was.
   Either way it is where the page has got to that reads on, so a reader scrolling down with the pick still on the
   first post reads on just as one walking down does, and the pick stays put.
 - **The window says where the page is, once per move.** Only the window knows how tall the region is and where the
@@ -1769,7 +1774,7 @@ The answer generalised: three screens use it (#166, amended by #171 and #172):
   It is "take me to the posts", and a reader who arrives at a post wants to press `⏎`, not `k` first.
 - **Headed runs only, and the account screen's header block is not a stop.** The jump brings a run's heading with it,
   and the header has no heading to bring; `[` from the first pinned post clamps. Nothing is unreachable — `k` from
-  there lands on the header, and `Home` always has.
+  there lands on the header.
 - **A heading carries its count where the run's total is a fact** — `── 7 accounts ──`, `── 2 pinned ──`,
   `── 11 followed by people you follow ──`, the `── {n} replies ──` vocabulary the post screen already speaks. It costs
   nothing, the counts being in hand, and it tells a reader whether the run below is worth walking or worth jumping. A
@@ -2154,9 +2159,10 @@ Three things stayed outside it, each deliberately:
   `SearchScreen.cs`; `w`, `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
   conversation list's `⏎` in `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A
   `Confirmation` carries what agreeing to it does, so `D` asks the same way a delete and a vote do.
-- **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the four movements that walk the page
-  rather than the list, `j`/`k`, `Home`/`End` and `[`/`]` — which move the pick *and* the page — the arrows that walk
-  the entries of the file browser and the attachments screen likewise, and `ctrl-s`, which
+- **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the six movements that walk the page
+  rather than the list (`↓`/`↑`, `PgDn`/`PgUp`, `Home`/`End`), `j`/`k` and `[`/`]` — which move the pick *and* the
+  page — the arrows and `Home`/`End` that walk the entries of the file browser and the attachments screen likewise,
+  and `ctrl-s`, which
   the editor widget takes off the keys before the shell's own path can. Nothing else about a key is the window's: it translates the press
   and hands the verb on.
 

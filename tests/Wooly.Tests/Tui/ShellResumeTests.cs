@@ -244,9 +244,15 @@ public class ShellResumeTests
 
             window.Draw();
 
-            // The reader's own post is the last one on the feed, and the page is walked down past it.
-            window.NewKeyDownEvent(Key.End);
-            window.Draw();
+            // The reader's own post is the last one on the feed, walked to past the twenty before it, and the page is
+            // walked down past it.
+            for (var walked = 0; walked < 20; walked++)
+            {
+                window.NewKeyDownEvent(Key.K);
+                window.Draw();
+            }
+
+            Assert.Equal("210", shell.Screen.Picked?.Id);
 
             // As far as the foot of that post still shows: further, and ⏎ would only reclaim it (#476).
             for (var walked = 0; walked < 10 && content.Reclaimable is null; walked++)

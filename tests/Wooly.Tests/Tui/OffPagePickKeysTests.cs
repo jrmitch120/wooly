@@ -267,7 +267,7 @@ public class OffPagePickKeysTests
     {
         using var drawn = await DrawnShell.Of(80, Short, Themes.Plain, new AShell { Timelines = FakeTimelineReader.Holding(Six()) });
 
-        drawn.Press(Key.End);
+        drawn.WalkToTheLast();
         var picked = drawn.Rows()[^1];
 
         TopOffBy(drawn, item: 1, rows: 0);
@@ -355,7 +355,7 @@ public class OffPagePickKeysTests
     /// <summary>The last thing picked, and the page wheeled back up to the second thing's top.</summary>
     private static void LeaveThePickOff(DrawnShell drawn)
     {
-        drawn.Press(Key.End);
+        drawn.WalkToTheLast();
         TopOffBy(drawn, item: 1, rows: 0);
     }
 

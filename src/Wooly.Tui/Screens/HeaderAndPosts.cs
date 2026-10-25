@@ -53,8 +53,8 @@ public sealed class HeaderAndPosts(Account account, PostList posts) : IPicked
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Counted in <see cref="long" /> for the reason <see cref="Picked{T}.Move" /> is: <c>Home</c> and <c>End</c>
-    ///     ask to move by the largest step there is.
+    ///     Counted in <see cref="long" /> for the reason <see cref="Picked{T}.Move" /> is: a move to an end of the list
+    ///     asks for the largest step there is.
     /// </remarks>
     public void Move(int by) => Pick((int)Math.Clamp((long)At + by, 0, Count - 1));
 
