@@ -101,6 +101,16 @@ internal static class ShellKeys
     };
 
     /// <summary>
+    ///     How each key the status row can name is written there: <c>⏎</c>, and the typed keys as the character typed
+    ///     for them, which is how a <see cref="Screens.KeyHint" /> writes them (#476).
+    /// </summary>
+    private static readonly Dictionary<ShellKey, string> Written =
+        new(Typed.Select(typed => KeyValuePair.Create(typed.Value, typed.Key.ToString())))
+        {
+            [ShellKey.Enter] = "⏎",
+        };
+
+    /// <summary>
     ///     The key a pointer gesture stands for: a right click is <c>esc</c> (#307), each one the terminal reports —
     ///     Terminal.Gui's double and triple included, since it reports one event as each is let go, so three quick right
     ///     clicks are three. Only the right button: a ctrl+left click is still a left click, and the middle button is
@@ -138,4 +148,10 @@ internal static class ShellKeys
 
         return rune <= char.MaxValue && Typed.TryGetValue((char)rune, out var typed) ? typed : null;
     }
+
+    /// <summary>
+    ///     <paramref name="key" /> as the status row writes it, or <see langword="null" /> for a key no row names by a
+    ///     character of its own.
+    /// </summary>
+    public static string? WrittenAs(ShellKey key) => Written.GetValueOrDefault(key);
 }

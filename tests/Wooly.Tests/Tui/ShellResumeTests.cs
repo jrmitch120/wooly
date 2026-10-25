@@ -64,7 +64,7 @@ public class ShellResumeTests
     [Fact]
     public async Task Esc_ComesBackScrolledAwayFromTheSelectionWhereItWasLeft()
     {
-        var (window, _, built) = await Laid();
+        var (window, shell, _) = await Laid();
 
         using (window)
         {
@@ -84,9 +84,11 @@ public class ShellResumeTests
             Assert.NotEqual(0, left);
             Assert.NotNull(content.Reclaimable);
 
-            window.NewKeyDownEvent(Key.Enter);
-            built.Host.Drain();
+            // The keymap pushed over it, since ⏎ with the pick off the page would only reclaim it (#476).
+            window.NewKeyDownEvent(new Key('?'));
             window.Draw();
+
+            Assert.IsType<HelpScreen>(shell.Screen);
 
             window.NewKeyDownEvent(Key.Esc);
             window.Draw();
@@ -125,6 +127,10 @@ public class ShellResumeTests
                 window.NewKeyDownEvent(Key.CursorDown);
                 window.Draw();
             }
+
+            // Which leaves the thread's pick above the page, so the first a only reclaims what is on it (#476).
+            window.NewKeyDownEvent(Key.A);
+            window.Draw();
 
             var thread = content.Top;
 
@@ -238,19 +244,23 @@ public class ShellResumeTests
 
             window.Draw();
 
-            // The reader's own post is the last one on the feed, and the page is walked to the very foot of the list.
+            // The reader's own post is the last one on the feed, and the page is walked down past it.
             window.NewKeyDownEvent(Key.End);
             window.Draw();
 
-            for (var walked = 0; walked < 10; walked++)
+            // As far as the foot of that post still shows: further, and ⏎ would only reclaim it (#476).
+            for (var walked = 0; walked < 10 && content.Reclaimable is null; walked++)
             {
                 window.NewKeyDownEvent(Key.CursorDown);
                 window.Draw();
             }
 
+            window.NewKeyDownEvent(Key.CursorUp);
+            window.Draw();
+
             var left = content.Top;
 
-            Assert.Equal(Rows(shell, content, built).Count - 1, left);
+            Assert.Null(content.Reclaimable);
 
             window.NewKeyDownEvent(Key.Enter);
             built.Host.Drain();

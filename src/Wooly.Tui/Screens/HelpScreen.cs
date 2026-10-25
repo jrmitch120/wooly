@@ -23,6 +23,9 @@ public sealed class HelpScreen(Screen about) : Screen
         new("tab / shift-tab", "move the rail's cursor; it settles onto a destination"),
         new("` / ~", "move it to the next or previous rail group's first destination"),
         new("ctrl-p", "profiles: who this session is acting as"),
+        // Not a key but a rule over the keys that act on the pick, said here because the status row stays still as the
+        // page moves and so cannot say it (#476).
+        new("off-page pick", "the first key picks what is on the page"),
         // Listed here and on no status row: set and forgotten, they would take room on every screen (#414).
         new("- / + or =", "narrow or widen the shell by 10%"),
         // On no status row either, for the same reason, but where the rail is hidden (#441, #445).

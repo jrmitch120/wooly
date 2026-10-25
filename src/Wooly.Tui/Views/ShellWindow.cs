@@ -745,6 +745,15 @@ internal sealed class ShellWindow : Window
     /// </returns>
     private bool Do(ShellKey pressed)
     {
+        // With the pick scrolled off the page, a key that acts on it only reclaims, so that nothing lands on a post the
+        // reader cannot see; the next press acts on what is picked now (#476).
+        if (ShellKeys.WrittenAs(pressed) is { } written && _shell.NeedsAPick(written) && _content.Reclaimable is { } at)
+        {
+            Reclaim(at);
+
+            return true;
+        }
+
         var verb = Keymap.Means(pressed, _shell.Screen);
 
         if (verb.NeedsATerminal())
@@ -869,6 +878,17 @@ internal sealed class ShellWindow : Window
     private void Walk(int by)
     {
         _shell.Walk(by, _content.Reclaimable);
+        _content.Follow();
+        _pageToTell = true;
+    }
+
+    /// <summary>
+    ///     A key that acts on the pick, pressed with the pick off the page: <paramref name="at" /> is picked as
+    ///     <see cref="Walk" /> would reclaim it, and the press does nothing else (#476).
+    /// </summary>
+    private void Reclaim(int at)
+    {
+        _shell.Walk(0, reclaiming: at);
         _content.Follow();
         _pageToTell = true;
     }
