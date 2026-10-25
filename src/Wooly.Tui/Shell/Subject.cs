@@ -210,7 +210,15 @@ public abstract record Subject
                     // marker, which the list does not say (ADR-0027). Arriving reads them, so the count moves the
                     // marker too, and hands the screen the rows that were unread for this visit (#397).
                     Counting: (count, shown) => count.Arrived(shown),
-                    Carries: group => group.Post),
+                    Carries: group => group.Post,
+
+                    // As many again as the first read, read the way it was: grouped, or each a group of one where the
+                    // instance cannot group. Never counted: what is behind the groups held is behind the read marker
+                    // too, so neither the badge nor the marker is anything reading on moves (#465, ADR-0027).
+                    ReadsOn: new OnwardRead<NotificationGroup>(
+                        (ports, profile, from, token) =>
+                            ports.Notifications.ReadGroupsOn(profile, from, Arrival.CountedAtMost, token),
+                        (screen, older) => ((NotificationsScreen)screen).ReadOn(older))),
 
                 // The one destination whose read is two calls: the requests, and where the profile stands with each
                 // person asking — inside this destination's own read, which is what makes a refresh re-ask for free,

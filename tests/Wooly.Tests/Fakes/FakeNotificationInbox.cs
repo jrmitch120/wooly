@@ -91,7 +91,7 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
         if (Groups is { } groups)
         {
-            return Fetch<NotificationGroup>.Complete([.. groups.Take(limit)]);
+            return Run(groups, from: null, limit);
         }
 
         var held = _fetch;
@@ -102,11 +102,78 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
         }
 
         var read = ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : held;
-        var alone = read.Items.Take(limit).Select(ANotification.Alone).ToList();
+        var alone = read.Items.Select(ANotification.Alone).ToList();
 
         return read.StoppedBy is { } stoppedBy
-            ? Fetch<NotificationGroup>.StoppedShort(alone, stoppedBy)
-            : Fetch<NotificationGroup>.Complete(alone);
+            ? Fetch<NotificationGroup>.StoppedShort([.. alone.Take(limit)], stoppedBy)
+            : Run(alone, from: null, limit);
+    }
+
+    /// <summary>Every grouped read on it was asked for, in order — where a test proves where a read went on from.</summary>
+    public List<OnwardCall> GroupReadsOn { get; } = [];
+
+    private readonly List<Action> _heldOn = [];
+
+    private bool _holdingOn;
+
+    /// <summary>
+    ///     Holds every grouped read on from here on until <see cref="LetReadsOnGo" /> — where the question is what
+    ///     happens while one is in flight.
+    /// </summary>
+    public void HoldReadsOn() => _holdingOn = true;
+
+    /// <summary>Answers every grouped read on held so far, with what the inbox held when each was asked.</summary>
+    public void LetReadsOnGo()
+    {
+        var held = _heldOn.ToList();
+
+        _heldOn.Clear();
+        _holdingOn = false;
+        held.ForEach(release => release());
+    }
+
+    /// <summary>
+    ///     The groups behind the one <paramref name="from" /> names, read on as an instance would (#465): as many as
+    ///     asked for, and where to read on from after them unless they were the last it holds.
+    /// </summary>
+    public Task<Fetch<NotificationGroup>> ReadGroupsOn(
+        ActiveProfile profile,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        GroupReadsOn.Add(new OnwardCall(profile.Name, from, limit));
+        Tokens.Add(profile.AccessToken);
+
+        var answer = Run(Groups ?? [.. _fetch.Items.Select(ANotification.Alone)], from, limit);
+
+        if (!_holdingOn)
+        {
+            return Task.FromResult(answer);
+        }
+
+        var held = new TaskCompletionSource<Fetch<NotificationGroup>>();
+
+        _heldOn.Add(() => held.SetResult(answer));
+
+        return held.Task;
+    }
+
+    /// <summary>
+    ///     <paramref name="limit" /> of <paramref name="groups" /> from just past the group whose newest notification
+    ///     <paramref name="from" /> names — or from the top — and where to read on from after them, unless that was
+    ///     the last of them and the inbox is whole.
+    /// </summary>
+    private static Fetch<NotificationGroup> Run(IReadOnlyList<NotificationGroup> groups, Onward? from, int limit)
+    {
+        var start = from?.MaxId is { } after
+            ? groups.ToList().FindIndex(group => group.NewestId == after) + 1
+            : 0;
+        var run = groups.Skip(start).Take(limit).ToList();
+
+        return start + run.Count < groups.Count
+            ? Fetch<NotificationGroup>.Complete(run, new Onward(run[^1].NewestId))
+            : Fetch<NotificationGroup>.Complete(run);
     }
 
     /// <summary>Each group's actors, by the group's key, as its accounts endpoint lists them; none where not said.</summary>
@@ -311,6 +378,9 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
     /// <summary>One read: which profile it was made as, and how many notifications it wanted.</summary>
     internal sealed record Call(string Profile, int Limit);
+
+    /// <summary>One grouped read on: which profile it was made as, from where, and how many more groups it wanted.</summary>
+    internal sealed record OnwardCall(string Profile, Onward From, int Limit);
 
     /// <summary>One read of a group's actors: which profile, which group by its key, and how many were wanted.</summary>
     internal sealed record ActorRead(string Profile, string GroupKey, int Limit);

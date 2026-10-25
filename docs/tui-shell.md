@@ -1037,12 +1037,19 @@ who walked to the bottom had no way to see anything older without leaving the TU
   - an account's posts, below the pinned run, following whichever run is showing: their posts, or **Posts and
     replies** once `s` has widened it. The pinned run is never read on. It is one page in the account's own order, and
     a post pinned long ago that comes back in an older page is still drawn once, in the pinned run (#182).
-
-  Every other list still reads once and never asks, and draws no foot. The Inbox follows in #465 and #466.
+- **Notifications reads on too (#465).** The older **Notification groups** go under the last one held, read the way
+  the screen was first read: grouped from `/api/v2`, from the `max_id` the instance's own link named, or, where the
+  instance cannot group, each notification a group of one from `/api/v1` (ADR-0032). The instance groups a page at a
+  time, so a group already held can come back on an older page with older notifications of its own. It stays where it
+  is, drawn once. A group arriving live still goes on top, read on or not, and neither waits for the other nor moves
+  what the other put. The older groups are behind the **Read marker**, so reading on moves neither the marker nor the
+  badge, and draws them read (ADR-0027).
 - **A browsed Follow list and a group's actors read on too** (#467), in place of the paging they had, which re-read
   the list from the top to a longer limit each time `k` or `End` landed on its last row. They read on by the same
   trigger, from the same onward position, with the same foot (*What a follow list settled*). A held Follow list does
   not: it is read whole at once, as before.
+- **Every timeline, an account's posts, Notifications, a browsed Follow list and a group's actors, for now.** Every
+  other list still reads once and never asks, and draws no foot. Direct messages and Follow requests follow in #466.
 
 ### What conversations settled
 
