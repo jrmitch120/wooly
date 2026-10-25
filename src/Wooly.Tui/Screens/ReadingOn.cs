@@ -72,7 +72,9 @@ public sealed class ReadingOn(Onward? from)
     ///     failed, or a whole list. Nothing between reads, and nothing on a list with nothing on it, which its own
     ///     notice already speaks for.
     /// </summary>
-    /// <param name="rows">The list's rows, which the foot goes under and never among — none where it holds nothing.</param>
+    /// <param name="rows">
+    ///     The list's rows, which the foot goes under and never among — none where it holds nothing.
+    /// </param>
     public IReadOnlyList<Line> Under(IReadOnlyList<Line> rows) =>
         (InFlight, Failed, IsWhole, holding: rows.Count > 0) switch
         {

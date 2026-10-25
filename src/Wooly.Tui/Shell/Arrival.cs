@@ -15,8 +15,8 @@ namespace Wooly.Tui.Shell;
 /// <remarks>
 ///     Three moves bring a screen up — arriving from the rail, drilling in, and refreshing in place — and they differ
 ///     only in what they do to the stack and whether a destination's placeholder goes up first. Everything a subject
-///     differs in, it says about itself: what it reads, what that becomes, whether it is held and whether it reads on. An
-///     eighth kind of screen is an eighth subject rather than an eighth chance to state the sequence slightly
+///     differs in, it says about itself: what it reads, what that becomes, whether it is held and whether it reads on.
+///     An eighth kind of screen is an eighth subject rather than an eighth chance to state the sequence slightly
 ///     differently.
 ///     <para>
 ///         What lands leaves through <see cref="Arrives" />, <see cref="Drills" />, <see cref="Refreshes" />,
