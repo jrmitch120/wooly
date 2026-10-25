@@ -11,6 +11,12 @@ namespace Wooly.Tui.Shell;
 /// </remarks>
 public delegate void Says(string? notice, bool isError);
 
+/// <summary>What is done once a question is over, however it ended, told whether it failed.</summary>
+/// <remarks>
+///     A delegate of its own for the reason <see cref="Says" /> is one: so that the flag is named where it is raised.
+/// </remarks>
+public delegate void Over(bool failed);
+
 /// <summary>
 ///     A question put to an instance on a reader's behalf, which survives neither their patience nor their attention:
 ///     it waits out a rate limit where they can watch it count down, turns a failure into a notice rather than an
@@ -135,22 +141,18 @@ public sealed class Enquiry(
     /// <param name="ifStillHere">
     ///     What lands only while the screen it was asked from is still the one in front: a screen, a notice about it.
     /// </param>
-    /// <param name="ended">
+    /// <param name="over">
     ///     What is done on the drawing thread once the question is over, however it ended — answered, dropped as
-    ///     stale, or refused — ahead of whatever lands: a read on, which is one at a time on its screen, being out no
-    ///     longer (#469). Not done where the enquiry was abandoned, there being nothing left to do it to.
-    /// </param>
-    /// <param name="failed">
-    ///     What is done on the drawing thread where the question failed — refused, or anything else a wait does not
-    ///     mend — after <paramref name="ended" />, as the notice saying why is said: a read on's foot saying it could
-    ///     not (#462). Not done where the enquiry was abandoned.
+    ///     stale, or failed — ahead of whatever lands, and told whether it failed: refused, or anything else a wait
+    ///     does not mend, as the notice saying why is said. A read on, which is one at a time on its screen, being out
+    ///     no longer (#469), and its foot saying it could not (#462). Not done where the enquiry was abandoned, there
+    ///     being nothing left to do it to.
     /// </param>
     public async Task Put<T>(
         Func<Ask, Task<T>> question,
         Action<T>? eitherWay = null,
         Action<T>? ifStillHere = null,
-        Action? ended = null,
-        Action? failed = null)
+        Over? over = null)
     {
         if (_abandoned.IsCancellationRequested)
         {
@@ -181,8 +183,7 @@ public sealed class Enquiry(
             // refused token is handed on instead, since what to say about it is which key fixes it (#248).
             Apply(() =>
             {
-                ended?.Invoke();
-                failed?.Invoke();
+                over?.Invoke(failed: true);
 
                 if (failure is AuthenticationException refused)
                 {
@@ -205,7 +206,7 @@ public sealed class Enquiry(
         {
             Answered = true;
 
-            ended?.Invoke();
+            over?.Invoke(failed: false);
 
             eitherWay?.Invoke(answer);
 

@@ -58,11 +58,15 @@ public sealed class ReadingOn(Onward? from)
         return from;
     }
 
-    /// <summary>The read on is over, however it ended: landed, dropped as stale, or refused.</summary>
-    internal void Ended() => InFlight = false;
-
-    /// <summary>The read on failed, which the enquiry's notice says why of, and the foot says until the next one.</summary>
-    internal void Refused() => Failed = true;
+    /// <summary>
+    ///     The read on is over, however it ended: landed, dropped as stale, or failed — which the enquiry's notice says
+    ///     why of, and the foot says until the next one.
+    /// </summary>
+    internal void Ended(bool failed)
+    {
+        InFlight = false;
+        Failed = failed;
+    }
 
     /// <summary>What a read on that landed says to read on from next, or that the list is now whole.</summary>
     internal void Arrived(Onward? onward) => From = onward;

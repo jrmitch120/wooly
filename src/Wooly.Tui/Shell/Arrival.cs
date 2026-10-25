@@ -273,8 +273,7 @@ public sealed class Arrival(
                     cache.Add(subject, found, screen);
                 }
             },
-            ended: reading.Ended,
-            failed: reading.Refused);
+            over: reading.Ended);
     }
 
     /// <summary>
