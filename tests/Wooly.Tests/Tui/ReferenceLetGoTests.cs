@@ -55,6 +55,25 @@ public class ReferenceLetGoTests
     }
 
     /// <summary>
+    ///     The post's last reference walked to with <c>→</c>, the page following it onto the bottom row — rather than
+    ///     entered with <c>←</c>, which enters at the last reference on the page (#477), not the post's last.
+    /// </summary>
+    private static void WalkToTheFoot(DrawnShell drawn)
+    {
+        drawn.Press(Key.CursorRight);
+
+        for (var before = drawn.Shell.Screen.Reference; ; before = drawn.Shell.Screen.Reference)
+        {
+            drawn.Press(Key.CursorRight);
+
+            if (Equals(drawn.Shell.Screen.Reference, before))
+            {
+                return;
+            }
+        }
+    }
+
+    /// <summary>
     ///     <c>↓</c> pressed until the reference's row leaves the top of the page lets it go — and not a press before,
     ///     while the row still shows. The pick stays on the post.
     /// </summary>
@@ -86,7 +105,7 @@ public class ReferenceLetGoTests
     {
         using var drawn = await Drawn(Tall);
 
-        drawn.Press(Key.CursorLeft);
+        WalkToTheFoot(drawn);
 
         Assert.Equal(PageBottom, RowOf(drawn, "‹#three›"));
 
@@ -104,7 +123,14 @@ public class ReferenceLetGoTests
     {
         using var drawn = await Drawn(Tall);
 
-        drawn.Press(down ? Key.CursorRight : Key.CursorLeft);
+        if (down)
+        {
+            drawn.Press(Key.CursorRight);
+        }
+        else
+        {
+            WalkToTheFoot(drawn);
+        }
 
         Assert.NotNull(drawn.Shell.Screen.Reference);
 
@@ -157,7 +183,7 @@ public class ReferenceLetGoTests
     {
         using var drawn = await Drawn(Tall);
 
-        drawn.Press(Key.CursorLeft);
+        WalkToTheFoot(drawn);
 
         Assert.Equal(PageBottom, RowOf(drawn, "‹#three›"));
 
@@ -172,7 +198,7 @@ public class ReferenceLetGoTests
     {
         using var drawn = await Drawn(Tall);
 
-        drawn.Press(Key.CursorLeft);
+        WalkToTheFoot(drawn);
         drawn.Resize(80, Height + 4);
 
         Assert.Equal("#three", drawn.Shell.Screen.Reference?.Text);
@@ -187,7 +213,7 @@ public class ReferenceLetGoTests
 
         using var drawn = await Drawn($"Shearing #one\n{Filler}{address}", width: 60);
 
-        drawn.Press(Key.CursorLeft);
+        WalkToTheFoot(drawn);
 
         Assert.Equal(address, drawn.Shell.Screen.Reference?.Text);
         Assert.Equal(PageBottom, RowOf(drawn, "›"));
