@@ -34,8 +34,10 @@ public sealed class NotificationsScreen(
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
     // Named by the group's own key, which is not the id of the post it is about (GLOSSARY.md) — and is what a refresh
-    // puts the reader back on (#84).
-    private readonly Picked<NotificationGroup> _groups = new(groups);
+    // puts the reader back on (#84). Each key once, under its newest: the instance groups a page at a time, so a list
+    // read on, and the cache holding it, can name a group twice (#465).
+    private readonly Picked<NotificationGroup> _groups =
+        new([.. groups.DistinctBy(group => group.Key, StringComparer.Ordinal)]);
 
     // The face last clicked in a group's avatar strip, its slot in the group's actors: what the Verb.OpenFace a click
     // answers with opens once the shell has picked the group out. A verb carries no more than its name.

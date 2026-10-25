@@ -136,6 +136,30 @@ public class ShellNotificationsReadingOnTests
     }
 
     /// <summary>
+    ///     And coming back within the minute, to the groups the cache held with everything read on, it is still drawn
+    ///     once, where it first was (#463).
+    /// </summary>
+    [Fact]
+    public async Task ComingBackToAHeldInboxWhoseReadOnBroughtBackAGroup_DrawsItOnce()
+    {
+        var (built, opened) = await OnNotifications(groups: 100);
+        var groups = built.Notifications.Groups!.ToList();
+        groups.Insert(41, Group(40) with { NewestId = "1" });
+        built.Notifications.Groups = groups;
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
+        Assert.Single(built.Notifications.GroupReads);
+        Assert.Equal(Keys(1, 79), screen.Groups.Select(group => group.Key));
+    }
+
+    /// <summary>
     ///     An instance too old to group reads on too: every older notification a group of one, put under those held,
     ///     as the screen first read them (ADR-0032).
     /// </summary>
