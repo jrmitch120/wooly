@@ -611,8 +611,18 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   reference it is drawn for (`Span.Reference`), and the click is answered off that rather than off a second reckoning
   of where each reference fell. It is the reference itself, not its place in the walk, so what was drawn is matched
   against what may be walked to: a mention in a bio matches nothing walkable, and the click only picks.
-- **`→` enters at the first reference, `←` at the last**; further motion in the same direction at either end
-  **clamps**, matching `Picked<T>`'s existing convention rather than wrapping.
+- **`→` enters at the first reference on the page, `←` at the last on the page** (#477), so a tall post scrolled
+  partway down is not entered at a reference scrolled off above. Where none of the pick's references are on the page,
+  `→` enters at the post's first and `←` at its last, and the page brings it in (below). Once inside, further motion
+  walks every one of the post's references, on the page or not, and at either end **clamps**, matching `Picked<T>`'s
+  existing convention rather than wrapping.
+- **With the pick off the page, `→` and `←` reclaim and enter in one press** (#477). The press picks what `j`/`k`
+  would reclaim (the first thing whose top is on the page, "What moving settled") and enters that thing's references
+  at the first or last on the page, even mid-walk: the walk inside the post gone off the page is let go with the old
+  pick rather than stepped on. Where the reclaimed thing has no references, the press only reclaims. The view says
+  both the reclaim and which references are on the page off one lot of rows (`PaintedView.OnThePage`, read off each
+  run's `Span.Reference`, so a wrapped address counts while either half shows), and the shell does the rest
+  (`Shell.WalkReference`).
 - **The page follows a walked reference** (#473). Walking to a reference that is not on the page moves the page the
   least it must to bring its row onto it — onto the bottom row walking down, the top row walking up — the same
   minimum move `j`/`k` bring the pick back with (`Scroll.ToReference`, keyed on the rows its brackets are drawn on, so
@@ -621,8 +631,18 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   from its top on every frame and would take the reference straight off again; the window asks for it after a walk
   step (`PaintedView.ShowReference`), spent on the next frame only, as `[`/`]`'s anchor is.
 - **`esc` clears the pick first**, popping the screen on the next press (above). **`j`/`k` clear it too**, since the
-  reader has left the post. **`↓`/`↑` (page scroll) do not** — they leave the selection alone by the existing
-  "What moving settled" contract, and a reference pick lives inside the selected post, not on a row.
+  reader has left the post.
+- **A reference that scrolls off is let go** (#478). The moment none of its rows are on the page — after `↓`/`↑`,
+  `PgUp`/`PgDn`, a wheel notch, or a resize that reflows it off — the brackets go and the status row leaves reference
+  mode, so `⏎` never opens something the reader cannot see and `esc` is never spent on it. Scrolling back does not
+  bring it back. Its rows run from the first its brackets are drawn on to the last (`Scroll.LeftReference`), so an
+  address wrapped across two rows is kept while either shows, and the middle row of one wrapped across three counts.
+  The selection itself still stays where it is, by the "What moving settled" contract: only the reference is let go
+  eagerly, because only a reference can be opened by mistake. It is checked on the rows each frame lays out anyway,
+  and only while a reference is held (`PaintedView.HoldsAReference`/`LetReferenceGo` → `Shell.LetReferenceGo`), so
+  scrolling with none held lays nothing out it did not before (#51). The status row is added to the window first so
+  that Terminal.Gui, which draws the views added first last, draws it after the content: it says what the content's
+  frame settled, in that same frame.
 - **Bracketed `‹reference›`** — brackets, always drawn, in colour and no-colour terminals alike. ("Marked" is the
   word `Post.Marks` has, which is the collision the rename was about — GLOSSARY.md.) The brackets take
   their own role (`Role.ReferencePicked`), independent of whatever role the bracketed text already carries, so a
@@ -634,8 +654,10 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   (`PostKeys.OnAReference`). Said by `Screen` itself rather than by each screen, which is why a screen's own list is
   `OwnKeys` and `Keys` is what the status row reads (#83).
 - **`←/→` is announced before the walk starts too**, wherever the picked thing has a reference to walk to — the
-  same `References` the walk itself asks, so the hint shows exactly where the arrows would act. Otherwise the only
-  way to learn the walk exists is to press it. Ranked right behind `⏎:read`, so it never pushes the key used most on
+  same `References` the walk itself asks, so the hint describes the **Picked** thing — even with the pick scrolled off
+  the page, where the arrows would reclaim and act on another (#477), since a status row that changed as the pick
+  crossed the page edge would flicker as the reader scrolled. Otherwise the only way to learn the walk exists is to
+  press it. Ranked right behind `⏎:read`, so it never pushes the key used most on
   a post off the row; where there is no `⏎:read` (inside a post, the account header, a conversation) it goes in
   front (`PostKeys.BeforeAReference`). On an 80-column feed that leaves it in `…+N` and `?`, which is accepted.
 - **`⏎` does four different things, refusals share one notice** (#85, #109). Which of the four is the role the
@@ -2337,7 +2359,7 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Click | The crumb in front, the `… ›` lead of an elided trail, a separator, the fetch mark, the edge after the trail | Nothing. Only a crumb behind the one in front answers a click |
 | Click | A row of a thing in the content | Picks that thing, through the same pick `[`/`]` make: any row of it counts — a tall post's byline, its text, a picture on it — since which thing a row is part of is its `Line.Item`, the ordinal `Screen.Pick` takes. The remark on the status row goes, as it does for `j`/`k`, and a **Reference** walked to inside the thing is let go, so the `⏎` after it opens the thing rather than the reference. The page stays where it is rather than following the pick, so what was clicked never moves out from under the pointer. The same on every listing screen, the account screen's header block (after which the post keys go quiet, as after `j`/`k`) and a search's results in their sections among them (#290). A click on a **Reference** — a hashtag, mention or address in a post's text, a **Bio** or a **Custom field**, an **Attachment**'s own address, a **Link preview**'s — picks the thing it is inside and walks to it, exactly as `→` would have, brackets and the status row's reference mode included; a click on either row of an address the wrap cut in two, or on the brackets of the one already walked to, counts. It never opens anything. Which reference a column is comes off the runs drawn under the pointer, each carrying the reference it is drawn for as its `Span.Reference`, as a crumb's carry its `Span.Item`; a reference drawn and never walked, a mention in a bio, picks the thing and walks to nothing (#475) |
 | Click | A heading, a rule, a blank, the space under the last thing | Nothing. A click never guesses which thing was meant |
-| Double click | A row of a thing in the content | That click, and then `⏎` through the **Keymap** on the screen in front, so it means whatever `⏎` means there: it opens a post, a search result, a conversation, the asker of a follow request or a person, and switches to a profile on the profiles screen. Where `⏎` means nothing for what is picked — the account screen's header block — it picks and does nothing more. The click lets a walked **Reference** go first, so a double click on a post with a hashtag walked to opens the post. Terminal.Gui's own detection says what is a double click (#291) |
+| Double click | A row of a thing in the content | That click, and then `⏎` through the **Keymap** on the screen in front, so it means whatever `⏎` means there: it opens a post, a search result, a conversation, the asker of a follow request or a person, and switches to a profile on the profiles screen. Where `⏎` means nothing for what is picked — the account screen's header block — it picks and does nothing more. On a **Reference** it opens the reference: the first click walks to it (#475), and the `⏎` opens it and lets it go (#474) — a hashtag's screen, a mention's account, an address handed to the browser. It opens the one the first click walked to, without asking the row again, so the brackets that click drew moving the row a column on, or wrapping a long address anew, cannot change what opens (#479). Off any reference the click lets a walked **Reference** go first, so a double click on a post's text with a hashtag walked to opens the post. Terminal.Gui's own detection says what is a double click (#291) |
 | Double click | A heading, a rule, a blank, the space under the last thing | Nothing: never a `⏎` on what was picked before |
 | Double click | The breadcrumb | Its first click's walk back and nothing more: never a `⏎` on the screen it landed on (#308) |
 | Right click | Anywhere: the content, the rail, the breadcrumb, the status row | `esc`, through the **Keymap** on the screen in front, so up one level of whichever kind is open: it lets a picked **Reference** or an uncast poll toggle go before it pops the screen, declines a confirmation, clears the filter prompt's filter (as `esc` does, not as a left click does) and calls off a sign-in in flight on Add a profile. On a destination's own screen it does nothing, and never quits. Over the rail it does not arrive at the destination under the pointer, and over the breadcrumb it does not walk back to the crumb. Each right click the terminal reports is one `esc`, Terminal.Gui's double and triple included, so three quick right clicks walk back three levels. Only the terminal's right button counts: ctrl+click stays a left click, and the middle button means nothing (#307) |

@@ -137,6 +137,13 @@ internal sealed class ShellWindow : Window
     private bool _clickToggledRail;
 
     /// <summary>
+    ///     The reference the last click walked to, which the double click it turns out to be the first half of opens
+    ///     (#479): the brackets that click drew may have moved the row a column on or wrapped a long address anew, so
+    ///     what is under the pointer by the second click is not asked again.
+    /// </summary>
+    private Reference? _clickWalkedTo;
+
+    /// <summary>
     ///     The row of the content a press with the left button picked up, held from the press until the button is let go,
     ///     for a screen whose rows the pointer drags into another order — the attachments screen's (story 58).
     /// </summary>
@@ -268,6 +275,8 @@ internal sealed class ShellWindow : Window
             KeepsToThePage = () => shell.Screen.KeepsToThePage,
             Pinned = () => shell.Screen.Pinned,
             Settled = Paged,
+            HoldsAReference = () => shell.Screen.Reference is not null,
+            LetReferenceGo = shell.LetReferenceGo,
         };
 
         // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one
@@ -313,9 +322,12 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
+        // The status row first, because Terminal.Gui draws the views added first last: drawn after the content, it says
+        // what the content's frame settled — a reference that frame let go off the page leaves reference mode in that
+        // same frame rather than one frame late (#478). It overlaps nothing, so the order changes nothing else.
+        Add(status);
         Add(rail, _content, title);
         Add([.. _overlays]);
-        Add(status);
 
         _showing = shell.Screen;
 
@@ -479,6 +491,7 @@ internal sealed class ShellWindow : Window
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
         _clickDeclinedQuestion = _shell.DeclineOpenQuestion();
         _clickToggledRail = false;
+        _clickWalkedTo = null;
 
         if (_clickDeclinedQuestion)
         {
@@ -526,6 +539,7 @@ internal sealed class ShellWindow : Window
             {
                 _content.Hold();
                 _shell.PickReference(item, walked);
+                _clickWalkedTo = _shell.Screen.Reference;
             }
             else
             {
@@ -568,11 +582,22 @@ internal sealed class ShellWindow : Window
         // Spent once: a later pair must not be swallowed by a question its own first click never saw.
         var declined = _clickDeclinedQuestion;
         var toggled = _clickToggledRail;
+        var walked = _clickWalkedTo;
         _clickDeclinedQuestion = false;
         _clickToggledRail = false;
+        _clickWalkedTo = null;
 
         if (declined || toggled || _shell.DeclineOpenQuestion())
         {
+            return true;
+        }
+
+        // A pair whose first click walked to a reference is the ⏎ that opens it, wherever its brackets left the second
+        // click: picking again under the pointer would let the reference go and open the thing instead (#479).
+        if (walked is not null && walked == _shell.Screen.Reference)
+        {
+            _ = Do(ShellKey.Enter);
+
             return true;
         }
 
@@ -761,10 +786,13 @@ internal sealed class ShellWindow : Window
             return Carry(verb);
         }
 
-        var used = _shell.Do(verb, Keymap.Answer(pressed));
+        var walking = verb is Verb.NextReference or Verb.PreviousReference;
+
+        // The arrows reclaim an off-page pick and enter a walk at the page, which only the content can say (#477).
+        var used = _shell.Do(verb, Keymap.Answer(pressed), walking ? _content.OnThePage : null);
 
         // A reference walked to is brought onto the page, the least move that does it (#473).
-        if (used && verb is Verb.NextReference or Verb.PreviousReference)
+        if (used && walking)
         {
             _content.ShowReference();
         }
