@@ -15,13 +15,13 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     What a screen that is read is read from: a destination on the rail, a post's thread, an account, one side of an
-///     account's follows, a hashtag walked to, or a conversation (GLOSSARY.md, #233).
+///     account's follows, a notification group's actors, a hashtag walked to, or a conversation (GLOSSARY.md, #233).
 /// </summary>
 /// <remarks>
 ///     A closed set of values, each of which carries its own read and builds its own screen, and says whether what it
 ///     read is held for a while and how it reads on. Everything else about bringing a screen up — the stale rule, the
 ///     cache, the placeholder, the rail's badge, when to read on — is <see cref="Arrival" />'s, and is the same for all
-///     six.
+///     seven.
 ///     <para>
 ///         Compared by value, which is what the cache is keyed by and what <c>g</c> asks again: two follow lists of the
 ///         same side of the same account are the same subject however the account was last answered about, and a rail
