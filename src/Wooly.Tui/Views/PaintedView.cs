@@ -220,7 +220,20 @@ internal sealed class PaintedView : View
     ///     or <see langword="null" /> for a cell outside the rows, past the end of its row, or on a run that stands for
     ///     nothing. What a click on one of a row's several things is answered from — a crumb of the breadcrumb (#308).
     /// </summary>
-    public int? SpanItemAt(Point screen)
+    public int? SpanItemAt(Point screen) => SpanAt(screen)?.Item;
+
+    /// <summary>
+    ///     Which reference the run under the terminal cell <paramref name="screen" /> is drawn for
+    ///     (<see cref="Span.Reference" />), or <see langword="null" /> for a cell outside the rows, past the end of its
+    ///     row, or on a run that is part of no reference. What a click on a reference is answered from (#475).
+    /// </summary>
+    public Reference? ReferenceAt(Point screen) => SpanAt(screen)?.Reference;
+
+    /// <summary>
+    ///     The run drawn under the terminal cell <paramref name="screen" />, or <see langword="null" /> for a cell outside
+    ///     the rows or past the end of its row.
+    /// </summary>
+    private Span? SpanAt(Point screen)
     {
         if (LineAt(screen, out var column) is not { } line)
         {
@@ -231,7 +244,7 @@ internal sealed class PaintedView : View
         {
             if (column < span.Width)
             {
-                return span.Item;
+                return span;
             }
 
             column -= span.Width;

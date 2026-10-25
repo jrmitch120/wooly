@@ -463,6 +463,20 @@ public abstract class Screen
         return true;
     }
 
+    /// <summary>
+    ///     Walks straight to <paramref name="reference" />, where it is one of the picked thing's — the same pick
+    ///     <see cref="WalkReference" /> would have arrived at by steps. What a click on one does (#475).
+    /// </summary>
+    /// <returns>Whether it was one to walk to; where it is not, nothing is picked.</returns>
+    public bool WalkToReference(Reference reference)
+    {
+        var at = References.ToList().IndexOf(reference);
+
+        _reference = at >= 0 ? at : null;
+
+        return at >= 0;
+    }
+
     /// <summary>Lets the picked reference go, which <c>esc</c> does before it pops and <c>j</c> and <c>k</c> do on the way past.</summary>
     /// <returns>Whether there was one, which is what settles whether <c>esc</c> was spent on it.</returns>
     public bool ClearReference()

@@ -69,7 +69,8 @@ public static partial class BodyText
     ///     A reference cut across two rows takes its role on both, since the two halves are one thing that happens to
     ///     be written in two places. The brackets are the exception: <see cref="Opening" /> is drawn where the picked
     ///     reference starts and <see cref="Closing" /> where it stops, so a reference cut in two is opened on the row
-    ///     it starts on and closed on the row it ends on rather than bracketed twice.
+    ///     it starts on and closed on the row it ends on rather than bracketed twice. Every run of a reference says which
+    ///     it is (<see cref="Span.Reference" />), brackets and both halves alike, which is what a click is answered from.
     /// </remarks>
     /// <param name="row">One wrapped row, and where in the text it came out of it starts.</param>
     /// <param name="references">The references in that whole text, as <see cref="References" /> found them.</param>
@@ -112,14 +113,14 @@ public static partial class BodyText
 
             if (bracketed && from >= 0)
             {
-                spans.Add(new Span(Opening, Role.ReferencePicked));
+                spans.Add(new Span(Opening, Role.ReferencePicked) { Reference = reference });
             }
 
-            spans.Add(new Span(text[starts..stops], reference.Role));
+            spans.Add(new Span(text[starts..stops], reference.Role) { Reference = reference });
 
             if (bracketed && to <= text.Length)
             {
-                spans.Add(new Span(Closing, Role.ReferencePicked));
+                spans.Add(new Span(Closing, Role.ReferencePicked) { Reference = reference });
             }
 
             at = stops;

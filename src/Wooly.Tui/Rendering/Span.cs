@@ -43,4 +43,18 @@ public readonly record struct Span(string Text, Role Role)
     ///     what is drawn under the pointer rather than off a second reckoning of where each run fell.
     /// </remarks>
     public int? Item { get; init; }
+
+    /// <summary>
+    ///     Which reference this run is drawn for — a hashtag, a mention, an address, an attachment's own address or a
+    ///     link preview's — or <see langword="null" /> for a run that is part of none. Every run of one carries it,
+    ///     brackets included, and so does every row of one the wrap cut across several (#475).
+    /// </summary>
+    /// <remarks>
+    ///     Beside <see cref="Item" /> rather than folded into it, because the two are asked different questions and a
+    ///     row can want both: a screen already reads its own meaning into a run's item, a face of the notification
+    ///     strip among them. The reference itself rather than its place among the walk's, so that what was drawn is
+    ///     matched against what may be walked to — a reference drawn and never walked, a mention in a bio, matches
+    ///     nothing — rather than trusted to have been numbered the same way twice.
+    /// </remarks>
+    public Reference? Reference { get; init; }
 }
