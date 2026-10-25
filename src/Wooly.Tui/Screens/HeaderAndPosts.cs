@@ -53,8 +53,9 @@ public sealed class HeaderAndPosts(Account account, PostList posts) : IPicked
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Counted in <see cref="long" /> for the reason <see cref="Picked{T}.Move" /> is: a move to an end of the list
-    ///     asks for the largest step there is.
+    ///     Counted in <see cref="long" /> for the reason <see cref="Picked{T}.Move" /> is, though nothing moves the
+    ///     account screen's pick to an end of its list any more: <c>Home</c> and <c>End</c> move its page instead, and
+    ///     a step that large would still overflow back to the other end.
     /// </remarks>
     public void Move(int by) => Pick((int)Math.Clamp((long)At + by, 0, Count - 1));
 

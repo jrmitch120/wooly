@@ -89,14 +89,14 @@ public class ShellKeyTests
     }
 
     /// <summary>
-    ///     <c>Home</c> and <c>End</c> take the page to the ends of the list and leave the selection alone too — on a
-    ///     Mac they are fn-← and fn-→, pressed in passing, and they used to carry the selection off to the first post
-    ///     and the last (asked in review of #480).
+    ///     <c>Home</c> and <c>End</c> take the page to the ends of the list and leave the pick alone too — on a Mac
+    ///     they are fn-← and fn-→, pressed in passing, and they used to carry the pick off to the first post and the
+    ///     last (asked in review of #480).
     /// </summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task HomeAndEndLeaveTheSelectionAlone(bool end)
+    public async Task HomeAndEndLeaveThePickAlone(bool end)
     {
         var (window, shell) = await Opened();
 

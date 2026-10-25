@@ -15,9 +15,10 @@ namespace Wooly.Tui.Shell;
 ///         <see cref="ToTheTop" /> and <see cref="ToTheFoot" />, which walk the page rather than the list;
 ///         <see cref="NextPost" />, <see cref="PreviousPost" />, <see cref="NextSection" />,
 ///         <see cref="PreviousSection" />, <see cref="NextEntry" />, <see cref="PreviousEntry" />,
-///         <see cref="FirstEntry" /> and <see cref="LastEntry" />, which move the pick and the page both; <see cref="Send" />, which has to take the editor widget's text before drafting sends
-///         it; and <see cref="Narrower" /> and <see cref="Wider" />, whose steps are refused by how wide the terminal
-///         is. Which eighteen is <see cref="Verbs.NeedsATerminal" />, the one list the window and the shell both read.
+///         <see cref="FirstEntry" /> and <see cref="LastEntry" />, which move the pick and the page both;
+///         <see cref="Send" />, which has to take the editor widget's text before drafting sends it; and
+///         <see cref="Narrower" /> and <see cref="Wider" />, whose steps are refused by how wide the terminal is. Which
+///         eighteen is <see cref="Verbs.NeedsATerminal" />, the one list the window and the shell both read.
 ///     </para>
 /// </remarks>
 public enum Verb
@@ -159,7 +160,7 @@ public enum Verb
 
     /// <summary>
     ///     <c>Home</c>: the screen goes to the top of the list and the pick stays where it was put, as with <c>↑</c> —
-    ///     on a Mac this is fn-←, pressed in passing, and it used to take the pick to the first thing with it.
+    ///     on a Mac this is fn-←, as often pressed in passing as meant.
     /// </summary>
     ToTheTop,
 

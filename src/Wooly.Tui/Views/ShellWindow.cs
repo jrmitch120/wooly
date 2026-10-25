@@ -847,13 +847,14 @@ internal sealed class ShellWindow : Window
 
                 return true;
 
+            // Home: the page up as far as there is, the pick left where it was, as with ↑ (asked in review of #480).
             case Verb.ToTheTop:
-                Ended(foot: false);
+                Scrolled(int.MinValue);
 
                 return true;
 
             case Verb.ToTheFoot:
-                Ended(foot: true);
+                Footed();
 
                 return true;
 
@@ -999,25 +1000,18 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     <c>Home</c> and <c>End</c>: the screen to the top of the list or the foot of it, and the pick left where it
-    ///     is, as <c>↓</c>, <c>↑</c>, <c>PgUp</c> and <c>PgDn</c> leave it. On a Mac they are fn-← and fn-→, and taking
-    ///     the pick along with them took it from wherever the reader had put it. The next <c>j</c> or <c>k</c> reclaims
-    ///     from the page they came to, as after any other scroll (#472).
+    ///     <c>End</c>: the screen to the foot of the list, and the pick left where it is, as <c>↓</c>, <c>↑</c>,
+    ///     <c>PgUp</c> and <c>PgDn</c> leave it — <c>Home</c>, the top, is <see cref="Scrolled" /> up as far as there
+    ///     is. On a Mac they are fn-← and fn-→, and taking the pick along with them took it from wherever the reader
+    ///     had put it. The next <c>j</c> or <c>k</c> reclaims from the page they came to, as after any other scroll
+    ///     (#472).
     /// </summary>
     /// <remarks>
     ///     Told to the shell as a move of the page, so that the foot of a list that reads on reads on (#469).
     /// </remarks>
-    private void Ended(bool foot)
+    private void Footed()
     {
-        if (foot)
-        {
-            _content.ToTheFoot();
-        }
-        else
-        {
-            _content.ToTheTop();
-        }
-
+        _content.ToTheFoot();
         _pageToTell = true;
 
         SetNeedsDraw();

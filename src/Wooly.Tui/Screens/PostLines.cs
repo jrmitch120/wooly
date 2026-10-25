@@ -173,12 +173,12 @@ public static class PostLines
     ///     What a notification about the reader's own post draws under it. They wrote it and already know it, so what
     ///     the row is for is who did what to it; <c>⏎</c> still opens it whole.
     ///     <para>
-    ///         Its first row is marked as where the post's content starts (<see cref="Line.Starts" />), as
+    ///         Its first row is marked as where the post's content starts (<see cref="Line.ContentStarts" />), as
     ///         <see cref="Feed" />'s is.
     ///     </para>
     /// </remarks>
     public static IReadOnlyList<Line> Preview(Post post, int width) =>
-        [.. Previewed(post, width).Select((line, at) => at == 0 ? line.Starting() : line)];
+        [.. Previewed(post, width).Select((line, at) => at == 0 ? line.StartingContent() : line)];
 
     /// <summary>The rows <see cref="Preview" /> draws, with nothing marked on them.</summary>
     private static IReadOnlyList<Line> Previewed(Post post, int width)
@@ -227,8 +227,9 @@ public static class PostLines
     ///     </para>
     ///     <para>
     ///         The first row of the first part of <paramref name="content" /> with anything in it is marked as where
-    ///         the post's content starts (<see cref="Line.Starts" />): the rows above it say who wrote the post, and the
-    ///         counts under it say what was done to it, so neither is what a reader scrolling past a byline is reading.
+    ///         the post's content starts (<see cref="Line.ContentStarts" />): the rows above it say who wrote the post,
+    ///         and the counts under it say what was done to it, so neither is what a reader scrolling past a byline is
+    ///         reading.
     ///     </para>
     /// </remarks>
     private static IReadOnlyList<Line> Parts(
@@ -264,7 +265,7 @@ public static class PostLines
                 lines.Add(Line.Blank);
             }
 
-            lines.Add(starts ? rows[0].Starting() : rows[0]);
+            lines.Add(starts ? rows[0].StartingContent() : rows[0]);
             lines.AddRange(rows.Skip(1));
 
             return true;

@@ -41,8 +41,8 @@ public static class Scroll
     /// </summary>
     /// <remarks>
     ///     The same minimum move <see cref="To" /> makes for the pick, keyed on every row drawn for the reference
-    ///     (<see cref="Draws" />), so that a reference wrapped across two rows is brought on whole where
-    ///     it fits. With no row drawn for it, the page stays where it is.
+    ///     (<see cref="Draws" />), so that a reference wrapped across two rows is brought on whole where it fits. With
+    ///     no row drawn for it, the page stays where it is.
     /// </remarks>
     /// <param name="lines">The rows to be drawn.</param>
     /// <param name="height">How many rows there is room for.</param>
@@ -103,8 +103,8 @@ public static class Scroll
 
     /// <summary>
     ///     Whether <paramref name="line" /> is drawn for <paramref name="reference" />, the one walked to: a row of the
-    ///     pick (<see cref="Role.Selection" />) carrying it. A reference is walked inside the pick, and one that reads the
-    ///     same at the same place in another post — the reader's own handle opening two replies to them — compares
+    ///     pick (<see cref="Role.Selection" />) carrying it. A reference is walked inside the pick, and one that reads
+    ///     the same at the same place in another post — the reader's own handle opening two replies to them — compares
     ///     equal without being it.
     /// </summary>
     private static bool Draws(Line line, Reference reference) => line.Has(Role.Selection) && line.Has(reference);
@@ -276,13 +276,13 @@ public static class Scroll
     ///     thing whose start is on it, or <see langword="null" /> for a screen with no items on it at all (#472).
     /// </summary>
     /// <remarks>
-    ///     A thing's start is the first row of it marked as where its content starts (<see cref="Line.Starts" />) —
-    ///     a post's first row after its boost line, notification strip and byline — and, for a thing with no row so
-    ///     marked, such as an account's header block or a follow, its first row. Read off the rows as drawn, so no
-    ///     screen keeps its own record of where things begin. A reader who scrolls just past a byline is still reading
-    ///     that post, so it is that post the press picks, not the next one down (asked in review of #480, replacing
-    ///     #472's first row). The foot of a post filling the top of the page is passed over for the first thing the
-    ///     reader can see beginning.
+    ///     A thing's start is the first row of it marked as where its content starts
+    ///     (<see cref="Line.ContentStarts" />) — a post's first row after its boost line, notification strip and byline
+    ///     — and, for a thing with no row so marked, such as an account's header block or a follow, its first row. Read
+    ///     off the rows as drawn, so no screen keeps its own record of where things begin. A reader who scrolls just
+    ///     past a byline is still reading that post, so it is that post the press picks, not the next one down (asked
+    ///     in review of #480, replacing #472's first row). The foot of a post filling the top of the page is passed
+    ///     over for the first thing the reader can see beginning.
     ///     <para>
     ///         Where nothing begins on the page, because one post taller than it fills it, the answer is
     ///         <see cref="Topmost" />'s: the post being read, so that <c>↓ ↓ ↓ j</c> keeps the reader on it, and past
@@ -311,7 +311,7 @@ public static class Scroll
             // The thing's first row until a row marked as where its content starts is found, and that from then on.
             starts.TryAdd(item, at);
 
-            if (lines[at].Starts && marked.Add(item))
+            if (lines[at].ContentStarts && marked.Add(item))
             {
                 starts[item] = at;
             }

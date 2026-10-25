@@ -222,6 +222,71 @@ public class OffPageReclaimTests
         Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
     }
 
+    /// <summary>A post with nothing but a link preview begins at the preview.</summary>
+    [Theory]
+    [InlineData(0, "220")]
+    [InlineData(1, "330")]
+    public async Task APostWithOnlyALinkPreviewBeginsAtIt(int scrolledOff, string picked)
+    {
+        var posts = Six();
+        posts[1] = APost.With(
+            id: "220",
+            content: string.Empty,
+            linkPreview: APost.ALinkPreview(title: "Fleece prices", image: null));
+
+        using var drawn = await Feed(posts);
+
+        LeaveThePickBelow(drawn);
+        TextOffBy(drawn, "Fleece prices", scrolledOff);
+
+        drawn.Press(Key.K);
+
+        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
+    }
+
+    /// <summary>A post with nothing but a poll begins at the poll's first answer.</summary>
+    [Theory]
+    [InlineData(0, "220")]
+    [InlineData(1, "330")]
+    public async Task APostWithOnlyAPollBeginsAtIt(int scrolledOff, string picked)
+    {
+        var posts = Six();
+        posts[1] = APost.With(
+            id: "220",
+            content: string.Empty,
+            poll: APost.APoll([APost.AnAnswer("Merino", 4), APost.AnAnswer("Jacob", 6)]));
+
+        using var drawn = await Feed(posts);
+
+        LeaveThePickBelow(drawn);
+        TextOffBy(drawn, "Merino", scrolledOff);
+
+        drawn.Press(Key.K);
+
+        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
+    }
+
+    /// <summary>
+    ///     A search's account and hashtag have no content to begin at, so each begins at its first row: on the page it
+    ///     is picked, and with that row gone the next thing found is.
+    /// </summary>
+    [Theory]
+    [InlineData(1, 0, 1)]
+    [InlineData(1, 1, 2)]
+    [InlineData(3, 0, 3)]
+    [InlineData(3, 1, 4)]
+    public async Task ASearchsAccountAndHashtagBeginAtTheirFirstRow(int item, int scrolledOff, int picked)
+    {
+        using var drawn = await Searched();
+
+        LeaveThePickBelow(drawn);
+        TopOffBy(drawn, item, scrolledOff);
+
+        drawn.Press(Key.K);
+
+        Assert.Equal(picked, Assert.IsType<SearchScreen>(drawn.Shell.Screen).At);
+    }
+
     /// <summary>
     ///     An account screen's header block is not a post and begins at its first row: scrolled back up to it, the
     ///     press picks it, and with that row gone, the first post under it.
@@ -324,9 +389,9 @@ public class OffPageReclaimTests
 
     /// <summary>
     ///     <c>[</c> and <c>]</c> jump from the thing the same rule reclaims: on an account scrolled so that the foot of
-    ///     the last pinned post, its text gone, fills the top of the page and their first post begins below it, <c>[</c>
-    ///     goes back to the first pinned post, where from the half-gone pinned one it would have had nowhere to go but
-    ///     the header.
+    ///     the last pinned post, its text gone, fills the top of the page and their first post begins below it,
+    ///     <c>[</c> goes back to the first pinned post, where from the half-gone pinned one it would have had nowhere
+    ///     to go but the header.
     /// </summary>
     [Fact]
     public async Task TheBracketsJumpFromWhatIsReclaimed()
@@ -368,6 +433,37 @@ public class OffPageReclaimTests
         var drawn = await DrawnShell.Of(80, Short, Themes.Plain, built);
 
         await drawn.Shell.OpenAuthor();
+        built.Host.Drain();
+        drawn.Redraw();
+
+        return drawn;
+    }
+
+    /// <summary>
+    ///     The shell drawn short over what a search for sheep found: two accounts, then two hashtags, then six posts
+    ///     — items 0 and 1, 2 and 3, and 4 on.
+    /// </summary>
+    private static async Task<DrawnShell> Searched()
+    {
+        var built = new AShell
+        {
+            Search = FakeInstanceSearch.Finding(
+                accounts: [AnAccount.With(address: "ann@hachyderm.io"), AnAccount.With(address: "bea@hachyderm.io")],
+                hashtags: [AHashtag.With(name: "sheep"), AHashtag.With(name: "wool")],
+                posts: Six()),
+        };
+
+        var drawn = await DrawnShell.Of(80, Short, Themes.Plain, built);
+
+        drawn.Shell.Search();
+        built.Host.Drain();
+
+        foreach (var letter in "sheep")
+        {
+            drawn.Shell.Type(letter);
+        }
+
+        drawn.Shell.Press(ShellKey.Enter);
         built.Host.Drain();
         drawn.Redraw();
 

@@ -86,7 +86,7 @@ public sealed record Line
     ///     screen keeps its own record of where a thing's content starts. A thing with no row so marked — an account's
     ///     header block, a follow — begins at its first row.
     /// </remarks>
-    public bool Starts { get; init; }
+    public bool ContentStarts { get; init; }
 
     /// <summary>
     ///     Whether this row is part of the thing picked out, and so drawn on <see cref="Theme.Role.Band" /> from one
@@ -164,7 +164,7 @@ public sealed record Line
     public Line Heading() => this with { Heads = true };
 
     /// <summary>This row, said to be where its thing's content starts.</summary>
-    public Line Starting() => this with { Starts = true };
+    public Line StartingContent() => this with { ContentStarts = true };
 
     /// <summary>This row with <paramref name="spans" /> put in front of it.</summary>
     /// <remarks>
@@ -194,7 +194,7 @@ public sealed record Line
         AlsoWants = AlsoWants,
         Item = Item,
         Heads = Heads,
-        Starts = Starts,
+        ContentStarts = ContentStarts,
         Picked = Picked,
         BandsTo = BandsTo,
     };

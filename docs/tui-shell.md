@@ -959,24 +959,24 @@ selection was the only scroll position a screen had and the foot of such a post 
   number is one constant in `ShellWindow`. The far end of the scroll is clamped when the rows are drawn rather than
   when a key is pressed, since working them out to clamp against would lay out every post on screen twice for one
   keypress, and that cost is what a reader feels as a slow scroll.
-- **`j` and `k` reclaim a selection that has scrolled off screen, by the first start on the page.** With no row of the
+- **`j` and `k` reclaim a pick that has scrolled off screen, by the first start on the page.** With no row of the
   selected thing on the page, the next `j` or `k` picks the first thing whose *start* is on the page instead of moving
   from a thing the reader can no longer see; the reclaiming press does nothing else, and pressing again moves normally
-  from there. A thing's start is the first row of its content: a post's content warning, else its text, else whatever
-  is attached, polled or previewed, whichever is drawn first, below its boost line, its notification's strip and its
-  byline and avatar; a notification's, the post it is about (the reminder of the reader's own post under a favourite).
-  A thing with no content — a follow, an account's header block or row, a hashtag — starts at its first row. Each post
-  marks the row its content starts on where its rows are built (`Line.Starts`, in `PostLines`), and `Scroll.Reclaim`
-  takes a thing's first row so marked, else its first row stamped with the thing, so no screen keeps its own record of
-  where things begin. This replaces #472's rule, which started a thing at its first row, after use: scrolling just
-  past a post's byline and avatar, with its text still on the page, the next press grabbed the post after it rather
-  than the one being read (asked in review of #480). A post whose foot fills the top of the page is passed over for
-  the first thing the reader can see beginning (#472). Where no thing's start is on the page, because one post taller
-  than the page fills it, the reclaim falls back to the topmost thing with any row showing, so `↓ ↓ ↓ j` on a tall
-  post picks out the post being read rather than the one after it — and a page scrolled past the last thing entirely,
-  which is the blank under it, reclaims that last thing rather than nothing. "Off the page" still means *no* row of the pick shows: a pick with
-  only its foot on the page is where the reader stands, and `j`/`k` move on from it. The reclaim is worked out once,
-  in `Scroll.Reclaim`, and every key that reclaims asks that one answer through `PaintedView.Reclaimable`.
+  from there. A thing's start is the first row of its content: a post's content warning, else its text, else whatever is
+  attached, polled or previewed, whichever is drawn first, below its boost line, its notification's strip and its byline
+  and avatar; a notification's, the post it is about (the reminder of the reader's own post under a favourite). A thing
+  with no content — a follow, an account's header block or row, a hashtag — starts at its first row. Each post marks the
+  row its content starts on where its rows are built (`Line.ContentStarts`, in `PostLines`), and `Scroll.Reclaim` takes
+  a thing's first row so marked, else its first row stamped with the thing, so no screen keeps its own record of where
+  things begin. This replaces #472's rule, which started a thing at its first row, after use: scrolling just past a
+  post's byline and avatar, with its text still on the page, the next press grabbed the post after it rather than the
+  one being read (asked in review of #480). A post whose foot fills the top of the page is passed over for the first
+  thing the reader can see beginning (#472). Where no thing's start is on the page, because one post taller than the
+  page fills it, the reclaim falls back to the topmost thing with any row showing, so `↓ ↓ ↓ j` on a tall post picks out
+  the post being read rather than the one after it — and a page scrolled past the last thing entirely, which is the
+  blank under it, reclaims that last thing rather than nothing. "Off the page" still means *no* row of the pick shows: a
+  pick with only its foot on the page is where the reader stands, and `j`/`k` move on from it. The reclaim is worked out
+  once, in `Scroll.Reclaim`, and every key that reclaims asks that one answer through `PaintedView.Reclaimable`.
 - **The keys that act on the pick reclaim first.** With no row of the pick on the page, the first press of a key that
   acts on it — `⏎ read`, `b`, `f`, `r`, the poll's `1`–`0` and `v`, and every other key that needs a pick — only
   reclaims, picking what `j`/`k` would; the next press acts on what is picked now, which is on the page. A favourite, a
@@ -1036,8 +1036,9 @@ selection was the only scroll position a screen had and the foot of such a post 
 - **`[`/`]` reclaim, like `j`/`k`, and clamp like everything else.** Working out "the run after this one" from a pick
   the reader can no longer see is the exact failure reclaiming exists to prevent, so after `↓ ↓ ↓ ]` the jump runs from
   the thing `j`/`k` would reclaim: the first whose start is on the page (#472). At the ends it clamps and never wraps:
-  nothing in this shell wraps, and with three runs a wrap saves one press at the cost of an ambiguous position. A reader already among the last run presses `]` and
-  nothing happens, which is the clamp saying so rather than the key being broken.
+  nothing in this shell wraps, and with three runs a wrap saves one press at the cost of an ambiguous position. A reader
+  already among the last run presses `]` and nothing happens, which is the clamp saying so rather than the key being
+  broken.
 - **`k` is the next post and `j` is the one before it**, which is the opposite way round from vim. Asked for
   deliberately, and written down because the vim reading is the one anybody will assume — so a future "fix" would
   silently reverse what `j` does on every screen in the shell.
