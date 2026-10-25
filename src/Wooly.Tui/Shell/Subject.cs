@@ -244,7 +244,12 @@ public abstract record Subject
                     // The badge counts the conversations with something unread in them, and counts them off the list
                     // it is drawn beside — so the rail cannot say two over a list of one.
                     Counting: (count, written) => count.Arrived(written),
-                    Carries: conversation => conversation.Latest),
+                    Carries: conversation => conversation.Latest,
+                    ReadsOn: new OnwardRead<Core.Conversations.Conversation>(
+                        InboxCount.ConversationsOn,
+                        (screen, older) => ((DirectMessagesScreen)screen).ReadOn(older),
+                        Recounts: (screen, whole) =>
+                            InboxCount.Held(((DirectMessagesScreen)screen).Conversations, whole))),
 
                 // Said out loud rather than quietly doing nothing: a destination that reads no list — the profile's
                 // own account, the prompt, the hashtag nobody has named — arrives some other way, and landing here is

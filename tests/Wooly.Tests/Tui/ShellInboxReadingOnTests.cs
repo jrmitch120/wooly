@@ -135,6 +135,109 @@ public class ShellInboxReadingOnTests
         Assert.Equal(["new", .. Ids(55)], requests.Waiting.Select(asking => asking.Id));
     }
 
+    /// <summary>
+    ///     The page within a screenful of the end of the conversations: the older ones are asked for and put under those
+    ///     held, with the pick left where it was — and, nothing being behind them, the foot says so.
+    /// </summary>
+    [Fact]
+    public async Task Messages_ViewedNearTheEnd_PutTheOlderConversationsUnderThoseHeld()
+    {
+        var built = new AShell { Messages = FakeDirectMessages.ReadingOn(Conversations(60, unread: _ => false)) };
+        var opened = await AtMessages(built);
+
+        opened.Walk(2, reclaiming: null);
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        var messages = Assert.IsType<DirectMessagesScreen>(opened.Screen);
+        Assert.Single(built.Messages.ReadsOn);
+        Assert.Equal(
+            Enumerable.Range(0, 60).Select(n => $"c{n}"),
+            messages.Conversations.Select(conversation => conversation.Id));
+        Assert.Equal("c2", messages.PickedConversation?.Id);
+        Assert.Equal("that's everything", Foot(messages));
+    }
+
+    /// <summary>
+    ///     Story 31: the unread badge is counted again off every conversation held once older ones are read on, so an
+    ///     older unread one is counted — two among the first forty and three behind them is five.
+    /// </summary>
+    [Fact]
+    public async Task Messages_ReadOn_CountOlderUnreadConversationsInTheBadge()
+    {
+        var built = new AShell
+        {
+            Messages = FakeDirectMessages.ReadingOn(Conversations(60, unread: n => n is 3 or 9 or 45 or 50 or 59)),
+        };
+        var opened = await AtMessages(built);
+
+        Assert.Equal(2, Badge(opened, DestinationKind.Messages).Unread);
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        var badge = Badge(opened, DestinationKind.Messages);
+        Assert.Equal(5, badge.Unread);
+        Assert.False(badge.Full);
+        Assert.Equal(0, built.Host.Bells);
+    }
+
+    /// <summary>
+    ///     A list not whole yet whose every conversation held is unread still says "at least": there may be more
+    ///     unread behind them, and the count cannot know.
+    /// </summary>
+    [Fact]
+    public async Task Messages_ReadOnButNotWhole_SayAtLeastWhereEveryOneHeldIsUnread()
+    {
+        var built = new AShell { Messages = FakeDirectMessages.ReadingOn(Conversations(100, unread: _ => true)) };
+        var opened = await AtMessages(built);
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        var badge = Badge(opened, DestinationKind.Messages);
+        Assert.Equal(80, badge.Unread);
+        Assert.True(badge.Full);
+    }
+
+    /// <summary>Marking a conversation read once older ones were read on moves the badge by one, as it always has.</summary>
+    [Fact]
+    public async Task Messages_MarkedOnceReadOn_MoveTheBadgeByOne()
+    {
+        var built = new AShell
+        {
+            Messages = FakeDirectMessages.ReadingOn(Conversations(60, unread: n => n is 0 or 45 or 50)),
+        };
+        var opened = await AtMessages(built);
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        await opened.MarkRead();
+        built.Host.Drain();
+
+        Assert.Equal(2, Badge(opened, DestinationKind.Messages).Unread);
+    }
+
+    /// <summary>A conversation arriving live still goes on top of a list read on, the older ones staying under it.</summary>
+    [Fact]
+    public async Task Messages_ReadOn_StillTakeAConversationArrivingLiveOnTop()
+    {
+        var held = Conversations(60, unread: _ => false);
+        var built = new AShell { Messages = FakeDirectMessages.ReadingOn(held) };
+        var opened = await AtMessages(built);
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        built.Messages.NowHolding([AConversation.With(id: "new"), .. held]);
+        built.Clock.Advance(TimeSpan.FromSeconds(60));
+        built.Host.Drain();
+
+        var messages = Assert.IsType<DirectMessagesScreen>(opened.Screen);
+        Assert.Equal(
+            ["new", .. Enumerable.Range(0, 60).Select(n => $"c{n}")],
+            messages.Conversations.Select(conversation => conversation.Id));
+    }
+
     /// <summary>Opens the shell and arrives at Follow requests.</summary>
     private static async Task<Shell> AtRequests(AShell built)
     {

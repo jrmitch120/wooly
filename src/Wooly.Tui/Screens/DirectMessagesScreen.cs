@@ -137,6 +137,18 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         return false;
     }
 
+    /// <summary>
+    ///     Puts <paramref name="older" /> under the conversations already held, as a read on brought them: below
+    ///     everything, with the pick left on the conversation it was on (#466).
+    /// </summary>
+    public void ReadOn(IReadOnlyList<Conversation> older)
+    {
+        foreach (var conversation in older)
+        {
+            _conversations.Add(conversation);
+        }
+    }
+
     /// <inheritdoc />
     /// <remarks>
     ///     A conversation not on screen, or one whose last post or unread flag the instance now has differently — so a
@@ -162,7 +174,9 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(_conversations.Rows(drawing.Width, Draw));
+        var rows = _conversations.Rows(drawing.Width, Draw);
+
+        lines.AddRange(ReadingOn?.Under(rows, holding: Conversations.Count > 0) ?? rows);
 
         return lines;
 

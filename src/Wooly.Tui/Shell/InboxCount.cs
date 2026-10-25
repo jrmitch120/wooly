@@ -87,6 +87,17 @@ internal sealed class InboxCount(
         ports.Messages.List(profile, Arrival.CountedAtMost, cancellationToken);
 
     /// <summary>
+    ///     The Messages list <b>read on</b> from <paramref name="from" />: the conversations spoken in longer ago than
+    ///     the last one held, as many again as are counted (#466).
+    /// </summary>
+    public static Task<Fetch<Conversation>> ConversationsOn(
+        ShellPorts ports,
+        ActiveProfile profile,
+        Onward from,
+        CancellationToken cancellationToken) =>
+        ports.Messages.ReadOn(profile, from, Arrival.CountedAtMost, cancellationToken);
+
+    /// <summary>
     ///     The Requests list: whoever is waiting for an answer, each with where the profile stands with them. Whether
     ///     you already follow the person asking may be the most useful thing on the row, and the requests endpoint
     ///     sends no standing — so it is asked for as part of the one read arriving at Requests and a re-read of its
