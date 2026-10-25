@@ -1015,7 +1015,9 @@ who walked to the bottom had no way to see anything older without leaving the TU
   through).
 - **A fetch a rate limit stopped is never whole.** It keeps where it stopped, so a first read cut short reads on from
   there rather than saying "that's everything". One stopped before anything arrived still shows the emptiness notice
-  it always has ("Rate limited part way through"), and its foot draws nothing, as on any empty list.
+  it always has ("Rate limited part way through"), and its foot draws nothing, as on any empty list. The notice goes
+  once a read on brings anything, there and on a list it stopped part way with items in hand: what it said had arrived
+  is no longer what has, and it would otherwise stand over the list read on for as long as the screen did.
 - **The cache holds everything read on, and where to read on from** (#463). It is still the one cache, keyed by
   subject (ADR-0014): each read on that lands is added under what the list's entry already holds, and the onward
   position it came back with replaces the old one. A reader who has read on to 400 posts on Home, gone to Notifications

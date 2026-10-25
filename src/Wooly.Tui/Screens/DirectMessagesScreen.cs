@@ -20,7 +20,7 @@ namespace Wooly.Tui.Screens;
 ///         here and the same message read in the thread looking like two different things.
 ///     </para>
 /// </remarks>
-public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversations, string? notice = null) : Screen
+public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversations, string? notice = null) : Screen(notice)
 {
     // Named by the conversation's own id, which is not the id of any post in it (GLOSSARY.md) — and is what a refresh
     // puts the reader back on (#84).
@@ -55,12 +55,6 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
             .. conversation.With.Select(Mentionable.Addressed),
             .. conversation.Latest is { } latest ? Mentionable.In(latest) : [],
         ]);
-
-    /// <summary>
-    ///     Something the shell has to say about the list rather than about anything on it — that nobody has written, or
-    ///     that a rate limit cut the listing short.
-    /// </summary>
-    public string? Notice { get; } = notice;
 
     /// <summary>
     ///     How many of them have something unread in them, which is what the rail's badge says. Counted from the list

@@ -14,7 +14,7 @@ namespace Wooly.Tui.Screens;
 ///     and <c>x</c> rejects here, where on a feed they open an author and show a warning. That collision is what the
 ///     status row exists to make workable (<c>docs/tui-shell.md</c>).
 /// </remarks>
-public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string? notice = null) : Screen
+public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string? notice = null) : Screen(notice)
 {
     // Named by the id the instance listed them under, which is what answering a request takes (ADR-0012) — and what a
     // refresh puts the reader back on (#84).
@@ -45,12 +45,6 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
 
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => Waiting.Select(Mentionable.Of);
-
-    /// <summary>
-    ///     Something the shell has to say about the list rather than about anybody on it — that nobody is waiting, or
-    ///     that a rate limit cut the read short.
-    /// </summary>
-    public string? Notice { get; } = notice;
 
     /// <summary>
     ///     Whoever is picked out, or <see langword="null" /> where nobody is waiting. What <c>a</c> and <c>x</c>

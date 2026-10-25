@@ -991,6 +991,13 @@ public abstract record Subject
             How.Adds(screen, Fetch.Items);
             screen.ReadingOn?.Arrived(Fetch.Onward);
 
+            // A read a rate limit stopped said what had arrived, which stops being so once this brings anything: the
+            // notice goes, rather than standing over a list it no longer describes (#460).
+            if (Fetch.Items.Count > 0)
+            {
+                screen.Notice = null;
+            }
+
             // Off the whole list the screen holds, not off what this read brought: what was put on top live and what
             // was answered since are as much the list as anything read on.
             _counted = How.Recounts?.Invoke(screen, Fetch.IsWhole);

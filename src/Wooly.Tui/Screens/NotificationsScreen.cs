@@ -29,7 +29,7 @@ namespace Wooly.Tui.Screens;
 public sealed class NotificationsScreen(
     IReadOnlyList<NotificationGroup> groups,
     string? notice = null,
-    IReadOnlySet<string>? unread = null) : Screen
+    IReadOnlySet<string>? unread = null) : Screen(notice)
 {
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
@@ -69,12 +69,6 @@ public sealed class NotificationsScreen(
 
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => Groups.SelectMany(Mentionable.In);
-
-    /// <summary>
-    ///     Something the shell has to say about the inbox rather than about anything in it — that it is empty, or that
-    ///     a rate limit cut the read short.
-    /// </summary>
-    public string? Notice { get; } = notice;
 
     /// <summary>
     ///     Whether anything in <paramref name="group" /> was newer than the read marker when the reader arrived, or

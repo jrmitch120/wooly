@@ -56,12 +56,6 @@ public sealed class FeedScreen : Screen
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => Mentionable.In(Posts);
 
-    /// <summary>
-    ///     Something the shell has to say about this timeline rather than about a post on it — that it is empty, or
-    ///     that a rate limit cut it short.
-    /// </summary>
-    public string? Notice { get; }
-
     /// <inheritdoc />
     public override Post? Picked => _posts.Out;
 

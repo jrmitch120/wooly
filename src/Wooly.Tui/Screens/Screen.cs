@@ -36,6 +36,14 @@ public abstract class Screen
     /// </remarks>
     private readonly HashSet<int> _chosen = [];
 
+    /// <summary>A screen with nothing for the shell to say over it.</summary>
+    protected Screen()
+    {
+    }
+
+    /// <summary>A screen with <paramref name="notice" /> said over its list (<see cref="Notice" />).</summary>
+    protected Screen(string? notice) => Notice = notice;
+
     /// <summary>What this screen is called on the breadcrumb, e.g. <c>Post by @ben</c>.</summary>
     /// <remarks>
     ///     Sentence case, except a crumb that opens with a handle or a hashtag, which is spelled the way that thing is
@@ -186,6 +194,22 @@ public abstract class Screen
     ///     nothing. A screen whose list reads on draws the foot of it (<see cref="Screens.ReadingOn.Under" />).
     /// </remarks>
     public ReadingOn? ReadingOn { get; internal set; }
+
+    /// <summary>
+    ///     What the shell has to say about this screen's list rather than about anything on it — that nothing is on it,
+    ///     or that a rate limit cut the read short — or <see langword="null" /> where it has nothing to say.
+    /// </summary>
+    /// <remarks>
+    ///     Drawn on the screen rather than said on the status row: the row holds either a notice or the keys and never
+    ///     both, so a notice standing there is every key the screen answers to, hidden — and on a list with nothing on
+    ///     it there is nothing to walk, so nothing ever comes along to take it down again.
+    ///     <para>
+    ///         Kept here rather than by each list, because a read on lands on whichever list it was asked from and
+    ///         takes it down there once it brings anything: a read a rate limit stopped said what had arrived, which
+    ///         is no longer what has (#460).
+    ///     </para>
+    /// </remarks>
+    public string? Notice { get; protected internal set; }
 
     /// <summary>
     ///     Carries out <paramref name="verb" />, where it is one of this screen's own: what its keys do, in the file

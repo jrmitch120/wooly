@@ -22,6 +22,8 @@ internal sealed class FakeTimelineReader : ITimelineReader
 
     private Exception? _refusing;
 
+    private RateLimitedException? _nextReadStoppedBy;
+
     private bool _holding;
 
     private FakeTimelineReader(Func<Timeline, Task<Fetch<Post>>> answer) => _answer = answer;
@@ -125,6 +127,13 @@ internal sealed class FakeTimelineReader : ITimelineReader
         Reads.Add(new Call(profile.Name, timeline, limit));
         Tokens.Add(profile.AccessToken);
 
+        if (_nextReadStoppedBy is { } stoppedBy)
+        {
+            _nextReadStoppedBy = null;
+
+            return Task.FromResult(Fetch<Post>.StoppedShort([], stoppedBy));
+        }
+
         return _reading is { } reading ? Task.FromResult(reading(timeline, null, limit)) : _answer(timeline);
     }
 
@@ -134,6 +143,12 @@ internal sealed class FakeTimelineReader : ITimelineReader
     ///     behind, and what tries it again (#462).
     /// </summary>
     public void RefusesReadsOn(Exception refusal) => _refusing = refusal;
+
+    /// <summary>
+    ///     The next read is stopped by <paramref name="limit" /> before anything arrives, as a rate limit on a list's
+    ///     first page stops it — which reads on from the top of the list.
+    /// </summary>
+    public void RateLimitsNextRead(RateLimitedException limit) => _nextReadStoppedBy = limit;
 
     /// <summary>Reads on succeed again, as an instance that has come back does.</summary>
     public void StopsRefusingReadsOn() => _refusing = null;

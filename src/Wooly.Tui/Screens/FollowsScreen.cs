@@ -124,18 +124,6 @@ public sealed class FollowsScreen : Screen
             followers: Mine ? "Nobody follows you yet." : "Nobody follows them yet.",
             following: Mine ? "You follow nobody yet." : "They follow nobody yet.");
 
-    /// <summary>
-    ///     What the shell has to say about the list rather than about anybody on it — that nobody is on it, or that a
-    ///     rate limit cut the reading short.
-    /// </summary>
-    /// <remarks>
-    ///     Drawn on the screen rather than said on the status row, which is where every other list this shell draws
-    ///     puts one: the row holds either a notice or the keys and never both, so a notice standing there is every
-    ///     key the screen answers to, hidden — and on a list with nobody on it there is nothing to walk, so nothing
-    ///     ever comes along to take it down again.
-    /// </remarks>
-    public string? Notice { get; private set; }
-
     /// <summary>Whoever is picked out, or nobody where nobody is on screen. What <c>⏎</c> opens.</summary>
     public Account? PickedPerson => _walking.Out;
 

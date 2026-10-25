@@ -31,12 +31,6 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
     /// <summary>How many have been read.</summary>
     public int Read => _people.Count;
 
-    /// <summary>
-    ///     What the shell has to say about the list rather than anybody on it — that nobody is on it, or that a rate
-    ///     limit cut the reading short — drawn on the screen, as Followers draws it.
-    /// </summary>
-    public string? Notice { get; private set; }
-
     /// <summary>Whoever is picked out, or nobody. What <c>⏎</c> opens.</summary>
     public Account? PickedPerson => _people.Out;
 
