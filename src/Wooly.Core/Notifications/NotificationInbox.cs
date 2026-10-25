@@ -71,8 +71,28 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
     ///     which kinds group is the instance's call (ADR-0032). An instance that answers the first page with a 404 is
     ///     older than Mastodon 4.3, and is read through <c>/api/v1</c> instead, each notification a group of one.
     /// </remarks>
-    public async Task<Fetch<NotificationGroup>> ReadGroups(
+    public Task<Fetch<NotificationGroup>> ReadGroups(
         ActiveProfile profile,
+        int limit,
+        CancellationToken cancellationToken) =>
+        CollectGroups(profile, from: null, limit, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Through whichever read the first one went through: an instance that groups is asked <c>/api/v2</c> from the
+    ///     <c>max_id</c> its link named, and one too old to group <c>/api/v1</c> from the last notification held.
+    /// </remarks>
+    public Task<Fetch<NotificationGroup>> ReadGroupsOn(
+        ActiveProfile profile,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken) =>
+        CollectGroups(profile, from, limit, cancellationToken);
+
+    /// <summary>One grouped read, from the top or from where an earlier one said to read on.</summary>
+    private async Task<Fetch<NotificationGroup>> CollectGroups(
+        ActiveProfile profile,
+        Onward? from,
         int limit,
         CancellationToken cancellationToken)
     {
@@ -88,7 +108,8 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
                     options => GroupedPage(profile, options, cancellationToken),
                     group => group,
                     idOf: null,
-                    cancellationToken);
+                    cancellationToken,
+                    from: from);
             }
             catch (NoGroupedRead)
             {
@@ -104,7 +125,8 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
             options => client.GetNotifications(options),
             notification => NotificationGroup.Alone(NotificationWire.ToNotification(notification, profile)),
             notification => notification.Id,
-            cancellationToken);
+            cancellationToken,
+            from: from);
     }
 
     /// <summary>One page of groups, and where the instance says the next one starts.</summary>
