@@ -21,7 +21,12 @@ internal abstract record Found
     public abstract Screen Becomes(Screen? standing);
 
     /// <summary>What the rail's badge says off this answer, for the one kind of subject that carries a badge.</summary>
-    public virtual Badge? Counted => null;
+    /// <param name="became">
+    ///     The screen this answer became, which a badge counted off the list it holds is counted off — handed in
+    ///     rather than kept from <see cref="Becomes" />, so that what the badge says cannot be asked before there is a
+    ///     screen to say it of.
+    /// </param>
+    public virtual Badge? Counted(Screen became) => null;
 
     /// <summary>
     ///     What of this answer is worth handing back the next time the subject is reached, or <see langword="null" />
@@ -36,7 +41,8 @@ internal abstract record Found
     ///     reads on (#463). Asked only of what the cache holds.
     /// </summary>
     /// <param name="readOn">What a read on of the same subject came back with.</param>
-    public virtual Found? Holding(Found readOn) => null;
+    /// <param name="became">The screen <paramref name="readOn" /> was put on, which its badge is counted off.</param>
+    public virtual Found? Holding(Found readOn, Screen became) => null;
 
     /// <summary>
     ///     Whether the rest of the subject is read at once, behind the reader, as soon as this has landed — a

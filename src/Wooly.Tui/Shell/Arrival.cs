@@ -266,11 +266,11 @@ public sealed class Arrival(
             ask => subject.ReadOn(ask, ports, profile, showing, from),
             ifStillHere: found =>
             {
-                Land(subject, Move.Further, showing, found);
+                var screen = Land(subject, Move.Further, showing, found);
 
                 if (subject.Cached)
                 {
-                    cache.Add(subject, found);
+                    cache.Add(subject, found, screen);
                 }
             },
             ended: reading.Ended,
@@ -468,7 +468,7 @@ public sealed class Arrival(
             Up(screen, subject, move);
         }
 
-        if (found.Counted is { } badge)
+        if (found.Counted(screen) is { } badge)
         {
             (move == Move.Further ? Recounts : Counts)?.Invoke(badge);
         }

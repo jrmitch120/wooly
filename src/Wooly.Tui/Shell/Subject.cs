@@ -902,7 +902,7 @@ public abstract record Subject
         ///     shell opens — so the rail cannot say four over a list of three, nor say one thing on opening and
         ///     another on arriving.
         /// </remarks>
-        public override Found.Badge? Counted => Waiting?.Badge;
+        public override Found.Badge? Counted(Screen became) => Waiting?.Badge;
 
         /// <inheritdoc />
         /// <remarks>
@@ -928,12 +928,12 @@ public abstract record Subject
         ///         again says what it said as the reader left it rather than what its first read could (#466).
         ///     </para>
         /// </remarks>
-        public override Found? Holding(Found readOn) =>
+        public override Found? Holding(Found readOn, Screen became) =>
             readOn is ReadOnto<T> onto
                 ? this with
                 {
                     Fetch = Fetch with { Items = [.. Fetch.Items, .. onto.Fetch.Items], Onward = onto.Fetch.Onward },
-                    Waiting = Waiting is { } waiting && onto.Counted is { } recounted
+                    Waiting = Waiting is { } waiting && onto.Counted(became) is { } recounted
                         ? waiting with { Badge = recounted }
                         : Waiting,
                 }
@@ -958,9 +958,6 @@ public abstract record Subject
     /// <param name="Fetch">What came back, and where to read on from next unless the list is now whole.</param>
     private sealed record ReadOnto<T>(OnwardRead<T> How, Fetch<T> Fetch) : Found
     {
-        /// <summary>The badge counted off the screen once this was added to it, where the destination counts so.</summary>
-        private Badge? _counted;
-
         /// <inheritdoc />
         /// <remarks>Read into the screen it was asked from, which is already up — so it is not put up again.</remarks>
         public override Screen Becomes(Screen? standing)
@@ -980,14 +977,15 @@ public abstract record Subject
                 standing.Notice = null;
             }
 
-            // Off the whole list the screen holds, not off what this read brought: what was put on top live and what
-            // was answered since are as much the list as anything read on.
-            _counted = How.Recounts?.Invoke(list.Items, Fetch.IsWhole);
-
             return standing;
         }
 
         /// <inheritdoc />
-        public override Badge? Counted => _counted;
+        /// <remarks>
+        ///     Where the destination counts so, off the whole list the screen holds, not off what this read brought:
+        ///     what was put on top live and what was answered since are as much the list as anything read on.
+        /// </remarks>
+        public override Badge? Counted(Screen became) =>
+            became is IReadsOn<T> list ? How.Recounts?.Invoke(list.Items, Fetch.IsWhole) : null;
     }
 }
