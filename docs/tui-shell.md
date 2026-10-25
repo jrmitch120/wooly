@@ -999,8 +999,15 @@ who walked to the bottom had no way to see anything older without leaving the TU
 - **A cached Home reads on from where its first read stopped.** The cache keeps the onward position with the posts
   (ADR-0014). A Home arrived at within the minute is a fresh screen of the first read's posts, opened at the top, and
   walking down reads on from the post after them. Holding everything read on is #463's.
-- **Only Home, for now.** Every other list still reads once and never asks, and draws no foot. Local, Federated, a
-  hashtag and an account's posts follow in #464, and the Inbox in #465 and #466.
+- **Notifications reads on too (#465).** The older **Notification groups** go under the last one held, read the way
+  the screen was first read: grouped from `/api/v2`, from the `max_id` the instance's own link named, or, where the
+  instance cannot group, each notification a group of one from `/api/v1` (ADR-0032). The instance groups a page at a
+  time, so a group already held can come back on an older page with older notifications of its own. It stays where it
+  is, drawn once. A group arriving live still goes on top, read on or not, and neither waits for the other nor moves
+  what the other put. The older groups are behind the **Read marker**, so reading on moves neither the marker nor the
+  badge, and draws them read (ADR-0027).
+- **Home and Notifications, for now.** Every other list still reads once and never asks, and draws no foot. Local,
+  Federated, a hashtag and an account's posts follow in #464, and the rest of the Inbox in #466.
 
 ### What conversations settled
 

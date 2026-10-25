@@ -173,6 +173,26 @@ public sealed class NotificationsScreen(
     }
 
     /// <summary>
+    ///     Puts <paramref name="older" /> under the groups already held, as a read on brought them (#465): below
+    ///     everything, drawn read — they are behind the read marker — with the pick left on the group it was on and
+    ///     nothing above it moved, whatever arrived on top meanwhile.
+    ///     <para>
+    ///         The instance groups a page at a time, so a group already held can come back with older notifications of
+    ///         its own. It stays where it is, under its newest: one key drawn twice is two rows <c>d</c> and <c>w</c>
+    ///         could not tell apart.
+    ///     </para>
+    /// </summary>
+    public void ReadOn(IReadOnlyList<NotificationGroup> older)
+    {
+        var held = Groups.Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var group in older.Where(group => held.Add(group.Key)))
+        {
+            _groups.Add(group);
+        }
+    }
+
+    /// <summary>
     ///     What this screen's own keys do: <c>w</c> opens who did what the picked group reports, <c>d</c> dismisses
     ///     it, and <c>D</c> all of them.
     /// </summary>
@@ -299,7 +319,9 @@ public sealed class NotificationsScreen(
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(_groups.Rows(drawing.Width, Draw));
+        var groups = _groups.Rows(drawing.Width, Draw);
+
+        lines.AddRange(ReadingOn?.Under(groups, holding: groups.Count > 0) ?? groups);
 
         return lines;
 
