@@ -61,7 +61,7 @@ public sealed record ShellTiming(
     TimeSpan WidthSaidFor)
 {
     /// <summary>
-    ///     How many people a follow list may have on it and still be held whole rather than browsed a page at a time
+    ///     How many people a follow list may have on it and still be held whole rather than browsed by reading on
     ///     (#180). Two thousand: at 80 to a page that is 25 requests against a budget of 300 every five minutes, and
     ///     the list above it — <c>@Mastodon@mastodon.social</c>'s 877,000 followers — would be some 11,000.
     /// </summary>
