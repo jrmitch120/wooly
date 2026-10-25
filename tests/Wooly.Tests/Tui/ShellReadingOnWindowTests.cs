@@ -1,5 +1,6 @@
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
+using Wooly.Core.Errors;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
@@ -112,6 +113,36 @@ public class ShellReadingOnWindowTests
 
             Assert.Equal(2, built.Timelines.ReadsOn.Count);
             Assert.Equal(80, Assert.IsType<FeedScreen>(shell.Screen).Posts.Count);
+        }
+    }
+
+    /// <summary>
+    ///     A read on that fails, on a real window (#462): the foot of the list says so under the last post, where the
+    ///     page shows it once the view is taken down past the pick — <c>End</c> leaves the pick's last row at the foot
+    ///     of the page, and the foot of the list goes under it rather than moving anything.
+    /// </summary>
+    [Fact]
+    public async Task End_OntoAReadOnThatFails_DrawsCouldntReadOnAtTheFootOfTheList()
+    {
+        var (window, shell, built) = await Laid();
+
+        using (window)
+        {
+            var content = Content(window);
+
+            window.Draw();
+            built.Timelines.RefusesReadsOn(new TransientNetworkException(null, 3, new HttpRequestException("Down.")));
+            window.NewKeyDownEvent(Key.End);
+            window.Draw();
+            built.Host.Drain();
+            window.Draw();
+
+            window.NewKeyDownEvent(Key.CursorDown);
+            window.Draw();
+            built.Host.Drain();
+            window.Draw();
+
+            Assert.Equal(ReadingOn.FailedSays, Page(shell, content, built)[^1]);
         }
     }
 

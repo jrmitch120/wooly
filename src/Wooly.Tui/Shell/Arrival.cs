@@ -255,7 +255,9 @@ public sealed class Arrival(
     ///     at a time per screen, however much the reader walks about near the end. The answer lands on the screen it
     ///     was asked from and is added to it rather than put up as a new one, and only while that screen is in front:
     ///     the stale rule every enquiry keeps. A read dropped by it costs nothing, since where to read on from has not
-    ///     moved, and the page still near the end on coming back asks again.
+    ///     moved, and the page still near the end on coming back asks again. A read that fails is the same (#462): the
+    ///     list is left as it was, the foot says it couldn't read on and the enquiry's notice says why, and the next
+    ///     approach to the end asks again from the same place — the reader's walking, never a timer.
     /// </remarks>
     public Task ReadOn(Screen showing)
     {
@@ -267,7 +269,8 @@ public sealed class Arrival(
         return enquiry.Put(
             ask => subject.ReadOn(ask, ports, profile, from),
             ifStillHere: found => Land(subject, Move.Page, showing, found),
-            ended: reading.Ended);
+            ended: reading.Ended,
+            failed: reading.Refused);
     }
 
     /// <summary>

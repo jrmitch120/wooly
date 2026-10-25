@@ -139,11 +139,17 @@ public sealed class Enquiry(
     ///     stale, or refused — ahead of whatever lands: a read on, which is one at a time on its screen, being out no
     ///     longer (#469). Not done where the enquiry was abandoned, there being nothing left to do it to.
     /// </param>
+    /// <param name="failed">
+    ///     What is done on the drawing thread where the question failed — refused, or anything else a wait does not
+    ///     mend — after <paramref name="ended" />, as the notice saying why is said: a read on's foot saying it could
+    ///     not (#462). Not done where the enquiry was abandoned.
+    /// </param>
     public async Task Put<T>(
         Func<Ask, Task<T>> question,
         Action<T>? eitherWay = null,
         Action<T>? ifStillHere = null,
-        Action? ended = null)
+        Action? ended = null,
+        Action? failed = null)
     {
         if (_abandoned.IsCancellationRequested)
         {
@@ -175,6 +181,7 @@ public sealed class Enquiry(
             Apply(() =>
             {
                 ended?.Invoke();
+                failed?.Invoke();
 
                 if (failure is AuthenticationException refused)
                 {

@@ -1,3 +1,5 @@
+using Wooly.Core.Errors;
+using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
@@ -16,6 +18,12 @@ public class ShellReadingOnTests
 {
     /// <summary>The height of the content region these tests say the page is, in rows.</summary>
     private const int Screenful = 20;
+
+    /// <summary>A failure no wait mends, which is what a read on that does not succeed is refused with.</summary>
+    private static readonly TransientNetworkException Unreachable = new(
+        new Uri("https://mastodon.social/api/v1/timelines/home"),
+        attempts: 3,
+        new HttpRequestException("Connection refused"));
 
     /// <summary>
     ///     The page within a screenful of the end of Home: the posts behind the last one held are asked for and put
@@ -239,6 +247,70 @@ public class ShellReadingOnTests
 
         Assert.Empty(built.Timelines.ReadsOn);
         Assert.DoesNotContain("that's everything", Rows(opened.Screen));
+    }
+
+    /// <summary>
+    ///     A read on that fails says so twice (#462): the foot of the list says "couldn't read on", and a notice says
+    ///     why. The list is left as it was.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_ThatFails_SaysCouldntReadOnAtTheFoot_WithANoticeSayingWhy_AndLeavesTheList()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.RefusesReadsOn(Unreachable);
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal("couldn't read on", Foot(opened.Screen));
+        Assert.Equal(Unreachable.Message, opened.Notice);
+        Assert.True(opened.NoticeIsError);
+        Assert.Equal(Ids(1, 40), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     Nothing tries a failed read on again by itself, however long the reader leaves it: no timer ever asks the
+    ///     instance on their behalf while they are not looking.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_ThatFails_IsNeverRetriedOnATimer()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.RefusesReadsOn(Unreachable);
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        built.Clock.Advance(TimeSpan.FromHours(1));
+        built.Host.SettleAll();
+
+        Assert.Single(built.Timelines.ReadsOn);
+        Assert.Equal("couldn't read on", Foot(opened.Screen));
+    }
+
+    /// <summary>
+    ///     The next time the page nears the end, it tries again by itself, from the same place, and what it brings
+    ///     goes under the list as any read on's does — no <c>g</c> needed, and nothing of where the reader was lost.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_ThatFailed_IsTriedAgainOnTheNextApproachToTheEnd()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.RefusesReadsOn(Unreachable);
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        built.Timelines.StopsRefusingReadsOn();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal(2, built.Timelines.ReadsOn.Count);
+        Assert.Equal(built.Timelines.ReadsOn[0].From, built.Timelines.ReadsOn[1].From);
+        Assert.Equal(Ids(1, 80), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+        Assert.DoesNotContain("couldn't read on", Rows(opened.Screen));
     }
 
     /// <summary>Every row <paramref name="screen" /> draws, as text, the gutter and all.</summary>
