@@ -429,6 +429,80 @@ public class AccountRelationshipsTests
         Assert.Equal("mastodon.social", fetch.StoppedBy!.Instance);
     }
 
+    /// <summary>
+    ///     Reading on (#467): a list that stopped at what was asked for says where to read on from, and handing that
+    ///     back asks for the page the instance named next — the list is not read again from the top.
+    /// </summary>
+    [Fact]
+    public async Task ListOn_AsksForThePageTheLastListNamedNext()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Page(FullPage(), nextPageAt: "4801"),
+            Page(FullPage(), nextPageAt: "4700"));
+        var relationships = Relationships(network);
+        var token = TestContext.Current.CancellationToken;
+        var whose = NamedAccount.Resolved(AnAccount.With(address: "alice@hachyderm.io", id: "42"));
+
+        var first = await relationships.List(Profile, FollowSide.Followers, whose, 80, token);
+        var onward = await relationships.ListOn(Profile, FollowSide.Followers, whose, first.Onward!, 80, token);
+
+        Assert.False(first.IsWhole);
+        Assert.Equal(2, network.Requests.Count);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/42/followers?max_id=4801&limit=80",
+            network.Requests[1].RequestUri?.ToString());
+        Assert.Equal(80, onward.Items.Count);
+        Assert.False(onward.IsWhole);
+    }
+
+    /// <summary>
+    ///     Where the instance names no next page the list is whole, there being no cursor of its own to guess one
+    ///     from (the follow's id, not the account's).
+    /// </summary>
+    [Fact]
+    public async Task ListOn_IsWholeWhereTheInstanceNamesNoFurtherPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Page(FullPage(), nextPageAt: "4801"),
+            Page(FullPage(), nextPageAt: null));
+        var relationships = Relationships(network);
+        var token = TestContext.Current.CancellationToken;
+        var whose = NamedAccount.Resolved(AnAccount.With(address: "alice@hachyderm.io", id: "42"));
+
+        var first = await relationships.List(Profile, FollowSide.Following, whose, 80, token);
+        var onward = await relationships.ListOn(Profile, FollowSide.Following, whose, first.Onward!, 80, token);
+
+        Assert.Equal(80, onward.Items.Count);
+        Assert.True(onward.IsWhole);
+        Assert.StartsWith(
+            "https://mastodon.social/api/v1/accounts/42/following?max_id=4801",
+            network.Requests[1].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     A rate limit keeps where it stopped, so reading on from a stopped list asks for the page the limit refused
+    ///     rather than for one past it.
+    /// </summary>
+    [Fact]
+    public async Task ListOn_FromAListARateLimitStoppedAsksForThePageItRefused()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Page(FullPage(), nextPageAt: "4801"),
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests),
+            Page(Accounts(AccountJson("next", id: "999")), nextPageAt: null));
+        var relationships = Relationships(network);
+        var token = TestContext.Current.CancellationToken;
+        var whose = NamedAccount.Resolved(AnAccount.With(address: "alice@hachyderm.io", id: "42"));
+
+        var stopped = await relationships.List(Profile, FollowSide.Followers, whose, 160, token);
+        await relationships.ListOn(Profile, FollowSide.Followers, whose, stopped.Onward!, 80, token);
+
+        Assert.NotNull(stopped.StoppedBy);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/accounts/42/followers?max_id=4801&limit=80",
+            network.Requests[2].RequestUri?.ToString());
+    }
+
     [Fact]
     public async Task PendingRequests_ReadsTheAccountsWaitingToBeLetIn()
     {
@@ -441,6 +515,52 @@ public class AccountRelationshipsTests
         var waiting = Assert.Single(fetch.Items);
         Assert.Equal("42", waiting.Id);
         Assert.Equal("alice@hachyderm.io", waiting.Address);
+    }
+
+    /// <summary>
+    ///     Reading on (#466): requests that stopped at what was asked for say where to read on from, and handing that
+    ///     back asks for the page the instance named next — in the follow ids it pages by, never an account's.
+    /// </summary>
+    [Fact]
+    public async Task PendingRequestsOn_AsksForThePageTheLastReadNamedNext()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Page(FullPage(), nextPageAt: "4801"),
+            Page(Accounts(AccountJson("alice@hachyderm.io", id: "42")), nextPageAt: null));
+        var relationships = Relationships(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await relationships.PendingRequests(Profile, 80, token);
+        var onward = await relationships.PendingRequestsOn(Profile, first.Onward!, 80, token);
+
+        Assert.False(first.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/follow_requests?max_id=4801&limit=80",
+            network.Requests[1].RequestUri?.ToString());
+        Assert.Equal("42", Assert.Single(onward.Items).Id);
+        Assert.True(onward.IsWhole);
+    }
+
+    /// <summary>A rate limit reading on keeps where it stopped, so the next read asks for the page it refused.</summary>
+    [Fact]
+    public async Task PendingRequestsOn_KeepsWhereARateLimitStoppedIt()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Page(FullPage(), nextPageAt: "4801"),
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests),
+            Page(Accounts(AccountJson("alice@hachyderm.io", id: "42")), nextPageAt: null));
+        var relationships = Relationships(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await relationships.PendingRequests(Profile, 80, token);
+        var stopped = await relationships.PendingRequestsOn(Profile, first.Onward!, 80, token);
+        await relationships.PendingRequestsOn(Profile, stopped.Onward!, 80, token);
+
+        Assert.NotNull(stopped.StoppedBy);
+        Assert.False(stopped.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/follow_requests?max_id=4801&limit=80",
+            network.Requests[2].RequestUri?.ToString());
     }
 
     /// <summary>

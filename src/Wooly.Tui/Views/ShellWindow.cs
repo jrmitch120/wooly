@@ -99,6 +99,19 @@ internal sealed class ShellWindow : Window
     private Screen? _showing;
 
     /// <summary>
+    ///     Whether the next frame's page is to be told to the shell, which is what reads a list on as the page nears
+    ///     its end (#469): after the pick has been walked or jumped; after the page has been moved with the pick left
+    ///     where it was, by <c>↓</c>, <c>↑</c>, <c>PgDn</c>, <c>PgUp</c> or a notch of the wheel (#461); and on a
+    ///     screen coming in front — arrived at, drilled into, refreshed or walked back to — and on nothing else.
+    /// </summary>
+    /// <remarks>
+    ///     Once per move rather than on every frame, because a frame is drawn for many reasons that are not the reader
+    ///     going anywhere — a read on landing is one — and a list whose read on came back with nothing new would ask
+    ///     again on every one of them. The reader's own moving is the only throttle reading on has (#460).
+    /// </remarks>
+    private bool _pageToTell = true;
+
+    /// <summary>
     ///     Whether the rail is laid out, which it is as built: there is one, and it is not hidden. What gives the
     ///     content its columns.
     /// </summary>
@@ -254,6 +267,7 @@ internal sealed class ShellWindow : Window
             Scrolls = true,
             KeepsToThePage = () => shell.Screen.KeepsToThePage,
             Pinned = () => shell.Screen.Pinned,
+            Settled = Paged,
         };
 
         // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one
@@ -833,6 +847,7 @@ internal sealed class ShellWindow : Window
     {
         _shell.Walk(by, _content.Reclaimable);
         _content.Follow();
+        _pageToTell = true;
     }
 
     /// <summary>
@@ -887,6 +902,7 @@ internal sealed class ShellWindow : Window
     private void Scrolled(int rows)
     {
         _content.Step(rows);
+        _pageToTell = true;
 
         SetNeedsDraw();
     }
@@ -899,6 +915,7 @@ internal sealed class ShellWindow : Window
     private void Turned(int pages)
     {
         _content.Turn(pages);
+        _pageToTell = true;
 
         SetNeedsDraw();
     }
@@ -912,6 +929,24 @@ internal sealed class ShellWindow : Window
     {
         _shell.Move(by);
         _content.Follow();
+        _pageToTell = true;
+    }
+
+    /// <summary>
+    ///     Where the frame just settled left the page, told to the shell once per move (<see cref="_pageToTell" />)
+    ///     — which reads the list on where the page has come within a screenful of its end (#469).
+    /// </summary>
+    /// <param name="under">How many rows lie under the bottom of the page.</param>
+    /// <param name="screenful">How many rows the page is.</param>
+    private void Paged(int under, int screenful)
+    {
+        if (!_pageToTell)
+        {
+            return;
+        }
+
+        _pageToTell = false;
+        _shell.Viewed(under, screenful);
     }
 
     /// <summary>
@@ -1161,6 +1196,7 @@ internal sealed class ShellWindow : Window
             _showing = _shell.Screen;
 
             _content.Resume(_showing.Began, _showing.Followed);
+            _pageToTell = true;
         }
 
         // Nothing below the block being answered is readable while composing — the editor is in front of all of it —

@@ -36,6 +36,14 @@ public abstract class Screen
     /// </remarks>
     private readonly HashSet<int> _chosen = [];
 
+    /// <summary>A screen with nothing for the shell to say over it.</summary>
+    protected Screen()
+    {
+    }
+
+    /// <summary>A screen with <paramref name="notice" /> said over its list (<see cref="Notice" />).</summary>
+    protected Screen(string? notice) => Notice = notice;
+
     /// <summary>What this screen is called on the breadcrumb, e.g. <c>Post by @ben</c>.</summary>
     /// <remarks>
     ///     Sentence case, except a crumb that opens with a handle or a hashtag, which is spelled the way that thing is
@@ -165,7 +173,7 @@ public abstract class Screen
     public virtual IEnumerable<Mentionable> Seen => [];
 
     /// <summary>
-    ///     What this screen was read from, which is what <c>g</c> asks again and what a page more is read from — or
+    ///     What this screen was read from, which is what <c>g</c> asks again and what its list reads on from — or
     ///     <see langword="null" /> on a screen that is read from nothing: the search prompt, which is its own question
     ///     (#84), the compose editor, the keymap, a notice (#233).
     /// </summary>
@@ -177,10 +185,39 @@ public abstract class Screen
     public Subject? Subject { get; internal set; }
 
     /// <summary>
-    ///     Whether the reader has walked onto the end of what this screen has read and there is more of it to ask
-    ///     for — which is what <c>j</c> past the bottom means on a list browsed a page at a time (#180).
+    ///     How <b>reading on</b> stands for this screen's list — where to read on from, and whether a read is out — or
+    ///     <see langword="null" /> where its list does not read on, which is what keeps it from ever being asked (#469).
     /// </summary>
-    public virtual bool WantsMore => false;
+    /// <remarks>
+    ///     Set by the subject's answer as it lands, beside <see cref="Subject" /> and for the same reason: where to read
+    ///     on from is what the instance said, and a screen built in a test with no instance behind it reads on from
+    ///     nothing. A screen whose list reads on draws the foot of it (<see cref="WithFoot" />).
+    /// </remarks>
+    public ReadingOn? ReadingOn { get; internal set; }
+
+    /// <summary>
+    ///     <paramref name="rows" /> with the foot of the list under them where it reads on (<see cref="ReadingOn" />),
+    ///     and as they are where it does not — which every list that reads on draws its rows through, so that none of
+    ///     them can say what its foot says differently.
+    /// </summary>
+    /// <param name="rows">The list's own rows, and nothing above them: none where it holds nothing.</param>
+    protected IReadOnlyList<Line> WithFoot(IReadOnlyList<Line> rows) => ReadingOn?.Under(rows) ?? rows;
+
+    /// <summary>
+    ///     What the shell has to say about this screen's list rather than about anything on it — that nothing is on it,
+    ///     or that a rate limit cut the read short — or <see langword="null" /> where it has nothing to say.
+    /// </summary>
+    /// <remarks>
+    ///     Drawn on the screen rather than said on the status row: the row holds either a notice or the keys and never
+    ///     both, so a notice standing there is every key the screen answers to, hidden — and on a list with nothing on
+    ///     it there is nothing to walk, so nothing ever comes along to take it down again.
+    ///     <para>
+    ///         Kept here rather than by each list, because a read on lands on whichever list it was asked from and
+    ///         takes it down there once it brings anything: a read a rate limit stopped said what had arrived, which
+    ///         is no longer what has (#460).
+    ///     </para>
+    /// </remarks>
+    public string? Notice { get; protected internal set; }
 
     /// <summary>
     ///     Carries out <paramref name="verb" />, where it is one of this screen's own: what its keys do, in the file

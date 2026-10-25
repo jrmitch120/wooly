@@ -149,6 +149,90 @@ public class NotificationGroupReadTests
     }
 
     /// <summary>
+    ///     Reading on (#465): a grouped read that stopped at what was asked for says where to read on from, and handing
+    ///     that back asks <c>/api/v2</c> for the page the instance's link named next — its <c>max_id</c>, a notification
+    ///     id, never anything this client worked out — rather than reading the groups again from the top.
+    /// </summary>
+    [Fact]
+    public async Task ReadGroupsOn_AsksForThePageTheLinkNamedNext()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            GroupedResponse(
+                Grouped([Group("a", "mention", 1, 50, ["2"], null), Group("b", "mention", 1, 47, ["2"], null)],
+                    accounts: [AccountJson("2", "alice@hachyderm.io")]),
+                nextMaxId: "45"),
+            GroupedResponse(
+                Grouped([Group("c", "mention", 1, 44, ["2"], null)],
+                    accounts: [AccountJson("2", "alice@hachyderm.io")]),
+                nextMaxId: "40"));
+        var inbox = NewInbox(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await inbox.ReadGroups(Profile, 2, token);
+        var onward = await inbox.ReadGroupsOn(Profile, first.Onward!, 1, token);
+
+        Assert.False(first.IsWhole);
+        Assert.Equal("/api/v2/notifications", network.Requests[1].RequestUri!.AbsolutePath);
+        Assert.Contains("max_id=45", network.Requests[1].RequestUri!.Query, StringComparison.Ordinal);
+        Assert.Equal(["c"], onward.Items.Select(group => group.Key));
+        Assert.False(onward.IsWhole);
+    }
+
+    /// <summary>
+    ///     The end is the instance's to say: a short page that still names a next page reads on, and only a page with
+    ///     no <c>next</c> link makes the groups whole (#449).
+    /// </summary>
+    [Fact]
+    public async Task ReadGroupsOn_IsWholeOnlyWhereTheInstanceNamesNoNextPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            GroupedResponse(
+                Grouped([Group("a", "mention", 1, 50, ["2"], null)], accounts: [AccountJson("2", "alice@hachyderm.io")]),
+                nextMaxId: "49"),
+            GroupedResponse(
+                Grouped([Group("b", "mention", 1, 48, ["2"], null)], accounts: [AccountJson("2", "alice@hachyderm.io")]),
+                nextMaxId: "47"),
+            GroupedResponse(
+                Grouped([Group("c", "mention", 1, 46, ["2"], null)], accounts: [AccountJson("2", "alice@hachyderm.io")])));
+        var inbox = NewInbox(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await inbox.ReadGroups(Profile, 1, token);
+        var second = await inbox.ReadGroupsOn(Profile, first.Onward!, 1, token);
+        var third = await inbox.ReadGroupsOn(Profile, second.Onward!, 40, token);
+
+        Assert.False(second.IsWhole);
+        Assert.Contains("max_id=47", network.Requests[2].RequestUri!.Query, StringComparison.Ordinal);
+        Assert.Equal(["c"], third.Items.Select(group => group.Key));
+        Assert.True(third.IsWhole);
+    }
+
+    /// <summary>
+    ///     An instance too old to group reads on too, through <c>/api/v1</c> as it was first read, from the last
+    ///     notification that read held — each older notification a group of one (ADR-0032).
+    /// </summary>
+    [Fact]
+    public async Task ReadGroupsOn_ReadsOnThroughV1OnAnInstanceWithNoGroupedRead()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.NotFound),
+            ScriptedHttpMessageHandler.Json($"[{V1NotificationJson("34", "favourite")}]"),
+            ScriptedHttpMessageHandler.Json($"[{V1NotificationJson("33", "follow")}]"));
+        var inbox = NewInbox(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await inbox.ReadGroups(Profile, 1, token);
+        var onward = await inbox.ReadGroupsOn(Profile, first.Onward!, 40, token);
+
+        Assert.Equal("/api/v1/notifications", network.Requests[2].RequestUri!.AbsolutePath);
+        Assert.Contains("max_id=34", network.Requests[2].RequestUri!.Query, StringComparison.Ordinal);
+        var group = Assert.Single(onward.Items);
+        Assert.Equal("33", group.NewestId);
+        Assert.Equal(1, group.Count);
+        Assert.True(onward.IsWhole);
+    }
+
+    /// <summary>
     ///     A group's actors are read from the group's own accounts endpoint, so the list is exactly the group the row
     ///     counted, every one an account with an id and a face, and it is read on past the first page by the
     ///     instance's <c>next</c> link (#455, #449).
@@ -200,6 +284,55 @@ public class NotificationGroupReadTests
 
         Assert.Equal(2, fetch.Items.Count);
         Assert.Contains("limit=2", Assert.Single(network.Requests).RequestUri!.Query, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Reading on (#467): a read of a group's actors that stopped at what was asked for says where to read on from,
+    ///     and handing that back asks for the page the instance named next rather than reading the group from the top.
+    /// </summary>
+    [Fact]
+    public async Task ReadGroupActorsOn_AsksForThePageTheLastReadNamedNext()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            GroupedResponse(
+                $"[{AccountJson("2", "alice@hachyderm.io")},{AccountJson("3", "bob")}]",
+                nextMaxId: "338"),
+            GroupedResponse($"[{AccountJson("4", "carol@carpdiem.online")}]", nextMaxId: "301"));
+        var inbox = NewInbox(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await inbox.ReadGroupActors(Profile, "favourite-110-493000", 2, token);
+        var onward = await inbox.ReadGroupActorsOn(Profile, "favourite-110-493000", first.Onward!, 1, token);
+
+        Assert.False(first.IsWhole);
+        Assert.Equal(2, network.Requests.Count);
+        Assert.Equal(
+            "https://mastodon.social/api/v2/notifications/favourite-110-493000/accounts?limit=1&max_id=338",
+            network.Requests[1].RequestUri?.ToString());
+        Assert.Equal("4", Assert.Single(onward.Items).Id);
+        Assert.False(onward.IsWhole);
+    }
+
+    /// <summary>
+    ///     And where the instance names no page after the one read on, the group is whole: its accounts endpoint pages
+    ///     by notification ids, so nothing read can stand in for a link the instance did not send.
+    /// </summary>
+    [Fact]
+    public async Task ReadGroupActorsOn_IsWholeWhereTheInstanceNamesNoFurtherPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            GroupedResponse(
+                $"[{AccountJson("2", "alice@hachyderm.io")},{AccountJson("3", "bob")}]",
+                nextMaxId: "338"),
+            GroupedResponse($"[{AccountJson("4", "carol@carpdiem.online")}]"));
+        var inbox = NewInbox(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await inbox.ReadGroupActors(Profile, "favourite-110-493000", 2, token);
+        var onward = await inbox.ReadGroupActorsOn(Profile, "favourite-110-493000", first.Onward!, 80, token);
+
+        Assert.Equal("4", Assert.Single(onward.Items).Id);
+        Assert.True(onward.IsWhole);
     }
 
     /// <summary>

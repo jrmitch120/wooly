@@ -91,7 +91,7 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
         if (Groups is { } groups)
         {
-            return Fetch<NotificationGroup>.Complete([.. groups.Take(limit)]);
+            return Run(groups, from: null, limit);
         }
 
         var held = _fetch;
@@ -102,12 +102,50 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
         }
 
         var read = ByProfile.TryGetValue(profile.Name, out var answer) ? await answer() : held;
-        var alone = read.Items.Take(limit).Select(ANotification.Alone).ToList();
+        var alone = read.Items.Select(ANotification.Alone).ToList();
 
         return read.StoppedBy is { } stoppedBy
-            ? Fetch<NotificationGroup>.StoppedShort(alone, stoppedBy)
-            : Fetch<NotificationGroup>.Complete(alone);
+            ? Fetch<NotificationGroup>.StoppedShort([.. alone.Take(limit)], stoppedBy)
+            : Run(alone, from: null, limit);
     }
+
+    /// <summary>Every grouped read on it was asked for, in order — where a test proves where a read went on from.</summary>
+    public List<OnwardCall> GroupReadsOn { get; } = [];
+
+    private readonly HeldReadsOn _heldOn = new();
+
+    /// <summary>
+    ///     Holds every grouped read on from here on until <see cref="LetReadsOnGo" /> — where the question is what
+    ///     happens while one is in flight.
+    /// </summary>
+    public void HoldReadsOn() => _heldOn.Hold();
+
+    /// <summary>Answers every grouped read on held so far, with what the inbox held when each was asked.</summary>
+    public void LetReadsOnGo() => _heldOn.LetGo();
+
+    /// <summary>
+    ///     The groups behind the one <paramref name="from" /> names, read on as an instance would (#465): as many as
+    ///     asked for, and where to read on from after them unless they were the last it holds.
+    /// </summary>
+    public Task<Fetch<NotificationGroup>> ReadGroupsOn(
+        ActiveProfile profile,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        GroupReadsOn.Add(new OnwardCall(from, limit));
+        Tokens.Add(profile.AccessToken);
+
+        return _heldOn.Answer(Run(Groups ?? [.. _fetch.Items.Select(ANotification.Alone)], from, limit));
+    }
+
+    /// <summary>
+    ///     <paramref name="limit" /> of <paramref name="groups" /> from just past the group whose newest notification
+    ///     <paramref name="from" /> names — or from the top — and where to read on from after them, unless that was
+    ///     the last of them and the inbox is whole.
+    /// </summary>
+    private static Fetch<NotificationGroup> Run(IReadOnlyList<NotificationGroup> groups, Onward? from, int limit) =>
+        OnwardRun.Of(groups, group => group.NewestId, from, limit);
 
     /// <summary>Each group's actors, by the group's key, as its accounts endpoint lists them; none where not said.</summary>
     public Dictionary<string, IReadOnlyList<Wooly.Core.Accounts.Account>> ActorsOf { get; } = new(StringComparer.Ordinal);
@@ -115,7 +153,10 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
     /// <summary>Every read of a group's actors it was asked for, in order.</summary>
     public List<ActorRead> ActorReads { get; } = [];
 
-    /// <summary>Up to <paramref name="limit" /> of the actors <see cref="ActorsOf" /> holds for the group.</summary>
+    /// <summary>
+    ///     Up to <paramref name="limit" /> of the actors <see cref="ActorsOf" /> holds for the group, and where to read on
+    ///     from unless that was all of them.
+    /// </summary>
     public Task<Fetch<Wooly.Core.Accounts.Account>> ReadGroupActors(
         ActiveProfile profile,
         string groupKey,
@@ -125,10 +166,33 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
         ActorReads.Add(new ActorRead(profile.Name, groupKey, limit));
         Tokens.Add(profile.AccessToken);
 
-        var actors = ActorsOf.GetValueOrDefault(groupKey) ?? [];
-
-        return Task.FromResult(Fetch<Wooly.Core.Accounts.Account>.Complete([.. actors.Take(limit)]));
+        return Task.FromResult(Actors(groupKey, from: null, limit));
     }
+
+    /// <summary>Every read on of a group's actors it was asked for, in order — where a test proves where it went on from.</summary>
+    public List<ActorReadOn> ActorReadsOn { get; } = [];
+
+    /// <summary>The next <paramref name="limit" /> of the group's actors, from just past the one <paramref name="from" /> names.</summary>
+    public Task<Fetch<Wooly.Core.Accounts.Account>> ReadGroupActorsOn(
+        ActiveProfile profile,
+        string groupKey,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ActorReadsOn.Add(new ActorReadOn(profile.Name, groupKey, from, limit));
+        Tokens.Add(profile.AccessToken);
+
+        return Task.FromResult(Actors(groupKey, from, limit));
+    }
+
+    /// <summary>
+    ///     <paramref name="limit" /> of the group's actors from just past the one <paramref name="from" /> names, the
+    ///     account's own id standing in for the instance's cursor — and where to read on from after them unless that
+    ///     was the last of them.
+    /// </summary>
+    private Fetch<Wooly.Core.Accounts.Account> Actors(string groupKey, Onward? from, int limit) =>
+        OnwardRun.Of(ActorsOf.GetValueOrDefault(groupKey) ?? [], actor => actor.Id, from, limit);
 
     /// <summary>
     ///     The account's read marker: the id of the newest notification it has read, or <see langword="null" /> for an
@@ -280,6 +344,9 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
     /// <summary>One read of a group's actors: which profile, which group by its key, and how many were wanted.</summary>
     internal sealed record ActorRead(string Profile, string GroupKey, int Limit);
+
+    /// <summary>One read on of a group's actors: which profile, which group, from where, and how many more were wanted.</summary>
+    internal sealed record ActorReadOn(string Profile, string GroupKey, Onward From, int Limit);
 
     /// <summary>One dismissal: which profile it was made as, and which notification it named.</summary>
     internal sealed record Dismissed(string Profile, string NotificationId);

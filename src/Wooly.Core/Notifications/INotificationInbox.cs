@@ -41,6 +41,25 @@ public interface INotificationInbox
     Task<Fetch<NotificationGroup>> ReadGroups(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
     /// <summary>
+    ///     <b>Reads on</b>: up to <paramref name="limit" /> more <b>Notification groups</b>, from where a grouped read
+    ///     said to read on from — the groups behind the last one it held, never anything newer (#465). Read the way
+    ///     <see cref="ReadGroups" /> reads them: grouped by the instance, or, on an instance too old to group, each
+    ///     notification a group of one (ADR-0032).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="from">Where to read on from, as an earlier grouped read of this profile's inbox said.</param>
+    /// <param name="limit">How many more groups are wanted, paged as <see cref="ReadGroups" /> pages.</param>
+    /// <returns>
+    ///     The groups, and where to read on from next unless the instance has nothing behind them — reported as
+    ///     <see cref="ReadGroups" /> reports, a rate limit included.
+    /// </returns>
+    Task<Fetch<NotificationGroup>> ReadGroupsOn(
+        ActiveProfile profile,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Reads up to <paramref name="limit" /> of the <b>Actors</b> of the notification group <paramref name="groupKey" />
     ///     names, newest first, from the group's own accounts: exactly the group the instance counted, and not everyone
     ///     who has ever done the same to its post (#455).
@@ -55,6 +74,25 @@ public interface INotificationInbox
     Task<Fetch<Accounts.Account>> ReadGroupActors(
         ActiveProfile profile,
         string groupKey,
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Reads on: up to <paramref name="limit" /> more of the <b>Actors</b> of the group <paramref name="groupKey" />
+    ///     names, from where a <see cref="ReadGroupActors" /> of it said to read on from (#467).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="groupKey">The group <paramref name="from" /> was handed out for.</param>
+    /// <param name="from">Where to read on from, as an earlier read of the group's actors said.</param>
+    /// <param name="limit">How many more actors are wanted, paged as <see cref="ReadGroupActors" /> pages.</param>
+    /// <returns>
+    ///     The actors, and where to read on from next unless the group is now whole — reported as
+    ///     <see cref="ReadGroupActors" /> reports, a rate limit included.
+    /// </returns>
+    Task<Fetch<Accounts.Account>> ReadGroupActorsOn(
+        ActiveProfile profile,
+        string groupKey,
+        Onward from,
         int limit,
         CancellationToken cancellationToken);
 

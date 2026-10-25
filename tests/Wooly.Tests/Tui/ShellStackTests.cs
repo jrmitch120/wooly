@@ -354,7 +354,7 @@ public class ShellStackTests
         Assert.Equal(2, opened.Depth);
     }
 
-    /// <summary>Inside a post, the post itself is what is picked out first, and j walks down into the answers.</summary>
+    /// <summary>Inside a post, the post itself is what is picked out first, and k walks down into the answers.</summary>
     [Fact]
     public async Task Move_WalksFromThePostIntoItsReplies()
     {

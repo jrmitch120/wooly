@@ -2,7 +2,7 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     How a screen comes up from its <see cref="Subject" />, which settles what it does to the stack: the three ways
-///     of getting somewhere, and the one way of getting more of where you already are (#233).
+///     of getting somewhere, and the one way of getting further into where you already are (#233).
 /// </summary>
 internal enum Move
 {
@@ -19,8 +19,12 @@ internal enum Move
     Refresh,
 
     /// <summary>
-    ///     Reading more into the screen that is already showing, which moves nothing on the stack: the rest of a list
-    ///     held whole, or the next page of one browsed.
+    ///     Reading further into the screen that is already showing, which moves nothing on the stack: the rest of a
+    ///     list held whole, or what a list read on brought.
     /// </summary>
-    Page,
+    /// <remarks>
+    ///     Not <c>Page</c>, which is which of a screen's rows are in front of the reader (GLOSSARY.md) and which this
+    ///     moves not at all.
+    /// </remarks>
+    Further,
 }

@@ -29,13 +29,15 @@ namespace Wooly.Tui.Screens;
 public sealed class NotificationsScreen(
     IReadOnlyList<NotificationGroup> groups,
     string? notice = null,
-    IReadOnlySet<string>? unread = null) : Screen
+    IReadOnlySet<string>? unread = null) : Screen(notice), IReadsOn<NotificationGroup>
 {
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
     // Named by the group's own key, which is not the id of the post it is about (GLOSSARY.md) — and is what a refresh
-    // puts the reader back on (#84).
-    private readonly Picked<NotificationGroup> _groups = new(groups);
+    // puts the reader back on (#84). Each key once, under its newest: the instance groups a page at a time, so a list
+    // read on, and the cache holding it, can name a group twice (#465).
+    private readonly Picked<NotificationGroup> _groups =
+        new([.. groups.DistinctBy(group => group.Key, StringComparer.Ordinal)]);
 
     // The face last clicked in a group's avatar strip, its slot in the group's actors: what the Verb.OpenFace a click
     // answers with opens once the shell has picked the group out. A verb carries no more than its name.
@@ -67,12 +69,6 @@ public sealed class NotificationsScreen(
 
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => Groups.SelectMany(Mentionable.In);
-
-    /// <summary>
-    ///     Something the shell has to say about the inbox rather than about anything in it — that it is empty, or that
-    ///     a rate limit cut the read short.
-    /// </summary>
-    public string? Notice { get; } = notice;
 
     /// <summary>
     ///     Whether anything in <paramref name="group" /> was newer than the read marker when the reader arrived, or
@@ -170,6 +166,28 @@ public sealed class NotificationsScreen(
         _unread.UnionWith(put.Select(group => group.Key));
 
         return put.Count;
+    }
+
+    /// <inheritdoc />
+    IReadOnlyList<NotificationGroup> IReadsOn<NotificationGroup>.Items => Groups;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The older groups (#465), drawn read — they are behind the read marker — whatever arrived on top meanwhile.
+    ///     <para>
+    ///         The instance groups a page at a time, so a group already held can come back with older notifications of
+    ///         its own. It stays where it is, under its newest: one key drawn twice is two rows <c>d</c> and <c>w</c>
+    ///         could not tell apart.
+    ///     </para>
+    /// </remarks>
+    public void ReadOn(IReadOnlyList<NotificationGroup> older)
+    {
+        var held = Groups.Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var group in older.Where(group => held.Add(group.Key)))
+        {
+            _groups.Add(group);
+        }
     }
 
     /// <summary>
@@ -299,7 +317,7 @@ public sealed class NotificationsScreen(
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(_groups.Rows(drawing.Width, Draw));
+        lines.AddRange(WithFoot(_groups.Rows(drawing.Width, Draw)));
 
         return lines;
 

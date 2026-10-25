@@ -690,8 +690,6 @@ public sealed class Shell
     {
         Screen.Move(by);
 
-        Paging();
-
         // The remark goes with the post it was said over, for the reason <see cref="Walk" /> gives.
         StatusRow.Clear();
     }
@@ -720,8 +718,6 @@ public sealed class Shell
         {
             Screen.Move(by);
         }
-
-        Paging();
 
         // A remark is about the post it was said over, and the reader has walked off it — so it goes with them, the
         // same way esc takes it off on the way out of a screen. It is not a small thing to leave standing: the status
@@ -1530,6 +1526,7 @@ public sealed class Shell
             StatusRow.Clear();
         };
         arrival.Counts += _badges.Arrived;
+        arrival.Recounts += _badges.Recounted;
         arrival.Moves += (kind, by) => _badges.Moved(profile, enquiry.Abandoned, kind, by);
         arrival.Rereads += kind => _ = _badges.Reread(profile, enquiry.Abandoned, [kind]);
         arrival.Heard += Heard;
@@ -1700,15 +1697,24 @@ public sealed class Shell
     ];
 
     /// <summary>
-    ///     Reads the next page where the reader has walked onto the end of a list browsed a page at a time, which is
-    ///     what <c>j</c> past the bottom means there (#180). Whether that is where they are is the screen's to say,
-    ///     and what the next page is its subject's.
+    ///     Where the page has come to on the screen in front, as the window settled it: how many rows of the list lie
+    ///     under the foot of the page, and how tall the page is. Within a screenful of the end, the list <b>reads
+    ///     on</b> (#469).
     /// </summary>
-    private void Paging()
+    /// <remarks>
+    ///     Told rather than asked, because only the window knows how tall the terminal is and where the rows have
+    ///     scrolled to — the same reason <see cref="Walk" /> is handed what to reclaim. Measured in the region's own
+    ///     height, so that it starts at the same moment whatever the terminal's size. Whether the screen's list reads
+    ///     on at all, is whole, or has a read out already is <see cref="Arrival.ReadOn" />'s to settle.
+    /// </remarks>
+    /// <param name="under">How many rows of the list lie below the bottom of the page.</param>
+    /// <param name="screenful">How many rows the page is.</param>
+    public void Viewed(int under, int screenful)
     {
-        if (Screen.WantsMore)
+        // With nobody acted as there is no list to read on, only the add screen (#247).
+        if (under <= screenful && _acting is { } acting)
         {
-            _ = Actor.Arrival.More(Screen);
+            _ = acting.Arrival.ReadOn(Screen);
         }
     }
 

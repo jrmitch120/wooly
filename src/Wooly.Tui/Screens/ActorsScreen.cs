@@ -14,10 +14,11 @@ namespace Wooly.Tui.Screens;
 /// <remarks>
 ///     Read from the group's own accounts (<see cref="Subject.Actors" />), so it lists exactly the group the row
 ///     counted rather than everyone who has ever favorited the post. Nothing here fetches: what is read arrives
-///     through <see cref="Arrived" />, a page at a time as the reader walks onto the end of what is in hand.
+///     through <see cref="Arrived" />, and the rest through <see cref="ReadOn" /> as the page nears the end of what is
+///     in hand (#467).
 /// </remarks>
 /// <param name="group">The group whose actors these are.</param>
-public sealed class ActorsScreen(NotificationGroup group) : Screen
+public sealed class ActorsScreen(NotificationGroup group) : Screen, IReadsOn<Account>
 {
     private readonly Picked<Account> _people = new([]);
 
@@ -29,15 +30,6 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
 
     /// <summary>How many have been read.</summary>
     public int Read => _people.Count;
-
-    /// <summary>Whether there is more of the group to be asked for past what is in hand.</summary>
-    public bool More { get; private set; }
-
-    /// <summary>
-    ///     What the shell has to say about the list rather than anybody on it — that nobody is on it, or that a rate
-    ///     limit cut the reading short — drawn on the screen, as Followers draws it.
-    /// </summary>
-    public string? Notice { get; private set; }
 
     /// <summary>Whoever is picked out, or nobody. What <c>⏎</c> opens.</summary>
     public Account? PickedPerson => _people.Out;
@@ -55,9 +47,6 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => People.Select(Mentionable.Of);
 
-    /// <inheritdoc />
-    public override bool WantsMore => More && Read > 0 && _people.At >= _people.Count - 1;
-
     /// <summary>What is said where the instance listed nobody in the group — every notification in it dismissed since.</summary>
     public static string Nobody => "Nobody is in this group any more.";
 
@@ -74,24 +63,21 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
     /// <inheritdoc />
     protected override IPicked Walking => _people;
 
-    /// <summary>
-    ///     Puts what has been read on the screen: whoever of <paramref name="people" /> is not already here, in the
-    ///     order they arrived. A page is asked for by re-reading the group to a longer limit, so every page arrives
-    ///     with every page before it in front of it; the pick does not move.
-    /// </summary>
-    /// <param name="people">Everyone the read came back with, from the first of them.</param>
-    /// <param name="more">Whether there is more to be asked for.</param>
+    /// <summary>Puts what the first read of the group came back with on the screen, in the order the instance listed it.</summary>
+    /// <param name="people">Everyone the read came back with.</param>
     /// <param name="notice">What the shell has to say about the read, or nothing.</param>
-    public void Arrived(IReadOnlyList<Account> people, bool more, string? notice = null)
+    public void Arrived(IReadOnlyList<Account> people, string? notice = null)
     {
-        More = more;
         Notice = notice;
-
-        foreach (var person in people.Skip(_people.Count))
-        {
-            _people.Add(person);
-        }
+        _people.PutUnder(people);
     }
+
+    /// <inheritdoc />
+    IReadOnlyList<Account> IReadsOn<Account>.Items => People;
+
+    /// <inheritdoc />
+    /// <remarks>The group's actors behind the last one read (#467).</remarks>
+    public void ReadOn(IReadOnlyList<Account> older) => _people.PutUnder(older);
 
     /// <inheritdoc />
     /// <remarks>A tie put on somebody opened from here rewrites their row, so <c>esc</c> lands on what is now true.</remarks>
@@ -124,7 +110,8 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(_people.Rows(width, Draw, Line.Blank));
+        // And under them all, the foot of the list: what reading on is doing, or that the group is whole.
+        lines.AddRange(WithFoot(_people.Rows(width, Draw, Line.Blank)));
 
         return lines;
 

@@ -205,7 +205,7 @@ public class DiscoverScreenTests
 
     /// <summary>
     ///     Nothing moves under either key: no row vanishes, no row reorders, and no heading recounts. The feature was
-    ///     admitted for <c>j j j F F</c>, and a list that reflows under the reader's fingers is what breaks it.
+    ///     admitted for <c>k k k F F</c>, and a list that reflows under the reader's fingers is what breaks it.
     /// </summary>
     [Fact]
     public void Acting_MovesNothingAtAll()

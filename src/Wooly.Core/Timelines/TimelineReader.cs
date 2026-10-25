@@ -10,7 +10,8 @@ namespace Wooly.Core.Timelines;
 /// <summary>
 ///     Reads a timeline through Mastonet, turning what an instance answers with into posts and asking again for as
 ///     many pages as the caller's limit takes. Paging is <see cref="PagedReading" />'s business, not the caller's — a
-///     caller asked for posts, not for a page and a cursor to carry back.
+///     caller asked for posts, not for a page and a cursor to carry back. What it can carry back is where to read on
+///     from (<see cref="Onward" />), which says nothing about either (ADR-0007's amendment).
 ///     <para>
 ///         A rate limit stops the reading rather than ending it: what already arrived is worth having, and the fetch
 ///         carries the limit alongside it so the caller can tell a timeline cut short from one with nothing on it.
@@ -23,9 +24,27 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
     private const int PageSize = 40;
 
     /// <inheritdoc />
-    public async Task<Fetch<Post>> Read(
+    public Task<Fetch<Post>> Read(
         ActiveProfile profile,
         Timeline timeline,
+        int limit,
+        CancellationToken cancellationToken) =>
+        Collect(profile, timeline, from: null, limit, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<Fetch<Post>> ReadOn(
+        ActiveProfile profile,
+        Timeline timeline,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken) =>
+        Collect(profile, timeline, from, limit, cancellationToken);
+
+    /// <summary>One read of <paramref name="timeline" />, from the top or from where an earlier one said to read on.</summary>
+    private async Task<Fetch<Post>> Collect(
+        ActiveProfile profile,
+        Timeline timeline,
+        Onward? from,
         int limit,
         CancellationToken cancellationToken)
     {
@@ -46,7 +65,8 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
             options => Page(client, timeline, accountId, options),
             status => PostWire.ToPost(status, profile),
             status => status.Id,
-            cancellationToken);
+            cancellationToken,
+            from: from);
     }
 
     private static Task<MastodonList<Status>> Page(

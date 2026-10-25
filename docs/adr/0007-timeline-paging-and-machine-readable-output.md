@@ -17,3 +17,38 @@ The reader's own tests sit at the `HttpMessageHandler` seam. That is not a new e
 The 40-post page size is a constant in the adapter rather than something a caller can ask for. A later ticket that wants to stream a timeline as it arrives, rather than collect it, reopens the first decision above: an `IAsyncEnumerable<Post>` would let a TUI paint the first page while the second is in flight, at the cost of the completeness signal no longer being one value returned at the end.
 
 `--limit` is a count of posts and says nothing about calls, so a large one is quietly several requests against the instance's quota. Nothing yet caps it, on the grounds that the rate limit is now something the client reports rather than something it can walk into unknowingly.
+
+## Amendment: a fetch carries where to read on from (spec #460, ticket #469)
+
+The first decision above ends "no caller sees a page or a cursor", and for a caller that asks once and stops — the CLI,
+and every TUI screen until now — that held. The TUI now **reads on**: as the reader nears the end of a list it asks the
+instance for what stands behind the last thing the list holds, and adds it at the bottom (GLOSSARY.md). Something has
+to say where "behind" starts, and the caller is the only thing that still has the list in hand when the next read is
+put.
+
+**So a `Fetch<T>` carries an `Onward` unless the list is whole, and a caller can only hand it back.** It is opaque:
+constructed inside `Wooly.Core`, compared by value, and read by nothing outside it. A reader port gains a second read
+that takes one — `ITimelineReader.ReadOn(profile, timeline, from, limit)` is the first — still asking for a count of
+items, never a page size or a `max_id`. Everything this ADR kept in the adapter stays there: the page size, the `max_id`
+the next call carries, the link header as the authority on whether there is a next page, the last item's id as the
+fallback where an instance sends none, the empty page that stops the loop whatever the instance names, and the rate
+limit as a partial result. `PagedReading.Collect` takes the position to start from and hands back the one to go on from,
+so it is still the one copy of the loop.
+
+**Whole is the instance's call, said by the same end condition as before.** A list is whole when no next page is named
+or a page arrives empty; a short page that still names a next page is not the end, for the filtered-posts reason given
+above. `Fetch.IsWhole` is exactly `Onward is null`. A fetch a rate limit stopped is never whole: it keeps the position the
+refused page would have started at, which is the top of the list where the limit came on the first page — so the next
+read resumes there rather than skipping what it never got, and a list stopped on its first page is never mistaken for a
+list with nothing on it, which was this ADR's second decision. A fetch that stopped at what the caller asked for, with
+the instance still naming more, carries where the instance said the next page starts.
+
+**Re-reading from the top was the alternative, and it is what the browsed follow list and a group's actors already
+do** (#180, #455): ask again to a longer limit and keep only the tail. It needs no cursor, which is why it was chosen
+then. It does not survive being every list's way of reading on. Read *n* re-requests every page before it, so the calls
+grow with the square of how far the reader has read; and on a live timeline anything arriving at the top in the meantime
+shifts the offset, so the tail kept repeats posts already shown. Those two screens move onto `Onward` with the rest
+(#467).
+
+What a caller still cannot do is the thing this ADR was guarding against: hold a page, read a cursor, or carry its own
+copy of the end condition. The CLI hands nothing back, and `--limit` reads exactly as it did.

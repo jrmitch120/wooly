@@ -46,7 +46,7 @@ public static class AccountLines
     /// </summary>
     /// <remarks>
     ///     It draws whole and cuts nothing. The worst case is around 29 rows, and that is fine: the screen scrolls and
-    ///     one <c>j</c> puts the posts on screen, where a truncated bio would be permanent damage done to solve a
+    ///     one <c>k</c> puts the posts on screen, where a truncated bio would be permanent damage done to solve a
     ///     problem one keypress already solves (ADR-0019).
     ///     <para>
     ///         Every section brings its own separator, so an account with no bio, no fields, nobody in common and no

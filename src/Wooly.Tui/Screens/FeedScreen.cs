@@ -9,7 +9,7 @@ namespace Wooly.Tui.Screens;
 ///     A timeline: the posts on it, one of them picked out, and the gutter that says which. The screen a rail
 ///     destination opens onto, and the one the shell starts on.
 /// </summary>
-public sealed class FeedScreen : Screen
+public sealed class FeedScreen : Screen, IReadsOn<Post>
 {
     private readonly Destination _destination;
 
@@ -56,17 +56,18 @@ public sealed class FeedScreen : Screen
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => Mentionable.In(Posts);
 
-    /// <summary>
-    ///     Something the shell has to say about this timeline rather than about a post on it — that it is empty, or
-    ///     that a rate limit cut it short.
-    /// </summary>
-    public string? Notice { get; }
-
     /// <inheritdoc />
     public override Post? Picked => _posts.Out;
 
     /// <inheritdoc />
     protected override IPicked Walking => _posts;
+
+    /// <inheritdoc />
+    IReadOnlyList<Post> IReadsOn<Post>.Items => Posts;
+
+    /// <inheritdoc />
+    /// <remarks>The older posts behind the last one held (#469).</remarks>
+    public void ReadOn(IReadOnlyList<Post> older) => _posts.PutUnder(older);
 
     /// <inheritdoc />
     public override bool Heard(Change change)
@@ -90,7 +91,7 @@ public sealed class FeedScreen : Screen
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var rows = _posts.Rows(drawing);
+        var rows = WithFoot(_posts.Rows(drawing));
 
         if (Notice is not { } notice)
         {

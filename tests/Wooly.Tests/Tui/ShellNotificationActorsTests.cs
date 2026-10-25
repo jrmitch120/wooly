@@ -18,6 +18,9 @@ public class ShellNotificationActorsTests
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
     private const int ToNotifications = 6;
 
+    /// <summary>The height of the content region the reading-on tests say the page is, in rows.</summary>
+    private const int Screenful = 20;
+
     /// <summary>
     ///     On a group of several, <c>w</c> opens the actors screen, filled from the group's accounts by its key —
     ///     everyone in it, not only the two the sample named.
@@ -83,15 +86,16 @@ public class ShellNotificationActorsTests
     }
 
     /// <summary>
-    ///     A large group is read a page at a time: the first 80, then the next as the reader walks onto the end of
-    ///     what has arrived, until the instance runs out.
+    ///     A large group reads on (#467): the first 80, then — as the page comes within a screenful of the end — the
+    ///     rest from where the first read stopped, put under those held with the pick left where it was, and the group
+    ///     never read again from the top. Once the instance has no more, the foot says so.
     /// </summary>
     [Fact]
-    public async Task Walking_ReadsTheNextPageOfActorsAtTheEnd()
+    public async Task Viewed_ReadsTheActorsOnFromWhereTheFirstReadStopped()
     {
         var everyone = Enumerable.Range(1, 100).Select(at => $"Fan{at}").ToArray();
         var (shell, opened) = await Arrived(
-            ANotification.Group(count: 100, actors: ["Fan1", "Fan2"]),
+            ANotification.Group(key: "favourite-110-493000", count: 100, actors: ["Fan1", "Fan2"]),
             Actors(everyone));
 
         opened.Press(ShellKey.W);
@@ -99,19 +103,57 @@ public class ShellNotificationActorsTests
 
         var screen = Assert.IsType<ActorsScreen>(opened.Screen);
         Assert.Equal(80, screen.Read);
-        Assert.Equal(80, shell.Notifications.ActorReads[^1].Limit);
+        Assert.Equal(80, Assert.Single(shell.Notifications.ActorReads).Limit);
+        Assert.DoesNotContain("that's everything", Drawn(screen));
 
-        opened.Move(78);
+        opened.Move(3);
+        opened.Viewed(under: 0, screenful: Screenful);
         shell.Host.Drain();
 
+        var on = Assert.Single(shell.Notifications.ActorReadsOn);
+        Assert.Equal("favourite-110-493000", on.GroupKey);
+        Assert.Equal(80, on.Limit);
         Assert.Single(shell.Notifications.ActorReads);
+        Assert.Equal(everyone, screen.People.Select(person => person.Author));
+        Assert.Equal("Fan4", screen.PickedPerson?.Author);
+        Assert.Equal("that's everything", Drawn(screen)[^1]);
+    }
 
-        opened.Move(1);
+    /// <summary>Further than a screenful from the end, nothing more of the group is asked for.</summary>
+    [Fact]
+    public async Task Viewed_FurtherThanAScreenfulFromTheEnd_AsksNothing()
+    {
+        var (shell, opened) = await Arrived(
+            ANotification.Group(count: 100, actors: ["Fan1", "Fan2"]),
+            Actors([.. Enumerable.Range(1, 100).Select(at => $"Fan{at}")]));
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+        opened.Viewed(under: Screenful + 1, screenful: Screenful);
         shell.Host.Drain();
 
-        Assert.Equal(160, shell.Notifications.ActorReads[^1].Limit);
-        Assert.Equal(everyone, screen.People.Select(person => person.Author));
-        Assert.False(screen.More);
+        Assert.Empty(shell.Notifications.ActorReadsOn);
+    }
+
+    /// <summary>
+    ///     Where the reader stands is asked only of the actors a read on brought, in one batched call — never again of
+    ///     everyone already on screen.
+    /// </summary>
+    [Fact]
+    public async Task Viewed_AsksWhereTheReaderStandsOnlyWithTheActorsReadOn()
+    {
+        var (shell, opened) = await Arrived(
+            ANotification.Group(count: 100, actors: ["Fan1", "Fan2"]),
+            Actors([.. Enumerable.Range(1, 100).Select(at => $"Fan{at}")]));
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+        shell.Accounts.ForgetStandings();
+        opened.Viewed(under: 0, screenful: Screenful);
+        shell.Host.Drain();
+
+        var stood = Assert.Single(shell.Accounts.Standings);
+        Assert.Equal(Enumerable.Range(180, 20).Select(id => $"{id}"), stood.AccountIds);
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using Wooly.Core.Errors;
+using Wooly.Core.Paging;
 using Wooly.Tui.Screens;
 
 namespace Wooly.Tui.Shell;
@@ -9,6 +10,12 @@ namespace Wooly.Tui.Shell;
 ///     project says <c>isError:</c> at every other place it passes one.
 /// </remarks>
 public delegate void Says(string? notice, bool isError);
+
+/// <summary>What is done once a question is over, however it ended, told whether it failed.</summary>
+/// <remarks>
+///     A delegate of its own for the reason <see cref="Says" /> is one: so that the flag is named where it is raised.
+/// </remarks>
+public delegate void Over(bool failed);
 
 /// <summary>
 ///     A question put to an instance on a reader's behalf, which survives neither their patience nor their attention:
@@ -134,7 +141,18 @@ public sealed class Enquiry(
     /// <param name="ifStillHere">
     ///     What lands only while the screen it was asked from is still the one in front: a screen, a notice about it.
     /// </param>
-    public async Task Put<T>(Func<Ask, Task<T>> question, Action<T>? eitherWay = null, Action<T>? ifStillHere = null)
+    /// <param name="over">
+    ///     What is done on the drawing thread once the question is over, however it ended — answered, dropped as
+    ///     stale, or failed — ahead of whatever lands, and told whether it failed: refused, or anything else a wait
+    ///     does not mend, as the notice saying why is said. A read on, which is one at a time on its screen, being out
+    ///     no longer (#469), and its foot saying it could not (#462). Not done where the enquiry was abandoned, there
+    ///     being nothing left to do it to.
+    /// </param>
+    public async Task Put<T>(
+        Func<Ask, Task<T>> question,
+        Action<T>? eitherWay = null,
+        Action<T>? ifStillHere = null,
+        Over? over = null)
     {
         if (_abandoned.IsCancellationRequested)
         {
@@ -165,6 +183,8 @@ public sealed class Enquiry(
             // refused token is handed on instead, since what to say about it is which key fixes it (#248).
             Apply(() =>
             {
+                over?.Invoke(failed: true);
+
                 if (failure is AuthenticationException refused)
                 {
                     Refused?.Invoke(refused);
@@ -185,6 +205,8 @@ public sealed class Enquiry(
         Apply(() =>
         {
             Answered = true;
+
+            over?.Invoke(failed: false);
 
             eitherWay?.Invoke(answer);
 
@@ -342,5 +364,45 @@ public sealed class Enquiry(
 
                 return Nothing;
             });
+
+        /// <summary>
+        ///     <b>Reads on</b> a list from <paramref name="from" />, through one call put the way <see cref="Of{T}" />
+        ///     puts it (#462). A rate limit that stops the read part way through is waited out where the reader can
+        ///     watch it count down, as every other is, and the read then carries on from where the limit stopped it,
+        ///     with what had already arrived kept — so nothing read is lost, and nothing is asked for twice.
+        /// </summary>
+        /// <remarks>
+        ///     Needed because a reader does not throw a limit that stops it part way: it answers what arrived and the
+        ///     limit together (<see cref="Fetch{T}" />, ADR-0007), which a call put through <see cref="Of{T}" /> would
+        ///     land as it stood. What this answers is never stopped by a limit — waiting is this, not its caller's.
+        /// </remarks>
+        /// <param name="from">Where the instance said to read on from.</param>
+        /// <param name="read">Reads the list on from where it is handed, as far as one read goes.</param>
+        public async Task<Fetch<T>> ReadOn<T>(Onward from, Func<Onward, CancellationToken, Task<Fetch<T>>> read)
+        {
+            var arrived = new List<T>();
+            var at = from;
+
+            var last = await Of(async token =>
+            {
+                var fetch = await read(at, token);
+
+                arrived.AddRange(fetch.Items);
+
+                // Never whole, a fetch a limit stopped, so there is always somewhere it stopped to go on from.
+                if (fetch is { StoppedBy: { } limit, Onward: { } stopped })
+                {
+                    at = stopped;
+
+                    throw limit;
+                }
+
+                return fetch;
+            });
+
+            // Never stopped, the last read, since a stopped one throws: so all that arrived is complete, and goes on
+            // from wherever the last read said, or is whole.
+            return last with { Items = arrived };
+        }
     }
 }

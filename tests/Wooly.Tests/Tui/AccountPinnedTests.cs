@@ -49,7 +49,7 @@ public class AccountPinnedTests
     }
 
     /// <summary>
-    ///     The rows of both runs are numbered as the one walk the screen has, so <c>j</c> from the header lands on the
+    ///     The rows of both runs are numbered as the one walk the screen has, so <c>k</c> from the header lands on the
     ///     first pinned post and walks on into the timeline without a seam.
     /// </summary>
     [Fact]

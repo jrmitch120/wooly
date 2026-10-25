@@ -1,0 +1,590 @@
+using Wooly.Core.Errors;
+using Wooly.Core.Paging;
+using Wooly.Core.Posts;
+using Wooly.Core.Timelines;
+using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
+using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
+
+namespace Wooly.Tests.Tui;
+
+/// <summary>
+///     Reading on, on Home (#469): as the page nears the end of the posts held, the shell asks the instance for the
+///     older posts behind them and adds them below. Where the page is comes from the window, which is the only thing
+///     that knows (<see cref="Shell.Viewed" />); what the shell does about it is what these say.
+/// </summary>
+public class ShellReadingOnTests
+{
+    /// <summary>The height of the content region these tests say the page is, in rows.</summary>
+    private const int Screenful = 20;
+
+    /// <summary>A failure no wait mends, which is what a read on that does not succeed is refused with.</summary>
+    private static readonly TransientNetworkException Unreachable = new(
+        new Uri("https://mastodon.social/api/v1/timelines/home"),
+        attempts: 3,
+        new HttpRequestException("Connection refused"));
+
+    /// <summary>
+    ///     The page within a screenful of the end of Home: the posts behind the last one held are asked for and put
+    ///     under it, in the instance's order, with the pick left on the post it was on.
+    /// </summary>
+    [Fact]
+    public async Task Viewed_WithinAScreenfulOfTheEnd_PutsTheOlderPostsUnderThoseHeld()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        opened.Walk(3, reclaiming: null);
+        opened.Viewed(under: Screenful, screenful: Screenful);
+        built.Host.Drain();
+
+        var feed = Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Single(built.Timelines.ReadsOn);
+        Assert.Equal(Ids(1, 80), feed.Posts.Select(post => post.Id));
+        Assert.Equal("4", feed.Picked?.Id);
+    }
+
+    /// <summary>And it goes on from there the next time, rather than asking again for what it already has.</summary>
+    [Fact]
+    public async Task Viewed_NearingTheEndAgain_ReadsOnFromWhereTheLastReadOnStopped()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal(Ids(1, 100), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>Further than a screenful from the end, nothing is asked: a list nobody walks to the end of is never read on.</summary>
+    [Fact]
+    public async Task Viewed_FurtherThanAScreenfulFromTheEnd_AsksNothing()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        opened.Viewed(under: Screenful + 1, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Empty(built.Timelines.ReadsOn);
+        Assert.Equal(40, Assert.IsType<FeedScreen>(opened.Screen).Posts.Count);
+    }
+
+    /// <summary>One read in flight per screen: walking about near the end while it is out asks for nothing more.</summary>
+    [Fact]
+    public async Task Viewed_WhileAReadOnIsInFlight_AsksForNoSecond()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.HoldReadsOn();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Single(built.Timelines.ReadsOn);
+
+        built.Timelines.LetReadsOnGo();
+        built.Host.Drain();
+
+        Assert.Equal(80, Assert.IsType<FeedScreen>(opened.Screen).Posts.Count);
+    }
+
+    /// <summary>The foot of the list says a read is in flight, dimly, under the last post held.</summary>
+    [Fact]
+    public async Task Foot_SaysReadingOnWhileAReadIsInFlight()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.HoldReadsOn();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal("reading on…", Foot(opened.Screen));
+    }
+
+    /// <summary>Between reads, with more to come, the foot says nothing at all.</summary>
+    [Fact]
+    public async Task Foot_SaysNothingBetweenReads()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        var drawn = Rows(opened.Screen);
+
+        Assert.DoesNotContain("reading on…", drawn);
+        Assert.DoesNotContain("that's everything", drawn);
+    }
+
+    /// <summary>
+    ///     Once the instance has nothing behind what is held, the list is whole: the foot says so, and nothing more is
+    ///     asked of it however near the end the page is.
+    /// </summary>
+    [Fact]
+    public async Task Foot_SaysThatsEverythingOnceTheListIsWhole_AndNothingMoreIsAsked()
+    {
+        var built = Home(posts: 50);
+        var opened = await built.Opened();
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Single(built.Timelines.ReadsOn);
+        Assert.Equal("that's everything", Foot(opened.Screen));
+    }
+
+    /// <summary>A first read that already held everything is whole straight away, and says so before anybody walks.</summary>
+    [Fact]
+    public async Task Foot_SaysThatsEverythingWhereTheFirstReadHeldItAll()
+    {
+        var built = Home(posts: 3);
+        var opened = await built.Opened();
+
+        Assert.Equal("that's everything", Foot(opened.Screen));
+    }
+
+    /// <summary>
+    ///     Drilling in while a read is in flight drops its answer, under the stale rule every enquiry keeps: nothing
+    ///     lands on a screen the reader is not looking at.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_LandingAfterTheReaderDrilledIn_IsDropped()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.HoldReadsOn();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        opened.Press(ShellKey.Enter);
+        built.Host.Drain();
+
+        built.Timelines.LetReadsOnGo();
+        built.Host.Drain();
+
+        Assert.IsType<PostScreen>(opened.Screen);
+
+        opened.Press(ShellKey.Escape);
+
+        Assert.Equal(40, Assert.IsType<FeedScreen>(opened.Screen).Posts.Count);
+    }
+
+    /// <summary>
+    ///     And walking back out with the page still near the end reads on again, from the same place — the dropped
+    ///     read cost the reader nothing.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_DroppedByADrill_ReadsOnAgainOnWalkingBackOut()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.HoldReadsOn();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        opened.Press(ShellKey.Enter);
+        built.Host.Drain();
+        built.Timelines.LetReadsOnGo();
+        built.Host.Drain();
+
+        opened.Press(ShellKey.Escape);
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal(2, built.Timelines.ReadsOn.Count);
+        Assert.Equal(built.Timelines.ReadsOn[0].From, built.Timelines.ReadsOn[1].From);
+        Assert.Equal(Ids(1, 80), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     Home arrived at again within the minute is drawn from the cache, which kept where to read on from with the
+    ///     posts — so walking down it reads on from the post after them, rather than its foot calling it whole.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_OnAHomeHandedBackByTheCache_GoesOnFromWhereItsFirstReadStopped()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        Assert.Single(built.Timelines.Reads, read => read.Timeline == Timeline.Home);
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal(Ids(1, 80), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     Home read on and then arrived at again within the minute is handed back holding everything read on, not
+    ///     only its first read — opened at the top, as every arrival is, and asking the instance for nothing (#463).
+    /// </summary>
+    [Fact]
+    public async Task Arrival_WithinTheMinuteOfReadingOn_HoldsEverythingReadOn_OpenedAtTheTop()
+    {
+        var built = Home(posts: 200);
+        var opened = await ReadOnTwice(built);
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        var feed = Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Single(built.Timelines.Reads, read => read.Timeline == Timeline.Home);
+        Assert.Equal(2, built.Timelines.ReadsOn.Count);
+        Assert.Equal(Ids(1, 120), feed.Posts.Select(post => post.Id));
+        Assert.Equal("1", feed.Picked?.Id);
+    }
+
+    /// <summary>
+    ///     The minute counts from the last read on, not from the first read: a reader who has been reading on for a while
+    ///     has just left the list they were reading, however long ago its top was read.
+    /// </summary>
+    [Fact]
+    public async Task Arrival_WithinTheMinuteOfTheLastReadOn_HoldsItThoughTheFirstReadIsOlder()
+    {
+        var built = Home(posts: 200);
+        var opened = await built.Opened();
+
+        built.Clock.Advance(TimeSpan.FromSeconds(50));
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        built.Clock.Advance(TimeSpan.FromSeconds(20));
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        Assert.Single(built.Timelines.Reads, read => read.Timeline == Timeline.Home);
+        Assert.Equal(Ids(1, 80), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     And walking to the end of that list reads on from where the last read on stopped, not from where the first
+    ///     read did — so no call is spent on posts already in hand.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_AtTheEndOfAListHeldAfterReadingOn_GoesOnFromWhereTheLastReadOnStopped()
+    {
+        var built = Home(posts: 200);
+        var opened = await ReadOnTwice(built);
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal(3, built.Timelines.ReadsOn.Count);
+        Assert.Equal(Ids(1, 160), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     <c>g</c> on a list read far down drops everything read on: Home is read again from the top, opened at the
+    ///     top on what came back, and the cache it leaves holds that and nothing older.
+    /// </summary>
+    [Fact]
+    public async Task Refresh_AfterReadingOn_DropsEverythingReadOn_AndOpensAtTheTop()
+    {
+        var built = Home(posts: 200);
+        var opened = await ReadOnTwice(built);
+
+        await opened.Refresh();
+        built.Host.Drain();
+
+        var feed = Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Equal(Ids(1, 40), feed.Posts.Select(post => post.Id));
+        Assert.Equal("1", feed.Picked?.Id);
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        Assert.Equal(Ids(1, 40), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     A post reached by reading on is held like one from the first read, so marking it forgets the cached Home
+    ///     holding it — coming back reads Home again rather than handing it back with the star still off — and the
+    ///     screen showing it is told, as for any post (#463).
+    /// </summary>
+    [Fact]
+    public async Task Mark_OnAPostReadOn_ForgetsTheCachedListHoldingIt_AndMarksItOnScreen()
+    {
+        var built = Home(posts: 200);
+        built.Engagement = FakePostEngagement.Answering(
+            APost.With(id: "100") with { Marks = APost.Marked(favorited: true) });
+        var opened = await ReadOnTwice(built);
+
+        opened.Walk(69, reclaiming: null);
+        Assert.Equal("100", opened.Screen.Picked?.Id);
+
+        await opened.Mark(PostMark.Favorite);
+        built.Host.Drain();
+
+        Assert.True(opened.Screen.Picked?.Marks.Favorited);
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        Assert.Equal(2, built.Timelines.Reads.Count(read => read.Timeline == Timeline.Home));
+    }
+
+    /// <summary>
+    ///     And a post read on that is deleted goes from the screen and from the cache: Home is read again on coming
+    ///     back rather than handed back with it still there.
+    /// </summary>
+    [Fact]
+    public async Task Delete_OfAPostReadOn_ForgetsTheCachedListHoldingIt_AndTakesItOffTheScreen()
+    {
+        var built = Home(posts: 200);
+        var opened = await ReadOnTwice(built);
+
+        // Every post here is the profile's own, so any of them can be deleted.
+        opened.Walk(69, reclaiming: null);
+        opened.AskToDelete();
+        await opened.Answer(agreed: true);
+        built.Host.Drain();
+
+        Assert.DoesNotContain("100", Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        Assert.Equal(2, built.Timelines.Reads.Count(read => read.Timeline == Timeline.Home));
+    }
+
+    /// <summary>
+    ///     A subject that does not read on never asks, and draws no foot: a thread is read whole (#460), however near
+    ///     the end of it the page is.
+    /// </summary>
+    [Fact]
+    public async Task Viewed_OnASubjectThatDoesNotReadOn_AsksNothing()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        opened.Press(ShellKey.Enter);
+        built.Host.Drain();
+
+        Assert.IsType<PostScreen>(opened.Screen);
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Empty(built.Timelines.ReadsOn);
+        Assert.DoesNotContain("that's everything", Rows(opened.Screen));
+    }
+
+    /// <summary>
+    ///     A read on that fails says so twice (#462): the foot of the list says "couldn't read on", and a notice says
+    ///     why. The list is left as it was.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_ThatFails_SaysCouldntReadOnAtTheFoot_WithANoticeSayingWhy_AndLeavesTheList()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.RefusesReadsOn(Unreachable);
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal("couldn't read on", Foot(opened.Screen));
+        Assert.Equal(Unreachable.Message, opened.Notice);
+        Assert.True(opened.NoticeIsError);
+        Assert.Equal(Ids(1, 40), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     Nothing tries a failed read on again by itself, however long the reader leaves it: no timer ever asks the
+    ///     instance on their behalf while they are not looking.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_ThatFails_IsNeverRetriedOnATimer()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.RefusesReadsOn(Unreachable);
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        built.Clock.Advance(TimeSpan.FromHours(1));
+        built.Host.SettleAll();
+
+        Assert.Single(built.Timelines.ReadsOn);
+        Assert.Equal("couldn't read on", Foot(opened.Screen));
+    }
+
+    /// <summary>
+    ///     The next time the page nears the end, it tries again by itself, from the same place, and what it brings
+    ///     goes under the list as any read on's does — no <c>g</c> needed, and nothing of where the reader was lost.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_ThatFailed_IsTriedAgainOnTheNextApproachToTheEnd()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.RefusesReadsOn(Unreachable);
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        built.Timelines.StopsRefusingReadsOn();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal(2, built.Timelines.ReadsOn.Count);
+        Assert.Equal(built.Timelines.ReadsOn[0].From, built.Timelines.ReadsOn[1].From);
+        Assert.Equal(Ids(1, 80), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+        Assert.DoesNotContain("couldn't read on", Rows(opened.Screen));
+    }
+
+    /// <summary>
+    ///     A rate limit part way through a read on is counted down where the reader can see it, as every enquiry's
+    ///     is, with the foot still saying a read is out (#462).
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_StoppedByARateLimit_CountsDownWhereTheReaderCanSeeIt()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.RateLimitsNextReadOnAfter(10, LimitedFor(TimeSpan.FromSeconds(3)));
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Contains("Rate limited by mastodon.social", opened.Notice);
+        Assert.Contains("3s", opened.Notice);
+        Assert.Equal("reading on…", Foot(opened.Screen));
+    }
+
+    /// <summary>
+    ///     And once it has been waited out, the read carries on from where the limit stopped it, keeping what had
+    ///     already arrived: nothing read is lost, and nothing is asked for twice.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_StoppedByARateLimit_CarriesOnFromWhereItStopped_KeepingWhatArrived()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.RateLimitsNextReadOnAfter(10, LimitedFor(TimeSpan.FromSeconds(3)));
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        built.Clock.Advance(TimeSpan.FromSeconds(3));
+        built.Host.SettleAll();
+
+        Assert.Equal(2, built.Timelines.ReadsOn.Count);
+        Assert.Equal(new Onward("50"), built.Timelines.ReadsOn[1].From);
+        Assert.Equal(Ids(1, 90), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+        Assert.Null(opened.Notice);
+    }
+
+    /// <summary>
+    ///     A first read a rate limit stopped is never called whole, however little it brought: its foot does not say
+    ///     "that's everything", and nearing the end of it reads on (#462).
+    /// </summary>
+    [Fact]
+    public async Task FirstRead_StoppedByARateLimit_IsNeverWhole_AndReadsOn()
+    {
+        var built = new AShell { Timelines = FakeTimelineReader.RateLimitedAfter(APost.With(id: "1")) };
+        var opened = await built.Opened();
+
+        Assert.DoesNotContain("that's everything", Rows(opened.Screen));
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Single(built.Timelines.ReadsOn);
+    }
+
+    /// <summary>
+    ///     And one it stopped before anything arrived still says what it always has — that the limit cut it short —
+    ///     rather than that the list is everything there is.
+    /// </summary>
+    [Fact]
+    public async Task FirstRead_StoppedEmptyByARateLimit_SaysTheEmptinessNoticeRatherThanThatsEverything()
+    {
+        var built = new AShell { Timelines = FakeTimelineReader.RateLimitedAfter() };
+        var opened = await built.Opened();
+
+        var drawn = Rows(opened.Screen);
+
+        Assert.Contains(drawn, row => row.Contains("Rate limited part way through", StringComparison.Ordinal));
+        Assert.DoesNotContain("that's everything", drawn);
+    }
+
+    /// <summary>
+    ///     But once reading on has brought what the stopped read never got, the notice goes: what arrived is no longer
+    ///     what it says arrived, and the list under it is not the one it was said over.
+    /// </summary>
+    [Fact]
+    public async Task FirstRead_StoppedEmptyByARateLimit_SaysNoMoreOfIt_OnceReadingOnBringsPosts()
+    {
+        var built = Home(posts: 30);
+        built.Timelines.RateLimitsNextRead(LimitedFor(TimeSpan.FromSeconds(3)));
+        var opened = await built.Opened();
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        var feed = Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Equal(Ids(1, 30), feed.Posts.Select(post => post.Id));
+        Assert.Null(feed.Notice);
+        Assert.DoesNotContain(Rows(feed), row => row.Contains("Rate limited", StringComparison.Ordinal));
+    }
+
+    /// <summary>A rate limit on <c>mastodon.social</c> that lifts <paramref name="after" /> from now.</summary>
+    private static RateLimitedException LimitedFor(TimeSpan after) => new("mastodon.social", AShell.Now + after);
+
+    /// <summary>Home opened and read on twice, to 120 posts, with the pick walked down among them.</summary>
+    private static async Task<Shell> ReadOnTwice(AShell built)
+    {
+        var opened = await built.Opened();
+
+        opened.Walk(30, reclaiming: null);
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        return opened;
+    }
+
+    /// <summary>Every row <paramref name="screen" /> draws, as text, the gutter and all.</summary>
+    private static IReadOnlyList<string> Rows(Screen screen) =>
+        [.. screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text)];
+
+    /// <summary>The last row <paramref name="screen" /> draws, which is the foot of its list where it has one.</summary>
+    private static string Foot(Screen screen) => Rows(screen)[^1];
+
+    /// <summary>Home holding <paramref name="posts" /> posts, newest first, ids counting up from 1, which reads on.</summary>
+    private static AShell Home(int posts) =>
+        new() { Timelines = FakeTimelineReader.ReadingOn([.. Ids(1, posts).Select(id => APost.With(id: id))]) };
+
+    /// <summary>The ids from <paramref name="first" /> to <paramref name="last" />, in order.</summary>
+    private static IEnumerable<string> Ids(int first, int last) =>
+        Enumerable.Range(first, last - first + 1).Select(at => $"{at}");
+}

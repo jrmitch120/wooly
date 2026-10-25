@@ -120,6 +120,12 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     public void Add(T thing) => _things.Add(thing);
 
     /// <summary>
+    ///     Puts <paramref name="older" /> under everything on the list, in the order given — what a read on brought —
+    ///     with the pick left on whatever it was on.
+    /// </summary>
+    public void PutUnder(IEnumerable<T> older) => _things.AddRange(older);
+
+    /// <summary>
     ///     Takes in whatever of <paramref name="found" /> is new to the list — not on it yet, or on it but
     ///     <paramref name="changed" /> since: put at the top in the order given, except the thing picked, which is
     ///     brought up to date where it stands — and keeps the same thing picked out (#400). The one shape every Inbox

@@ -13,7 +13,7 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 /// <remarks>
 ///     Two modes, and which one is settled before anything is fetched: an <see cref="Account" /> already carries both
-///     counts, so a list this client can hold whole is held whole and one it cannot is browsed a page at a time —
+///     counts, so a list this client can hold whole is held whole and one it cannot is browsed by reading on —
 ///     rather than discovering hundreds of calls in that <c>@Mastodon@mastodon.social</c> has 877,000 followers.
 ///     <para>
 ///         The filter belongs to the held mode alone. Narrowing what has already been read is the dishonest filter
@@ -27,7 +27,7 @@ namespace Wooly.Tui.Screens;
 ///         no instance.
 ///     </para>
 /// </remarks>
-public sealed class FollowsScreen : Screen
+public sealed class FollowsScreen : Screen, IReadsOn<Account>
 {
     /// <summary>Everyone read so far, in the order the instance listed them.</summary>
     private readonly List<Account> _all = [];
@@ -40,6 +40,9 @@ public sealed class FollowsScreen : Screen
     private Picked<Account> _walking = new([]);
 
     private bool _typing;
+
+    /// <summary>Whether the rest of a held list is still on its way, as the last read that arrived said.</summary>
+    private bool _coming;
 
     /// <param name="whose">
     ///     The account whose list this is, as the screen it was opened from was holding them — which is where both
@@ -75,7 +78,7 @@ public sealed class FollowsScreen : Screen
 
     /// <summary>
     ///     Whether the whole list is held: fetched progressively and walkable from the first page, with a filter over
-    ///     all of it. The other mode browses what has been read and asks for more as the reader reaches the end.
+    ///     all of it. The other mode browses what has been read and reads on as the page nears the end (#467).
     /// </summary>
     public bool Holds => Total < ShellTiming.FollowsHeldUnder;
 
@@ -92,25 +95,18 @@ public sealed class FollowsScreen : Screen
     public int Read => _all.Count;
 
     /// <summary>
-    ///     Whether there is more of this list to come: in flight on a held one, and there to be asked for on a
-    ///     browsed one. One question rather than two, because what a reader wants to know is the same either way —
-    ///     that what is on screen is not the whole of it.
+    ///     Whether there is more of this list to come: in flight on a held one, and there to be read on on a browsed
+    ///     one — which is the instance's to say, by naming somewhere to read on from. One question rather than two,
+    ///     because what a reader wants to know is the same either way — that what is on screen is not the whole of it.
     /// </summary>
     /// <remarks>
     ///     Not called <c>Reading</c>, which this namespace has already spent on what a reader has done to one post
     ///     (GLOSSARY.md).
     /// </remarks>
-    public bool More { get; private set; }
+    public bool More => Holds ? _coming : ReadingOn is { IsWhole: false };
 
     /// <summary>What is narrowing the list, or empty where nothing is.</summary>
     public string Filter { get; private set; } = string.Empty;
-
-    /// <inheritdoc />
-    /// <remarks>
-    ///     Never on a held list: the whole of that one is already on its way, and asking again would be asking for
-    ///     what is in flight.
-    /// </remarks>
-    public override bool WantsMore => !Holds && More && Read > 0 && _walking.At >= _walking.Count - 1;
 
     /// <summary>
     ///     What this list is told where nobody is on it: that there is nobody, or — where the profile says otherwise
@@ -127,18 +123,6 @@ public sealed class FollowsScreen : Screen
         : Side.Either(
             followers: Mine ? "Nobody follows you yet." : "Nobody follows them yet.",
             following: Mine ? "You follow nobody yet." : "They follow nobody yet.");
-
-    /// <summary>
-    ///     What the shell has to say about the list rather than about anybody on it — that nobody is on it, or that a
-    ///     rate limit cut the reading short.
-    /// </summary>
-    /// <remarks>
-    ///     Drawn on the screen rather than said on the status row, which is where every other list this shell draws
-    ///     puts one: the row holds either a notice or the keys and never both, so a notice standing there is every
-    ///     key the screen answers to, hidden — and on a list with nobody on it there is nothing to walk, so nothing
-    ///     ever comes along to take it down again.
-    /// </remarks>
-    public string? Notice { get; private set; }
 
     /// <summary>Whoever is picked out, or nobody where nobody is on screen. What <c>⏎</c> opens.</summary>
     public Account? PickedPerson => _walking.Out;
@@ -194,22 +178,38 @@ public sealed class FollowsScreen : Screen
     ///     order they arrived.
     /// </summary>
     /// <remarks>
-    ///     Only who is new, because a page is asked for by re-reading the list to a longer limit — the port takes a
-    ///     count rather than a cursor — so every page arrives with every page before it in front of it. The pick does
-    ///     not move: somebody reading the tenth person does not want to be somewhere else because the eleventh landed.
+    ///     Only who is new, because the rest of a held list is asked for by re-reading it to a longer limit, so it
+    ///     arrives with the first page in front of it. The pick does not move: somebody reading the tenth person does
+    ///     not want to be somewhere else because the eleventh landed.
     /// </remarks>
     /// <param name="people">Everyone the read came back with, from the first of them.</param>
-    /// <param name="more">Whether there is more still coming, which is what the count row says while it is.</param>
+    /// <param name="more">
+    ///     Whether the rest of a held list is still coming, which is what the count row says while it is. A browsed
+    ///     list's is where it reads on from, which it is told apart from this (<see cref="Screen.ReadingOn" />).
+    /// </param>
     /// <param name="notice">
     ///     What the shell has to say about the read — that it found nobody, or that a rate limit stopped it — or
     ///     nothing, which takes down whatever the last read left standing.
     /// </param>
     public void Arrived(IReadOnlyList<Account> people, bool more, string? notice = null)
     {
-        More = more;
+        _coming = more;
         Notice = notice;
 
-        foreach (var person in people.Skip(_all.Count))
+        Add(people.Skip(_all.Count));
+    }
+
+    /// <inheritdoc />
+    IReadOnlyList<Account> IReadsOn<Account>.Items => People;
+
+    /// <inheritdoc />
+    /// <remarks>The next run of a browsed list, behind the last person read (#467).</remarks>
+    public void ReadOn(IReadOnlyList<Account> older) => Add(older);
+
+    /// <summary>Adds <paramref name="people" /> to everyone read, and to who is shown wherever the filter leaves them.</summary>
+    private void Add(IEnumerable<Account> people)
+    {
+        foreach (var person in people)
         {
             _all.Add(person);
 
@@ -387,7 +387,8 @@ public sealed class FollowsScreen : Screen
         // No rule between people, and one under the prompt instead: there is one kind of thing on this list and
         // nothing to separate it from, and at 900 people a rule apiece would be 900 rows of horizontal line (#180).
         // A blank between them all the same, since four-row Account blocks laid end to end run together (#198).
-        lines.AddRange(_walking.Rows(width, Draw, Line.Blank));
+        // And under them all, on a browsed list, the foot of it: what reading on is doing, or that the list is whole.
+        lines.AddRange(WithFoot(_walking.Rows(width, Draw, Line.Blank)));
 
         return lines;
 
@@ -401,7 +402,7 @@ public sealed class FollowsScreen : Screen
     /// </summary>
     /// <remarks>
     ///     A browsed list says both numbers always, since what has been read is never the whole of it — which is the
-    ///     same row saying why there is no filter on offer.
+    ///     same row saying why there is no filter on offer. Whether it has more to read on is its foot's to say.
     /// </remarks>
     private string Counted()
     {
@@ -435,8 +436,15 @@ public sealed class FollowsScreen : Screen
     ///         says so in its own row above — a count adding "this instance offers no more" underneath would be
     ///         contradicting it, and guessing at a cause the notice already knows.
     ///     </para>
+    ///     <para>
+    ///         Said only on a list held whole. A browsed list's foot says "that's everything" once the instance has
+    ///         nothing behind what it holds, which is the same fact said the way every list that reads on says it
+    ///         (#467).
+    ///     </para>
     /// </remarks>
-    private string Shortfall => More || Notice is not null ? string.Empty : " — this instance offers no more";
+    private string Shortfall => !Holds || More || Notice is not null
+        ? string.Empty
+        : " — this instance offers no more";
 
     /// <summary>
     ///     What is narrowing the list, with the caret where the next letter lands — the search prompt's own

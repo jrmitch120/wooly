@@ -80,6 +80,26 @@ public interface IAccountRelationships
         Action<IReadOnlyList<Account>>? arrived = null);
 
     /// <summary>
+    ///     Reads on: up to <paramref name="limit" /> more of the same side of the same account's follows, from where a
+    ///     <see cref="List" /> of it said to read on from — the follows behind the last one it held (#467).
+    /// </summary>
+    /// <param name="side">The side <paramref name="from" /> was handed out for.</param>
+    /// <param name="account">Whose follows, named as they were for the read <paramref name="from" /> came from.</param>
+    /// <param name="from">Where to read on from, as an earlier read of this list said.</param>
+    /// <param name="limit">How many more accounts are wanted, paged as <see cref="List" /> pages.</param>
+    /// <returns>
+    ///     The accounts, and where to read on from next unless the list is now whole — reported as <see cref="List" />
+    ///     reports, a rate limit included.
+    /// </returns>
+    Task<Fetch<Account>> ListOn(
+        ActiveProfile profile,
+        FollowSide side,
+        NamedAccount? account,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Where the profile stands with each of <paramref name="accounts" />, all in the one call the endpoint takes
     ///     many ids for.
     /// </summary>
@@ -106,6 +126,23 @@ public interface IAccountRelationships
     ///     followed rather than asked.
     /// </summary>
     Task<Fetch<Account>> PendingRequests(ActiveProfile profile, int limit, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Reads on: up to <paramref name="limit" /> more of the accounts waiting to be let in, from where an earlier
+    ///     read of them said to read on from (#466).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="from">Where to read on from, as an earlier read of the requests said.</param>
+    /// <param name="limit">How many more are wanted, paged as <see cref="PendingRequests" /> pages.</param>
+    /// <returns>
+    ///     The accounts, and where to read on from next unless the requests are now whole — reported as
+    ///     <see cref="PendingRequests" /> reports, a rate limit included.
+    /// </returns>
+    Task<Fetch<Account>> PendingRequestsOn(
+        ActiveProfile profile,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken);
 
     /// <summary>
     ///     Lists the accounts this profile follows that also follow the account named — the people a reader already

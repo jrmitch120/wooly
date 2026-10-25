@@ -445,7 +445,7 @@ public class ScreenKeyTests
     {
         var screen = new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]));
 
-        screen.Arrived(people, more: false);
+        screen.Arrived(people);
 
         return screen;
     }

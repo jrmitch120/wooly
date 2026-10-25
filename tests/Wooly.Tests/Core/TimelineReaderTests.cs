@@ -980,6 +980,210 @@ public class TimelineReaderTests
         Assert.NotNull(fetch.StoppedBy);
     }
 
+    /// <summary>
+    ///     Reading on (#460): a fetch that stopped at what was asked for says where to read on from, and handing that
+    ///     back asks the instance for the page it named next rather than reading the timeline again from the top.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_AsksForThePageTheLastReadNamedNext()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "150"),
+            PageResponse(PageOf(count: 40, firstId: 149), nextMaxId: "100"));
+        var reader = NewReader(network);
+
+        var first = await reader.Read(Profile, Timeline.Home, 40, TestContext.Current.CancellationToken);
+        var onward = await reader.ReadOn(
+            Profile,
+            Timeline.Home,
+            first.Onward!,
+            40,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(first.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/timelines/home?max_id=150&limit=40",
+            network.Requests[1].RequestUri?.ToString());
+        Assert.Equal("149", onward.Items[0].Id);
+        Assert.False(onward.IsWhole);
+    }
+
+    /// <summary>
+    ///     And it goes on from wherever the last read left off, not from wherever the first one did: the second read
+    ///     on asks for what the second page named.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_GoesOnFromWhereTheReadBeforeItStopped()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "150"),
+            PageResponse(PageOf(count: 40, firstId: 149), nextMaxId: "100"),
+            PageResponse(PageOf(count: 3, firstId: 99)));
+        var reader = NewReader(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await reader.Read(Profile, Timeline.Home, 40, token);
+        var second = await reader.ReadOn(Profile, Timeline.Home, first.Onward!, 40, token);
+        await reader.ReadOn(Profile, Timeline.Home, second.Onward!, 40, token);
+
+        Assert.Equal(
+            "https://mastodon.social/api/v1/timelines/home?max_id=100&limit=40",
+            network.Requests[2].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     Where the instance names no next page, a page short of what was asked for is the end of the timeline, and
+    ///     the fetch says the list is whole — there is nowhere to read on from.
+    /// </summary>
+    [Fact]
+    public async Task Read_IsWholeWhereAShortPageNamesNoNextPage()
+    {
+        var network = new ScriptedHttpMessageHandler(PageResponse(PageOf(count: 3, firstId: 200)));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 40, TestContext.Current.CancellationToken);
+
+        Assert.True(fetch.IsWhole);
+        Assert.Null(fetch.Onward);
+    }
+
+    /// <summary>
+    ///     A page with nothing on it is the end whatever the instance names next (ADR-0007), so a read on that comes
+    ///     back empty makes the list whole.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_IsWholeWhereThePageComesBackEmptyThoughTheInstanceNamesAnother()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "150"),
+            PageResponse("[]", nextMaxId: "120"));
+        var reader = NewReader(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await reader.Read(Profile, Timeline.Home, 40, token);
+        var onward = await reader.ReadOn(Profile, Timeline.Home, first.Onward!, 40, token);
+
+        Assert.Empty(onward.Items);
+        Assert.True(onward.IsWhole);
+    }
+
+    /// <summary>
+    ///     Being whole is the instance's call and not a count's: pages short of what was asked for that still name a
+    ///     next page are not the end, and the fetch goes on carrying where to read on from.
+    /// </summary>
+    [Fact]
+    public async Task Read_IsNotWholeWhereShortPagesStillNameANextPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 12, firstId: 200), nextMaxId: "150"),
+            PageResponse(PageOf(count: 28, firstId: 149), nextMaxId: "120"),
+            PageResponse(PageOf(count: 5, firstId: 119)));
+        var reader = NewReader(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var fetch = await reader.Read(Profile, Timeline.Home, 40, token);
+        await reader.ReadOn(Profile, Timeline.Home, fetch.Onward!, 40, token);
+
+        Assert.False(fetch.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/timelines/home?max_id=120&limit=40",
+            network.Requests[2].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     An instance that sends no link header is read on from the oldest post it sent, as a read past one page is
+    ///     (ADR-0007) — so a full page with no next link still has somewhere to read on from.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_GoesOnFromTheLastPostWhereTheInstanceNamesNoNextPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200)),
+            PageResponse(PageOf(count: 3, firstId: 160)));
+        var reader = NewReader(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await reader.Read(Profile, Timeline.Home, 40, token);
+        await reader.ReadOn(Profile, Timeline.Home, first.Onward!, 40, token);
+
+        Assert.Equal(
+            "https://mastodon.social/api/v1/timelines/home?max_id=161&limit=40",
+            network.Requests[1].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     A rate limit part way through keeps what arrived and is never whole: the fetch keeps where it stopped, and
+    ///     handing that back asks for the page the limit refused rather than for one past it.
+    /// </summary>
+    [Fact]
+    public async Task Read_KeepsWhereARateLimitStoppedItToReadOnFrom()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "161"),
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests),
+            PageResponse(PageOf(count: 5, firstId: 160)));
+        var reader = NewReader(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var stopped = await reader.Read(Profile, Timeline.Home, 45, token);
+        await reader.ReadOn(Profile, Timeline.Home, stopped.Onward!, 5, token);
+
+        Assert.NotNull(stopped.StoppedBy);
+        Assert.False(stopped.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/timelines/home?max_id=161&limit=5",
+            network.Requests[2].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     The same on the first page, where nothing has arrived to read on from: the fetch is still not whole, and
+    ///     reading on from it asks for the first page again.
+    /// </summary>
+    [Fact]
+    public async Task Read_StoppedOnItsFirstPageReadsOnFromTheTop()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests),
+            PageResponse(PageOf(count: 3, firstId: 200)));
+        var reader = NewReader(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var stopped = await reader.Read(Profile, Timeline.Home, 40, token);
+        await reader.ReadOn(Profile, Timeline.Home, stopped.Onward!, 40, token);
+
+        Assert.False(stopped.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/timelines/home?limit=40",
+            network.Requests[1].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     A read on that a rate limit stops part way through is the same (#462): it keeps what arrived, is not whole,
+    ///     and the next read on asks for the page the limit refused.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_StoppedPartWayByARateLimit_KeepsWhatArrivedAndTheNextReadOnResumesWhereItStopped()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "161"),
+            PageResponse(PageOf(count: 40, firstId: 160), nextMaxId: "121"),
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests),
+            PageResponse(PageOf(count: 3, firstId: 120)));
+        var reader = NewReader(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await reader.Read(Profile, Timeline.Home, 40, token);
+        var stopped = await reader.ReadOn(Profile, Timeline.Home, first.Onward!, 80, token);
+        await reader.ReadOn(Profile, Timeline.Home, stopped.Onward!, 40, token);
+
+        Assert.NotNull(stopped.StoppedBy);
+        Assert.Equal(40, stopped.Items.Count);
+        Assert.Equal("160", stopped.Items[0].Id);
+        Assert.False(stopped.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/timelines/home?max_id=121&limit=40",
+            network.Requests[3].RequestUri?.ToString());
+    }
+
     private static Timeline TimelineFor(TimelineScope scope) => scope switch
     {
         TimelineScope.Home => Timeline.Home,

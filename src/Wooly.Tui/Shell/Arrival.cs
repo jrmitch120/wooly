@@ -15,8 +15,8 @@ namespace Wooly.Tui.Shell;
 /// <remarks>
 ///     Three moves bring a screen up — arriving from the rail, drilling in, and refreshing in place — and they differ
 ///     only in what they do to the stack and whether a destination's placeholder goes up first. Everything a subject
-///     differs in, it says about itself: what it reads, what that becomes, whether it is held and whether it pages. A
-///     seventh kind of screen is a seventh subject rather than a seventh chance to state the sequence slightly
+///     differs in, it says about itself: what it reads, what that becomes, whether it is held and whether it reads on.
+///     An eighth kind of screen is an eighth subject rather than an eighth chance to state the sequence slightly
 ///     differently.
 ///     <para>
 ///         What lands leaves through <see cref="Arrives" />, <see cref="Drills" />, <see cref="Refreshes" />,
@@ -88,6 +88,12 @@ public sealed class Arrival(
     /// </summary>
     internal event Action<Found.Badge>? Counts;
 
+    /// <summary>
+    ///     Raised with what a destination's badge says counted again off a list <b>read on</b> (#466): what was waiting
+    ///     all along, further down, rather than anything that arrived.
+    /// </summary>
+    internal event Action<Found.Badge>? Recounts;
+
     /// <summary>Raised with how far a destination's badge moves, for a change made between reads of it.</summary>
     public event Action<DestinationKind, int>? Moves;
 
@@ -102,7 +108,7 @@ public sealed class Arrival(
 
     /// <summary>
     ///     Raised, on the drawing thread, with a destination whose own list is being read — arrived at or refreshed,
-    ///     and not paged — as the read is put (<see cref="ListReads" />).
+    ///     and not read further — as the read is put (<see cref="ListReads" />).
     /// </summary>
     internal event Action<DestinationKind>? ListReading;
 
@@ -233,18 +239,42 @@ public sealed class Arrival(
     }
 
     /// <summary>
-    ///     Reads the next page where the reader has walked onto the end of what <paramref name="showing" /> has, and
-    ///     there is more of it to be had (#180).
+    ///     <b>Reads on</b> the list <paramref name="showing" /> holds, which the page has come within a screenful of the
+    ///     end of (#469): the instance asked for what stands behind the last thing held, and that put under it.
     /// </summary>
     /// <remarks>
-    ///     Asked after every walk rather than bound to a key, because the walk is what settles it: the screen answers
-    ///     whether it is standing at the end of what it has with more to be had. Nothing while anything is in flight,
-    ///     which on a list is the page already asked for.
+    ///     Only on a screen whose list reads on and is not whole, and never while a read on is already out for it — one
+    ///     at a time per screen, however much the reader walks about near the end. The answer lands on the screen it
+    ///     was asked from and is added to it rather than put up as a new one, and only while that screen is in front:
+    ///     the stale rule every enquiry keeps. A read dropped by it costs nothing, since where to read on from has not
+    ///     moved, and the page still near the end on coming back asks again. A read that fails is the same (#462): the
+    ///     list is left as it was, the foot says it couldn't read on and the enquiry's notice says why, and the next
+    ///     approach to the end asks again from the same place — the reader's walking, never a timer.
+    ///     <para>
+    ///         What lands is added to what the cache holds for the subject too, with where to read on from next, so a
+    ///         list arrived at again holds everything read on rather than only its first read (#463).
+    ///     </para>
     /// </remarks>
-    public Task More(Screen showing) =>
-        showing is { WantsMore: true, Subject: { Pages: true } subject } && !enquiry.Fetching
-            ? Read(subject, Move.Page, showing)
-            : Task.CompletedTask;
+    public Task ReadOn(Screen showing)
+    {
+        if (showing is not { Subject: { } subject, ReadingOn: { } reading } || reading.Begin() is not { } from)
+        {
+            return Task.CompletedTask;
+        }
+
+        return enquiry.Put(
+            ask => subject.ReadOn(ask, ports, profile, showing, from),
+            ifStillHere: found =>
+            {
+                var screen = Land(subject, Move.Further, showing, found);
+
+                if (subject.Cached)
+                {
+                    cache.Add(subject, found, screen);
+                }
+            },
+            over: reading.Ended);
+    }
 
     /// <summary>
     ///     What <paramref name="change" /> makes stale: the cached lists it is no longer true of, the badge it moves,
@@ -380,7 +410,8 @@ public sealed class Arrival(
         Action? beneath = null,
         Action? landed = null)
     {
-        DestinationKind? listing = move != Move.Page && subject is Subject.Destination { Kind: var kind } ? kind : null;
+        DestinationKind? listing =
+            move != Move.Further && subject is Subject.Destination { Kind: var kind } ? kind : null;
 
         if (listing is { } reading)
         {
@@ -404,9 +435,9 @@ public sealed class Arrival(
 
                     landed?.Invoke();
 
-                    if (found.ReadsOn(screen))
+                    if (found.ReadsRestAtOnce(screen))
                     {
-                        _ = Read(subject, Move.Page, screen);
+                        _ = Read(subject, Move.Further, screen);
                     }
                 });
         }
@@ -436,9 +467,9 @@ public sealed class Arrival(
             Up(screen, subject, move);
         }
 
-        if (found.Counted is { } badge)
+        if (found.Counted(screen) is { } badge)
         {
-            Counts?.Invoke(badge);
+            (move == Move.Further ? Recounts : Counts)?.Invoke(badge);
         }
 
         return screen;

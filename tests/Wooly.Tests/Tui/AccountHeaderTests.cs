@@ -88,7 +88,7 @@ public class AccountHeaderTests
     }
 
     /// <summary>
-    ///     A bio, its own paragraphs kept, wrapped at the width rather than cut: the screen scrolls and one <c>j</c>
+    ///     A bio, its own paragraphs kept, wrapped at the width rather than cut: the screen scrolls and one <c>k</c>
     ///     reaches the posts, where a truncated bio would be permanent damage.
     /// </summary>
     [Fact]

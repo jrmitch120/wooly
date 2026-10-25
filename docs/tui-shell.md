@@ -273,7 +273,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Actors | `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
-| Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts a page at a time (#455) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
+| Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts and read on as the page nears the end (#455, #467) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
@@ -354,7 +354,8 @@ not answer them differently:
   counts and arriving at the destination count the same way (`InboxCount`), and a dismissal reads the Notifications
   count again rather than taking one off it. Nothing waiting draws no badge; an unread count that reaches the 40 one
   read counts draws `40+` — 40 or more unread conversations, a full list of requests — and Notifications reads one past
-  the 40 it counts, so exactly 40 draws `40` and only more draws `40+`.
+  the 40 it counts, so exactly 40 draws `40` and only more draws `40+`. Messages and Requests are counted again off the
+  whole list held after every read on (#466), as in "What reading on settled".
 - **Arriving at Notifications reads them** (ADR-0027, #397). The read marker moves to the newest notification shown, so
   the badge clears — on the web too — and the rows that were newer than the old marker carry the word `unread` before
   their age for that visit. Nothing unread is nothing to move; an account with no marker gets one at the newest. A move
@@ -965,6 +966,114 @@ selection was the only scroll position a screen had and the foot of such a post 
   deliberately, and written down because the vim reading is the one anybody will assume — so a future "fix" would
   silently reverse what `j` does on every screen in the shell.
 
+### What reading on settled
+
+#469 put **reading on** on Home, the first list to get it (spec #460). Home used to read 40 posts and stop, so a reader
+who walked to the bottom had no way to see anything older without leaving the TUI. What this document now holds it to:
+
+- **Nobody asks for it.** As the reader goes down Home and the page comes within one content-region height of the
+  last row of the list, the shell asks the instance for the older posts behind the last one held and adds them below.
+  It is measured in the region's own height, so it starts at the same moment however tall the terminal is, and it
+  rarely, if ever, lets a reader see the list stop and wait.
+- **The view starts it, whatever moved it (#461).** Walking the pick with `k` or `j` or jumping it with `Home` or `End`
+  moves the page with it, and `↓`, `↑`, `PgDn`, `PgUp` and the wheel move the page and leave the pick where it was.
+  Either way it is where the page has got to that reads on, so a reader scrolling down with the pick still on the
+  first post reads on just as one walking down does, and the pick stays put.
+- **The window says where the page is, once per move.** Only the window knows how tall the region is and where the
+  rows have scrolled to, so the frame that settles the page tells the shell how many rows lie under it
+  (`Shell.Viewed`). It says so after any of the moves above, and on a screen coming in front (arrived at, drilled
+  into, refreshed or walked back to), and on nothing else. A frame is drawn for many reasons that are not the reader
+  going anywhere, a read on landing among them, and a list whose read came back with nothing new would ask again on
+  every one. The reader's own moving is the only throttle.
+- **Only ever further down.** What has arrived since is still **Refresh**'s (`g`), above everything already read.
+  `g` builds a new screen read from the top, so it drops everything read on.
+- **Nothing moves.** The older posts go under the last one held, and the pick and the rows on the page stay where
+  they were.
+- **One read at a time per screen.** Moving about near the end while a read is in flight asks for nothing more.
+- **The foot of the list says what is happening.** It is one muted row under the last post: "reading on…" while a read
+  is in flight, "couldn't read on" after one failed, and "that's everything" once the instance has nothing behind
+  what the list holds, which makes it **whole**. A whole list is never asked again, and a quiet one whose first read
+  held everything says so straight away. Between reads, with more to come, the row is not drawn. Neither is it drawn
+  on an empty list, whose own notice already speaks for it.
+- **Being whole is the instance's call, not a count's.** The instance names no next page, or a page comes back empty
+  (ADR-0007). A short page that still names a next page is not the end. What the shell holds is the instance's own
+  onward position, carried on the `Fetch` and handed back as it came (ADR-0007's amendment), never a page or a cursor.
+- **Leaving mid-read drops the answer**, under the stale rule every enquiry keeps: nothing lands on a screen the
+  reader is not looking at. Walking back out hands back the same screen, still near the end, and it reads on again
+  from where it was. The dropped read cost nothing.
+- **A read that fails says so, and is tried again by the reader's walking** (#462). The foot says "couldn't read on"
+  and the enquiry's **Notice** says why, as for any failure. The list is left as it was, and where to read on from does
+  not move. The next time the page nears the end, which is any move that tells the shell where the page is, it asks
+  again from the same place. No timer ever does: a client retrying on its own would ask the instance on the reader's
+  behalf while they were not looking. `g` isn't needed either, and pressing it would lose their place.
+- **A rate limit is waited out, and the read carries on from where it stopped** (#462). A reader does not throw a
+  limit that stops it part way through: it answers what arrived and the limit together, on the `Fetch`, with where the
+  refused page would have started. So a read on doesn't land that as it stands. It waits the limit out the way every
+  **Enquiry** waits out a thrown one, counting down on the status row while the foot still says "reading on…". Then it
+  reads on from where the limit stopped it, and lands what arrived on both sides of the wait as one read. Nothing
+  already read is lost, and nothing is asked for twice (`Enquiry.Ask.ReadOn`, which every list that reads on goes
+  through).
+- **A fetch a rate limit stopped is never whole.** It keeps where it stopped, so a first read cut short reads on from
+  there rather than saying "that's everything". One stopped before anything arrived still shows the emptiness notice
+  it always has ("Rate limited part way through"), and its foot draws nothing, as on any empty list. The notice goes
+  once a read on brings anything, there and on a list it stopped part way with items in hand: what it said had arrived
+  is no longer what has, and it would otherwise stand over the list read on for as long as the screen did.
+- **The cache holds everything read on, and where to read on from** (#463). It is still the one cache, keyed by
+  subject (ADR-0014): each read on that lands is added under what the list's entry already holds, and the onward
+  position it came back with replaces the old one. A reader who has read on to 400 posts on Home, gone to Notifications
+  and come back within the minute finds all 400 held. The screen is still a fresh one, opened at the top as every
+  **Arrival** is, and walking to the end of it reads on from where the last read on stopped, so no call is spent on
+  posts already in hand. A list whose read on found nothing behind it is held whole, and says "that's everything".
+- **The minute counts from the last read on**, not from the first read. The cache asks whether this is still the list
+  the reader just left, and a reader reading on was reading it a moment ago, however long ago its top was read. A read
+  on adds only to a list the cache still holds: one that `g` or a change has forgotten stays forgotten, and is read
+  again on coming back. Each read on that lands restarts the minute (spec #460's amendment): counted from the first
+  read, a reader who had read on for longer than a minute would come back to the list read again from the top, and
+  story 25 would rarely hold.
+- **`g` drops all of it.** Refresh forgets the subject's entry and reads it again from the top, so the list opens at
+  the top on what came back and the cache holds that and nothing older.
+- **A change reaches a post read on exactly as it reaches one from the first read.** The change table asks the held
+  list about every item in it, so a post marked or deleted forgets every cached list holding it, however it was
+  reached, and a tie forgets Home with everything read on it. The screen showing the post hears the change and patches
+  it in place, as it does any post.
+- **Every timeline reads on, and so do an account's posts (#464).** These screens read on, the same way Home does:
+  - Home, Local, Federated and the rail's Hashtag;
+  - a hashtag walked to from a post or a search, which is the same timeline reached another way;
+  - an account's posts, below the pinned run, following whichever run is showing: their posts, or **Posts and
+    replies** once `s` has widened it. The pinned run is never read on. It is one page in the account's own order, and
+    a post pinned long ago that comes back in an older page is still drawn once, in the pinned run (#182).
+- **Notifications reads on too (#465).** The older **Notification groups** go under the last one held, read the way
+  the screen was first read: grouped from `/api/v2`, from the `max_id` the instance's own link named, or, where the
+  instance cannot group, each notification a group of one from `/api/v1` (ADR-0032). The instance groups a page at a
+  time, so a group already held can come back on an older page with older notifications of its own. It stays where it
+  is, drawn once. A group arriving live still goes on top, read on or not, and neither waits for the other nor moves
+  what the other put. The older groups are behind the **Read marker**, so reading on moves neither the marker nor the
+  badge, and draws them read (ADR-0027).
+- **Direct messages and Follow requests read on too** (#466), the older conversations and the rest of the requests
+  waiting put under those held, with the same foot. Each read on asks where the profile stands only with the people it
+  brought. Whatever arrives live still goes on top (`Screen.PutOnTop`) while reading on adds at the bottom, and the two
+  never meet.
+- **Their badges are counted again off the whole list held after each read on** (`InboxCount.OffListReadOn`), as every
+  read of a destination counted off its list sets its badge — so requests read on to 55, and then whole, say `55` rather
+  than `40+`, and an older unread conversation read on is counted. Exact once the list is whole; while it is not,
+  Requests says `N+` for the N held, every one of them waiting, and Messages says `N+` only where every conversation
+  held is unread, the one case where what is held cannot be the whole count — so 3 unread among 80 held say `3`, as the
+  first read has always counted them (spec #460's amendment). It is the list going further down, not anything arriving,
+  so it never rings the bell, and it is the count the next one rises against. The cache keeps it with the list read on,
+  so arriving there again within the minute says it too, not what the first read said. Answering a request or marking a
+  conversation moves it as before: by one under an exact badge, and read again under `N+`. The next poll or stream
+  re-read counts the first 40 again and sets the badge from those, as every re-read does: the `55` holds until then, and
+  that re-read says `40+` again, which is still true, where a `55` kept over a fresher read could be wrong (spec #460's
+  amendment). Notifications' badge is counted against the read marker, not off the list, and older notifications are
+  behind it, so reading on there never moves it.
+- **A browsed Follow list and a group's actors read on too** (#467), in place of the paging they had, which re-read
+  the list from the top to a longer limit each time `k` or `End` landed on its last row. They read on by the same
+  trigger, from the same onward position, with the same foot (*What a follow list settled*), and ask where the profile
+  stands only with the people a read on brought. A held Follow list does not: it is read whole at once, as before.
+- **Every list the spec named reads on.** Every timeline, an account's posts, the Inbox, a browsed **Follow list** and
+  a notification group's actors. Every other list (Discover, a search, a **Thread**, a conversation, a held Follow list)
+  reads once and never asks, and draws no foot.
+
 ### What conversations settled
 
 The last two screens, and the one place a screen writes words of its own into what a reader is sending:
@@ -1449,7 +1558,7 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   to the posts. **Every section brings its own separator**, so an account with none of the middle or bottom collapses
   to four rows and a divider with no gaps left behind.
 - **It draws whole and cuts nothing.** Worst case is around 29 rows — a long bio wraps to nine, four fields to eight —
-  and that is fine, because the screen scrolls and one `j` puts the posts on screen. A truncated bio would be permanent
+  and that is fine, because the screen scrolls and one `k` puts the posts on screen. A truncated bio would be permanent
   damage done to solve a problem one keypress already solves.
 - **An avatar is an 8×4 inset that takes its columns back** where the terminal cannot paint one, rather than holding a
   placeholder open — what #62 already settled on a byline.
@@ -1478,7 +1587,8 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
 - **The duplicate is dropped from the timeline run, never from pinned**, and dropped by id in
   the `Account` subject's read, so the screen is handed two disjoint lists and cannot disagree with itself about which run a post is
   in. On their posts alone only a recent pinned *normal* post can be in both, that call excluding replies; with
-  replies in, a recent pinned reply can be too, and is drawn in the pinned run alone the same way.
+  replies in, a recent pinned reply can be too, and is drawn in the pinned run alone the same way. Reading on keeps it
+  so: an older pin coming back in a page read on is left out of the timeline run as it is added (#464).
 - **Empty draws nothing; not asked draws a row.** No pinned posts is no heading, no rows and no gap, which is the
   common case. A pinned read a rate limit stopped draws `Pinned posts not asked for.`, the same distinction
   `AccountLines.Standing` already draws `Standing not asked for.` for — which is why pinned is asked *before* familiar
@@ -1513,13 +1623,19 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   Under the threshold it holds the whole list, walkable from the first page of 80 with the rest landing behind a pick
   that does not move; while what is on screen is not the whole of it — still coming, or stopped short by a rate limit
   — the count says both numbers, so a thin filter result reads as *still reading* rather than as *nobody matches*. At
-  or above it the screen browses paged on demand — `j` past the bottom fetches the next 80 — **with no filter at all**,
-  `f` off the status row and the count reading `240 of 877,000 read` (`Number.Of`, which is how this client writes
-  every count).
+  or above it the screen is browsed by **reading on** (#467, *What reading on settled*) **with no filter at all**, `f`
+  off the status row and the count reading `240 of 877,000 read` (`Number.Of`, which is how this client writes every
+  count). It reads the first 80, and as the page comes within a screenful of the end — by `k`, `End` or whatever moved
+  the page — the next 80 from where the last read stopped (`IAccountRelationships.ListOn`), put under the last person
+  held with the pick unmoved. Nothing is read twice: each read on is one page, however far down the reader has got,
+  where the paging it replaced re-read every page before it on every ask. The foot says "reading on…" while a read is
+  out and "that's everything" once the instance has nothing behind what is held.
   The rest of a held list arrives in **one further ask rather than 24**, which is where the implementation departs from
-  #180's "80 a page": `IAccountRelationships.List` reads to a *limit* rather than from a cursor, so asking page by page
-  re-reads every page before it — 25 asks would cost some 300 requests against the 25 the ticket budgeted. The standing
-  call is still made a page of 80 ids at a time, that endpoint taking many ids and not unboundedly many.
+  #180's "80 a page": asking page by page with `IAccountRelationships.List`, which reads to a *limit* from the top,
+  re-reads every page before it — 25 asks would cost some 300 requests against the 25 the ticket budgeted. A held list
+  is unchanged by reading on: it is still read whole at once, re-read for the rest to the list's own count, and draws
+  no foot. The standing call is still made a page of 80 ids at a time, that endpoint taking many ids and not unboundedly
+  many — and on a browsed list only for the people a read on brought, never again for those already on screen.
 - **No filter is offered where it cannot be honest.** Filtering what has already been read is the dishonest filter
   #162 ruled out, and 240 read of 877K makes "no matches" meaningless. Refusing to open the screen was rejected too:
   walking the first few hundred of anyone's followers is a real thing to do, on the same rows with the same `⏎`.
@@ -1554,9 +1670,11 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   serve the part of a *remote* account's follows it actually holds, which is mostly its own people — so `@lizardbill`'s
   951 followers arrive as the 16 who are local here, the count coming off their own instance and the list coming off
   yours. Nothing is wrong and nothing more is coming, and `16 of 951 read` alone leaves a reader waiting for the other
-  935. The row says `16 of 951 read — this instance offers no more` once the reading has finished short. Not where a
-  notice above has already said why: a rate limit stops a read too, and a count blaming the instance's reach
-  underneath that would contradict it and guess at a cause the notice already knows.
+  935. A held list's row says `16 of 951 read — this instance offers no more` once the reading has finished short. Not
+  where a notice above has already said why: a rate limit stops a read too, and a count blaming the instance's reach
+  underneath that would contradict it and guess at a cause the notice already knows. A browsed list's row keeps the
+  two numbers and drops the suffix (#467): its foot says "that's everything" once the instance has nothing behind what
+  is held, which is the same fact said the way every list that reads on says it.
 - **An account that lists nobody is not an account that follows nobody.** Mastodon serves an empty list for an account
   that keeps who it follows to itself, while the count on the profile goes on saying five — so the screen says *their
   profile says 5 following, but the instance listed nobody* rather than *they follow nobody yet*, which would report a
@@ -1584,7 +1702,7 @@ The answer generalised: three screens use it (#166, amended by #171 and #172):
   capitalised precisely so a slip cannot fire one. `n`/`N` lost on reading as "next match" — a within-results search
   that does not exist, and sitting beside `/` it would advertise one.
 - **It moves the pick, not the page**, and brings the heading with it under the rule in "What moving settled" above.
-  It is "take me to the posts", and a reader who arrives at a post wants to press `⏎`, not `j` first.
+  It is "take me to the posts", and a reader who arrives at a post wants to press `⏎`, not `k` first.
 - **Headed runs only, and the account screen's header block is not a stop.** The jump brings a run's heading with it,
   and the header has no heading to bring; `[` from the first pinned post clamps. Nothing is unreachable — `k` from
   there lands on the header, and `Home` always has.
@@ -1658,7 +1776,7 @@ to follow (#171):
   of the reader's being destroyed and the cost of a mis-press being one suggestion out of forty on a list the server
   regenerates. A dismissed row **stays walkable** and still answers `⏎` and `F`: dismissing says "stop suggesting", not
   "hide", and a row that vanished would take its own undo with it. No row reorders and no heading recounts as you act —
-  the feature was admitted for `j j j F F`, and a list that reflows under your fingers is the one thing that breaks it.
+  the feature was admitted for `k k k F F`, and a list that reflows under your fingers is the one thing that breaks it.
 - **Empty is a real answer, so there is no not-asked to draw.** A destination always asks on arrival, so an empty
   screen means the instance answered "nobody": one muted `Nobody suggested.`, on the same construction as search's
   `Nothing found for …`, and no apology for a new account or a small instance. A failure is not an empty screen either
@@ -2483,7 +2601,7 @@ reader looking for them finds them together.
 | Destination cache | 1 minute | Long enough that walking out along the rail and back is free; short enough that a timeline left and returned to a minute later is fetched rather than remembered. This client forgets a destination early when it is the thing that changed it — a post published, deleted or marked, or the public profile saved while it carries one of the own account's posts. |
 | Countdown step | 1 second | The unit a rate-limit countdown counts in. |
 | Mark step | 400ms | How long one frame of the breadcrumb's spinner is held, and — since the mark waits for its first tick — how long a fetch runs before it is announced at all. The slowest rate a glance still catches moving: a second reads as a stall and 250ms as a machine in trouble. Deliberately not the countdown's second, which would say the mark counts something (#213). |
-| Follow-list threshold | 2,000 | Below it a **Follow list** is held whole and narrowed live; at or above it the screen browses a page at a time and offers no narrowing. Set by the shape of real accounts: a following count is bounded and a followers count is not — 877K followers is ~11,000 requests at 80 a page, which is not a list to promise a search over. |
+| Follow-list threshold | 2,000 | Below it a **Follow list** is held whole and narrowed live; at or above it the screen is browsed by reading on and offers no narrowing. Set by the shape of real accounts: a following count is bounded and a followers count is not — 877K followers is ~11,000 requests at 80 a page, which is not a list to promise a search over. |
 
 One cache age for everything, rather than one per kind of destination. The question the cache answers is "is this still
 the timeline I just left", not "is this still current", and that has the same answer wherever you left from.
