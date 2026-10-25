@@ -347,6 +347,19 @@ public class KeymapTests
         Assert.Equal(verb, Means(key, Browser()));
 
     /// <summary>
+    ///     The attachments screen's arrows walk its rows as the file browser's walk its entries (story 58), and so
+    ///     <c>Home</c> and <c>End</c> take its cursor to the first row and the last, not its page (asked in review of
+    ///     #480).
+    /// </summary>
+    [Theory]
+    [InlineData("↓", Verb.NextEntry)]
+    [InlineData("↑", Verb.PreviousEntry)]
+    [InlineData("Home", Verb.FirstEntry)]
+    [InlineData("End", Verb.LastEntry)]
+    public void TheAttachmentsScreenWalksItsRowsAsEntries(string key, Verb verb) =>
+        Assert.Equal(verb, Means(key, new AttachmentsScreen(new ComposeScreen(ComposeFor.Post))));
+
+    /// <summary>
     ///     What the edit public profile form answers to: the arrows walk its own fields rather than compose's, and on
     ///     the avatar or the header <c>⏎</c> chooses a picture and <c>ctrl-v</c>/<c>alt-v</c> paste one — each a verb
     ///     of its own, so that nothing past here asks which screen it is on (review of #403).

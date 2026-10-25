@@ -38,6 +38,31 @@ public class FileBrowserPinnedTests : IDisposable
 
     public void Dispose() => _files.Dispose();
 
+    /// <summary>
+    ///     <c>End</c> takes the cursor to the last entry and the list under the pinned rows with it, and <c>Home</c>
+    ///     back to the first, the way up a folder: the arrows walk the cursor here, so the ends of the list are the
+    ///     cursor's too (asked in review of #480).
+    /// </summary>
+    [Fact]
+    public async Task HomeAndEndTakeTheCursorToTheFirstEntryAndTheLast()
+    {
+        using var drawn = await Browsing(ComposeFor.Post);
+
+        drawn.Press(Key.End);
+
+        var rows = drawn.Rows();
+
+        AssertPinned(rows);
+        Assert.Contains("picture 39", rows[Cursor(drawn)], StringComparison.Ordinal);
+
+        drawn.Press(Key.Home);
+
+        rows = drawn.Rows();
+
+        AssertPinned(rows);
+        Assert.Contains("◂ ..", rows[Cursor(drawn)], StringComparison.Ordinal);
+    }
+
     /// <summary>Walked down to the foot of a long folder, the folder, the filter and the rule are still the top three rows.</summary>
     [Theory]
     [InlineData(ComposeFor.Post)]
