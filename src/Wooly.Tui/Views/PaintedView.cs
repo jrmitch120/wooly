@@ -43,6 +43,9 @@ internal sealed class PaintedView : View
     private bool _following = true;
     private bool _anchoring;
 
+    /// <summary>Whether the next frame is to bring the reference walked to onto the page (<see cref="ShowReference" />).</summary>
+    private bool _showingReference;
+
     /// <summary>How far down the page the last frame drew the pick's first row, if it drew one at all.</summary>
     private int? _drawnPick;
 
@@ -148,6 +151,25 @@ internal sealed class PaintedView : View
     public Action<int, int>? Settled { get; init; }
 
     /// <summary>
+    ///     The reference walked to on the screen drawn here, which is what a frame brings onto the page
+    ///     (<see cref="ShowReference" />) and looks at to see whether it has gone off it
+    ///     (<see cref="LetReferenceGo" />). None where nobody said.
+    /// </summary>
+    public Func<Reference?> HeldReference { get; init; } = () => null;
+
+    /// <summary>
+    ///     Told, from inside the frame that settles the page, that the reference walked to has none of its rows on it any
+    ///     more — after an arrow, a page key, a wheel notch or a resize — so that it is let go (#478). Nobody is told where
+    ///     nobody said.
+    /// </summary>
+    /// <remarks>
+    ///     Asked only while <see cref="HeldReference" /> says one is held, and answered off the rows the frame lays out
+    ///     anyway, so that scrolling with none held lays nothing out it did not before (#51). Whoever is told lets it go
+    ///     and redraws: this frame's brackets are off the page already, so nothing on it shows them.
+    /// </remarks>
+    public Action? LetReferenceGo { get; init; }
+
+    /// <summary>
     ///     How this terminal paints pixels as of the last frame settled, or <see cref="Media.Raster.None" /> before the
     ///     first. Worked out once a frame, before the rows are, and read rather than asked again everywhere else — the
     ///     rows laid out for a click or a key between frames included — so the rows, the boxes and the picture cache
@@ -156,9 +178,9 @@ internal sealed class PaintedView : View
     public Raster Raster { get; private set; } = Raster.None;
 
     /// <summary>
-    ///     The item <c>j</c> and <c>k</c> should take back — the topmost one on the page — or <see langword="null" />
-    ///     while the selection is still on screen and they can simply move from it. Never a row of its own: what is
-    ///     reclaimed is the whole post the page begins on.
+    ///     The item <c>j</c> and <c>k</c> should take back — the first one whose start is on the page — or
+    ///     <see langword="null" /> while the pick is still on screen and they can simply move from it. Never a row of
+    ///     its own: what is reclaimed is a whole thing.
     /// </summary>
     /// <remarks>
     ///     Asked of the view because the view is the only thing that knows how much room there is and where the arrows
@@ -178,6 +200,36 @@ internal sealed class PaintedView : View
             }
 
             return Reclaiming(_rows(width, height), height);
+        }
+    }
+
+    /// <summary>
+    ///     What <c>→</c> and <c>←</c> are to walk from: the reclaim <see cref="Reclaimable" /> would answer, and the
+    ///     references on the page of the thing reclaimed, or of the pick where nothing is (#477).
+    /// </summary>
+    /// <remarks>
+    ///     Answered from one lot of rows, for the reason <see cref="Along" /> is, and nothing known where this view does
+    ///     not scroll: a walk there enters at the first reference or the last, as it always has.
+    /// </remarks>
+    public OnThePage OnThePage
+    {
+        get
+        {
+            var width = Viewport.Width;
+            var height = Viewport.Height;
+
+            if (!Scrolls || width <= 0 || height <= 0)
+            {
+                return OnThePage.Unknown;
+            }
+
+            var lines = _rows(width, height);
+            var reclaiming = Reclaiming(lines, height);
+            var walked = reclaiming ?? (FirstPicked(lines) is { } picked ? lines[picked].Item : null);
+
+            return new OnThePage(
+                reclaiming,
+                walked is { } item ? Scroll.ReferencesOn(lines, height, _top, item, Pinned()) : []);
         }
     }
 
@@ -217,7 +269,20 @@ internal sealed class PaintedView : View
     ///     or <see langword="null" /> for a cell outside the rows, past the end of its row, or on a run that stands for
     ///     nothing. What a click on one of a row's several things is answered from — a crumb of the breadcrumb (#308).
     /// </summary>
-    public int? SpanItemAt(Point screen)
+    public int? SpanItemAt(Point screen) => SpanAt(screen)?.Item;
+
+    /// <summary>
+    ///     Which reference the run under the terminal cell <paramref name="screen" /> is drawn for
+    ///     (<see cref="Span.Reference" />), or <see langword="null" /> for a cell outside the rows, past the end of its
+    ///     row, or on a run that is part of no reference. What a click on a reference is answered from (#475).
+    /// </summary>
+    public Reference? ReferenceAt(Point screen) => SpanAt(screen)?.Reference;
+
+    /// <summary>
+    ///     The run drawn under the terminal cell <paramref name="screen" />, or <see langword="null" /> for a cell outside
+    ///     the rows or past the end of its row.
+    /// </summary>
+    private Span? SpanAt(Point screen)
     {
         if (LineAt(screen, out var column) is not { } line)
         {
@@ -228,7 +293,7 @@ internal sealed class PaintedView : View
         {
             if (column < span.Width)
             {
-                return span.Item;
+                return span;
             }
 
             column -= span.Width;
@@ -265,8 +330,9 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     What a key that moves the pick has to take back before it moves it: the topmost thing on the page, where
-    ///     the pick has none of its rows on it, and <see langword="null" /> while it is still visible.
+    ///     What a key that moves the pick has to take back before it moves it: the first thing whose start is on the
+    ///     page (<see cref="Scroll.Reclaim" />), where the pick has none of its rows on it, and
+    ///     <see langword="null" /> while it is still visible.
     /// </summary>
     /// <remarks>
     ///     Said once for the two keys that ask it — <c>j</c>/<c>k</c> through <see cref="Reclaimable" /> and
@@ -277,7 +343,7 @@ internal sealed class PaintedView : View
     {
         var pinned = Pinned();
 
-        return Scroll.Shows(lines, height, _top, pinned) ? null : Scroll.Topmost(lines, _top, pinned);
+        return Scroll.Shows(lines, height, _top, pinned) ? null : Scroll.Reclaim(lines, height, _top, pinned);
     }
 
     /// <summary>
@@ -316,6 +382,33 @@ internal sealed class PaintedView : View
     public void Turn(int pages) => Step(pages * Viewport.Height);
 
     /// <summary>
+    ///     Takes the screen to the foot of the list, the last row on the page's last row, and leaves the pick where it
+    ///     is, which is what <c>End</c> does. The top of the list needs nothing of its own: it is a <see cref="Step" />
+    ///     up as far as there is.
+    /// </summary>
+    /// <remarks>
+    ///     The rows are laid out here to find the foot, unlike <see cref="Step" />'s: <c>End</c> is one press rather
+    ///     than a run of them, so it pays what one frame costs once, as <see cref="Reclaimable" /> does. Settling it
+    ///     now rather than on the next frame leaves nothing waiting for that frame that another move of the page could
+    ///     forget to call off, and a read on putting more posts under the foot leaves the page where it came to.
+    /// </remarks>
+    public void ToTheFoot()
+    {
+        var width = Viewport.Width;
+        var height = Viewport.Height;
+
+        if (!Scrolls || width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        _top = Math.Max(0, _rows(width, height).Count - height);
+        _following = false;
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>
     ///     Puts the screen back to following the selection, which is what moving the selection means: from here it is
     ///     brought into view again and kept there until the arrows take the scroll back over.
     /// </summary>
@@ -341,6 +434,22 @@ internal sealed class PaintedView : View
     {
         _following = true;
         _anchoring = true;
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>
+    ///     On the very next frame only, moves the page the least it must to bring the reference just walked to onto it —
+    ///     what <c>→</c> and <c>←</c> ask for, the way <c>j</c> and <c>k</c> bring the pick back (#473).
+    /// </summary>
+    /// <remarks>
+    ///     A page that has to move for it stops following the pick, since following would snap a post taller than the
+    ///     room back to its top on the next frame and take the reference off again. One that need not move is left
+    ///     exactly as it was, following or not.
+    /// </remarks>
+    public void ShowReference()
+    {
+        _showingReference = true;
 
         SetNeedsDraw();
     }
@@ -671,8 +780,10 @@ internal sealed class PaintedView : View
     {
         var lines = _rows(width, height);
         var anchoring = _anchoring;
+        var showingReference = _showingReference;
 
         _anchoring = false;
+        _showingReference = false;
 
         var was = _top;
 
@@ -690,6 +801,23 @@ internal sealed class PaintedView : View
                 ? anchoring ? Scroll.ToSection(lines, height, _top, pinned) : Scroll.To(lines, height, _top, pinned)
                 : Scroll.By(lines, _top, 0)
             : 0;
+
+        var held = Scrolls ? HeldReference() : null;
+
+        if (showingReference && held is { } walked
+            && Scroll.ToReference(lines, height, _top, walked, pinned) is var shown && shown != _top)
+        {
+            _top = shown;
+            _following = false;
+        }
+
+        // A reference with none of its rows left on the page the scroll came to is let go, whatever moved the page or
+        // reflowed it (#478). Looked at only while one is held, so scrolling with none costs what it did.
+        if (LetReferenceGo is { } letGo && held is { } off
+            && Scroll.ReferenceOffThePage(lines, height, _top, off, pinned))
+        {
+            letGo();
+        }
 
         _drawnPick = FirstPicked(lines) - _top;
 

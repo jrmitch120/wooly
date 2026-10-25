@@ -443,11 +443,18 @@ public abstract class Screen
     ///     further motion in the same direction at either end clamps rather than wrapping, which is the convention
     ///     <see cref="Picked{T}" /> already walks a list by.
     /// </summary>
+    /// <remarks>
+    ///     Entering, the first and last are those of <paramref name="onThePage" /> where any of them are, so a tall post
+    ///     scrolled partway down is not entered at a reference scrolled off above it (#477). Once inside, every one of
+    ///     the post's references is walked, on the page or not.
+    /// </remarks>
+    /// <param name="by">Which way, and how far.</param>
+    /// <param name="onThePage">Which of the picked thing's references have a row on the page, in the order drawn.</param>
     /// <returns>
     ///     Whether there was anything to walk, which is what settles whether the key was used — a screen with no
     ///     references on it leaves <c>←</c> and <c>→</c> to whatever else wants them, the compose editor above all.
     /// </returns>
-    public bool WalkReference(int by)
+    public bool WalkReference(int by, IReadOnlyList<Reference>? onThePage = null)
     {
         var references = References;
 
@@ -456,11 +463,36 @@ public abstract class Screen
             return false;
         }
 
-        _reference = _reference is { } at && at < references.Count
-            ? Math.Clamp(at + by, 0, references.Count - 1)
-            : by > 0 ? 0 : references.Count - 1;
+        if (_reference is { } at && at < references.Count)
+        {
+            _reference = Math.Clamp(at + by, 0, references.Count - 1);
+
+            return true;
+        }
+
+        var shown = onThePage?.Where(references.Contains).ToList() ?? [];
+        Reference? entered = shown.Count == 0 ? null : by > 0 ? shown[0] : shown[^1];
+
+        if (entered is not { } reference || !WalkToReference(reference))
+        {
+            _reference = by > 0 ? 0 : references.Count - 1;
+        }
 
         return true;
+    }
+
+    /// <summary>
+    ///     Walks straight to <paramref name="reference" />, where it is one of the picked thing's — the same pick
+    ///     <see cref="WalkReference" /> would have arrived at by steps. What a click on one does (#475).
+    /// </summary>
+    /// <returns>Whether it was one to walk to; where it is not, nothing is picked.</returns>
+    public bool WalkToReference(Reference reference)
+    {
+        var at = References.ToList().IndexOf(reference);
+
+        _reference = at >= 0 ? at : null;
+
+        return at >= 0;
     }
 
     /// <summary>Lets the picked reference go, which <c>esc</c> does before it pops and <c>j</c> and <c>k</c> do on the way past.</summary>

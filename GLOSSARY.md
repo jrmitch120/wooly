@@ -673,6 +673,15 @@ following, which is what opens a pushed screen, an **Arrival** and a **Refresh**
 which of the three it is.
 _Avoid_: scroll state, viewport
 
+**Reclaim**:
+What the first key that needs the **Picked** thing does when none of its rows are on the **Page**: pick out the first
+thing whose start is on the page — or, where no thing's start is, the topmost thing with any row showing — and do
+nothing else with that press, bar `←`/`→`, which go on to enter its **Reference**s (#51). A thing's start is the first
+row of its content — a post's warning, text or attachment, under its boost line, notification strip and byline — or,
+for a thing with no content, such as an account's header block or a follow, its first row. It is not a **Section**
+heading, which heads a run of things rather than one.
+_Avoid_: snap, jump back, heading (for a thing's start)
+
 **Section**:
 A run of the things on one screen under a heading of its own — the accounts a search found, then its hashtags, then its
 posts — and what `[` and `]` move the **Picked** thing between, a whole run at a time (#166). Said the same way on
@@ -688,10 +697,11 @@ _Avoid_: kind (which is what a search result *is*, not where it sits), tab, grou
 **Reference**:
 A hashtag, a mention, or an address found inside written text — a post's, and since ADR-0019 an account's **Bio** and
 its **Custom field**s too — or an **Attachment**'s own address, once it is not drawn as a picture in its own right
-(ADR-0017), or a **Link preview**'s own address (ADR-0018) — the things `←`/`→` walk and `⏎` opens. Distinct from
+(ADR-0017), or a **Link preview**'s own address (ADR-0018) — the things `←`/`→` walk, a click walks to, and `⏎` opens. Distinct from
 **Picked**, which is which thing on the screen the reader has walked to; a reference is walked *inside* whatever is
 picked, one level in. What carries them is asked of the picked thing rather than assumed to be a post, a bio being the
-first thing here that is not one. Widened
+first thing here that is not one. A walked-to reference is let go once none of its rows are on the **Page**, and once
+`⏎` has opened it. Widened
 past the post's own text on purpose: a video is walked to and opened exactly the way a link is, because placing,
 picking and opening several things on one screen was already solved for the three that live in the text, and a second
 copy of that solve for the ones that do not would be a second place for it to disagree with the first. Replaces what

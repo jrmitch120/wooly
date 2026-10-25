@@ -42,9 +42,9 @@ public static class Sections
     /// <param name="lines">The rows as they are drawn now, headings and all.</param>
     /// <param name="by">How many runs along: <c>1</c> for <c>]</c> and <c>-1</c> for <c>[</c>.</param>
     /// <param name="reclaiming">
-    ///     The topmost thing on the page, where the pick has been scrolled off it, or <see langword="null" /> while it
-    ///     is still visible — so that the jump runs from what the reader is looking at rather than from a pick they
-    ///     cannot see (#51).
+    ///     The thing reclaimed (<see cref="Scroll.Reclaim" />), where the pick has been scrolled off the page, or
+    ///     <see langword="null" /> while it is still visible — so that the jump runs from what the reader is looking at
+    ///     rather than from a pick they cannot see (#51).
     /// </param>
     public static int? Along(IReadOnlyList<Line> lines, int by, int? reclaiming)
     {

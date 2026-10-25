@@ -32,7 +32,87 @@ public static class Scroll
     ///     How many rows at the top of the page are pinned there, drawn over the rows scrolled under them, so that only
     ///     the rest of the page shows what has scrolled (<see cref="Screens.Screen.Pinned" />).
     /// </param>
-    public static int To(IReadOnlyList<Line> lines, int height, int from, int pinned = 0)
+    public static int To(IReadOnlyList<Line> lines, int height, int from, int pinned = 0) =>
+        ToShow(lines, height, from, pinned, line => line.Has(Role.Selection));
+
+    /// <summary>
+    ///     Where to scroll to so that <paramref name="reference" />, the one walked to, is on the page — the answer to
+    ///     <c>→</c> or <c>←</c> having walked to one off it (#473).
+    /// </summary>
+    /// <remarks>
+    ///     The same minimum move <see cref="To" /> makes for the pick, keyed on every row drawn for the reference
+    ///     (<see cref="Draws" />), so that a reference wrapped across two rows is brought on whole where it fits. With
+    ///     no row drawn for it, the page stays where it is.
+    /// </remarks>
+    /// <param name="lines">The rows to be drawn.</param>
+    /// <param name="height">How many rows there is room for.</param>
+    /// <param name="from">Where the scroll is now.</param>
+    /// <param name="reference">The reference walked to.</param>
+    /// <param name="pinned">How many rows at the top of the page are pinned there (<see cref="To" />).</param>
+    public static int ToReference(
+        IReadOnlyList<Line> lines,
+        int height,
+        int from,
+        Reference reference,
+        int pinned = 0) =>
+        ToShow(lines, height, from, pinned, line => Draws(line, reference));
+
+    /// <summary>
+    ///     Whether <paramref name="reference" />, the one walked to, has gone off the page starting at
+    ///     <paramref name="from" />: none of the rows drawn for it are on it, which is what lets it go (#478).
+    /// </summary>
+    /// <remarks>
+    ///     Its rows are every row drawn for it (<see cref="Draws" />), the middle row of an address
+    ///     wrapped across three included: a reference is off only when no part of it shows. One drawn on no row at all
+    ///     says nothing either way, so it is never let go for that.
+    /// </remarks>
+    /// <param name="lines">The rows drawn.</param>
+    /// <param name="height">How many rows there is room for.</param>
+    /// <param name="from">Where the page starts.</param>
+    /// <param name="reference">The reference walked to.</param>
+    /// <param name="pinned">
+    ///     How many rows at the top of the page are pinned there (<see cref="To" />): a row scrolled under them is not on
+    ///     the page, since nobody can see it.
+    /// </param>
+    public static bool ReferenceOffThePage(
+        IReadOnlyList<Line> lines,
+        int height,
+        int from,
+        Reference reference,
+        int pinned = 0)
+    {
+        var drawn = false;
+
+        for (var at = 0; at < lines.Count; at++)
+        {
+            if (!Draws(lines[at], reference))
+            {
+                continue;
+            }
+
+            if (at >= from + pinned && at < from + height)
+            {
+                return false;
+            }
+
+            drawn = true;
+        }
+
+        return drawn;
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="line" /> is drawn for <paramref name="reference" />, the one walked to: a row of the
+    ///     pick (<see cref="Role.Selection" />) carrying it. A reference is walked inside the pick, and one that reads
+    ///     the same at the same place in another post — the reader's own handle opening two replies to them — compares
+    ///     equal without being it.
+    /// </summary>
+    private static bool Draws(Line line, Reference reference) => line.Has(Role.Selection) && line.Has(reference);
+
+    /// <summary>
+    ///     Where to scroll to so that every row that is <paramref name="part" /> of what is to be shown is on the page.
+    /// </summary>
+    private static int ToShow(IReadOnlyList<Line> lines, int height, int from, int pinned, Func<Line, bool> part)
     {
         if (height < 1)
         {
@@ -44,7 +124,7 @@ public static class Scroll
 
         for (var at = 0; at < lines.Count; at++)
         {
-            if (!lines[at].Has(Role.Selection))
+            if (!part(lines[at]))
             {
                 continue;
             }
@@ -192,8 +272,106 @@ public static class Scroll
     }
 
     /// <summary>
+    ///     Which thing <c>j</c> reclaims once the pick is off the page starting at <paramref name="from" />: the first
+    ///     thing whose start is on it, or <see langword="null" /> for a screen with no items on it at all (#472).
+    /// </summary>
+    /// <remarks>
+    ///     A thing's start is the first row of it marked as where its content starts
+    ///     (<see cref="Line.ContentStarts" />) — a post's first row after its boost line, notification strip and byline
+    ///     — and, for a thing with no row so marked, such as an account's header block or a follow, its first row. Read
+    ///     off the rows as drawn, so no screen keeps its own record of where things begin. A reader who scrolls just
+    ///     past a byline is still reading that post, so it is that post the press picks, not the next one down (asked
+    ///     in review of #480, replacing #472's first row). The foot of a post filling the top of the page is passed
+    ///     over for the first thing the reader can see beginning.
+    ///     <para>
+    ///         Where nothing begins on the page, because one post taller than it fills it, the answer is
+    ///         <see cref="Topmost" />'s: the post being read, so that <c>↓ ↓ ↓ j</c> keeps the reader on it, and past
+    ///         the last thing that last thing.
+    ///     </para>
+    /// </remarks>
+    /// <param name="lines">The rows drawn.</param>
+    /// <param name="height">How many rows there is room for.</param>
+    /// <param name="from">Where the page starts.</param>
+    /// <param name="pinned">
+    ///     How many rows at the top of the page are pinned there (<see cref="To" />): a start scrolled under them is
+    ///     not on the page.
+    /// </param>
+    public static int? Reclaim(IReadOnlyList<Line> lines, int height, int from, int pinned = 0)
+    {
+        var starts = new Dictionary<int, int>();
+        var marked = new HashSet<int>();
+
+        for (var at = 0; at < lines.Count; at++)
+        {
+            if (lines[at].Item is not { } item)
+            {
+                continue;
+            }
+
+            // The thing's first row until a row marked as where its content starts is found, and that from then on.
+            starts.TryAdd(item, at);
+
+            if (lines[at].ContentStarts && marked.Add(item))
+            {
+                starts[item] = at;
+            }
+        }
+
+        for (var at = Math.Max(0, from + pinned); at < Math.Min(lines.Count, from + height); at++)
+        {
+            if (lines[at].Item is { } item && starts[item] == at)
+            {
+                return item;
+            }
+        }
+
+        return Topmost(lines, from, pinned);
+    }
+
+    /// <summary>
+    ///     The references of the <paramref name="item" />th thing with a row on the page starting at
+    ///     <paramref name="from" />, in the order they are drawn — where <c>→</c> and <c>←</c> enter a walk (#477).
+    /// </summary>
+    /// <remarks>
+    ///     Read off the runs drawn for each reference (<see cref="Span.Reference" />), so a reference wrapped across
+    ///     two rows is on the page while either half is.
+    /// </remarks>
+    /// <param name="lines">The rows drawn.</param>
+    /// <param name="height">How many rows there is room for.</param>
+    /// <param name="from">Where the page starts.</param>
+    /// <param name="item">Which thing's references are asked after.</param>
+    /// <param name="pinned">How many rows at the top of the page are pinned there (<see cref="To" />).</param>
+    public static IReadOnlyList<Reference> ReferencesOn(
+        IReadOnlyList<Line> lines,
+        int height,
+        int from,
+        int item,
+        int pinned = 0)
+    {
+        var shown = new List<Reference>();
+
+        for (var at = Math.Max(0, from + pinned); at < Math.Min(lines.Count, from + height); at++)
+        {
+            if (lines[at].Item != item)
+            {
+                continue;
+            }
+
+            foreach (var span in lines[at].Spans)
+            {
+                if (span.Reference is { } reference && !shown.Contains(reference))
+                {
+                    shown.Add(reference);
+                }
+            }
+        }
+
+        return shown;
+    }
+
+    /// <summary>
     ///     Which item the page starting at <paramref name="from" /> begins on, or <see langword="null" /> for a screen
-    ///     with no items on it at all. What <c>j</c> reclaims after the arrows have walked away from the selection.
+    ///     with no items on it at all. <see cref="Reclaim" />'s fallback, where no thing's start is on the page.
     /// </summary>
     /// <remarks>
     ///     A post whose top has been scrolled off but whose lower rows are still on the page is the topmost post,

@@ -10,15 +10,16 @@ using Wooly.Tui.Views;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     Reading on as a reader meets it (#469): walking down Home with <c>k</c> or jumping with <c>End</c>, on a real
-///     window, which is the only thing that knows where the page is. Real frames between keys, because the page is
-///     settled inside the draw — as <see cref="ShellResumeTests" /> says.
+///     Reading on as a reader meets it (#469): walking down Home with <c>k</c> or taking the page down with <c>End</c>,
+///     on a real window, which is the only thing that knows where the page is. Real frames between keys, because the
+///     page is settled inside the draw — as <see cref="ShellResumeTests" /> says.
 /// </summary>
 public class ShellReadingOnWindowTests
 {
     /// <summary>
-    ///     <c>End</c> picks the last post held and takes the page to the foot of the list, which is within a screenful
-    ///     of the end: the older posts are read on and put under it, and neither the pick nor the rows on the page move.
+    ///     <c>End</c> takes the page to the foot of the list, which is within a screenful of the end, and leaves the
+    ///     pick on the first post: the older posts are read on and put under it, and neither the pick nor the rows on
+    ///     the page move.
     /// </summary>
     [Fact]
     public async Task End_ReadsOnAndPutsTheOlderPostsBelowWithoutMovingThePage()
@@ -45,7 +46,7 @@ public class ShellReadingOnWindowTests
             var feed = Assert.IsType<FeedScreen>(shell.Screen);
             Assert.Single(built.Timelines.ReadsOn);
             Assert.Equal(80, feed.Posts.Count);
-            Assert.Equal("40", feed.Picked?.Id);
+            Assert.Equal("1", feed.Picked?.Id);
             Assert.Equal(top, content.Top);
             Assert.Equal(page[..^1], Page(shell, content, built)[..^1]);
         }
@@ -99,6 +100,10 @@ public class ShellReadingOnWindowTests
             window.NewKeyDownEvent(Key.End);
             window.Draw();
             built.Host.Drain();
+
+            // End leaves the pick at the top, so j picks from the page down there before ⏎ opens it (#472).
+            window.NewKeyDownEvent(Key.J);
+            window.Draw();
 
             window.NewKeyDownEvent(Key.Enter);
             built.Host.Drain();
@@ -160,7 +165,7 @@ public class ShellReadingOnWindowTests
 
     /// <summary>
     ///     A read on that fails, on a real window (#462): the foot of the list says so under the last post, where the
-    ///     page shows it once the view is taken down past the pick — <c>End</c> leaves the pick's last row at the foot
+    ///     page shows it once the view is taken down past it — <c>End</c> leaves the last post's last row at the foot
     ///     of the page, and the foot of the list goes under it rather than moving anything. Taking the view down with
     ///     <c>↓</c> is itself an approach to the end (#461), so it tries again from the same place, and an instance
     ///     still refusing leaves the foot saying so again.

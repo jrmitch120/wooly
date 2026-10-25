@@ -160,8 +160,8 @@ public class PickedTests
     }
 
     /// <summary>
-    ///     <c>Home</c> and <c>End</c> ask to move by the largest step there is, which added to an index overflows back
-    ///     to the other end of the list.
+    ///     A move to an end of the list asks for the largest step there is, which added to an index overflows back to
+    ///     the other end of the list.
     /// </summary>
     [Fact]
     public void Move_DoesNotWrapRoundOnTheLargestStepThereIs()

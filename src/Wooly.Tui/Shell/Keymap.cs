@@ -144,6 +144,8 @@ public static class Keymap
         (ShellKey.CtrlA, FileBrowserScreen) => Verb.EveryFile,
         (ShellKey.Down, FileBrowserScreen) => Verb.NextEntry,
         (ShellKey.Up, FileBrowserScreen) => Verb.PreviousEntry,
+        (ShellKey.Home, FileBrowserScreen) => Verb.FirstEntry,
+        (ShellKey.End, FileBrowserScreen) => Verb.LastEntry,
         (ShellKey.Space, FileBrowserScreen) => Verb.Choose,
 
         // The attachments screen, listing the rows a short terminal folded into the Media header's line (story 58):
@@ -155,6 +157,8 @@ public static class Keymap
         (_, AttachmentsScreen) when RowKey(key) is not Verb.None => RowKey(key),
         (ShellKey.Down, AttachmentsScreen) => Verb.NextEntry,
         (ShellKey.Up, AttachmentsScreen) => Verb.PreviousEntry,
+        (ShellKey.Home, AttachmentsScreen) => Verb.FirstEntry,
+        (ShellKey.End, AttachmentsScreen) => Verb.LastEntry,
 
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
@@ -198,8 +202,8 @@ public static class Keymap
         // other way round from vim (docs/tui-shell.md).
         (ShellKey.K, _) => Verb.NextPost,
         (ShellKey.J, _) => Verb.PreviousPost,
-        (ShellKey.Home, _) => Verb.FirstPost,
-        (ShellKey.End, _) => Verb.LastPost,
+        (ShellKey.Home, _) => Verb.ToTheTop,
+        (ShellKey.End, _) => Verb.ToTheFoot,
         (ShellKey.Down, _) => Verb.ScrollDown,
         (ShellKey.Up, _) => Verb.ScrollUp,
         (ShellKey.PageDown, _) => Verb.PageDown,
@@ -263,6 +267,22 @@ public static class Keymap
 
         // ctrl-s and ctrl-w off a compose screen, y, and nothing else.
         _ => Verb.None,
+    };
+
+    /// <summary>
+    ///     Whether <paramref name="verb" /> needs something picked to act on <paramref name="screen" />
+    ///     (<see cref="Verbs.NeedsAPick" />), which is what reclaims an off-page pick before the key does anything else
+    ///     (#476).
+    /// </summary>
+    /// <remarks>
+    ///     Here rather than on the verb alone for the two that act on the pick only on some screens: <c>F</c> follows
+    ///     whoever is picked on Discover and the account shown on an account screen, and <c>m</c> marks the picked
+    ///     conversation read on the conversations list and the one being read inside it.
+    /// </remarks>
+    public static bool NeedsAPick(Verb verb, Screen screen) => (verb, screen) switch
+    {
+        (Verb.Follow, DiscoverScreen) or (Verb.MarkRead, DirectMessagesScreen) => true,
+        _ => verb.NeedsAPick(),
     };
 
     /// <summary>

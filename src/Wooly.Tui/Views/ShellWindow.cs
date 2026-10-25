@@ -101,8 +101,9 @@ internal sealed class ShellWindow : Window
     /// <summary>
     ///     Whether the next frame's page is to be told to the shell, which is what reads a list on as the page nears
     ///     its end (#469): after the pick has been walked or jumped; after the page has been moved with the pick left
-    ///     where it was, by <c>↓</c>, <c>↑</c>, <c>PgDn</c>, <c>PgUp</c> or a notch of the wheel (#461); and on a
-    ///     screen coming in front — arrived at, drilled into, refreshed or walked back to — and on nothing else.
+    ///     where it was, by <c>↓</c>, <c>↑</c>, <c>PgDn</c>, <c>PgUp</c>, <c>Home</c>, <c>End</c> or a notch of the
+    ///     wheel (#461); and on a screen coming in front — arrived at, drilled into, refreshed or walked back to — and
+    ///     on nothing else.
     /// </summary>
     /// <remarks>
     ///     Once per move rather than on every frame, because a frame is drawn for many reasons that are not the reader
@@ -135,6 +136,13 @@ internal sealed class ShellWindow : Window
     ///     the mark's place — on the scrolled compact rail, a row of the content (#443).
     /// </summary>
     private bool _clickToggledRail;
+
+    /// <summary>
+    ///     The reference the last click walked to, which the double click it turns out to be the first half of opens
+    ///     (#479): the brackets that click drew may have moved the row a column on or wrapped a long address anew, so
+    ///     what is under the pointer by the second click is not asked again.
+    /// </summary>
+    private Reference? _clickWalkedTo;
 
     /// <summary>
     ///     The row of the content a press with the left button picked up, held from the press until the button is let go,
@@ -268,6 +276,8 @@ internal sealed class ShellWindow : Window
             KeepsToThePage = () => shell.Screen.KeepsToThePage,
             Pinned = () => shell.Screen.Pinned,
             Settled = Paged,
+            HeldReference = () => shell.Screen.Reference,
+            LetReferenceGo = shell.LetReferenceGo,
         };
 
         // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one
@@ -313,9 +323,12 @@ internal sealed class ShellWindow : Window
             CanFocus = false,
         };
 
+        // The status row first, because Terminal.Gui draws the views added first last: drawn after the content, it says
+        // what the content's frame settled — a reference that frame let go off the page leaves reference mode in that
+        // same frame rather than one frame late (#478). It overlaps nothing, so the order changes nothing else.
+        Add(status);
         Add(rail, _content, title);
         Add([.. _overlays]);
-        Add(status);
 
         _showing = shell.Screen;
 
@@ -466,7 +479,8 @@ internal sealed class ShellWindow : Window
     ///     A click at <paramref name="at" />. An open question takes it wherever it lands, and is all it does; otherwise
     ///     a click on a destination on the rail arrives there (#288), one on the toggle's <c>«</c>/<c>»</c> at the
     ///     shell's bottom-left is <c>\</c> (#443, #445), a click on a crumb of the breadcrumb walks back to it (#308),
-    ///     and a click on a row of a thing in the content picks it (#290), the first half of a double click among them
+    ///     and a click on a row of a thing in the content picks it (#290) — walking to the reference under the pointer,
+    ///     where there is one, as <c>→</c> would have (#475) — the first half of a double click among them
     ///     (<see cref="DoubleClicked" />). Everything else — a title, a heading, the API panel, a separator, the fetch
     ///     mark, a rule, a blank — is part of nothing and ignores it.
     /// </summary>
@@ -478,6 +492,7 @@ internal sealed class ShellWindow : Window
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
         _clickDeclinedQuestion = _shell.DeclineOpenQuestion();
         _clickToggledRail = false;
+        _clickWalkedTo = null;
 
         if (_clickDeclinedQuestion)
         {
@@ -513,9 +528,19 @@ internal sealed class ShellWindow : Window
         {
             // A click on a run that stands for a key, or one with ctrl or shift held, means that key on the thing it is
             // on where the screen says so — a box in the file browser chooses (#376) — and otherwise picks the thing.
+            // A click on a reference walks to it inside the thing it picks, read off the rows as they were drawn under
+            // the pointer — before the pick lets go of a reference bracketed on the same row, and moves what follows it.
+            var reference = _content.ReferenceAt(at);
+
             if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded))
             {
                 _content.Hold();
+            }
+            else if (reference is { } walked && _content.ItemAt(at) is { } item)
+            {
+                _content.Hold();
+                _shell.PickReference(item, walked);
+                _clickWalkedTo = _shell.Screen.Reference;
             }
             else
             {
@@ -558,11 +583,22 @@ internal sealed class ShellWindow : Window
         // Spent once: a later pair must not be swallowed by a question its own first click never saw.
         var declined = _clickDeclinedQuestion;
         var toggled = _clickToggledRail;
+        var walked = _clickWalkedTo;
         _clickDeclinedQuestion = false;
         _clickToggledRail = false;
+        _clickWalkedTo = null;
 
         if (declined || toggled || _shell.DeclineOpenQuestion())
         {
+            return true;
+        }
+
+        // A pair whose first click walked to a reference is the ⏎ that opens it, wherever its brackets left the second
+        // click: picking again under the pointer would let the reference go and open the thing instead (#479).
+        if (walked is not null && walked == _shell.Screen.Reference)
+        {
+            _ = Do(ShellKey.Enter);
+
             return true;
         }
 
@@ -737,7 +773,33 @@ internal sealed class ShellWindow : Window
     {
         var verb = Keymap.Means(pressed, _shell.Screen);
 
-        return verb.NeedsATerminal() ? Carry(verb) : _shell.Do(verb, Keymap.Answer(pressed));
+        // With the pick scrolled off the page, a key that acts on it only reclaims, so that nothing lands on a post the
+        // reader cannot see; the next press acts on what is picked now (#476). Asked of what the key means here, after
+        // an open question and a prompt taking letters have had their turn at it (OnKeyDown).
+        if (Keymap.NeedsAPick(verb, _shell.Screen) && _content.Reclaimable is { } at)
+        {
+            Walk(0, reclaiming: at);
+
+            return true;
+        }
+
+        if (verb.NeedsATerminal())
+        {
+            return Carry(verb);
+        }
+
+        var walking = verb is Verb.NextReference or Verb.PreviousReference;
+
+        // The arrows reclaim an off-page pick and enter a walk at the page, which only the content can say (#477).
+        var used = _shell.Do(verb, Keymap.Answer(pressed), walking ? _content.OnThePage : null);
+
+        // A reference walked to is brought onto the page, the least move that does it (#473).
+        if (used && walking)
+        {
+            _content.ShowReference();
+        }
+
+        return used;
     }
 
     /// <summary>Carries out one of the verbs that need a terminal (<see cref="Verbs.NeedsATerminal" />).</summary>
@@ -775,13 +837,24 @@ internal sealed class ShellWindow : Window
 
                 return true;
 
-            case Verb.FirstPost:
-                Jump(int.MinValue);
+            case Verb.FirstEntry:
+                WalkedToAnEnd(int.MinValue);
 
                 return true;
 
-            case Verb.LastPost:
-                Jump(int.MaxValue);
+            case Verb.LastEntry:
+                WalkedToAnEnd(int.MaxValue);
+
+                return true;
+
+            // Home: the page up as far as there is, the pick left where it was, as with ↑ (asked in review of #480).
+            case Verb.ToTheTop:
+                Scrolled(int.MinValue);
+
+                return true;
+
+            case Verb.ToTheFoot:
+                Footed();
 
                 return true;
 
@@ -843,9 +916,15 @@ internal sealed class ShellWindow : Window
     ///     moves or reclaims is the content region's to answer, since it is the only thing that knows what is on
     ///     screen — this window translates keys and leaves what they mean to <see cref="Keymap" /> (ADR-0014, #147).
     /// </summary>
-    private void Walk(int by)
+    private void Walk(int by) => Walk(by, _content.Reclaimable);
+
+    /// <summary>
+    ///     The same, with what is to be reclaimed already asked — which is all a key that acts on the pick does,
+    ///     pressed with the pick off the page: it walks nowhere, and picks <paramref name="reclaiming" /> (#476).
+    /// </summary>
+    private void Walk(int by, int? reclaiming)
     {
-        _shell.Walk(by, _content.Reclaimable);
+        _shell.Walk(by, reclaiming);
         _content.Follow();
         _pageToTell = true;
     }
@@ -921,11 +1000,29 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     <c>Home</c> and <c>End</c>: the first post and the last. These move the selection rather than the screen,
-    ///     since the ends of a list are things rather than places, and nothing is reclaimed — a reader asking for the
-    ///     top of the list is not asking about the page they were on.
+    ///     <c>End</c>: the screen to the foot of the list, and the pick left where it is, as <c>↓</c>, <c>↑</c>,
+    ///     <c>PgUp</c> and <c>PgDn</c> leave it — <c>Home</c>, the top, is <see cref="Scrolled" /> up as far as there
+    ///     is. On a Mac they are fn-← and fn-→, and taking the pick along with them took it from wherever the reader
+    ///     had put it. The next <c>j</c> or <c>k</c> reclaims from the page they came to, as after any other scroll
+    ///     (#472).
     /// </summary>
-    private void Jump(int by)
+    /// <remarks>
+    ///     Told to the shell as a move of the page, so that the foot of a list that reads on reads on (#469).
+    /// </remarks>
+    private void Footed()
+    {
+        _content.ToTheFoot();
+        _pageToTell = true;
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>
+    ///     <c>Home</c> and <c>End</c> on a list of entries — the file browser's, the attachments screen's — whose
+    ///     arrows walk the cursor rather than the screen: the cursor to the first entry or the last, the page following
+    ///     it.
+    /// </summary>
+    private void WalkedToAnEnd(int by)
     {
         _shell.Move(by);
         _content.Follow();

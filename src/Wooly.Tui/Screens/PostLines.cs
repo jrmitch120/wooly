@@ -91,18 +91,19 @@ public static class PostLines
         var show = OnShow.Of(post, reading);
         var shown = show.Shown;
 
-        return Parts([
+        return Parts(
             [
                 .. Boosted(post, $"{post.Author} boosted", width),
                 .. Answering(shown, width),
                 .. Byline(shown, width, drawing.Now, pictures, raster),
             ],
-            Body(show, width, reading, saysHowToAskPast),
-            .. Media(show, drawing, Inset.FeedRows, reading, saysHowToAskPast),
-            LinkPreview(show, drawing, Inset.FeedRows, reading),
-            Poll(show, width, reading),
-            [Counts(shown, spelledOut: false)],
-        ]);
+            [
+                Body(show, width, reading, saysHowToAskPast),
+                .. Media(show, drawing, Inset.FeedRows, reading, saysHowToAskPast),
+                LinkPreview(show, drawing, Inset.FeedRows, reading),
+                Poll(show, width, reading),
+            ],
+            [Counts(shown, spelledOut: false)]);
     }
 
     /// <summary>
@@ -128,7 +129,7 @@ public static class PostLines
         var avatar = Avatar.Byline(shown.Account, shown.AvatarUrl, pictures, raster);
         var room = Math.Max(0, width - avatar.Width);
 
-        return Parts([
+        return Parts(
             [
                 .. Boosted(post, $"boosted by {post.Author}", width),
                 .. saysWhatItAnswers ? Answering(shown, width) : [],
@@ -147,13 +148,14 @@ public static class PostLines
                             Role.Audience),
                     ])),
             ],
-            // The post screen is about this post, so x is always something that can act on it here.
-            Body(show, width, reading, saysHowToAskPast: true),
-            .. Media(show, drawing, Inset.WholeRows, reading, saysHowToAskPast: true),
-            LinkPreview(show, drawing, Inset.WholeRows, reading),
-            Poll(show, width, reading),
-            [Counts(shown, spelledOut: true)],
-        ]);
+            [
+                // The post screen is about this post, so x is always something that can act on it here.
+                Body(show, width, reading, saysHowToAskPast: true),
+                .. Media(show, drawing, Inset.WholeRows, reading, saysHowToAskPast: true),
+                LinkPreview(show, drawing, Inset.WholeRows, reading),
+                Poll(show, width, reading),
+            ],
+            [Counts(shown, spelledOut: true)]);
     }
 
     /// <summary>
@@ -170,8 +172,16 @@ public static class PostLines
     /// <remarks>
     ///     What a notification about the reader's own post draws under it. They wrote it and already know it, so what
     ///     the row is for is who did what to it; <c>⏎</c> still opens it whole.
+    ///     <para>
+    ///         Its first row is marked as where the post's content starts (<see cref="Line.ContentStarts" />), as
+    ///         <see cref="Feed" />'s is.
+    ///     </para>
     /// </remarks>
-    public static IReadOnlyList<Line> Preview(Post post, int width)
+    public static IReadOnlyList<Line> Preview(Post post, int width) =>
+        [.. Previewed(post, width).Select((line, at) => at == 0 ? line.StartingContent() : line)];
+
+    /// <summary>The rows <see cref="Preview" /> draws, with nothing marked on them.</summary>
+    private static IReadOnlyList<Line> Previewed(Post post, int width)
     {
         var shown = post.Boosted ?? post;
 
@@ -215,18 +225,39 @@ public static class PostLines
     ///         An empty part is skipped rather than separated, so a post with nothing but a picture does not open on
     ///         two blank rows where its text would have been.
     ///     </para>
+    ///     <para>
+    ///         The first row of the first part of <paramref name="content" /> with anything in it is marked as where
+    ///         the post's content starts (<see cref="Line.ContentStarts" />): the rows above it say who wrote the post,
+    ///         and the counts under it say what was done to it, so neither is what a reader scrolling past a byline is
+    ///         reading.
+    ///     </para>
     /// </remarks>
-    private static IReadOnlyList<Line> Parts(IEnumerable<IEnumerable<Line>> parts)
+    private static IReadOnlyList<Line> Parts(
+        IEnumerable<Line> heading,
+        IEnumerable<IEnumerable<Line>> content,
+        IEnumerable<Line> foot)
     {
         var lines = new List<Line>();
+        var started = false;
 
-        foreach (var part in parts)
+        Add(heading, starts: false);
+
+        foreach (var part in content)
+        {
+            started |= Add(part, starts: !started);
+        }
+
+        Add(foot, starts: false);
+
+        return lines;
+
+        bool Add(IEnumerable<Line> part, bool starts)
         {
             var rows = part.ToList();
 
             if (rows.Count == 0)
             {
-                continue;
+                return false;
             }
 
             if (lines.Count > 0)
@@ -234,10 +265,11 @@ public static class PostLines
                 lines.Add(Line.Blank);
             }
 
-            lines.AddRange(rows);
-        }
+            lines.Add(starts ? rows[0].StartingContent() : rows[0]);
+            lines.AddRange(rows.Skip(1));
 
-        return lines;
+            return true;
+        }
     }
 
     /// <summary>
@@ -620,7 +652,7 @@ public static class PostLines
         int width,
         bool saysWhatItShows)
     {
-        var spans = MarkAndLabel(Capitalized(MediaKindName.Written(attached.Kind)), picked == reference);
+        var spans = MarkAndLabel(Capitalized(MediaKindName.Written(attached.Kind)), reference, picked == reference);
 
         if (saysWhatItShows && attached.Description is { } description)
         {
@@ -634,7 +666,8 @@ public static class PostLines
 
     /// <summary>
     ///     The front of a row <c>←</c>/<c>→</c> walks to: the mark and <paramref name="label" />, in the brackets a
-    ///     picked reference is drawn in where <paramref name="bracketed" />. Handed back open, for a caller with more
+    ///     picked reference is drawn in where <paramref name="bracketed" />, the label and brackets saying they are
+    ///     <paramref name="reference" />'s (<see cref="Span.Reference" />). Handed back open, for a caller with more
     ///     to say on the row — an attachment's description follows it.
     /// </summary>
     /// <remarks>
@@ -642,20 +675,20 @@ public static class PostLines
     ///     differently — the brackets are what a reader reads a pick off, on a terminal with no colour and to a reader
     ///     who cannot tell one colour from another (ADR-0014).
     /// </remarks>
-    private static List<Span> MarkAndLabel(string label, bool bracketed)
+    private static List<Span> MarkAndLabel(string label, Reference? reference, bool bracketed)
     {
         var spans = new List<Span> { new($"{LinkMark} ", Role.Media) };
 
         if (bracketed)
         {
-            spans.Add(new Span(BodyText.Opening, Role.ReferencePicked));
+            spans.Add(new Span(BodyText.Opening, Role.ReferencePicked) { Reference = reference });
         }
 
-        spans.Add(new Span(label, Role.Media));
+        spans.Add(new Span(label, Role.Media) { Reference = reference });
 
         if (bracketed)
         {
-            spans.Add(new Span(BodyText.Closing, Role.ReferencePicked));
+            spans.Add(new Span(BodyText.Closing, Role.ReferencePicked) { Reference = reference });
         }
 
         return spans;
@@ -792,7 +825,7 @@ public static class PostLines
                    - 1
                    - (bracketed ? Glyphs.Columns(BodyText.Opening) + Glyphs.Columns(BodyText.Closing) : 0);
 
-        return new Line(MarkAndLabel(TextWrap.Clip(link.Name, Math.Max(0, room)), bracketed));
+        return new Line(MarkAndLabel(TextWrap.Clip(link.Name, Math.Max(0, room)), reference, bracketed));
     }
 
     /// <summary>

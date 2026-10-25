@@ -88,8 +88,9 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Counted in <see cref="long" /> because <c>Home</c> and <c>End</c> ask to move by the largest step there is,
-    ///     and adding that to an index overflows back to the other end of the list.
+    ///     Counted in <see cref="long" /> because a move to an end of the list — <c>Home</c> and <c>End</c> on the file
+    ///     browser's entries — asks for the largest step there is, and adding that to an index overflows back to the
+    ///     other end of the list.
     /// </remarks>
     public void Move(int by)
     {

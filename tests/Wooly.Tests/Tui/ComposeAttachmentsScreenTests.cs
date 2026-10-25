@@ -189,6 +189,42 @@ public class ComposeAttachmentsScreenTests : IDisposable
     }
 
     /// <summary>
+    ///     In the window, <c>End</c> on the list takes the cursor to the last row from wherever it was and <c>Home</c>
+    ///     back to the first: the rows are walked by the arrows, so their ends are the cursor's (asked in review of
+    ///     #480).
+    /// </summary>
+    [Fact]
+    public async Task InTheWindowHomeAndEndTakeTheCursorToTheEnds()
+    {
+        using var drawn = await DrawnShell.Of(80, Short + 3, Themes.Plain, new AShell { LaunchedFrom = _files.Path });
+
+        drawn.Shell.Press(ShellKey.C);
+        drawn.Redraw();
+
+        foreach (var name in new[] { "one.png", "two.png", "three.png" })
+        {
+            Assert.True(drawn.Shell.Paste(_files.WriteFile(name)));
+        }
+
+        drawn.Redraw();
+
+        var (column, row) = At(drawn, "Media", "3 of 4");
+
+        drawn.Click(column + 1, row);
+
+        var listed = Assert.IsType<AttachmentsScreen>(drawn.Shell.Screen);
+
+        drawn.Press(Key.CursorDown);
+        drawn.Press(Key.End);
+
+        Assert.Equal("three.png", listed.Media.Picked?.Name);
+
+        drawn.Press(Key.Home);
+
+        Assert.Equal("one.png", listed.Media.Picked?.Name);
+    }
+
+    /// <summary>
     ///     A compose with <paramref name="names" /> dropped onto it, drawn short enough that their rows fold, and the walk
     ///     on the Media header the rows folded into.
     /// </summary>

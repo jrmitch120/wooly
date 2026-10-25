@@ -76,6 +76,19 @@ public sealed record Line
     public bool Heads { get; init; }
 
     /// <summary>
+    ///     Whether this row is where its thing's content starts — the first row of a post after its byline and avatar,
+    ///     the warning, the text or whatever is attached, whichever is drawn first — which is where
+    ///     <see cref="Scroll" /> counts the thing as beginning when it reclaims one off the page (asked in review of
+    ///     #480).
+    /// </summary>
+    /// <remarks>
+    ///     Marked where a post's rows are built, for the reason <see cref="Heads" /> is: read off the rows as drawn, no
+    ///     screen keeps its own record of where a thing's content starts. A thing with no row so marked — an account's
+    ///     header block, a follow — begins at its first row.
+    /// </remarks>
+    public bool ContentStarts { get; init; }
+
+    /// <summary>
     ///     Whether this row is part of the thing picked out, and so drawn on <see cref="Theme.Role.Band" /> from one
     ///     edge of the view to the other rather than on the page (#269).
     /// </summary>
@@ -138,11 +151,20 @@ public sealed record Line
     /// <summary>Whether any span on this row takes <paramref name="role" />.</summary>
     public bool Has(Role role) => Spans.Any(span => span.Role == role);
 
+    /// <summary>
+    ///     Whether any span on this row is drawn for <paramref name="reference" /> (<see cref="Span.Reference" />): a
+    ///     bracket, its text, or a row of it the wrap carried on to.
+    /// </summary>
+    public bool Has(Reference reference) => Spans.Any(span => span.Reference == reference);
+
     /// <summary>This row, said to be part of the <paramref name="item" />th thing on the screen.</summary>
     public Line PartOf(int item) => this with { Item = item };
 
     /// <summary>This row, said to head the run of things under it.</summary>
     public Line Heading() => this with { Heads = true };
+
+    /// <summary>This row, said to be where its thing's content starts.</summary>
+    public Line StartingContent() => this with { ContentStarts = true };
 
     /// <summary>This row with <paramref name="spans" /> put in front of it.</summary>
     /// <remarks>
@@ -172,6 +194,7 @@ public sealed record Line
         AlsoWants = AlsoWants,
         Item = Item,
         Heads = Heads,
+        ContentStarts = ContentStarts,
         Picked = Picked,
         BandsTo = BandsTo,
     };

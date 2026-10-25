@@ -629,18 +629,23 @@ public sealed class Shell
     ///     what is on the post, and asking it in two places is how two places come to disagree. So can a paste from the
     ///     clipboard, which holds nothing to attach as often as not, and leaves the key to the field's own paste.
     /// </returns>
-    public bool Do(Verb verb, int? answer) => (_acting is not null || WithNobody(verb)) && _drafting.Do(verb) switch
-    {
-        Drafted.Used => true,
-        Drafted.Declined => false,
-        _ => Carried(verb, answer),
-    };
+    /// <param name="page">
+    ///     What the view says of the page, which <c>→</c> and <c>←</c> reclaim and enter a walk by
+    ///     (<see cref="WalkReference" />), and nothing to any other verb.
+    /// </param>
+    public bool Do(Verb verb, int? answer, OnThePage? page = null) =>
+        (_acting is not null || WithNobody(verb)) && _drafting.Do(verb) switch
+        {
+            Drafted.Used => true,
+            Drafted.Declined => false,
+            _ => Carried(verb, answer, page),
+        };
 
     /// <summary>What <see cref="Do" /> carries out of a verb that is not a draft's, which is every one it names.</summary>
-    private bool Carried(Verb verb, int? answer) => verb switch
+    private bool Carried(Verb verb, int? answer, OnThePage? page) => verb switch
     {
-        Verb.NextReference => WalkReference(1),
-        Verb.PreviousReference => WalkReference(-1),
+        Verb.NextReference => WalkReference(1, page),
+        Verb.PreviousReference => WalkReference(-1, page),
         Verb.Toggle => answer is { } option && Toggle(option),
 
         Verb.Back => Ran(Back),
@@ -705,8 +710,8 @@ public sealed class Shell
     /// </remarks>
     /// <param name="by">How many posts to move, where the selection is still on the page.</param>
     /// <param name="reclaiming">
-    ///     The topmost post on the page, where the selection has none of its rows on it, or <see langword="null" />
-    ///     while it is still visible.
+    ///     The first thing whose start is on the page (<see cref="Rendering.Scroll.Reclaim" />), where the pick has
+    ///     none of its rows on it, or <see langword="null" /> while it is still visible.
     /// </param>
     public void Walk(int by, int? reclaiming)
     {
@@ -750,13 +755,25 @@ public sealed class Shell
     ///     What <c>←</c> and <c>→</c> do: walk the references inside the picked post — <c>→</c> entering at the first
     ///     and <c>←</c> at the last, clamping at either end (#83).
     /// </summary>
+    /// <remarks>
+    ///     Told of the page by the view (<paramref name="page" />), since only it knows the room and the scroll: with the
+    ///     pick off the page, the press reclaims first and enters the reclaimed thing's references in the same press,
+    ///     even mid-walk, and either way it enters at the first or last reference on the page (#477).
+    /// </remarks>
     /// <returns>
-    ///     Whether the screen had any references to walk, which is what settles whether the key was used: a screen
-    ///     with none — the compose editor above all — leaves the arrows to whatever else wants them.
+    ///     Whether the press was used: it reclaimed, or the screen had references to walk. A screen with none — the
+    ///     compose editor above all — leaves the arrows to whatever else wants them.
     /// </returns>
-    public bool WalkReference(int by)
+    public bool WalkReference(int by, OnThePage? page = null)
     {
-        if (!Screen.WalkReference(by))
+        var reclaiming = page?.Reclaiming;
+
+        if (reclaiming is { } at)
+        {
+            Section(at);
+        }
+
+        if (!Screen.WalkReference(by, page?.References) && reclaiming is null)
         {
             return false;
         }
@@ -764,6 +781,34 @@ public sealed class Shell
         Changed?.Invoke();
 
         return true;
+    }
+
+    /// <summary>
+    ///     Lets the reference walked to go because none of its rows are on the page any more, so that <c>⏎</c> never opens
+    ///     something the reader cannot see and <c>esc</c> is never spent on it (#478). The pick stays where it is.
+    /// </summary>
+    public void LetReferenceGo()
+    {
+        if (Screen.ClearReference())
+        {
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>
+    ///     What a click on a reference does once the rows have said which thing and which reference are under the
+    ///     pointer: the thing is picked out, as a click anywhere on it picks it (<see cref="Section" />), and the
+    ///     reference inside it walked to, exactly as <c>←</c> and <c>→</c> would have left it. Nothing is opened (#475).
+    /// </summary>
+    /// <remarks>
+    ///     A reference drawn and never walked — a mention in a bio — leaves the thing picked and nothing walked to,
+    ///     which is what a click anywhere else on it does.
+    /// </remarks>
+    public void PickReference(int at, Reference reference)
+    {
+        Section(at);
+        Screen.WalkToReference(reference);
+        Changed?.Invoke();
     }
 
     /// <summary>Shows what the picked post is hiding — its warned text, its sensitive attachments, or both.</summary>
@@ -868,6 +913,15 @@ public sealed class Shell
             return Task.CompletedTask;
         }
 
+        // Asked before the reference is let go, because who a mention names is read off the reference held.
+        var mentioned = Screen.Mentioned;
+
+        // Let go as part of opening, before the outcome is known, so every outcome lets it go the same way: a screen
+        // pushed comes back to nothing held and its first esc goes back, an address handed to the browser leaves the
+        // next → starting again at the first reference, and a refusal is no exception (#474).
+        Screen.ClearReference();
+        Changed?.Invoke();
+
         switch (reference.Role)
         {
             case Role.Hashtag:
@@ -876,7 +930,7 @@ public sealed class Shell
                 return Actor.Arrival.Open(new Subject.Tag(reference.Text.TrimStart('#')));
 
             case Role.Mention:
-                return OpenMention();
+                return OpenMention(mentioned);
 
             case Role.Link:
             case Role.Media:
@@ -1727,11 +1781,12 @@ public sealed class Shell
     ///     spend a request on a guess — a bare <c>@maria</c> means nothing without an instance to put after it, and
     ///     guessing this profile's own would open somebody else under somebody's name.
     /// </remarks>
-    private Task OpenMention()
+    /// <param name="mentioned">Who the picked mention names, read before the reference was let go.</param>
+    private Task OpenMention(string? mentioned)
     {
         // Well-formed as well as named, because a handle an instance sent is not something a reader can do anything
         // about, and one this client cannot look up is as good as one it was never given.
-        if (Screen.Mentioned is not { } handle || !AccountAddress.IsWellFormed(handle))
+        if (mentioned is not { } handle || !AccountAddress.IsWellFormed(handle))
         {
             StatusRow.Say(MentionUnresolved, isError: true);
 

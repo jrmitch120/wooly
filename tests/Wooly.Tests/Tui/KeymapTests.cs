@@ -117,8 +117,8 @@ public class KeymapTests
     [InlineData("↑", Verb.ScrollUp)]
     [InlineData("PgDn", Verb.PageDown)]
     [InlineData("PgUp", Verb.PageUp)]
-    [InlineData("Home", Verb.FirstPost)]
-    [InlineData("End", Verb.LastPost)]
+    [InlineData("Home", Verb.ToTheTop)]
+    [InlineData("End", Verb.ToTheFoot)]
     [InlineData("⏎", Verb.OpenPost)]
     [InlineData("a", Verb.OpenAuthor)]
     [InlineData("c", Verb.Compose)]
@@ -331,17 +331,33 @@ public class KeymapTests
     /// <summary>
     ///     What the file browser answers besides its letters (#376): <c>space</c> chooses — its one letter that is not
     ///     the filter's, since a name's spaces never need typing — and the arrows walk its list of entries rather than
-    ///     scrolling a page or walking posts (review of #372).
+    ///     scrolling a page or walking posts (review of #372) — and so <c>Home</c> and <c>End</c> take the cursor to
+    ///     its ends, where everywhere else they take the page (asked in review of #480).
     /// </summary>
     [Theory]
     [InlineData(" ", Verb.Choose)]
     [InlineData("↓", Verb.NextEntry)]
     [InlineData("↑", Verb.PreviousEntry)]
+    [InlineData("Home", Verb.FirstEntry)]
+    [InlineData("End", Verb.LastEntry)]
     [InlineData("→", Verb.IntoFolder)]
     [InlineData("←", Verb.UpFolder)]
     [InlineData("⏎", Verb.UseChosen)]
     public void TheFileBrowserAnswersToItsOwnKeys(string key, Verb verb) =>
         Assert.Equal(verb, Means(key, Browser()));
+
+    /// <summary>
+    ///     The attachments screen's arrows walk its rows as the file browser's walk its entries (story 58), and so
+    ///     <c>Home</c> and <c>End</c> take its cursor to the first row and the last, not its page (asked in review of
+    ///     #480).
+    /// </summary>
+    [Theory]
+    [InlineData("↓", Verb.NextEntry)]
+    [InlineData("↑", Verb.PreviousEntry)]
+    [InlineData("Home", Verb.FirstEntry)]
+    [InlineData("End", Verb.LastEntry)]
+    public void TheAttachmentsScreenWalksItsRowsAsEntries(string key, Verb verb) =>
+        Assert.Equal(verb, Means(key, new AttachmentsScreen(new ComposeScreen(ComposeFor.Post))));
 
     /// <summary>
     ///     What the edit public profile form answers to: the arrows walk its own fields rather than compose's, and on

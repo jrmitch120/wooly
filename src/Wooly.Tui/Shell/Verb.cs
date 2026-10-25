@@ -9,15 +9,16 @@ namespace Wooly.Tui.Shell;
 ///     are the same key on different screens and one — <see cref="Delete" />, <see cref="Vote" /> — is a question put
 ///     before anything is done.
 ///     <para>
-///         What each becomes is <see cref="Shell.Do" />'s, but for sixteen of them, which need a terminal and are
+///         What each becomes is <see cref="Shell.Do" />'s, but for eighteen of them, which need a terminal and are
 ///         <c>ShellWindow</c>'s: <see cref="Quit" />, which ends a run loop the application owns;
-///         <see cref="ScrollDown" />, <see cref="ScrollUp" />, <see cref="PageDown" /> and <see cref="PageUp" />,
-///         which walk the page rather than the list; <see cref="NextPost" />, <see cref="PreviousPost" />,
-///         <see cref="FirstPost" />, <see cref="LastPost" />, <see cref="NextSection" />,
-///         <see cref="PreviousSection" />, <see cref="NextEntry" /> and <see cref="PreviousEntry" />, which move the pick
-///         and the page both; <see cref="Send" />, which has to take the editor widget's text before drafting sends
-///         it; and <see cref="Narrower" /> and <see cref="Wider" />, whose steps are refused by how wide the terminal
-///         is. Which sixteen is <see cref="Verbs.NeedsATerminal" />, the one list the window and the shell both read.
+///         <see cref="ScrollDown" />, <see cref="ScrollUp" />, <see cref="PageDown" />, <see cref="PageUp" />,
+///         <see cref="ToTheTop" /> and <see cref="ToTheFoot" />, which walk the page rather than the list;
+///         <see cref="NextPost" />, <see cref="PreviousPost" />, <see cref="NextSection" />,
+///         <see cref="PreviousSection" />, <see cref="NextEntry" />, <see cref="PreviousEntry" />,
+///         <see cref="FirstEntry" /> and <see cref="LastEntry" />, which move the pick and the page both;
+///         <see cref="Send" />, which has to take the editor widget's text before drafting sends it; and
+///         <see cref="Narrower" /> and <see cref="Wider" />, whose steps are refused by how wide the terminal is. Which
+///         eighteen is <see cref="Verbs.NeedsATerminal" />, the one list the window and the shell both read.
 ///     </para>
 /// </remarks>
 public enum Verb
@@ -157,11 +158,14 @@ public enum Verb
     /// <summary><c>j</c>: the one before it.</summary>
     PreviousPost,
 
-    /// <summary><c>Home</c>: the first thing on the screen.</summary>
-    FirstPost,
+    /// <summary>
+    ///     <c>Home</c>: the screen goes to the top of the list and the pick stays where it was put, as with <c>↑</c> —
+    ///     on a Mac this is fn-←, as often pressed in passing as meant.
+    /// </summary>
+    ToTheTop,
 
-    /// <summary><c>End</c>: the last.</summary>
-    LastPost,
+    /// <summary><c>End</c>: the screen goes to the foot of the list, the pick staying where it was put.</summary>
+    ToTheFoot,
 
     /// <summary>
     ///     <c>]</c>: the first thing of the next headed run — the posts a search found, from the accounts it found
@@ -367,6 +371,15 @@ public enum Verb
 
     /// <summary><c>↑</c> there, likewise: the cursor to the entry before.</summary>
     PreviousEntry,
+
+    /// <summary>
+    ///     <c>Home</c> there: the cursor to the first entry. Where the arrows walk the cursor rather than the screen,
+    ///     the ends of the list are the cursor's too.
+    /// </summary>
+    FirstEntry,
+
+    /// <summary><c>End</c> there: the cursor to the last entry.</summary>
+    LastEntry,
 
     /// <summary><c>→</c> there: open the folder under the cursor.</summary>
     IntoFolder,

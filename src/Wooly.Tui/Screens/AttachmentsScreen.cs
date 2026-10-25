@@ -102,7 +102,14 @@ public sealed class AttachmentsScreen(ComposeScreen compose) : Screen
 
         public int Count => Media.Attachments.Count;
 
-        public void Move(int by) => Pick(At + by);
+        // Counted in long for the reason Picked<T>.Move is: Home and End ask for the largest step there is.
+        public void Move(int by)
+        {
+            if (Count > 0)
+            {
+                Pick((int)Math.Clamp((long)At + by, 0, Count - 1));
+            }
+        }
 
         public void Pick(int at)
         {
