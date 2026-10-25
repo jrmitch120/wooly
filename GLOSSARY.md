@@ -609,8 +609,8 @@ _Avoid_: event, update, invalidation
 **Subject**:
 What a screen that is read is read from, as a value: a **destination** on the rail, a post's thread, an account (and
 whether with its replies), one side of an account's **Follow list**, a hashtag walked to, or a conversation (#233). A
-closed set; each carries its own read and builds its own screen, and says whether what it read is cached and whether
-it is read a page at a time. A screen exposes its subject, which is what `g` asks again and what the one cache is keyed
+closed set; each carries its own read and builds its own screen, and says whether what it read is cached and how it
+**reads on**. A screen exposes its subject, which is what `g` asks again and what the one cache is keyed
 by. Compared by value, so a follow list is the same subject however its account was last answered about, and a
 destination the same whatever its badge says. The search prompt has none: a live search is its own question (#84).
 _Avoid_: source, target, model

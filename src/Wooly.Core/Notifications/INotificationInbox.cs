@@ -78,6 +78,25 @@ public interface INotificationInbox
         CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Reads on: up to <paramref name="limit" /> more of the <b>Actors</b> of the group <paramref name="groupKey" />
+    ///     names, from where a <see cref="ReadGroupActors" /> of it said to read on from (#467).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="groupKey">The group <paramref name="from" /> was handed out for.</param>
+    /// <param name="from">Where to read on from, as an earlier read of the group's actors said.</param>
+    /// <param name="limit">How many more actors are wanted, paged as <see cref="ReadGroupActors" /> pages.</param>
+    /// <returns>
+    ///     The actors, and where to read on from next unless the group is now whole — reported as
+    ///     <see cref="ReadGroupActors" /> reports, a rate limit included.
+    /// </returns>
+    Task<Fetch<Accounts.Account>> ReadGroupActorsOn(
+        ActiveProfile profile,
+        string groupKey,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Reads up to <paramref name="limit" /> of the notifications newer than the account's read marker, newest
     ///     first — every kind, as <see cref="Read" /> reads them (ADR-0010) — or learns that the account has no marker,
     ///     and so nothing unread (ADR-0027).

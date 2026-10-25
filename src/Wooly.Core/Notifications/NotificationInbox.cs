@@ -205,6 +205,24 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
         string groupKey,
         int limit,
         CancellationToken cancellationToken) =>
+        Actors(profile, groupKey, from: null, limit, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<Fetch<Account>> ReadGroupActorsOn(
+        ActiveProfile profile,
+        string groupKey,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken) =>
+        Actors(profile, groupKey, from, limit, cancellationToken);
+
+    /// <summary>One read of a group's actors, from the top or from where an earlier one said to read on.</summary>
+    private Task<Fetch<Account>> Actors(
+        ActiveProfile profile,
+        string groupKey,
+        Onward? from,
+        int limit,
+        CancellationToken cancellationToken) =>
         PagedReading.Collect(
             limit,
             ActorPageSize,
@@ -216,7 +234,8 @@ public sealed class NotificationInbox(IMastodonClientFactory clientFactory, IHtt
                 cancellationToken),
             account => AccountWire.ToAccount(account, profile.Instance),
             idOf: null,
-            cancellationToken);
+            cancellationToken,
+            from: from);
 
     /// <inheritdoc />
     /// <remarks>

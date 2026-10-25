@@ -20,7 +20,7 @@ internal enum Move
 
     /// <summary>
     ///     Reading more into the screen that is already showing, which moves nothing on the stack: the rest of a list
-    ///     held whole, or the next page of one browsed.
+    ///     held whole, or what a list read on brought.
     /// </summary>
     Page,
 }

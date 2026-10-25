@@ -182,7 +182,10 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
     /// <summary>Every read of a group's actors it was asked for, in order.</summary>
     public List<ActorRead> ActorReads { get; } = [];
 
-    /// <summary>Up to <paramref name="limit" /> of the actors <see cref="ActorsOf" /> holds for the group.</summary>
+    /// <summary>
+    ///     Up to <paramref name="limit" /> of the actors <see cref="ActorsOf" /> holds for the group, and where to read on
+    ///     from unless that was all of them.
+    /// </summary>
     public Task<Fetch<Wooly.Core.Accounts.Account>> ReadGroupActors(
         ActiveProfile profile,
         string groupKey,
@@ -192,9 +195,40 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
         ActorReads.Add(new ActorRead(profile.Name, groupKey, limit));
         Tokens.Add(profile.AccessToken);
 
-        var actors = ActorsOf.GetValueOrDefault(groupKey) ?? [];
+        return Task.FromResult(Actors(groupKey, from: null, limit));
+    }
 
-        return Task.FromResult(Fetch<Wooly.Core.Accounts.Account>.Complete([.. actors.Take(limit)]));
+    /// <summary>Every read on of a group's actors it was asked for, in order — where a test proves where it went on from.</summary>
+    public List<ActorReadOn> ActorReadsOn { get; } = [];
+
+    /// <summary>The next <paramref name="limit" /> of the group's actors, from just past the one <paramref name="from" /> names.</summary>
+    public Task<Fetch<Wooly.Core.Accounts.Account>> ReadGroupActorsOn(
+        ActiveProfile profile,
+        string groupKey,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ActorReadsOn.Add(new ActorReadOn(profile.Name, groupKey, from, limit));
+        Tokens.Add(profile.AccessToken);
+
+        return Task.FromResult(Actors(groupKey, from, limit));
+    }
+
+    /// <summary>
+    ///     <paramref name="limit" /> of the group's actors from just past the one <paramref name="from" /> names, the
+    ///     account's own id standing in for the instance's cursor — and where to read on from after them unless that
+    ///     was the last of them.
+    /// </summary>
+    private Fetch<Wooly.Core.Accounts.Account> Actors(string groupKey, Onward? from, int limit)
+    {
+        var actors = ActorsOf.GetValueOrDefault(groupKey) ?? [];
+        var start = from?.MaxId is { } after ? actors.ToList().FindIndex(actor => actor.Id == after) + 1 : 0;
+        var run = actors.Skip(start).Take(limit).ToList();
+
+        return start + run.Count < actors.Count
+            ? Fetch<Wooly.Core.Accounts.Account>.Complete(run, new Onward(run[^1].Id))
+            : Fetch<Wooly.Core.Accounts.Account>.Complete(run);
     }
 
     /// <summary>
@@ -350,6 +384,9 @@ internal sealed class FakeNotificationInbox(Fetch<Notification> fetch) : INotifi
 
     /// <summary>One read of a group's actors: which profile, which group by its key, and how many were wanted.</summary>
     internal sealed record ActorRead(string Profile, string GroupKey, int Limit);
+
+    /// <summary>One read on of a group's actors: which profile, which group, from where, and how many more were wanted.</summary>
+    internal sealed record ActorReadOn(string Profile, string GroupKey, Onward From, int Limit);
 
     /// <summary>One dismissal: which profile it was made as, and which notification it named.</summary>
     internal sealed record Dismissed(string Profile, string NotificationId);

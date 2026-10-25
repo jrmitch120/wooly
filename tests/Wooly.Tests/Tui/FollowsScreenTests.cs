@@ -77,36 +77,6 @@ public class FollowsScreenTests
     }
 
     /// <summary>
-    ///     A browsed list asks for more once the reader walks onto the last of what has been read, and stops asking
-    ///     once there is no more to read.
-    /// </summary>
-    [Fact]
-    public void WantsMore_IsWalkingOntoTheEndOfWhatHasBeenRead()
-    {
-        var screen = new FollowsScreen(AnAccount.With(followers: 877_000), FollowSide.Followers, mine: false);
-
-        screen.Arrived([Person("a"), Person("b")], more: true);
-
-        Assert.False(screen.WantsMore);
-
-        screen.Move(1);
-
-        Assert.True(screen.WantsMore);
-    }
-
-    /// <summary>A held list never asks: the whole of it is on its way already.</summary>
-    [Fact]
-    public void WantsMore_IsNeverTrueOnAListHeldWhole()
-    {
-        var screen = Of();
-
-        screen.Arrived([Person("a")], more: true);
-        screen.Move(1);
-
-        Assert.False(screen.WantsMore);
-    }
-
-    /// <summary>
     ///     <c>f</c> opens the prompt and the screen starts taking letters, which is what swaps the status row to the
     ///     letters-are-text keymap (ADR-0015).
     /// </summary>

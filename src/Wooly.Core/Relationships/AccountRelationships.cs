@@ -87,10 +87,33 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
     }
 
     /// <inheritdoc />
-    public async Task<Fetch<Account>> List(
+    public Task<Fetch<Account>> List(
         ActiveProfile profile,
         FollowSide side,
         NamedAccount? account,
+        int limit,
+        CancellationToken cancellationToken,
+        Action<IReadOnlyList<Account>>? arrived = null) =>
+        Follows(profile, side, account, from: null, limit, cancellationToken, arrived);
+
+    /// <inheritdoc />
+    public Task<Fetch<Account>> ListOn(
+        ActiveProfile profile,
+        FollowSide side,
+        NamedAccount? account,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken) =>
+        Follows(profile, side, account, from, limit, cancellationToken);
+
+    /// <summary>
+    ///     One read of one side of an account's follows, from the top or from where an earlier one said to read on.
+    /// </summary>
+    private async Task<Fetch<Account>> Follows(
+        ActiveProfile profile,
+        FollowSide side,
+        NamedAccount? account,
+        Onward? from,
         int limit,
         CancellationToken cancellationToken,
         Action<IReadOnlyList<Account>>? arrived = null)
@@ -108,7 +131,7 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
             options => client.GetAccountFollowers(accountId, options),
             options => client.GetAccountFollowing(accountId, options));
 
-        return await Collect(readPage, profile.Instance, limit, cancellationToken, arrived);
+        return await Collect(readPage, profile.Instance, limit, cancellationToken, arrived, from);
     }
 
     /// <inheritdoc />

@@ -273,7 +273,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Actors | `⏎` open that account |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
-| Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts a page at a time (#455) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
+| Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts and read on as the page nears the end (#455, #467) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
 | Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
@@ -1060,8 +1060,12 @@ who walked to the bottom had no way to see anything older without leaving the TU
   next poll or stream re-read counts the first 40 again and sets the badge from those, as every re-read does.
   Notifications' badge is counted against the read marker, not off the list, and older notifications are behind it, so
   reading on there never moves it.
-- **Every timeline, an account's posts and the Inbox, for now.** A browsed **Follow list** and a notification group's
-  actors still page as they did, asking again from the top, and draw no foot. They follow in #467. Every other list
+- **A browsed Follow list and a group's actors read on too** (#467), in place of the paging they had, which re-read
+  the list from the top to a longer limit each time `k` or `End` landed on its last row. They read on by the same
+  trigger, from the same onward position, with the same foot (*What a follow list settled*), and ask where the profile
+  stands only with the people a read on brought. A held Follow list does not: it is read whole at once, as before.
+- **Every list the spec named reads on.** Every timeline, an account's posts, the Inbox, a browsed **Follow list** and
+  a notification group's actors. Every other list (Discover, a search, a **Thread**, a conversation, a held Follow list)
   reads once and never asks, and draws no foot.
 
 ### What conversations settled
@@ -1613,13 +1617,19 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   Under the threshold it holds the whole list, walkable from the first page of 80 with the rest landing behind a pick
   that does not move; while what is on screen is not the whole of it — still coming, or stopped short by a rate limit
   — the count says both numbers, so a thin filter result reads as *still reading* rather than as *nobody matches*. At
-  or above it the screen browses paged on demand — `k` past the bottom fetches the next 80 — **with no filter at all**,
-  `f` off the status row and the count reading `240 of 877,000 read` (`Number.Of`, which is how this client writes
-  every count).
+  or above it the screen is browsed by **reading on** (#467, *What reading on settled*) **with no filter at all**, `f`
+  off the status row and the count reading `240 of 877,000 read` (`Number.Of`, which is how this client writes every
+  count). It reads the first 80, and as the page comes within a screenful of the end — by `k`, `End` or whatever moved
+  the page — the next 80 from where the last read stopped (`IAccountRelationships.ListOn`), put under the last person
+  held with the pick unmoved. Nothing is read twice: each read on is one page, however far down the reader has got,
+  where the paging it replaced re-read every page before it on every ask. The foot says "reading on…" while a read is
+  out and "that's everything" once the instance has nothing behind what is held.
   The rest of a held list arrives in **one further ask rather than 24**, which is where the implementation departs from
-  #180's "80 a page": `IAccountRelationships.List` reads to a *limit* rather than from a cursor, so asking page by page
-  re-reads every page before it — 25 asks would cost some 300 requests against the 25 the ticket budgeted. The standing
-  call is still made a page of 80 ids at a time, that endpoint taking many ids and not unboundedly many.
+  #180's "80 a page": asking page by page with `IAccountRelationships.List`, which reads to a *limit* from the top,
+  re-reads every page before it — 25 asks would cost some 300 requests against the 25 the ticket budgeted. A held list
+  is unchanged by reading on: it is still read whole at once, re-read for the rest to the list's own count, and draws
+  no foot. The standing call is still made a page of 80 ids at a time, that endpoint taking many ids and not unboundedly
+  many — and on a browsed list only for the people a read on brought, never again for those already on screen.
 - **No filter is offered where it cannot be honest.** Filtering what has already been read is the dishonest filter
   #162 ruled out, and 240 read of 877K makes "no matches" meaningless. Refusing to open the screen was rejected too:
   walking the first few hundred of anyone's followers is a real thing to do, on the same rows with the same `⏎`.
@@ -1654,9 +1664,11 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   serve the part of a *remote* account's follows it actually holds, which is mostly its own people — so `@lizardbill`'s
   951 followers arrive as the 16 who are local here, the count coming off their own instance and the list coming off
   yours. Nothing is wrong and nothing more is coming, and `16 of 951 read` alone leaves a reader waiting for the other
-  935. The row says `16 of 951 read — this instance offers no more` once the reading has finished short. Not where a
-  notice above has already said why: a rate limit stops a read too, and a count blaming the instance's reach
-  underneath that would contradict it and guess at a cause the notice already knows.
+  935. A held list's row says `16 of 951 read — this instance offers no more` once the reading has finished short. Not
+  where a notice above has already said why: a rate limit stops a read too, and a count blaming the instance's reach
+  underneath that would contradict it and guess at a cause the notice already knows. A browsed list's row keeps the
+  two numbers and drops the suffix (#467): its foot says "that's everything" once the instance has nothing behind what
+  is held, which is the same fact said the way every list that reads on says it.
 - **An account that lists nobody is not an account that follows nobody.** Mastodon serves an empty list for an account
   that keeps who it follows to itself, while the count on the profile goes on saying five — so the screen says *their
   profile says 5 following, but the instance listed nobody* rather than *they follow nobody yet*, which would report a
@@ -2583,7 +2595,7 @@ reader looking for them finds them together.
 | Destination cache | 1 minute | Long enough that walking out along the rail and back is free; short enough that a timeline left and returned to a minute later is fetched rather than remembered. This client forgets a destination early when it is the thing that changed it — a post published, deleted or marked, or the public profile saved while it carries one of the own account's posts. |
 | Countdown step | 1 second | The unit a rate-limit countdown counts in. |
 | Mark step | 400ms | How long one frame of the breadcrumb's spinner is held, and — since the mark waits for its first tick — how long a fetch runs before it is announced at all. The slowest rate a glance still catches moving: a second reads as a stall and 250ms as a machine in trouble. Deliberately not the countdown's second, which would say the mark counts something (#213). |
-| Follow-list threshold | 2,000 | Below it a **Follow list** is held whole and narrowed live; at or above it the screen browses a page at a time and offers no narrowing. Set by the shape of real accounts: a following count is bounded and a followers count is not — 877K followers is ~11,000 requests at 80 a page, which is not a list to promise a search over. |
+| Follow-list threshold | 2,000 | Below it a **Follow list** is held whole and narrowed live; at or above it the screen is browsed by reading on and offers no narrowing. Set by the shape of real accounts: a following count is bounded and a followers count is not — 877K followers is ~11,000 requests at 80 a page, which is not a list to promise a search over. |
 
 One cache age for everything, rather than one per kind of destination. The question the cache answers is "is this still
 the timeline I just left", not "is this still current", and that has the same answer wherever you left from.
