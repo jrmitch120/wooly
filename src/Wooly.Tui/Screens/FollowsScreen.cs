@@ -27,7 +27,7 @@ namespace Wooly.Tui.Screens;
 ///         no instance.
 ///     </para>
 /// </remarks>
-public sealed class FollowsScreen : Screen
+public sealed class FollowsScreen : Screen, IReadsOn<Account>
 {
     /// <summary>Everyone read so far, in the order the instance listed them.</summary>
     private readonly List<Account> _all = [];
@@ -124,18 +124,6 @@ public sealed class FollowsScreen : Screen
             followers: Mine ? "Nobody follows you yet." : "Nobody follows them yet.",
             following: Mine ? "You follow nobody yet." : "They follow nobody yet.");
 
-    /// <summary>
-    ///     What the shell has to say about the list rather than about anybody on it — that nobody is on it, or that a
-    ///     rate limit cut the reading short.
-    /// </summary>
-    /// <remarks>
-    ///     Drawn on the screen rather than said on the status row, which is where every other list this shell draws
-    ///     puts one: the row holds either a notice or the keys and never both, so a notice standing there is every
-    ///     key the screen answers to, hidden — and on a list with nobody on it there is nothing to walk, so nothing
-    ///     ever comes along to take it down again.
-    /// </remarks>
-    public string? Notice { get; private set; }
-
     /// <summary>Whoever is picked out, or nobody where nobody is on screen. What <c>⏎</c> opens.</summary>
     public Account? PickedPerson => _walking.Out;
 
@@ -211,11 +199,12 @@ public sealed class FollowsScreen : Screen
         Add(people.Skip(_all.Count));
     }
 
-    /// <summary>
-    ///     Puts <paramref name="people" /> under everyone already read, as reading on a browsed list brought them:
-    ///     below everybody, with the pick left on whoever it was on and nothing above it moved (#467).
-    /// </summary>
-    public void ReadOn(IReadOnlyList<Account> people) => Add(people);
+    /// <inheritdoc />
+    IReadOnlyList<Account> IReadsOn<Account>.Items => People;
+
+    /// <inheritdoc />
+    /// <remarks>The next run of a browsed list, behind the last person read (#467).</remarks>
+    public void ReadOn(IReadOnlyList<Account> older) => Add(older);
 
     /// <summary>Adds <paramref name="people" /> to everyone read, and to who is shown wherever the filter leaves them.</summary>
     private void Add(IEnumerable<Account> people)
@@ -399,9 +388,7 @@ public sealed class FollowsScreen : Screen
         // nothing to separate it from, and at 900 people a rule apiece would be 900 rows of horizontal line (#180).
         // A blank between them all the same, since four-row Account blocks laid end to end run together (#198).
         // And under them all, on a browsed list, the foot of it: what reading on is doing, or that the list is whole.
-        var rows = _walking.Rows(width, Draw, Line.Blank);
-
-        lines.AddRange(ReadingOn?.Under(rows, holding: Read > 0) ?? rows);
+        lines.AddRange(WithFoot(_walking.Rows(width, Draw, Line.Blank)));
 
         return lines;
 

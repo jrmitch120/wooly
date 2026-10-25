@@ -139,9 +139,6 @@ internal sealed class FakeDirectMessages(
     /// <summary>One listing: which profile it was made as, and how many conversations it wanted.</summary>
     internal sealed record Call(string Profile, int Limit);
 
-    /// <summary>One read on: from where, and how many more conversations it wanted.</summary>
-    internal sealed record OnwardCall(Onward From, int Limit);
-
     /// <summary>One act on a single conversation: which profile made it, and which conversation it named.</summary>
     internal sealed record Named(string Profile, string ConversationId);
 }

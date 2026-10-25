@@ -18,7 +18,7 @@ namespace Wooly.Tui.Screens;
 ///     in hand (#467).
 /// </remarks>
 /// <param name="group">The group whose actors these are.</param>
-public sealed class ActorsScreen(NotificationGroup group) : Screen
+public sealed class ActorsScreen(NotificationGroup group) : Screen, IReadsOn<Account>
 {
     private readonly Picked<Account> _people = new([]);
 
@@ -30,12 +30,6 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
 
     /// <summary>How many have been read.</summary>
     public int Read => _people.Count;
-
-    /// <summary>
-    ///     What the shell has to say about the list rather than anybody on it — that nobody is on it, or that a rate
-    ///     limit cut the reading short — drawn on the screen, as Followers draws it.
-    /// </summary>
-    public string? Notice { get; private set; }
 
     /// <summary>Whoever is picked out, or nobody. What <c>⏎</c> opens.</summary>
     public Account? PickedPerson => _people.Out;
@@ -75,20 +69,15 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
     public void Arrived(IReadOnlyList<Account> people, string? notice = null)
     {
         Notice = notice;
-        ReadOn(people);
+        _people.PutUnder(people);
     }
 
-    /// <summary>
-    ///     Puts <paramref name="people" /> under everyone already read, as reading on brought them: below everybody,
-    ///     with the pick left on whoever it was on and nothing above it moved (#467).
-    /// </summary>
-    public void ReadOn(IReadOnlyList<Account> people)
-    {
-        foreach (var person in people)
-        {
-            _people.Add(person);
-        }
-    }
+    /// <inheritdoc />
+    IReadOnlyList<Account> IReadsOn<Account>.Items => People;
+
+    /// <inheritdoc />
+    /// <remarks>The group's actors behind the last one read (#467).</remarks>
+    public void ReadOn(IReadOnlyList<Account> older) => _people.PutUnder(older);
 
     /// <inheritdoc />
     /// <remarks>A tie put on somebody opened from here rewrites their row, so <c>esc</c> lands on what is now true.</remarks>
@@ -122,9 +111,7 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
         }
 
         // And under them all, the foot of the list: what reading on is doing, or that the group is whole.
-        var rows = _people.Rows(width, Draw, Line.Blank);
-
-        lines.AddRange(ReadingOn?.Under(rows, holding: Read > 0) ?? rows);
+        lines.AddRange(WithFoot(_people.Rows(width, Draw, Line.Blank)));
 
         return lines;
 

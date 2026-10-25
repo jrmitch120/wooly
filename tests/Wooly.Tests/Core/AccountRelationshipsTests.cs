@@ -522,7 +522,7 @@ public class AccountRelationshipsTests
     ///     back asks for the page the instance named next — in the follow ids it pages by, never an account's.
     /// </summary>
     [Fact]
-    public async Task ReadOnRequests_AsksForThePageTheLastReadNamedNext()
+    public async Task PendingRequestsOn_AsksForThePageTheLastReadNamedNext()
     {
         var network = new ScriptedHttpMessageHandler(
             Page(FullPage(), nextPageAt: "4801"),
@@ -531,7 +531,7 @@ public class AccountRelationshipsTests
         var token = TestContext.Current.CancellationToken;
 
         var first = await relationships.PendingRequests(Profile, 80, token);
-        var onward = await relationships.ReadOnRequests(Profile, first.Onward!, 80, token);
+        var onward = await relationships.PendingRequestsOn(Profile, first.Onward!, 80, token);
 
         Assert.False(first.IsWhole);
         Assert.Equal(
@@ -543,7 +543,7 @@ public class AccountRelationshipsTests
 
     /// <summary>A rate limit reading on keeps where it stopped, so the next read asks for the page it refused.</summary>
     [Fact]
-    public async Task ReadOnRequests_KeepsWhereARateLimitStoppedIt()
+    public async Task PendingRequestsOn_KeepsWhereARateLimitStoppedIt()
     {
         var network = new ScriptedHttpMessageHandler(
             Page(FullPage(), nextPageAt: "4801"),
@@ -553,8 +553,8 @@ public class AccountRelationshipsTests
         var token = TestContext.Current.CancellationToken;
 
         var first = await relationships.PendingRequests(Profile, 80, token);
-        var stopped = await relationships.ReadOnRequests(Profile, first.Onward!, 80, token);
-        await relationships.ReadOnRequests(Profile, stopped.Onward!, 80, token);
+        var stopped = await relationships.PendingRequestsOn(Profile, first.Onward!, 80, token);
+        await relationships.PendingRequestsOn(Profile, stopped.Onward!, 80, token);
 
         Assert.NotNull(stopped.StoppedBy);
         Assert.False(stopped.IsWhole);

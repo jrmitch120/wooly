@@ -23,7 +23,49 @@ internal static class OnwardRun
         var run = all.Skip(start).Take(limit).ToList();
 
         return start + run.Count < all.Count
-            ? Fetch<T>.Complete(run, new Onward(idOf(run[^1])))
+            ? Fetch<T>.GoesOn(run, new Onward(idOf(run[^1])))
             : Fetch<T>.Complete(run);
+    }
+}
+
+/// <summary>One read on a fake was asked for: from where, and how many more it wanted.</summary>
+internal sealed record OnwardCall(Onward From, int Limit);
+
+/// <summary>
+///     Reads on a fake holds back, from <see cref="Hold" /> until <see cref="LetGo" /> — where the question is what
+///     happens while one is in flight, or to one that lands after the reader has moved on.
+/// </summary>
+internal sealed class HeldReadsOn
+{
+    private readonly List<Action> _held = [];
+
+    private bool _holding;
+
+    /// <summary>Holds every read on from here on.</summary>
+    public void Hold() => _holding = true;
+
+    /// <summary>Answers every read on held so far, each with what it would have answered when it was asked.</summary>
+    public void LetGo()
+    {
+        var held = _held.ToList();
+
+        _held.Clear();
+        _holding = false;
+        held.ForEach(release => release());
+    }
+
+    /// <summary><paramref name="answer" /> at once, or once let go where reads on are being held.</summary>
+    public Task<T> Answer<T>(T answer)
+    {
+        if (!_holding)
+        {
+            return Task.FromResult(answer);
+        }
+
+        var held = new TaskCompletionSource<T>();
+
+        _held.Add(() => held.SetResult(answer));
+
+        return held.Task;
     }
 }

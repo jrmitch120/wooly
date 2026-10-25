@@ -123,7 +123,7 @@ internal sealed class InboxCount(
         Onward from,
         CancellationToken cancellationToken)
     {
-        var asking = await ports.Accounts.ReadOnRequests(profile, from, Arrival.CountedAtMost, cancellationToken);
+        var asking = await ports.Accounts.PendingRequestsOn(profile, from, Arrival.CountedAtMost, cancellationToken);
 
         return asking with { Items = await ports.StoodOrSilent(profile, asking.Items, cancellationToken) };
     }
@@ -186,7 +186,7 @@ internal sealed class InboxCount(
     /// </summary>
     /// <param name="held">The conversations the screen holds, most recently spoken in first.</param>
     /// <param name="whole">Whether the instance has nothing behind them.</param>
-    public static Found.Badge Held(IReadOnlyList<Conversation> held, bool whole)
+    public static Found.Badge OffListReadOn(IReadOnlyList<Conversation> held, bool whole)
     {
         var listed = OffList(held);
 
@@ -199,7 +199,7 @@ internal sealed class InboxCount(
     /// </summary>
     /// <param name="held">Who the screen holds, in the order the instance listed them.</param>
     /// <param name="whole">Whether the instance has nobody behind them.</param>
-    public static Found.Badge Held(IReadOnlyList<Account> held, bool whole) =>
+    public static Found.Badge OffListReadOn(IReadOnlyList<Account> held, bool whole) =>
         OffList(held) with { Full = !whole };
 
     /// <summary>

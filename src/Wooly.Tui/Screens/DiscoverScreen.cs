@@ -53,7 +53,9 @@ public sealed class DiscoverScreen : Screen
     /// <param name="notice">
     ///     What the arrival has to say about the read rather than about anybody on it: that the instance offered
     ///     nobody, or that a rate limit cut it short. Nothing at all while nothing has been asked yet, which is the
-    ///     empty screen an arrival puts up before its answer lands.
+    ///     empty screen an arrival puts up before its answer lands. An instance offering nobody is a real answer and
+    ///     is said as one — no apology for a new account or a small instance, and no empty-versus-not-asked to draw,
+    ///     since a destination always asks on arrival.
     /// </param>
     public DiscoverScreen(IReadOnlyList<Suggestion> suggested, string? notice = null)
     {
@@ -72,13 +74,6 @@ public sealed class DiscoverScreen : Screen
 
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => People.Select(Mentionable.Of);
-
-    /// <summary>
-    ///     What the shell has to say about the list rather than about anybody on it. An instance offering nobody is a
-    ///     real answer and is said as one — no apology for a new account or a small instance, and no
-    ///     empty-versus-not-asked to draw, since a destination always asks on arrival.
-    /// </summary>
-    public string? Notice { get; }
 
     /// <summary>Whoever is picked out, or nobody where nobody is on screen. What <c>⏎</c>, <c>F</c> and <c>d</c> act on.</summary>
     public Account? PickedPerson => _offered.Out?.Person;

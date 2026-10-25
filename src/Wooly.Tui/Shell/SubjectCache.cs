@@ -1,3 +1,5 @@
+using Wooly.Tui.Screens;
+
 namespace Wooly.Tui.Shell;
 
 /// <summary>
@@ -66,9 +68,12 @@ public sealed class SubjectCache(TimeProvider clock, TimeSpan freshFor)
     ///     the reader was reading it a moment ago however long ago its first read was. Nothing where nothing is held —
     ///     <c>g</c> or a change forgot it, and what is read on does not bring back a list either one made stale.
     /// </remarks>
-    internal void Add(Subject subject, Found readOn)
+    /// <param name="subject">Whose screen read on.</param>
+    /// <param name="readOn">What the read on came back with.</param>
+    /// <param name="became">The screen it was put on.</param>
+    internal void Add(Subject subject, Found readOn, Screen became)
     {
-        if (_held.TryGetValue(subject, out var held) && held.What.Holding(readOn) is { } more)
+        if (_held.TryGetValue(subject, out var held) && held.What.Holding(readOn, became) is { } more)
         {
             Keep(subject, more);
         }

@@ -29,7 +29,7 @@ namespace Wooly.Tui.Screens;
 public sealed class NotificationsScreen(
     IReadOnlyList<NotificationGroup> groups,
     string? notice = null,
-    IReadOnlySet<string>? unread = null) : Screen
+    IReadOnlySet<string>? unread = null) : Screen(notice), IReadsOn<NotificationGroup>
 {
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
@@ -69,12 +69,6 @@ public sealed class NotificationsScreen(
 
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => Groups.SelectMany(Mentionable.In);
-
-    /// <summary>
-    ///     Something the shell has to say about the inbox rather than about anything in it — that it is empty, or that
-    ///     a rate limit cut the read short.
-    /// </summary>
-    public string? Notice { get; } = notice;
 
     /// <summary>
     ///     Whether anything in <paramref name="group" /> was newer than the read marker when the reader arrived, or
@@ -174,16 +168,18 @@ public sealed class NotificationsScreen(
         return put.Count;
     }
 
-    /// <summary>
-    ///     Puts <paramref name="older" /> under the groups already held, as a read on brought them (#465): below
-    ///     everything, drawn read — they are behind the read marker — with the pick left on the group it was on and
-    ///     nothing above it moved, whatever arrived on top meanwhile.
+    /// <inheritdoc />
+    IReadOnlyList<NotificationGroup> IReadsOn<NotificationGroup>.Items => Groups;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The older groups (#465), drawn read — they are behind the read marker — whatever arrived on top meanwhile.
     ///     <para>
     ///         The instance groups a page at a time, so a group already held can come back with older notifications of
     ///         its own. It stays where it is, under its newest: one key drawn twice is two rows <c>d</c> and <c>w</c>
     ///         could not tell apart.
     ///     </para>
-    /// </summary>
+    /// </remarks>
     public void ReadOn(IReadOnlyList<NotificationGroup> older)
     {
         var held = Groups.Select(group => group.Key).ToHashSet(StringComparer.Ordinal);
@@ -321,9 +317,7 @@ public sealed class NotificationsScreen(
             lines.Add(Line.Blank);
         }
 
-        var groups = _groups.Rows(drawing.Width, Draw);
-
-        lines.AddRange(ReadingOn?.Under(groups, holding: groups.Count > 0) ?? groups);
+        lines.AddRange(WithFoot(_groups.Rows(drawing.Width, Draw)));
 
         return lines;
 

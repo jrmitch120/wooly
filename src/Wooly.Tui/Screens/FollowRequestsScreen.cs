@@ -14,7 +14,8 @@ namespace Wooly.Tui.Screens;
 ///     and <c>x</c> rejects here, where on a feed they open an author and show a warning. That collision is what the
 ///     status row exists to make workable (<c>docs/tui-shell.md</c>).
 /// </remarks>
-public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string? notice = null) : Screen
+public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string? notice = null)
+    : Screen(notice), IReadsOn<Account>
 {
     // Named by the id the instance listed them under, which is what answering a request takes (ADR-0012) — and what a
     // refresh puts the reader back on (#84).
@@ -45,12 +46,6 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
 
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => Waiting.Select(Mentionable.Of);
-
-    /// <summary>
-    ///     Something the shell has to say about the list rather than about anybody on it — that nobody is waiting, or
-    ///     that a rate limit cut the read short.
-    /// </summary>
-    public string? Notice { get; } = notice;
 
     /// <summary>
     ///     Whoever is picked out, or <see langword="null" /> where nobody is waiting. What <c>a</c> and <c>x</c>
@@ -102,17 +97,12 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         return false;
     }
 
-    /// <summary>
-    ///     Puts <paramref name="older" /> under the requests already held, as a read on brought them: below everybody,
-    ///     with the pick left on whoever it was on (#466).
-    /// </summary>
-    public void ReadOn(IReadOnlyList<Account> older)
-    {
-        foreach (var asking in older)
-        {
-            _waiting.Add(asking);
-        }
-    }
+    /// <inheritdoc />
+    IReadOnlyList<Account> IReadsOn<Account>.Items => Waiting;
+
+    /// <inheritdoc />
+    /// <remarks>Whoever is waiting behind the last one held (#466).</remarks>
+    public void ReadOn(IReadOnlyList<Account> older) => _waiting.PutUnder(older);
 
     /// <inheritdoc />
     /// <remarks>Whoever has asked since and is not on screen yet.</remarks>
@@ -137,15 +127,13 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         // Nothing implied: what this list claims of everyone on it is that they do not follow the reader, which is a
         // negative, and the compact standing only ever adds words for positives — so there is nothing here to
         // suppress and "following" is the word this screen is read for (#204).
-        var rows = _waiting.Rows(
+        lines.AddRange(WithFoot(_waiting.Rows(
             drawing.Width,
             (account, _, room) => AccountLines.Block(
                 account,
                 drawing.In(room),
                 AccountLines.Compact(account.Standing)),
-            Line.Blank);
-
-        lines.AddRange(ReadingOn?.Under(rows, holding: Waiting.Count > 0) ?? rows);
+            Line.Blank)));
 
         return lines;
     }

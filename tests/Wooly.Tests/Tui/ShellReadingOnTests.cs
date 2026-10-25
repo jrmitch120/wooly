@@ -536,6 +536,26 @@ public class ShellReadingOnTests
         Assert.DoesNotContain("that's everything", drawn);
     }
 
+    /// <summary>
+    ///     But once reading on has brought what the stopped read never got, the notice goes: what arrived is no longer
+    ///     what it says arrived, and the list under it is not the one it was said over.
+    /// </summary>
+    [Fact]
+    public async Task FirstRead_StoppedEmptyByARateLimit_SaysNoMoreOfIt_OnceReadingOnBringsPosts()
+    {
+        var built = Home(posts: 30);
+        built.Timelines.RateLimitsNextRead(LimitedFor(TimeSpan.FromSeconds(3)));
+        var opened = await built.Opened();
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        var feed = Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Equal(Ids(1, 30), feed.Posts.Select(post => post.Id));
+        Assert.Null(feed.Notice);
+        Assert.DoesNotContain(Rows(feed), row => row.Contains("Rate limited", StringComparison.Ordinal));
+    }
+
     /// <summary>A rate limit on <c>mastodon.social</c> that lifts <paramref name="after" /> from now.</summary>
     private static RateLimitedException LimitedFor(TimeSpan after) => new("mastodon.social", AShell.Now + after);
 
