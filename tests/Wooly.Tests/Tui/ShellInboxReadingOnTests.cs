@@ -81,6 +81,29 @@ public class ShellInboxReadingOnTests
         Assert.Equal(0, built.Host.Bells);
     }
 
+    /// <summary>
+    ///     The cache holds everything read on (#463), and the badge counted off it with it: requests read on to 55 and
+    ///     arrived at again within the minute still say 55, not the <c>40+</c> of their first read.
+    /// </summary>
+    [Fact]
+    public async Task Requests_ReadOnToWhole_ArrivedAtAgainFromTheCache_StillCountTheBadgeExactly()
+    {
+        var built = new AShell { Accounts = FakeAccountRelationships.AskingReadingOn([.. Asking(55)]) };
+        var opened = await AtRequests(built);
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        opened.Step(-1);
+        built.Host.Settle();
+        opened.Step(1);
+        built.Host.Settle();
+
+        var badge = Badge(opened, DestinationKind.Requests);
+        Assert.Equal(55, Assert.IsType<FollowRequestsScreen>(opened.Screen).Waiting.Count);
+        Assert.Equal(55, badge.Unread);
+        Assert.False(badge.Full);
+    }
+
     /// <summary>A list not whole yet still says "at least": 80 read on, with more behind them, is <c>80+</c>.</summary>
     [Fact]
     public async Task Requests_ReadOnButNotWhole_SayAtLeastAsManyAsAreHeld()

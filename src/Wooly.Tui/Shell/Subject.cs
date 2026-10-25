@@ -819,10 +819,20 @@ public abstract record Subject
         ///     Under what was read first, in the order it arrived, with where the read on said to go on from — so a list
         ///     held whole once its read on found nothing behind it is held whole. Everything the change table asks of a
         ///     held list is asked of these items, so a post reached by reading on is reached by a change too.
+        ///     <para>
+        ///         And with the badge the read on counted off the whole list, where it counted one, so a list arrived at
+        ///         again says what it said as the reader left it rather than what its first read could (#466).
+        ///     </para>
         /// </remarks>
         public override Found? Holding(Found readOn) =>
             readOn is ReadOnto<T> onto
-                ? this with { Fetch = Fetch<T>.Complete([.. Fetch.Items, .. onto.Fetch.Items], onto.Fetch.Onward) }
+                ? this with
+                {
+                    Fetch = Fetch<T>.Complete([.. Fetch.Items, .. onto.Fetch.Items], onto.Fetch.Onward),
+                    Waiting = Waiting is { } waiting && onto.Counted is { } recounted
+                        ? waiting with { Badge = recounted }
+                        : Waiting,
+                }
                 : null;
 
         /// <inheritdoc />

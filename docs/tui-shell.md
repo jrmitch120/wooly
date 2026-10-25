@@ -1026,7 +1026,8 @@ who walked to the bottom had no way to see anything older without leaving the TU
   `40+`, and an older unread conversation read on is counted. Exact once the list is whole; while it is not, Requests
   says `N+` for the N held, every one of them waiting, and Messages says `N+` only where every conversation held is
   unread, the one case where what is held cannot be the whole count. It is the list going further down, not anything
-  arriving, so it never rings the bell, and it is the count the next one rises against. Answering a request or marking
+  arriving, so it never rings the bell, and it is the count the next one rises against. The cache keeps it with the
+  list read on, so arriving there again within the minute says it too, not what the first read said. Answering a request or marking
   a conversation moves it as before: by one under an exact badge, and read again under `N+`. The next poll or stream
   re-read counts the first 40 again and sets the badge from those, as every re-read does. Notifications' badge is
   counted against the read marker, not off the list, and older notifications are behind it, so reading on there never
