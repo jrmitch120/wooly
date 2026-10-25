@@ -717,7 +717,9 @@ public abstract record Subject
         {
             var reading = ReadsOn ?? throw new InvalidOperationException("This destination's list does not read on.");
 
-            return new ReadOnto<T>(reading, await ask.Of(token => reading.Reads(ports, profile, from, token)));
+            return new ReadOnto<T>(
+                reading,
+                await ask.ReadOn(from, (at, token) => reading.Reads(ports, profile, at, token)));
         }
 
         /// <summary>

@@ -313,6 +313,50 @@ public class ShellReadingOnTests
         Assert.DoesNotContain("couldn't read on", Rows(opened.Screen));
     }
 
+    /// <summary>
+    ///     A rate limit part way through a read on is counted down where the reader can see it, as every enquiry's
+    ///     is, with the foot still saying a read is out (#462).
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_StoppedByARateLimit_CountsDownWhereTheReaderCanSeeIt()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.RateLimitsNextReadOnAfter(10, LimitedFor(TimeSpan.FromSeconds(3)));
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Contains("Rate limited by mastodon.social", opened.Notice);
+        Assert.Contains("3s", opened.Notice);
+        Assert.Equal("reading on…", Foot(opened.Screen));
+    }
+
+    /// <summary>
+    ///     And once it has been waited out, the read carries on from where the limit stopped it, keeping what had
+    ///     already arrived: nothing read is lost, and nothing is asked for twice.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_StoppedByARateLimit_CarriesOnFromWhereItStopped_KeepingWhatArrived()
+    {
+        var built = Home(posts: 100);
+        var opened = await built.Opened();
+
+        built.Timelines.RateLimitsNextReadOnAfter(10, LimitedFor(TimeSpan.FromSeconds(3)));
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        built.Clock.Advance(TimeSpan.FromSeconds(3));
+        built.Host.SettleAll();
+
+        Assert.Equal(2, built.Timelines.ReadsOn.Count);
+        Assert.Equal(new Onward("50"), built.Timelines.ReadsOn[1].From);
+        Assert.Equal(Ids(1, 90), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+        Assert.Null(opened.Notice);
+    }
+
+    /// <summary>A rate limit on <c>mastodon.social</c> that lifts <paramref name="after" /> from now.</summary>
+    private static RateLimitedException LimitedFor(TimeSpan after) => new("mastodon.social", AShell.Now + after);
+
     /// <summary>Every row <paramref name="screen" /> draws, as text, the gutter and all.</summary>
     private static IReadOnlyList<string> Rows(Screen screen) =>
         [.. screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text)];

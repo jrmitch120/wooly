@@ -1,4 +1,5 @@
 using Wooly.Core.Errors;
+using Wooly.Core.Paging;
 using Wooly.Tui.Screens;
 
 namespace Wooly.Tui.Shell;
@@ -362,5 +363,43 @@ public sealed class Enquiry(
 
                 return Nothing;
             });
+
+        /// <summary>
+        ///     <b>Reads on</b> a list from <paramref name="from" />, through one call put the way <see cref="Of{T}" />
+        ///     puts it (#462). A rate limit that stops the read part way through is waited out where the reader can
+        ///     watch it count down, as every other is, and the read then carries on from where the limit stopped it,
+        ///     with what had already arrived kept — so nothing read is lost, and nothing is asked for twice.
+        /// </summary>
+        /// <remarks>
+        ///     Needed because a reader does not throw a limit that stops it part way: it answers what arrived and the
+        ///     limit together (<see cref="Fetch{T}" />, ADR-0007), which a call put through <see cref="Of{T}" /> would
+        ///     land as it stood. What this answers is never stopped by a limit — waiting is this, not its caller's.
+        /// </remarks>
+        /// <param name="from">Where the instance said to read on from.</param>
+        /// <param name="read">Reads the list on from where it is handed, as far as one read goes.</param>
+        public async Task<Fetch<T>> ReadOn<T>(Onward from, Func<Onward, CancellationToken, Task<Fetch<T>>> read)
+        {
+            var arrived = new List<T>();
+            var at = from;
+
+            var last = await Of(async token =>
+            {
+                var fetch = await read(at, token);
+
+                arrived.AddRange(fetch.Items);
+
+                // Never whole, a fetch a limit stopped, so there is always somewhere it stopped to go on from.
+                if (fetch is { StoppedBy: { } limit, Onward: { } stopped })
+                {
+                    at = stopped;
+
+                    throw limit;
+                }
+
+                return fetch;
+            });
+
+            return Fetch<T>.Complete(arrived, last.Onward);
+        }
     }
 }
