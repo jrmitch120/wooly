@@ -607,6 +607,13 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   reference drawn across two rows (#83).
 - **`→` enters at the first reference, `←` at the last**; further motion in the same direction at either end
   **clamps**, matching `Picked<T>`'s existing convention rather than wrapping.
+- **The page follows a walked reference** (#473). Walking to a reference that is not on the page moves the page the
+  least it must to bring its row onto it — onto the bottom row walking down, the top row walking up — the same
+  minimum move `j`/`k` bring the pick back with (`Scroll.ToReference`, keyed on the rows its brackets are drawn on, so
+  an address wrapped across two rows comes on whole where it fits). Walking to one already on the page leaves the page
+  where it is. A page that has to move stops following the pick, since following shows a post taller than the room
+  from its top on every frame and would take the reference straight off again; the window asks for it after a walk
+  step (`PaintedView.ShowReference`), spent on the next frame only, as `[`/`]`'s anchor is.
 - **`esc` clears the pick first**, popping the screen on the next press (above). **`j`/`k` clear it too**, since the
   reader has left the post. **`↓`/`↑` (page scroll) do not** — they leave the selection alone by the existing
   "What moving settled" contract, and a reference pick lives inside the selected post, not on a row.

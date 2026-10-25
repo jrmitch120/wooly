@@ -737,7 +737,20 @@ internal sealed class ShellWindow : Window
     {
         var verb = Keymap.Means(pressed, _shell.Screen);
 
-        return verb.NeedsATerminal() ? Carry(verb) : _shell.Do(verb, Keymap.Answer(pressed));
+        if (verb.NeedsATerminal())
+        {
+            return Carry(verb);
+        }
+
+        var used = _shell.Do(verb, Keymap.Answer(pressed));
+
+        // A reference walked to is brought onto the page, the least move that does it (#473).
+        if (used && verb is Verb.NextReference or Verb.PreviousReference)
+        {
+            _content.ShowReference();
+        }
+
+        return used;
     }
 
     /// <summary>Carries out one of the verbs that need a terminal (<see cref="Verbs.NeedsATerminal" />).</summary>
