@@ -195,7 +195,7 @@ public abstract record Subject
                     Carries: post => post,
 
                     // All four, the same way: a timeline is a timeline whichever scope is in it (#464).
-                    ReadsOn: FeedReadsOn(timeline));
+                    ReadsOn: TimelineReadsOn(timeline));
             }
 
             return entry.Kind switch
@@ -215,10 +215,8 @@ public abstract record Subject
                     // As many again as the first read, read the way it was: grouped, or each a group of one where the
                     // instance cannot group. Never counted: what is behind the groups held is behind the read marker
                     // too, so neither the badge nor the marker is anything reading on moves (#465, ADR-0027).
-                    ReadsOn: new OnwardRead<NotificationGroup>(
-                        (ports, profile, from, token) =>
-                            ports.Notifications.ReadGroupsOn(profile, from, Arrival.CountedAtMost, token),
-                        (screen, older) => ((NotificationsScreen)screen).ReadOn(older))),
+                    ReadsOn: new OnwardRead<NotificationGroup>((ports, profile, from, token) =>
+                        ports.Notifications.ReadGroupsOn(profile, from, Arrival.CountedAtMost, token))),
 
                 // The one destination whose read is two calls: the requests, and where the profile stands with each
                 // person asking — inside this destination's own read, which is what makes a refresh re-ask for free,
@@ -229,10 +227,7 @@ public abstract record Subject
                     WhenEmpty: "Nobody is waiting to follow you.",
                     Counting: (count, asking) => count.Arrived(asking),
                     Carries: _ => null,
-                    ReadsOn: new OnwardRead<Person>(
-                        InboxCount.RequestsOn,
-                        (screen, older) => ((FollowRequestsScreen)screen).ReadOn(older),
-                        Recounts: (screen, whole) => InboxCount.Held(((FollowRequestsScreen)screen).Waiting, whole))),
+                    ReadsOn: new OnwardRead<Person>(InboxCount.RequestsOn, Recounts: InboxCount.Held)),
 
                 // The one destination that reads a list through a port with no Fetch on it: there is no paging here
                 // and so nothing for a rate limit to stop part way — the read either answers or throws, and the
@@ -261,9 +256,7 @@ public abstract record Subject
                     Carries: conversation => conversation.Latest,
                     ReadsOn: new OnwardRead<Core.Conversations.Conversation>(
                         InboxCount.ConversationsOn,
-                        (screen, older) => ((DirectMessagesScreen)screen).ReadOn(older),
-                        Recounts: (screen, whole) =>
-                            InboxCount.Held(((DirectMessagesScreen)screen).Conversations, whole))),
+                        Recounts: InboxCount.Held)),
 
                 // Said out loud rather than quietly doing nothing: a destination that reads no list — the profile's
                 // own account, the prompt, the hashtag nobody has named — arrives some other way, and landing here is
@@ -407,9 +400,7 @@ public abstract record Subject
         {
             var whose = NamedAccount.Resolved(((AccountScreen)standing).Account);
 
-            return TimelineReadsOn(
-                    WithReplies ? Timeline.WithReplies(whose) : Timeline.By(whose),
-                    (screen, older) => ((AccountScreen)screen).ReadOn(older))
+            return TimelineReadsOn(WithReplies ? Timeline.WithReplies(whose) : Timeline.By(whose))
                 .From(ask, ports, profile, from);
         }
     }
@@ -505,15 +496,13 @@ public abstract record Subject
             ActiveProfile profile,
             Screen standing,
             Onward from) =>
-            PeopleReadOn(
-                    (ports, profile, at, token) => ports.Accounts.ListOn(
-                        profile,
-                        Side,
-                        NamedAccount.Resolved(Whose),
-                        at,
-                        FollowsPage,
-                        token),
-                    (screen, people) => ((FollowsScreen)screen).ReadOn(people))
+            PeopleReadOn((ports, profile, at, token) => ports.Accounts.ListOn(
+                    profile,
+                    Side,
+                    NamedAccount.Resolved(Whose),
+                    at,
+                    FollowsPage,
+                    token))
                 .From(ask, ports, profile, from);
 
         /// <summary>
@@ -634,10 +623,8 @@ public abstract record Subject
             ActiveProfile profile,
             Screen standing,
             Onward from) =>
-            PeopleReadOn(
-                    (ports, profile, at, token) =>
-                        ports.Notifications.ReadGroupActorsOn(profile, Group.Key, at, ActorsPage, token),
-                    (screen, people) => ((ActorsScreen)screen).ReadOn(people))
+            PeopleReadOn((ports, profile, at, token) =>
+                    ports.Notifications.ReadGroupActorsOn(profile, Group.Key, at, ActorsPage, token))
                 .From(ask, ports, profile, from);
 
         /// <summary>What the first read of a group's actors came back with, and where to read on from.</summary>
@@ -704,7 +691,7 @@ public abstract record Subject
             ActiveProfile profile,
             Screen standing,
             Onward from) =>
-            FeedReadsOn(Timeline.Tag(Hashtag)).From(ask, ports, profile, from);
+            TimelineReadsOn(Timeline.Tag(Hashtag)).From(ask, ports, profile, from);
     }
 
     /// <summary>
@@ -754,9 +741,11 @@ public abstract record Subject
         public abstract Task<Found> ReadOn(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from);
     }
 
-    /// <summary>How a destination whose list reads on reads on, and what it does with what that brought (#469).</summary>
+    /// <summary>
+    ///     How a list reads on (#469): what is asked for, and how its badge is counted again once what that brought is
+    ///     under what the screen holds — which is the screen's own to put there (<see cref="IReadsOn{T}" />).
+    /// </summary>
     /// <param name="Reads">What the instance is asked for, from where the last read said to read on from.</param>
-    /// <param name="Adds">Puts what came back under what the destination's screen already holds.</param>
     /// <param name="Recounts">
     ///     The destination's badge, counted again off the whole list its screen now holds and whether that is whole —
     ///     as every read of a destination counted off its list sets it (#466) — or <see langword="null" /> where the
@@ -765,8 +754,7 @@ public abstract record Subject
     /// </param>
     private sealed record OnwardRead<T>(
         Func<ShellPorts, ActiveProfile, Onward, CancellationToken, Task<Fetch<T>>> Reads,
-        Action<Screen, IReadOnlyList<T>> Adds,
-        Func<Screen, bool, Found.Badge>? Recounts = null)
+        Func<IReadOnlyList<T>, bool, Found.Badge>? Recounts = null)
     {
         /// <summary>Reads on from <paramref name="from" />, as an answer that adds what came back to the screen asked from.</summary>
         public async Task<Found> From(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from) =>
@@ -776,33 +764,25 @@ public abstract record Subject
     /// <summary>
     ///     How a list of people reads on (#467): what <paramref name="reads" /> brings, each carrying where the profile
     ///     stands with them — asked in the one batched call, and only of the people that read brought, never again of
-    ///     those already on screen — put where <paramref name="adds" /> says. The standing answers with nothing where
-    ///     it was refused, and the rows are drawn silent, as on the first read.
+    ///     those already on screen. The standing answers with nothing where it was refused, and the rows are drawn
+    ///     silent, as on the first read.
     /// </summary>
     private static OnwardRead<Person> PeopleReadOn(
-        Func<ShellPorts, ActiveProfile, Onward, CancellationToken, Task<Fetch<Person>>> reads,
-        Action<Screen, IReadOnlyList<Person>> adds) =>
-        new(
-            async (ports, profile, at, token) =>
-            {
-                var fetch = await reads(ports, profile, at, token);
+        Func<ShellPorts, ActiveProfile, Onward, CancellationToken, Task<Fetch<Person>>> reads) =>
+        new(async (ports, profile, at, token) =>
+        {
+            var fetch = await reads(ports, profile, at, token);
 
-                return fetch with { Items = await ports.StoodOrSilent(profile, fetch.Items, token) };
-            },
-            adds);
+            return fetch with { Items = await ports.StoodOrSilent(profile, fetch.Items, token) };
+        });
 
     /// <summary>
-    ///     How <paramref name="timeline" /> reads on onto the feed showing it: the rail's four timelines and a hashtag
-    ///     walked to alike, which are one screen over a different timeline (#464).
+    ///     How <paramref name="timeline" /> reads on: the rail's four timelines, a hashtag walked to and an account's
+    ///     posts alike, whichever screen is showing it (#464).
     /// </summary>
-    private static OnwardRead<Post> FeedReadsOn(Timeline timeline) =>
-        TimelineReadsOn(timeline, (screen, older) => ((FeedScreen)screen).ReadOn(older));
-
-    /// <summary>How <paramref name="timeline" /> reads on, its older posts put where <paramref name="adds" /> says.</summary>
-    private static OnwardRead<Post> TimelineReadsOn(Timeline timeline, Action<Screen, IReadOnlyList<Post>> adds) =>
-        new(
-            (ports, profile, from, token) => ports.Timelines.ReadOn(profile, timeline, from, Arrival.PostsWanted, token),
-            adds);
+    private static OnwardRead<Post> TimelineReadsOn(Timeline timeline) =>
+        new((ports, profile, from, token) =>
+            ports.Timelines.ReadOn(profile, timeline, from, Arrival.PostsWanted, token));
 
     /// <inheritdoc cref="Listing" />
     /// <param name="Reads">What the instance is asked for.</param>
@@ -985,24 +965,26 @@ public abstract record Subject
         /// <remarks>Read into the screen it was asked from, which is already up — so it is not put up again.</remarks>
         public override Screen Becomes(Screen? standing)
         {
-            var screen = standing
-                         ?? throw new InvalidOperationException("A read on lands on the screen it was asked from.");
+            if (standing is not IReadsOn<T> list)
+            {
+                throw new InvalidOperationException("A read on lands on the list it was asked from.");
+            }
 
-            How.Adds(screen, Fetch.Items);
-            screen.ReadingOn?.Arrived(Fetch.Onward);
+            list.ReadOn(Fetch.Items);
+            standing.ReadingOn?.Arrived(Fetch.Onward);
 
             // A read a rate limit stopped said what had arrived, which stops being so once this brings anything: the
             // notice goes, rather than standing over a list it no longer describes (#460).
             if (Fetch.Items.Count > 0)
             {
-                screen.Notice = null;
+                standing.Notice = null;
             }
 
             // Off the whole list the screen holds, not off what this read brought: what was put on top live and what
             // was answered since are as much the list as anything read on.
-            _counted = How.Recounts?.Invoke(screen, Fetch.IsWhole);
+            _counted = How.Recounts?.Invoke(list.Items, Fetch.IsWhole);
 
-            return screen;
+            return standing;
         }
 
         /// <inheritdoc />

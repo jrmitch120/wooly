@@ -29,7 +29,7 @@ namespace Wooly.Tui.Screens;
 public sealed class NotificationsScreen(
     IReadOnlyList<NotificationGroup> groups,
     string? notice = null,
-    IReadOnlySet<string>? unread = null) : Screen(notice)
+    IReadOnlySet<string>? unread = null) : Screen(notice), IReadsOn<NotificationGroup>
 {
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
@@ -168,16 +168,18 @@ public sealed class NotificationsScreen(
         return put.Count;
     }
 
-    /// <summary>
-    ///     Puts <paramref name="older" /> under the groups already held, as a read on brought them (#465): below
-    ///     everything, drawn read — they are behind the read marker — with the pick left on the group it was on and
-    ///     nothing above it moved, whatever arrived on top meanwhile.
+    /// <inheritdoc />
+    IReadOnlyList<NotificationGroup> IReadsOn<NotificationGroup>.Items => Groups;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The older groups (#465), drawn read — they are behind the read marker — whatever arrived on top meanwhile.
     ///     <para>
     ///         The instance groups a page at a time, so a group already held can come back with older notifications of
     ///         its own. It stays where it is, under its newest: one key drawn twice is two rows <c>d</c> and <c>w</c>
     ///         could not tell apart.
     ///     </para>
-    /// </summary>
+    /// </remarks>
     public void ReadOn(IReadOnlyList<NotificationGroup> older)
     {
         var held = Groups.Select(group => group.Key).ToHashSet(StringComparer.Ordinal);

@@ -14,7 +14,8 @@ namespace Wooly.Tui.Screens;
 ///     and <c>x</c> rejects here, where on a feed they open an author and show a warning. That collision is what the
 ///     status row exists to make workable (<c>docs/tui-shell.md</c>).
 /// </remarks>
-public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string? notice = null) : Screen(notice)
+public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string? notice = null)
+    : Screen(notice), IReadsOn<Account>
 {
     // Named by the id the instance listed them under, which is what answering a request takes (ADR-0012) — and what a
     // refresh puts the reader back on (#84).
@@ -96,17 +97,12 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         return false;
     }
 
-    /// <summary>
-    ///     Puts <paramref name="older" /> under the requests already held, as a read on brought them: below everybody,
-    ///     with the pick left on whoever it was on (#466).
-    /// </summary>
-    public void ReadOn(IReadOnlyList<Account> older)
-    {
-        foreach (var asking in older)
-        {
-            _waiting.Add(asking);
-        }
-    }
+    /// <inheritdoc />
+    IReadOnlyList<Account> IReadsOn<Account>.Items => Waiting;
+
+    /// <inheritdoc />
+    /// <remarks>Whoever is waiting behind the last one held (#466).</remarks>
+    public void ReadOn(IReadOnlyList<Account> older) => _waiting.PutUnder(older);
 
     /// <inheritdoc />
     /// <remarks>Whoever has asked since and is not on screen yet.</remarks>

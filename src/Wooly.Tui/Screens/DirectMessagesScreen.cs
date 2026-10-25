@@ -20,7 +20,8 @@ namespace Wooly.Tui.Screens;
 ///         here and the same message read in the thread looking like two different things.
 ///     </para>
 /// </remarks>
-public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversations, string? notice = null) : Screen(notice)
+public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversations, string? notice = null)
+    : Screen(notice), IReadsOn<Conversation>
 {
     // Named by the conversation's own id, which is not the id of any post in it (GLOSSARY.md) — and is what a refresh
     // puts the reader back on (#84).
@@ -131,17 +132,12 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         return false;
     }
 
-    /// <summary>
-    ///     Puts <paramref name="older" /> under the conversations already held, as a read on brought them: below
-    ///     everything, with the pick left on the conversation it was on (#466).
-    /// </summary>
-    public void ReadOn(IReadOnlyList<Conversation> older)
-    {
-        foreach (var conversation in older)
-        {
-            _conversations.Add(conversation);
-        }
-    }
+    /// <inheritdoc />
+    IReadOnlyList<Conversation> IReadsOn<Conversation>.Items => Conversations;
+
+    /// <inheritdoc />
+    /// <remarks>The conversations spoken in longer ago than the last one held (#466).</remarks>
+    public void ReadOn(IReadOnlyList<Conversation> older) => _conversations.PutUnder(older);
 
     /// <inheritdoc />
     /// <remarks>
