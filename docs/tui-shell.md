@@ -996,9 +996,22 @@ who walked to the bottom had no way to see anything older without leaving the TU
 - **Leaving mid-read drops the answer**, under the stale rule every enquiry keeps: nothing lands on a screen the
   reader is not looking at. Walking back out hands back the same screen, still near the end, and it reads on again
   from where it was. The dropped read cost nothing.
-- **A cached Home reads on from where its first read stopped.** The cache keeps the onward position with the posts
-  (ADR-0014). A Home arrived at within the minute is a fresh screen of the first read's posts, opened at the top, and
-  walking down reads on from the post after them. Holding everything read on is #463's.
+- **The cache holds everything read on, and where to read on from** (#463). It is still the one cache, keyed by
+  subject (ADR-0014): each read on that lands is added under what the list's entry already holds, and the onward
+  position it came back with replaces the old one. A reader who has read on to 400 posts on Home, gone to Notifications
+  and come back within the minute finds all 400 held. The screen is still a fresh one, opened at the top as every
+  **Arrival** is, and walking to the end of it reads on from where the last read on stopped, so no call is spent on
+  posts already in hand. A list whose read on found nothing behind it is held whole, and says "that's everything".
+- **The minute counts from the last read on**, not from the first read. The cache asks whether this is still the list
+  the reader just left, and a reader reading on was reading it a moment ago, however long ago its top was read. A read
+  on adds only to a list the cache still holds: one that `g` or a change has forgotten stays forgotten, and is read
+  again on coming back.
+- **`g` drops all of it.** Refresh forgets the subject's entry and reads it again from the top, so the list opens at
+  the top on what came back and the cache holds that and nothing older.
+- **A change reaches a post read on exactly as it reaches one from the first read.** The change table asks the held
+  list about every item in it, so a post marked or deleted forgets every cached list holding it, however it was
+  reached, and a tie forgets Home with everything read on it. The screen showing the post hears the change and patches
+  it in place, as it does any post.
 - **Every timeline reads on, and so do an account's posts (#464).** These screens read on, the same way Home does:
   - Home, Local, Federated and the rail's Hashtag;
   - a hashtag walked to from a post or a search, which is the same timeline reached another way;
