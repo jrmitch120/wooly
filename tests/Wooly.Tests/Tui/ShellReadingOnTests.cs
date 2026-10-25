@@ -220,8 +220,8 @@ public class ShellReadingOnTests
     }
 
     /// <summary>
-    ///     A timeline that does not read on yet never asks, and draws no foot: Local is the same screen over a
-    ///     different timeline, and reading on reaches it in a ticket of its own (#464).
+    ///     A subject that does not read on never asks, and draws no foot: a thread is read whole (#460), however near
+    ///     the end of it the page is.
     /// </summary>
     [Fact]
     public async Task Viewed_OnASubjectThatDoesNotReadOn_AsksNothing()
@@ -229,10 +229,10 @@ public class ShellReadingOnTests
         var built = Home(posts: 100);
         var opened = await built.Opened();
 
-        opened.Step(1);
-        built.Host.Settle();
+        opened.Press(ShellKey.Enter);
+        built.Host.Drain();
 
-        Assert.Equal("Local", opened.Screen.Crumb);
+        Assert.IsType<PostScreen>(opened.Screen);
 
         opened.Viewed(under: 0, screenful: Screenful);
         built.Host.Drain();
