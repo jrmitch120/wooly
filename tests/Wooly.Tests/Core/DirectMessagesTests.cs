@@ -130,6 +130,72 @@ public class DirectMessagesTests
     }
 
     /// <summary>
+    ///     Reading on (#466): a listing that stopped at what was asked for says where to read on from, and handing that
+    ///     back asks for the page the instance named next rather than listing again from the top.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_AsksForThePageTheListingNamedNext()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "150"),
+            PageResponse(PageOf(count: 40, firstId: 149), nextMaxId: "100"));
+        var messages = NewMessages(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await messages.List(Profile, 40, token);
+        var onward = await messages.ReadOn(Profile, first.Onward!, 40, token);
+
+        Assert.False(first.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/conversations?max_id=150&limit=40",
+            network.Requests[1].RequestUri?.ToString());
+        Assert.Equal("149", onward.Items[0].Id);
+        Assert.False(onward.IsWhole);
+    }
+
+    /// <summary>A page the instance names nothing after is the last of the conversations, which are then whole.</summary>
+    [Fact]
+    public async Task ReadOn_IsWholeWhereTheInstanceNamesNoNextPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "150"),
+            PageResponse(PageOf(count: 15, firstId: 149)));
+        var messages = NewMessages(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await messages.List(Profile, 40, token);
+        var onward = await messages.ReadOn(Profile, first.Onward!, 40, token);
+
+        Assert.Equal(15, onward.Items.Count);
+        Assert.True(onward.IsWhole);
+    }
+
+    /// <summary>
+    ///     A rate limit reading on keeps what arrived and is never whole: handing back where it stopped asks for the
+    ///     page the limit refused.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_KeepsWhereARateLimitStoppedIt()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "150"),
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests),
+            PageResponse(PageOf(count: 3, firstId: 149)));
+        var messages = NewMessages(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await messages.List(Profile, 40, token);
+        var stopped = await messages.ReadOn(Profile, first.Onward!, 40, token);
+        await messages.ReadOn(Profile, stopped.Onward!, 40, token);
+
+        Assert.NotNull(stopped.StoppedBy);
+        Assert.False(stopped.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/conversations?max_id=150&limit=40",
+            network.Requests[2].RequestUri?.ToString());
+    }
+
+    /// <summary>
     ///     Mastodon serves no single conversation by id, so the only way to one is down the list — and the thread in it
     ///     comes from the context of its last post, which is the only post a listing carries.
     /// </summary>

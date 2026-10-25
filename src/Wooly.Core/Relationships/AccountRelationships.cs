@@ -174,6 +174,18 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
     }
 
     /// <inheritdoc />
+    public async Task<Fetch<Account>> ReadOnRequests(
+        ActiveProfile profile,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        return await Collect(client.GetFollowRequests, profile.Instance, limit, cancellationToken, from: from);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<Account>?> FamiliarFollowers(
         ActiveProfile profile,
         string accountId,
@@ -276,7 +288,8 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
         string instance,
         int limit,
         CancellationToken cancellationToken,
-        Action<IReadOnlyList<Account>>? arrived = null) =>
+        Action<IReadOnlyList<Account>>? arrived = null,
+        Onward? from = null) =>
         PagedReading.Collect(
             limit,
             PageSize,
@@ -288,7 +301,8 @@ public sealed class AccountRelationships(IMastodonClientFactory clientFactory, I
             // ended the list, and guessing one would silently skip or repeat accounts.
             idOf: null,
             cancellationToken,
-            arrived: arrived);
+            arrived: arrived,
+            from: from);
 
     /// <summary>The id of the account the profile signs in as, which is whose lists a user who named nobody meant.</summary>
     /// <remarks>

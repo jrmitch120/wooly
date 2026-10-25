@@ -444,6 +444,52 @@ public class AccountRelationshipsTests
     }
 
     /// <summary>
+    ///     Reading on (#466): requests that stopped at what was asked for say where to read on from, and handing that
+    ///     back asks for the page the instance named next — in the follow ids it pages by, never an account's.
+    /// </summary>
+    [Fact]
+    public async Task ReadOnRequests_AsksForThePageTheLastReadNamedNext()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Page(FullPage(), nextPageAt: "4801"),
+            Page(Accounts(AccountJson("alice@hachyderm.io", id: "42")), nextPageAt: null));
+        var relationships = Relationships(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await relationships.PendingRequests(Profile, 80, token);
+        var onward = await relationships.ReadOnRequests(Profile, first.Onward!, 80, token);
+
+        Assert.False(first.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/follow_requests?max_id=4801&limit=80",
+            network.Requests[1].RequestUri?.ToString());
+        Assert.Equal("42", Assert.Single(onward.Items).Id);
+        Assert.True(onward.IsWhole);
+    }
+
+    /// <summary>A rate limit reading on keeps where it stopped, so the next read asks for the page it refused.</summary>
+    [Fact]
+    public async Task ReadOnRequests_KeepsWhereARateLimitStoppedIt()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Page(FullPage(), nextPageAt: "4801"),
+            ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests),
+            Page(Accounts(AccountJson("alice@hachyderm.io", id: "42")), nextPageAt: null));
+        var relationships = Relationships(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await relationships.PendingRequests(Profile, 80, token);
+        var stopped = await relationships.ReadOnRequests(Profile, first.Onward!, 80, token);
+        await relationships.ReadOnRequests(Profile, stopped.Onward!, 80, token);
+
+        Assert.NotNull(stopped.StoppedBy);
+        Assert.False(stopped.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/follow_requests?max_id=4801&limit=80",
+            network.Requests[2].RequestUri?.ToString());
+    }
+
+    /// <summary>
     ///     Who asked is read before the request is answered: Mastonet's authorize and reject hand back nothing at all,
     ///     so a request accepted first would have nobody left to name.
     /// </summary>
