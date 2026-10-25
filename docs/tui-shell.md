@@ -985,7 +985,8 @@ selection was the only scroll position a screen had and the foot of such a post 
   (`Verbs.NeedsAPick`, and `Keymap.NeedsAPick` for `F` on Discover and `m` on the conversations list, whose meaning
   turns on the screen): `d`, `p` and `e` on somebody else's post, `x` with nothing hidden, and the post keys while a
   thing with no post is picked reclaim too, rather than being refused or ignored about a post the reader cannot see.
-  `D clear all` reclaims as well, needing a list to pick from. `ShellWindow.Do` asks it once an open question and a
+  `D clear all` does not: it clears every notification rather than the picked one, so it asks at once and leaves the
+  pick where it was, as decided in review of #480. `ShellWindow.Do` asks it once an open question and a
   prompt taking letters have had the key, before the key is carried out, and asks `PaintedView.Reclaimable` what to
   reclaim, as `j`/`k` do. A pick with its foot on the page is acted on at once, and keys that need no pick — `g`, `c`,
   `esc`, `?`, the rail — reclaim nothing. The status row does not change as the page moves, so it cannot say this; the

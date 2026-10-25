@@ -30,15 +30,16 @@ public static class Verbs
     /// <remarks>
     ///     A property of the verb rather than of the hint the row draws for it, because the row leaves off a key that
     ///     would be refused — <c>d</c>, <c>p</c> and <c>e</c> on somebody else's post, <c>x</c> with nothing hidden —
-    ///     and a key left off must still not act on a post off the page. <c>D clear all</c> is here too, needing a list to
-    ///     pick from as <see cref="Screens.KeyHint.NeedsAPick" /> says, and so is the attachments screen's <c>s</c>.
+    ///     and a key left off must still not act on a post off the page. <c>D clear all</c> is not here, though its hint
+    ///     needs a list to show (<see cref="Screens.KeyHint.NeedsAPick" />): it clears every notification rather than the
+    ///     picked one, so it acts at once. The attachments screen's <c>s</c> is.
     ///     The two whose meaning turns on the screen — <c>F</c>, <c>m</c> — are <see cref="Keymap.NeedsAPick" />'s.
     ///     <c>←</c> and <c>→</c> are not here: they reclaim and enter in the same press (#477).
     /// </remarks>
     public static bool NeedsAPick(this Verb verb) => verb is
         Verb.OpenPost or Verb.OpenAuthor or Verb.OpenReference or Verb.Reply or Verb.Edit
         or Verb.Boost or Verb.Favorite or Verb.Pin or Verb.Delete or Verb.Reveal or Verb.Toggle or Verb.Vote
-        or Verb.Dismiss or Verb.ClearAll or Verb.OpenActor or Verb.StopSuggesting or Verb.OpenPerson
+        or Verb.Dismiss or Verb.OpenActor or Verb.StopSuggesting or Verb.OpenPerson
         or Verb.AcceptRequest or Verb.RejectRequest or Verb.OpenAsker or Verb.OpenConversation or Verb.OpenResult
         or Verb.ActAs or Verb.MakeDefault or Verb.RemoveProfile or Verb.SignInAgain
         or Verb.Describe or Verb.ToggleSensitive;

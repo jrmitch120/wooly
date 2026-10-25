@@ -232,6 +232,23 @@ public class OffPagePickKeysTests
         Assert.Null(Assert.IsType<ComposeScreen>(drawn.Shell.Screen).About);
     }
 
+    /// <summary>
+    ///     <c>D</c> clears every notification, not the picked one, so with the pick off the page it asks to clear at
+    ///     once and leaves the pick where it was.
+    /// </summary>
+    [Fact]
+    public async Task ClearAllIsUnaffected()
+    {
+        using var drawn = await Notifications();
+        var picked = drawn.Shell.Screen.Picked?.Id;
+
+        drawn.Press(new Key('D'));
+
+        Assert.Equal("clear", drawn.Shell.Asking?.Going);
+        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
+        Assert.NotEqual(Reclaimed, picked);
+    }
+
     /// <summary><c>?</c> opens the keys with the pick off the page, reclaiming nothing.</summary>
     [Fact]
     public async Task HelpIsUnaffected()
