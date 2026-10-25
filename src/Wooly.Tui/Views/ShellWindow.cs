@@ -137,6 +137,13 @@ internal sealed class ShellWindow : Window
     private bool _clickToggledRail;
 
     /// <summary>
+    ///     The reference the last click walked to, which the double click it turns out to be the first half of opens
+    ///     (#479): the brackets that click drew may have moved the row a column on or wrapped a long address anew, so
+    ///     what is under the pointer by the second click is not asked again.
+    /// </summary>
+    private Reference? _clickWalkedTo;
+
+    /// <summary>
     ///     The row of the content a press with the left button picked up, held from the press until the button is let go,
     ///     for a screen whose rows the pointer drags into another order — the attachments screen's (story 58).
     /// </summary>
@@ -479,6 +486,7 @@ internal sealed class ShellWindow : Window
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
         _clickDeclinedQuestion = _shell.DeclineOpenQuestion();
         _clickToggledRail = false;
+        _clickWalkedTo = null;
 
         if (_clickDeclinedQuestion)
         {
@@ -526,6 +534,7 @@ internal sealed class ShellWindow : Window
             {
                 _content.Hold();
                 _shell.PickReference(item, walked);
+                _clickWalkedTo = _shell.Screen.Reference;
             }
             else
             {
@@ -568,11 +577,22 @@ internal sealed class ShellWindow : Window
         // Spent once: a later pair must not be swallowed by a question its own first click never saw.
         var declined = _clickDeclinedQuestion;
         var toggled = _clickToggledRail;
+        var walked = _clickWalkedTo;
         _clickDeclinedQuestion = false;
         _clickToggledRail = false;
+        _clickWalkedTo = null;
 
         if (declined || toggled || _shell.DeclineOpenQuestion())
         {
+            return true;
+        }
+
+        // A pair whose first click walked to a reference is the ⏎ that opens it, wherever its brackets left the second
+        // click: picking again under the pointer would let the reference go and open the thing instead (#479).
+        if (walked is not null && walked == _shell.Screen.Reference)
+        {
+            _ = Do(ShellKey.Enter);
+
             return true;
         }
 
