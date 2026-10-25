@@ -680,7 +680,7 @@ nothing else with that press, bar `←`/`→`, which go on to enter its **Refere
 row of its content — a post's warning, text or attachment, under its boost line, notification strip and byline — or,
 for a thing with no content, such as an account's header block or a follow, its first row. It is not a **Section**
 heading, which heads a run of things rather than one.
-_Avoid_: snap, jump back, top, heading (for a thing's start)
+_Avoid_: snap, jump back, heading (for a thing's start)
 
 **Section**:
 A run of the things on one screen under a heading of its own — the accounts a search found, then its hashtags, then its
