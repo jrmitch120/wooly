@@ -1530,6 +1530,7 @@ public sealed class Shell
             StatusRow.Clear();
         };
         arrival.Counts += _badges.Arrived;
+        arrival.Recounts += _badges.Recounted;
         arrival.Moves += (kind, by) => _badges.Moved(profile, enquiry.Abandoned, kind, by);
         arrival.Rereads += kind => _ = _badges.Reread(profile, enquiry.Abandoned, [kind]);
         arrival.Heard += Heard;

@@ -103,6 +103,21 @@ internal sealed class InboxCount(
     }
 
     /// <summary>
+    ///     The Requests list <b>read on</b> from <paramref name="from" />: whoever is waiting behind the last one held,
+    ///     each with where the profile stands with them — asked only of the people this read brought (#466).
+    /// </summary>
+    public static async Task<Fetch<Account>> RequestsOn(
+        ShellPorts ports,
+        ActiveProfile profile,
+        Onward from,
+        CancellationToken cancellationToken)
+    {
+        var asking = await ports.Accounts.ReadOnRequests(profile, from, Arrival.CountedAtMost, cancellationToken);
+
+        return asking with { Items = await ports.StoodOrSilent(profile, asking.Items, cancellationToken) };
+    }
+
+    /// <summary>
     ///     The Notifications badge on arriving there, which reads them: the read marker is moved to the newest of
     ///     <paramref name="shown" />, so the badge clears as the reader looks — and on the web too, the marker being the
     ///     instance's (ADR-0027, #397).
@@ -152,6 +167,29 @@ internal sealed class InboxCount(
 
     /// <summary>The Requests badge on arriving there: counted off the list arrived with, which is all it costs.</summary>
     public Task<Tally> Arrived(IReadOnlyList<Account> asking) => Task.FromResult(new Tally(OffList(asking)));
+
+    /// <summary>
+    ///     The Messages badge after a <b>read on</b>: counted off every conversation the screen holds, as every read
+    ///     of the destination counts it (#466) — <c>N+</c> only where all of them are unread and the list goes on
+    ///     behind them, which is the one case a count off what is held cannot be the whole of it.
+    /// </summary>
+    /// <param name="held">The conversations the screen holds, most recently spoken in first.</param>
+    /// <param name="whole">Whether the instance has nothing behind them.</param>
+    public static Found.Badge Held(IReadOnlyList<Conversation> held, bool whole)
+    {
+        var listed = OffList(held);
+
+        return listed with { Full = !whole && listed.Unread == held.Count };
+    }
+
+    /// <summary>
+    ///     The Requests badge after a <b>read on</b>: counted off everybody the screen holds, every one of whom is
+    ///     waiting (#466) — exactly once the list is whole, and as at least that many while it is not.
+    /// </summary>
+    /// <param name="held">Who the screen holds, in the order the instance listed them.</param>
+    /// <param name="whole">Whether the instance has nobody behind them.</param>
+    public static Found.Badge Held(IReadOnlyList<Account> held, bool whole) =>
+        OffList(held) with { Full = !whole };
 
     /// <summary>
     ///     The notifications newer than the read marker — or, for an account with none, newer than its session marker,

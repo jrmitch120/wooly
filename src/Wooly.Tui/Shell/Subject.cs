@@ -214,7 +214,11 @@ public abstract record Subject
                     Becomes: (asking, notice, _) => new FollowRequestsScreen(asking, notice),
                     WhenEmpty: "Nobody is waiting to follow you.",
                     Counting: (count, asking) => count.Arrived(asking),
-                    Carries: _ => null),
+                    Carries: _ => null,
+                    ReadsOn: new OnwardRead<Person>(
+                        InboxCount.RequestsOn,
+                        (screen, older) => ((FollowRequestsScreen)screen).ReadOn(older),
+                        Recounts: (screen, whole) => InboxCount.Held(((FollowRequestsScreen)screen).Waiting, whole))),
 
                 // The one destination that reads a list through a port with no Fetch on it: there is no paging here
                 // and so nothing for a rate limit to stop part way — the read either answers or throws, and the
@@ -660,9 +664,16 @@ public abstract record Subject
     /// <summary>How a destination whose list reads on reads on, and what it does with what that brought (#469).</summary>
     /// <param name="Reads">What the instance is asked for, from where the last read said to read on from.</param>
     /// <param name="Adds">Puts what came back under what the destination's screen already holds.</param>
+    /// <param name="Recounts">
+    ///     The destination's badge, counted again off the whole list its screen now holds and whether that is whole —
+    ///     as every read of a destination counted off its list sets it (#466) — or <see langword="null" /> where the
+    ///     badge is not counted off the list: a timeline carries none, and Notifications' is counted against the read
+    ///     marker, which reading on never moves.
+    /// </param>
     private sealed record OnwardRead<T>(
         Func<ShellPorts, ActiveProfile, Onward, CancellationToken, Task<Fetch<T>>> Reads,
-        Action<Screen, IReadOnlyList<T>> Adds);
+        Action<Screen, IReadOnlyList<T>> Adds,
+        Func<Screen, bool, Found.Badge>? Recounts = null);
 
     /// <inheritdoc cref="Listing" />
     /// <param name="Reads">What the instance is asked for.</param>
@@ -814,6 +825,9 @@ public abstract record Subject
     /// <param name="Fetch">What came back, and where to read on from next unless the list is now whole.</param>
     private sealed record ReadOnto<T>(OnwardRead<T> How, Fetch<T> Fetch) : Found
     {
+        /// <summary>The badge counted off the screen once this was added to it, where the destination counts so.</summary>
+        private Badge? _counted;
+
         /// <inheritdoc />
         /// <remarks>Read into the screen it was asked from, which is already up — so it is not put up again.</remarks>
         public override Screen Becomes(Screen? standing)
@@ -824,7 +838,14 @@ public abstract record Subject
             How.Adds(screen, Fetch.Items);
             screen.ReadingOn?.Arrived(Fetch.Onward);
 
+            // Off the whole list the screen holds, not off what this read brought: what was put on top live and what
+            // was answered since are as much the list as anything read on.
+            _counted = How.Recounts?.Invoke(screen, Fetch.IsWhole);
+
             return screen;
         }
+
+        /// <inheritdoc />
+        public override Badge? Counted => _counted;
     }
 }
