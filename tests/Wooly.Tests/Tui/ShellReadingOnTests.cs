@@ -354,6 +354,40 @@ public class ShellReadingOnTests
         Assert.Null(opened.Notice);
     }
 
+    /// <summary>
+    ///     A first read a rate limit stopped is never called whole, however little it brought: its foot does not say
+    ///     "that's everything", and nearing the end of it reads on (#462).
+    /// </summary>
+    [Fact]
+    public async Task FirstRead_StoppedByARateLimit_IsNeverWhole_AndReadsOn()
+    {
+        var built = new AShell { Timelines = FakeTimelineReader.RateLimitedAfter(APost.With(id: "1")) };
+        var opened = await built.Opened();
+
+        Assert.DoesNotContain("that's everything", Rows(opened.Screen));
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Single(built.Timelines.ReadsOn);
+    }
+
+    /// <summary>
+    ///     And one it stopped before anything arrived still says what it always has — that the limit cut it short —
+    ///     rather than that the list is everything there is.
+    /// </summary>
+    [Fact]
+    public async Task FirstRead_StoppedEmptyByARateLimit_SaysTheEmptinessNoticeRatherThanThatsEverything()
+    {
+        var built = new AShell { Timelines = FakeTimelineReader.RateLimitedAfter() };
+        var opened = await built.Opened();
+
+        var drawn = Rows(opened.Screen);
+
+        Assert.Contains(drawn, row => row.Contains("Rate limited part way through", StringComparison.Ordinal));
+        Assert.DoesNotContain("that's everything", drawn);
+    }
+
     /// <summary>A rate limit on <c>mastodon.social</c> that lifts <paramref name="after" /> from now.</summary>
     private static RateLimitedException LimitedFor(TimeSpan after) => new("mastodon.social", AShell.Now + after);
 

@@ -986,16 +986,31 @@ who walked to the bottom had no way to see anything older without leaving the TU
   they were.
 - **One read at a time per screen.** Walking about near the end while a read is in flight asks for nothing more.
 - **The foot of the list says what is happening.** It is one muted row under the last post: "reading on…" while a read
-  is in flight, and "that's everything" once the instance has nothing behind what the list holds, which makes it
-  **whole**. A whole list is never asked again, and a quiet one whose first read held everything says so straight
-  away. Between reads, with more to come, the row is not drawn. Neither is it drawn on an empty list, whose own notice
-  already speaks for it.
+  is in flight, "couldn't read on" after one failed, and "that's everything" once the instance has nothing behind
+  what the list holds, which makes it **whole**. A whole list is never asked again, and a quiet one whose first read
+  held everything says so straight away. Between reads, with more to come, the row is not drawn. Neither is it drawn
+  on an empty list, whose own notice already speaks for it.
 - **Being whole is the instance's call, not a count's.** The instance names no next page, or a page comes back empty
   (ADR-0007). A short page that still names a next page is not the end. What the shell holds is the instance's own
   onward position, carried on the `Fetch` and handed back as it came (ADR-0007's amendment), never a page or a cursor.
 - **Leaving mid-read drops the answer**, under the stale rule every enquiry keeps: nothing lands on a screen the
   reader is not looking at. Walking back out hands back the same screen, still near the end, and it reads on again
   from where it was. The dropped read cost nothing.
+- **A read that fails says so, and is tried again by the reader's walking** (#462). The foot says "couldn't read on"
+  and the enquiry's **Notice** says why, as for any failure. The list is left as it was, and where to read on from does
+  not move. The next time the page nears the end, which is any move that tells the shell where the page is, it asks
+  again from the same place. No timer ever does: a client retrying on its own would ask the instance on the reader's
+  behalf while they were not looking. `g` isn't needed either, and pressing it would lose their place.
+- **A rate limit is waited out, and the read carries on from where it stopped** (#462). A reader does not throw a
+  limit that stops it part way through: it answers what arrived and the limit together, on the `Fetch`, with where the
+  refused page would have started. So a read on doesn't land that as it stands. It waits the limit out the way every
+  **Enquiry** waits out a thrown one, counting down on the status row while the foot still says "reading on…". Then it
+  reads on from where the limit stopped it, and lands what arrived on both sides of the wait as one read. Nothing
+  already read is lost, and nothing is asked for twice (`Enquiry.Ask.ReadOn`, which every list that reads on goes
+  through).
+- **A fetch a rate limit stopped is never whole.** It keeps where it stopped, so a first read cut short reads on from
+  there rather than saying "that's everything". One stopped before anything arrived still shows the emptiness notice
+  it always has ("Rate limited part way through"), and its foot draws nothing, as on any empty list.
 - **A cached Home reads on from where its first read stopped.** The cache keeps the onward position with the posts
   (ADR-0014). A Home arrived at within the minute is a fresh screen of the first read's posts, opened at the top, and
   walking down reads on from the post after them. Holding everything read on is #463's.
