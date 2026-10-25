@@ -227,7 +227,7 @@ public abstract record Subject
                     WhenEmpty: "Nobody is waiting to follow you.",
                     Counting: (count, asking) => count.Arrived(asking),
                     Carries: _ => null,
-                    ReadsOn: new OnwardRead<Person>(InboxCount.RequestsOn, Recounts: InboxCount.Held)),
+                    ReadsOn: new OnwardRead<Person>(InboxCount.RequestsOn, Recounts: InboxCount.OffListReadOn)),
 
                 // The one destination that reads a list through a port with no Fetch on it: there is no paging here
                 // and so nothing for a rate limit to stop part way — the read either answers or throws, and the
@@ -256,7 +256,7 @@ public abstract record Subject
                     Carries: conversation => conversation.Latest,
                     ReadsOn: new OnwardRead<Core.Conversations.Conversation>(
                         InboxCount.ConversationsOn,
-                        Recounts: InboxCount.Held)),
+                        Recounts: InboxCount.OffListReadOn)),
 
                 // Said out loud rather than quietly doing nothing: a destination that reads no list — the profile's
                 // own account, the prompt, the hashtag nobody has named — arrives some other way, and landing here is
