@@ -228,6 +228,154 @@ public class ShellReadingOnTests
     }
 
     /// <summary>
+    ///     Home read on and then arrived at again within the minute is handed back holding everything read on, not
+    ///     only its first read — opened at the top, as every arrival is, and asking the instance for nothing (#463).
+    /// </summary>
+    [Fact]
+    public async Task Arrival_WithinTheMinuteOfReadingOn_HoldsEverythingReadOn_OpenedAtTheTop()
+    {
+        var built = Home(posts: 200);
+        var opened = await ReadOnTwice(built);
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        var feed = Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Single(built.Timelines.Reads, read => read.Timeline == Timeline.Home);
+        Assert.Equal(2, built.Timelines.ReadsOn.Count);
+        Assert.Equal(Ids(1, 120), feed.Posts.Select(post => post.Id));
+        Assert.Equal("1", feed.Picked?.Id);
+    }
+
+    /// <summary>
+    ///     The minute counts from the last read on, not from the first read: a reader who has been reading on for a while
+    ///     has just left the list they were reading, however long ago its top was read.
+    /// </summary>
+    [Fact]
+    public async Task Arrival_WithinTheMinuteOfTheLastReadOn_HoldsItThoughTheFirstReadIsOlder()
+    {
+        var built = Home(posts: 200);
+        var opened = await built.Opened();
+
+        built.Clock.Advance(TimeSpan.FromSeconds(50));
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        built.Clock.Advance(TimeSpan.FromSeconds(20));
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        Assert.Single(built.Timelines.Reads, read => read.Timeline == Timeline.Home);
+        Assert.Equal(Ids(1, 80), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     And walking to the end of that list reads on from where the last read on stopped, not from where the first
+    ///     read did — so no call is spent on posts already in hand.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_AtTheEndOfAListHeldAfterReadingOn_GoesOnFromWhereTheLastReadOnStopped()
+    {
+        var built = Home(posts: 200);
+        var opened = await ReadOnTwice(built);
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Equal(3, built.Timelines.ReadsOn.Count);
+        Assert.Equal(Ids(1, 160), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     <c>g</c> on a list read far down drops everything read on: Home is read again from the top, opened at the
+    ///     top on what came back, and the cache it leaves holds that and nothing older.
+    /// </summary>
+    [Fact]
+    public async Task Refresh_AfterReadingOn_DropsEverythingReadOn_AndOpensAtTheTop()
+    {
+        var built = Home(posts: 200);
+        var opened = await ReadOnTwice(built);
+
+        await opened.Refresh();
+        built.Host.Drain();
+
+        var feed = Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Equal(Ids(1, 40), feed.Posts.Select(post => post.Id));
+        Assert.Equal("1", feed.Picked?.Id);
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        Assert.Equal(Ids(1, 40), Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     A post reached by reading on is held like one from the first read, so marking it forgets the cached Home
+    ///     holding it — coming back reads Home again rather than handing it back with the star still off — and the
+    ///     screen showing it is told, as for any post (#463).
+    /// </summary>
+    [Fact]
+    public async Task Mark_OnAPostReadOn_ForgetsTheCachedListHoldingIt_AndMarksItOnScreen()
+    {
+        var built = Home(posts: 200);
+        built.Engagement = FakePostEngagement.Answering(
+            APost.With(id: "100") with { Marks = APost.Marked(favorited: true) });
+        var opened = await ReadOnTwice(built);
+
+        opened.Walk(69, reclaiming: null);
+        Assert.Equal("100", opened.Screen.Picked?.Id);
+
+        await opened.Mark(PostMark.Favorite);
+        built.Host.Drain();
+
+        Assert.True(opened.Screen.Picked?.Marks.Favorited);
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        Assert.Equal(2, built.Timelines.Reads.Count(read => read.Timeline == Timeline.Home));
+    }
+
+    /// <summary>
+    ///     And a post read on that is deleted goes from the screen and from the cache: Home is read again on coming
+    ///     back rather than handed back with it still there.
+    /// </summary>
+    [Fact]
+    public async Task Delete_OfAPostReadOn_ForgetsTheCachedListHoldingIt_AndTakesItOffTheScreen()
+    {
+        var built = Home(posts: 200);
+        var opened = await ReadOnTwice(built);
+
+        // Every post here is the profile's own, so any of them can be deleted.
+        opened.Walk(69, reclaiming: null);
+        opened.AskToDelete();
+        await opened.Answer(agreed: true);
+        built.Host.Drain();
+
+        Assert.DoesNotContain("100", Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+
+        opened.Step(1);
+        built.Host.Settle();
+        opened.Step(-1);
+        built.Host.Settle();
+
+        Assert.Equal(2, built.Timelines.Reads.Count(read => read.Timeline == Timeline.Home));
+    }
+
+    /// <summary>
     ///     A timeline that does not read on yet never asks, and draws no foot: Local is the same screen over a
     ///     different timeline, and reading on reaches it in a ticket of its own (#464).
     /// </summary>
@@ -390,6 +538,20 @@ public class ShellReadingOnTests
 
     /// <summary>A rate limit on <c>mastodon.social</c> that lifts <paramref name="after" /> from now.</summary>
     private static RateLimitedException LimitedFor(TimeSpan after) => new("mastodon.social", AShell.Now + after);
+
+    /// <summary>Home opened and read on twice, to 120 posts, with the pick walked down among them.</summary>
+    private static async Task<Shell> ReadOnTwice(AShell built)
+    {
+        var opened = await built.Opened();
+
+        opened.Walk(30, reclaiming: null);
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        return opened;
+    }
 
     /// <summary>Every row <paramref name="screen" /> draws, as text, the gutter and all.</summary>
     private static IReadOnlyList<string> Rows(Screen screen) =>

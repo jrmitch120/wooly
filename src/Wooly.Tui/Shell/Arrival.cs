@@ -258,6 +258,10 @@ public sealed class Arrival(
     ///     moved, and the page still near the end on coming back asks again. A read that fails is the same (#462): the
     ///     list is left as it was, the foot says it couldn't read on and the enquiry's notice says why, and the next
     ///     approach to the end asks again from the same place — the reader's walking, never a timer.
+    ///     <para>
+    ///         What lands is added to what the cache holds for the subject too, with where to read on from next, so a
+    ///         list arrived at again holds everything read on rather than only its first read (#463).
+    ///     </para>
     /// </remarks>
     public Task ReadOn(Screen showing)
     {
@@ -268,7 +272,15 @@ public sealed class Arrival(
 
         return enquiry.Put(
             ask => subject.ReadOn(ask, ports, profile, from),
-            ifStillHere: found => Land(subject, Move.Page, showing, found),
+            ifStillHere: found =>
+            {
+                Land(subject, Move.Page, showing, found);
+
+                if (subject.Cached)
+                {
+                    cache.Add(subject, found);
+                }
+            },
             ended: reading.Ended,
             failed: reading.Refused);
     }
