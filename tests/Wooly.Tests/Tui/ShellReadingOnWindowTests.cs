@@ -115,6 +115,48 @@ public class ShellReadingOnWindowTests
         }
     }
 
+    /// <summary>
+    ///     A follow list too long to hold reads on by the same trigger as every other list (#467): nothing on opening
+    ///     it at the top, and the next run of people once <c>End</c> takes the page to the foot of it.
+    /// </summary>
+    [Fact]
+    public async Task End_OnABrowsedFollowListReadsItOn()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Accounts = FakeAccountRelationships.Holding(
+                AnAccount.With(address: "ben@hachyderm.io", following: 877_000),
+                [.. Enumerable.Range(0, 200).Select(at => AnAccount.With(id: $"{at}", address: $"p{at}@here.social"))]),
+        };
+
+        var shell = await built.Opened();
+
+        await shell.OpenAuthor();
+        built.Host.Drain();
+        shell.Press(Wooly.Tui.Shell.ShellKey.W);
+        built.Host.Drain();
+
+        using var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, new FakePictures())
+        {
+            Width = 80,
+            Height = 20,
+        };
+
+        window.Layout();
+        window.Draw();
+        built.Host.Drain();
+
+        Assert.Empty(built.Accounts.ListsOn);
+
+        window.NewKeyDownEvent(Key.End);
+        window.Draw();
+        built.Host.Drain();
+
+        Assert.Single(built.Accounts.ListsOn);
+        Assert.Equal(160, Assert.IsType<FollowsScreen>(shell.Screen).Read);
+    }
+
     /// <summary>The content region, which is the one that scrolls and so the one with a page.</summary>
     private static PaintedView Content(ShellWindow window) =>
         window.SubViews.OfType<PaintedView>().Single(view => view.Id == ShellWindow.ContentId);
