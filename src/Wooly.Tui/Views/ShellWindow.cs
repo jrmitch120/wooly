@@ -100,8 +100,9 @@ internal sealed class ShellWindow : Window
 
     /// <summary>
     ///     Whether the next frame's page is to be told to the shell, which is what reads a list on as the page nears
-    ///     its end (#469): after the pick has been walked or jumped, and on a screen coming in front — arrived at,
-    ///     drilled into, refreshed or walked back to — and on nothing else.
+    ///     its end (#469): after the pick has been walked or jumped; after the page has been moved with the pick left
+    ///     where it was, by <c>↓</c>, <c>↑</c>, <c>PgDn</c>, <c>PgUp</c> or a notch of the wheel (#461); and on a
+    ///     screen coming in front — arrived at, drilled into, refreshed or walked back to — and on nothing else.
     /// </summary>
     /// <remarks>
     ///     Once per move rather than on every frame, because a frame is drawn for many reasons that are not the reader
@@ -901,6 +902,7 @@ internal sealed class ShellWindow : Window
     private void Scrolled(int rows)
     {
         _content.Step(rows);
+        _pageToTell = true;
 
         SetNeedsDraw();
     }
@@ -913,6 +915,7 @@ internal sealed class ShellWindow : Window
     private void Turned(int pages)
     {
         _content.Turn(pages);
+        _pageToTell = true;
 
         SetNeedsDraw();
     }

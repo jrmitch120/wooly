@@ -31,6 +31,14 @@ internal abstract record Found
     public virtual Found? Held(Screen screen) => null;
 
     /// <summary>
+    ///     What this answer, held, holds once <paramref name="readOn" /> — what its screen went on to read on — is added
+    ///     under it, where to read on from next included; or <see langword="null" /> where this is not an answer that
+    ///     reads on (#463). Asked only of what the cache holds.
+    /// </summary>
+    /// <param name="readOn">What a read on of the same subject came back with.</param>
+    public virtual Found? Holding(Found readOn) => null;
+
+    /// <summary>
     ///     Whether the rest of the subject is to be read at once, behind the reader, rather than waiting for them to
     ///     walk onto the end of what arrived.
     /// </summary>
