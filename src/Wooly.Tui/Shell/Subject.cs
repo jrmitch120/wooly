@@ -601,8 +601,16 @@ public abstract record Subject
             return new Found.Drawn(() => new FeedScreen(
                 showing,
                 posts.Items,
-                Arrival.Emptiness(posts.Items.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy)));
+                Arrival.Emptiness(posts.Items.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy))
+            {
+                // Read on as the rail's own hashtag is, being the same timeline walked to another way (#464).
+                ReadingOn = new ReadingOn(posts.Onward),
+            });
         }
+
+        /// <inheritdoc />
+        internal override Task<Found> ReadOn(Enquiry.Ask ask, ShellPorts ports, ActiveProfile profile, Onward from) =>
+            FeedReadsOn(Timeline.Tag(Hashtag)).From(ask, ports, profile, from);
     }
 
     /// <summary>

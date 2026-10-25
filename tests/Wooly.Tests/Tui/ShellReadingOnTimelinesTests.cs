@@ -58,6 +58,59 @@ public class ShellReadingOnTimelinesTests
         Assert.Equal("that's everything", Foot(opened.Screen));
     }
 
+    /// <summary>
+    ///     A hashtag walked to, rather than the rail's own, reads on all the same: the page near the end of
+    ///     <c>#cats</c> reads on <c>#cats</c>, under the posts its first read brought.
+    /// </summary>
+    [Fact]
+    public async Task Viewed_NearTheEndOfAWalkedToHashtag_ReadsOnThatTag()
+    {
+        var built = Timelines(posts: 100);
+        var opened = await built.Opened();
+
+        WalkedTo(built, opened, "#cats");
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        var feed = Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Equal("Search › #cats", opened.Breadcrumb);
+        Assert.Equal(Timeline.Tag("cats"), Assert.Single(built.Timelines.ReadsOn).Timeline);
+        Assert.Equal(Ids(1, 80), feed.Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     And a quiet tag whose first read already held everything says so straight away, and is never asked for
+    ///     more.
+    /// </summary>
+    [Fact]
+    public async Task AWalkedToHashtagReadWholeAtOnce_SaysThatsEverything_AndAsksNothing()
+    {
+        var built = Timelines(posts: 3);
+        var opened = await built.Opened();
+
+        WalkedTo(built, opened, "#cats");
+        opened.Viewed(under: 0, screenful: Screenful);
+        built.Host.Drain();
+
+        Assert.Empty(built.Timelines.ReadsOn);
+        Assert.Equal("that's everything", Foot(opened.Screen));
+    }
+
+    /// <summary>Walks to <paramref name="tag" /> the way a reader does: typed into search, and <c>⏎</c>.</summary>
+    private static void WalkedTo(AShell built, Shell shell, string tag)
+    {
+        shell.Search();
+        built.Host.Drain();
+
+        foreach (var letter in tag)
+        {
+            shell.Type(letter);
+        }
+
+        shell.Press(ShellKey.Enter);
+        built.Host.Drain();
+    }
+
     /// <summary>Every row <paramref name="screen" /> draws, as text, the gutter and all.</summary>
     private static IReadOnlyList<string> Rows(Screen screen) =>
         [.. screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text)];
