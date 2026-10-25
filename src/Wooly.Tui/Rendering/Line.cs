@@ -76,6 +76,19 @@ public sealed record Line
     public bool Heads { get; init; }
 
     /// <summary>
+    ///     Whether this row is where its thing's content starts — the first row of a post after its byline and avatar,
+    ///     the warning, the text or whatever is attached, whichever is drawn first — which is where
+    ///     <see cref="Scroll" /> counts the thing as beginning when it reclaims one off the page (asked in review of
+    ///     #480).
+    /// </summary>
+    /// <remarks>
+    ///     Marked where a post's rows are built, for the reason <see cref="Heads" /> is: read off the rows as drawn, no
+    ///     screen keeps its own record of where a thing's content starts. A thing with no row so marked — an account's
+    ///     header block, a follow — begins at its first row.
+    /// </remarks>
+    public bool Starts { get; init; }
+
+    /// <summary>
     ///     Whether this row is part of the thing picked out, and so drawn on <see cref="Theme.Role.Band" /> from one
     ///     edge of the view to the other rather than on the page (#269).
     /// </summary>
@@ -150,6 +163,9 @@ public sealed record Line
     /// <summary>This row, said to head the run of things under it.</summary>
     public Line Heading() => this with { Heads = true };
 
+    /// <summary>This row, said to be where its thing's content starts.</summary>
+    public Line Starting() => this with { Starts = true };
+
     /// <summary>This row with <paramref name="spans" /> put in front of it.</summary>
     /// <remarks>
     ///     Anything put in front moves the rest of the row along, so a picture's box moves with it. A gutter added to a
@@ -178,6 +194,7 @@ public sealed record Line
         AlsoWants = AlsoWants,
         Item = Item,
         Heads = Heads,
+        Starts = Starts,
         Picked = Picked,
         BandsTo = BandsTo,
     };

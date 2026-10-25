@@ -675,10 +675,12 @@ _Avoid_: scroll state, viewport
 
 **Reclaim**:
 What the first key that needs the **Picked** thing does when none of its rows are on the **Page**: pick out the first
-thing whose top row is on the page — or, where no thing's top is, the topmost thing with any row showing — and do
-nothing else with that press, bar `←`/`→`, which go on to enter its **Reference**s (#51). A thing's top is the first
-row it draws, whatever that row is; it is not a **Section** heading, which heads a run of things rather than one.
-_Avoid_: snap, jump back, heading (for a thing's top)
+thing whose start is on the page — or, where no thing's start is, the topmost thing with any row showing — and do
+nothing else with that press, bar `←`/`→`, which go on to enter its **Reference**s (#51). A thing's start is the first
+row of its content — a post's warning, text or attachment, under its boost line, notification strip and byline — or,
+for a thing with no content, such as an account's header block or a follow, its first row. It is not a **Section**
+heading, which heads a run of things rather than one.
+_Avoid_: snap, jump back, top, heading (for a thing's start)
 
 **Section**:
 A run of the things on one screen under a heading of its own — the accounts a search found, then its hashtags, then its

@@ -53,7 +53,8 @@ public class HomeEndPageTests
 
     /// <summary>
     ///     With the pick left behind at the top, the next <c>j</c> after <c>End</c> reclaims from the page it came to —
-    ///     the first post whose top is on it (#472) — rather than stepping from the post the reader can no longer see.
+    ///     the first post whose content starts on it (#472, asked in review of #480) — rather than stepping from the
+    ///     post the reader can no longer see.
     /// </summary>
     [Fact]
     public async Task J_AfterEndReclaimsFromThePage()
@@ -63,9 +64,9 @@ public class HomeEndPageTests
         drawn.Press(Key.End);
         drawn.Press(Key.J);
 
-        // The last post, the only one beginning on the foot of six — not the first, which is where a step back from the
-        // pick left at the top would have stayed.
-        Assert.Equal("660", drawn.Shell.Screen.Picked?.Id);
+        // The fifth post, whose byline the foot of six scrolls off but whose text is on its second row — not the first,
+        // which is where a step back from the pick left at the top would have stayed.
+        Assert.Equal("550", drawn.Shell.Screen.Picked?.Id);
     }
 
     /// <summary>

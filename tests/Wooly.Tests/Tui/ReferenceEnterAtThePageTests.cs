@@ -37,8 +37,8 @@ public class ReferenceEnterAtThePageTests
     private static readonly string Tall = $"Shearing #one\n{Filler}Carding #two and #three\n{Filler}Spinning #four";
 
     /// <summary>
-    ///     With the pick off the page, <c>→</c> picks the first post whose top is on it and brackets that post's first
-    ///     reference, and <c>←</c> its last, in the one press.
+    ///     With the pick off the page, <c>→</c> picks the first post whose start is on it and brackets that post's
+    ///     first reference, and <c>←</c> its last, in the one press.
     /// </summary>
     [Theory]
     [InlineData(true, "#a110")]

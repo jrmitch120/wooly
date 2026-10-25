@@ -183,7 +183,7 @@ internal sealed class PaintedView : View
     public Raster Raster { get; private set; } = Raster.None;
 
     /// <summary>
-    ///     The item <c>j</c> and <c>k</c> should take back — the first one whose top is on the page — or
+    ///     The item <c>j</c> and <c>k</c> should take back — the first one whose start is on the page — or
     ///     <see langword="null" /> while the pick is still on screen and they can simply move from it. Never a row of
     ///     its own: what is reclaimed is a whole thing.
     /// </summary>
@@ -335,7 +335,7 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     What a key that moves the pick has to take back before it moves it: the first thing whose top is on the
+    ///     What a key that moves the pick has to take back before it moves it: the first thing whose start is on the
     ///     page (<see cref="Scroll.Reclaim" />), where the pick has none of its rows on it, and
     ///     <see langword="null" /> while it is still visible.
     /// </summary>

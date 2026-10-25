@@ -273,13 +273,16 @@ public static class Scroll
 
     /// <summary>
     ///     Which thing <c>j</c> reclaims once the pick is off the page starting at <paramref name="from" />: the first
-    ///     thing whose top is on it, or <see langword="null" /> for a screen with no items on it at all (#472).
+    ///     thing whose start is on it, or <see langword="null" /> for a screen with no items on it at all (#472).
     /// </summary>
     /// <remarks>
-    ///     A thing's top is the first row stamped with it — a boost line, a notification's strip, a byline, an
-    ///     account's header block — read off the rows as drawn, so no screen keeps its own record of where things
-    ///     begin. The foot of a post filling the top of the page is passed over for the first thing the reader can see
-    ///     beginning.
+    ///     A thing's start is the first row of it marked as where its content starts (<see cref="Line.Starts" />) —
+    ///     a post's first row after its boost line, notification strip and byline — and, for a thing with no row so
+    ///     marked, such as an account's header block or a follow, its first row. Read off the rows as drawn, so no
+    ///     screen keeps its own record of where things begin. A reader who scrolls just past a byline is still reading
+    ///     that post, so it is that post the press picks, not the next one down (asked in review of #480, replacing
+    ///     #472's first row). The foot of a post filling the top of the page is passed over for the first thing the
+    ///     reader can see beginning.
     ///     <para>
     ///         Where nothing begins on the page, because one post taller than it fills it, the answer is
     ///         <see cref="Topmost" />'s: the post being read, so that <c>↓ ↓ ↓ j</c> keeps the reader on it, and past
@@ -290,17 +293,33 @@ public static class Scroll
     /// <param name="height">How many rows there is room for.</param>
     /// <param name="from">Where the page starts.</param>
     /// <param name="pinned">
-    ///     How many rows at the top of the page are pinned there (<see cref="To" />): a top scrolled under them is not
-    ///     on the page.
+    ///     How many rows at the top of the page are pinned there (<see cref="To" />): a start scrolled under them is
+    ///     not on the page.
     /// </param>
     public static int? Reclaim(IReadOnlyList<Line> lines, int height, int from, int pinned = 0)
     {
-        var begun = new HashSet<int>();
-        var start = Math.Max(0, from + pinned);
+        var starts = new Dictionary<int, int>();
+        var marked = new HashSet<int>();
 
-        for (var at = 0; at < Math.Min(lines.Count, from + height); at++)
+        for (var at = 0; at < lines.Count; at++)
         {
-            if (lines[at].Item is { } item && begun.Add(item) && at >= start)
+            if (lines[at].Item is not { } item)
+            {
+                continue;
+            }
+
+            // The thing's first row until a row marked as where its content starts is found, and that from then on.
+            starts.TryAdd(item, at);
+
+            if (lines[at].Starts && marked.Add(item))
+            {
+                starts[item] = at;
+            }
+        }
+
+        for (var at = Math.Max(0, from + pinned); at < Math.Min(lines.Count, from + height); at++)
+        {
+            if (lines[at].Item is { } item && starts[item] == at)
             {
                 return item;
             }
@@ -352,7 +371,7 @@ public static class Scroll
 
     /// <summary>
     ///     Which item the page starting at <paramref name="from" /> begins on, or <see langword="null" /> for a screen
-    ///     with no items on it at all. <see cref="Reclaim" />'s fallback, where no thing's top is on the page.
+    ///     with no items on it at all. <see cref="Reclaim" />'s fallback, where no thing's start is on the page.
     /// </summary>
     /// <remarks>
     ///     A post whose top has been scrolled off but whose lower rows are still on the page is the topmost post,

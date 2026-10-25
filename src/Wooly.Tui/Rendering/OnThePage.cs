@@ -9,8 +9,8 @@ namespace Wooly.Tui.Rendering;
 ///     enters off a reclaim and a page worked out apart.
 /// </remarks>
 /// <param name="Reclaiming">
-///     The first thing whose top is on the page (<see cref="Scroll.Reclaim" />), where the pick has none of its rows on
-///     it, or <see langword="null" /> while it is still visible.
+///     The first thing whose start is on the page (<see cref="Scroll.Reclaim" />), where the pick has none of its rows
+///     on it, or <see langword="null" /> while it is still visible.
 /// </param>
 /// <param name="References">
 ///     The references of the thing reclaimed, or of the pick where nothing is, with a row on the page — in the order

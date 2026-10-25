@@ -1,9 +1,11 @@
 using System.Drawing;
 using Terminal.Gui.Input;
+using Wooly.Core.Notifications;
 using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
@@ -11,7 +13,8 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     What <c>j</c>, <c>k</c>, <c>[</c> and <c>]</c> pick once the pick has been scrolled off the page: the first thing
-///     whose top is on it, falling back to the topmost thing with any row showing where no thing begins there (#472).
+///     whose start is on it — its content's first row, or its first row where it has no content — falling back to the
+///     topmost thing with any row showing where no thing begins there (#472, asked in review of #480).
 ///     Pressed and wheeled on the whole shell drawn headless, and read back off what is picked.
 /// </summary>
 public class OffPageReclaimTests
@@ -29,18 +32,23 @@ public class OffPageReclaimTests
     private const int Inside = 3;
 
     /// <summary>
-    ///     With the foot of a post filling the top of the page, both keys pick the next post down, the first one the
-    ///     reader can see beginning, rather than the half-gone one above it.
+    ///     With the foot of a post filling the top of the page — its counts, its text scrolled off — both keys pick the
+    ///     next post down, the first one the reader can see beginning, rather than the half-gone one above it.
     /// </summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task APostsFootAtTheTopOfThePageIsPassedOver(bool next)
     {
-        using var drawn = await Feed(Six());
+        var posts = Six();
+        posts[1] = APost.With(id: "220", content: "Shorn this morning");
+
+        using var drawn = await Feed(posts);
 
         LeaveThePickBelow(drawn);
-        TopOffBy(drawn, item: 1, rows: 1);
+
+        // The text, the blank under it, and the counts on the page's first row.
+        TextOffBy(drawn, "Shorn this morning", 2);
 
         drawn.Press(next ? Key.K : Key.J);
 
@@ -48,51 +56,46 @@ public class OffPageReclaimTests
     }
 
     /// <summary>
-    ///     A boosted post begins at its boost line: with that line on the page the post counts as begun, and with
-    ///     only the line gone, byline and all still showing, it does not.
+    ///     A post begins at its content, not its byline: with the byline and avatar scrolled off and its first row of
+    ///     text on the page's first row, both keys pick it, and with that row gone too, the next post down (asked in
+    ///     review of #480).
     /// </summary>
     [Theory]
-    [InlineData(0, "220")]
-    [InlineData(1, "330")]
-    public async Task ABoostLineIsTheTopOfTheBoostedPost(int scrolledOff, string picked)
+    [InlineData(true, 0, "220")]
+    [InlineData(false, 0, "220")]
+    [InlineData(true, 1, "330")]
+    [InlineData(false, 1, "330")]
+    public async Task APostBeginsAtItsContent(bool next, int scrolledOff, string picked)
     {
         var posts = Six();
-        posts[1] = APost.With(id: "220", boosted: APost.With(id: "221", content: "Shorn"));
+        posts[1] = APost.With(id: "220", content: "Shorn this morning");
 
         using var drawn = await Feed(posts);
 
         LeaveThePickBelow(drawn);
-        TopOffBy(drawn, item: 1, rows: scrolledOff);
+        TextOffBy(drawn, "Shorn this morning", scrolledOff);
 
-        drawn.Press(Key.K);
+        drawn.Press(next ? Key.K : Key.J);
 
         Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
     }
 
-    /// <summary>A notification begins at its strip, the same way on its screen as a post does on a feed.</summary>
+    /// <summary>
+    ///     A boosted post begins at its content too: with the boost line and the byline gone and its text on the page
+    ///     the post counts as begun, and with the text gone as well it does not.
+    /// </summary>
     [Theory]
     [InlineData(0, "220")]
     [InlineData(1, "330")]
-    public async Task ANotificationsStripIsItsTop(int scrolledOff, string picked)
+    public async Task ABoostedPostBeginsAtItsContent(int scrolledOff, string picked)
     {
-        var built = new AShell
-        {
-            Timelines = FakeTimelineReader.Holding(APost.With(id: "1")),
-            Notifications = FakeNotificationInbox.Holding(
-                [
-                    .. new[] { "110", "220", "330", "440", "550", "660" }.Select(
-                        (id, at) => ANotification.With(id: $"{at + 1}", post: APost.With(id: id))),
-                ]),
-        };
+        var posts = Six();
+        posts[1] = APost.With(id: "220", boosted: APost.With(id: "221", content: "Shorn this morning"));
 
-        using var drawn = await DrawnShell.Of(80, Short, Themes.Plain, built);
-
-        drawn.Shell.Rail.GoTo(DestinationKind.Notifications);
-        built.Host.Drain();
-        drawn.Redraw();
+        using var drawn = await Feed(posts);
 
         LeaveThePickBelow(drawn);
-        TopOffBy(drawn, item: 1, rows: scrolledOff);
+        TextOffBy(drawn, "Shorn this morning", scrolledOff);
 
         drawn.Press(Key.K);
 
@@ -100,11 +103,131 @@ public class OffPageReclaimTests
     }
 
     /// <summary>
-    ///     An account screen's header block is a thing with a top like any other: scrolled back up to it, the press
-    ///     picks it, and with its first row gone, the first post under it.
+    ///     A mention begins at the post it brings, not at the row saying who mentioned the reader or the post's byline:
+    ///     the same way on its screen as a post does on a feed.
+    /// </summary>
+    [Theory]
+    [InlineData(0, "220")]
+    [InlineData(1, "330")]
+    public async Task AMentionBeginsAtItsPostsContent(int scrolledOff, string picked)
+    {
+        using var drawn = await Notifications(
+            [
+                .. new[] { "110", "220", "330", "440", "550", "660" }.Select(
+                    (id, at) => ANotification.With(
+                    id: $"{at + 1}",
+                    post: APost.With(id: id, content: $"Fleece {id}"))),
+            ]);
+
+        LeaveThePickBelow(drawn);
+        TextOffBy(drawn, "Fleece 220", scrolledOff);
+
+        drawn.Press(Key.K);
+
+        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
+    }
+
+    /// <summary>
+    ///     A favourite of the reader's own post begins at the muted reminder of that post under the faces, with the
+    ///     names row and the avatar strip above it scrolled off.
+    /// </summary>
+    [Theory]
+    [InlineData(0, "220")]
+    [InlineData(1, "330")]
+    public async Task AFavouriteOfYourPostBeginsAtItsPreview(int scrolledOff, string picked)
+    {
+        // Twelve, since each is two rows and the pick has to be left well below the page.
+        using var drawn = await Notifications(
+            [
+                .. Enumerable.Range(1, 12).Select(
+                    at => ANotification.With(
+                        id: $"{at}",
+                        kind: NotificationKind.Favorite,
+                        post: APost.With(id: $"{at}{at}0", content: $"Fleece {at}{at}0", isMine: true))),
+            ]);
+
+        LeaveThePickBelow(drawn);
+        TextOffBy(drawn, "Fleece 220", scrolledOff);
+
+        drawn.Press(Key.K);
+
+        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
+    }
+
+    /// <summary>
+    ///     A follow has no post to begin at, so it begins at its first row: on the page it is picked, and with that row
+    ///     gone the next notification is.
+    /// </summary>
+    [Theory]
+    [InlineData(0, "2")]
+    [InlineData(1, "3")]
+    public async Task AFollowBeginsAtItsFirstRow(int scrolledOff, string picked)
+    {
+        using var drawn = await Notifications(
+            [
+                ANotification.With(id: "1", post: APost.With(id: "110")),
+                ANotification.Follow(id: "2", actorId: "20"),
+                ANotification.With(id: "3", post: APost.With(id: "330")),
+                ANotification.With(id: "4", post: APost.With(id: "440")),
+                ANotification.With(id: "5", post: APost.With(id: "550")),
+                ANotification.With(id: "6", post: APost.With(id: "660")),
+            ]);
+
+        LeaveThePickBelow(drawn);
+        TopOffBy(drawn, item: 1, rows: scrolledOff);
+
+        drawn.Press(Key.K);
+
+        Assert.Equal(picked, PickedNotification(drawn));
+    }
+
+    /// <summary>A post behind a content warning begins at the warning, the first of its content drawn.</summary>
+    [Theory]
+    [InlineData(0, "220")]
+    [InlineData(1, "330")]
+    public async Task APostBehindAWarningBeginsAtTheWarning(int scrolledOff, string picked)
+    {
+        var posts = Six();
+        posts[1] = APost.With(id: "220", contentWarning: "Shearing day");
+
+        using var drawn = await Feed(posts);
+
+        LeaveThePickBelow(drawn);
+        TextOffBy(drawn, "Shearing day", scrolledOff);
+
+        drawn.Press(Key.K);
+
+        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
+    }
+
+    /// <summary>A post with nothing but an attachment begins at the attachment.</summary>
+    [Theory]
+    [InlineData(0, "220")]
+    [InlineData(1, "330")]
+    public async Task APostWithOnlyAnAttachmentBeginsAtIt(int scrolledOff, string picked)
+    {
+        var posts = Six();
+        posts[1] = APost.With(
+            id: "220",
+            content: string.Empty,
+            media: [APost.Attached(MediaKind.Image, description: "Sheep, at length")]);
+
+        using var drawn = await Feed(posts);
+
+        LeaveThePickBelow(drawn);
+        TextOffBy(drawn, "Sheep, at length", scrolledOff);
+
+        drawn.Press(Key.K);
+
+        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
+    }
+
+    /// <summary>
+    ///     An account screen's header block is not a post and begins at its first row: scrolled back up to it, the
+    ///     press picks it, and with that row gone, the first post under it.
     /// </summary>
     [Fact]
-    public async Task AnAccountsHeaderBlockHasATop()
+    public async Task AnAccountsHeaderBlockBeginsAtItsFirstRow()
     {
         using var drawn = await Account(pinned: [], posts: [.. Six().Select(post => post with { Account = Whose })]);
 
@@ -185,10 +308,13 @@ public class OffPageReclaimTests
     [Fact]
     public async Task ThePressAfterTheReclaimMovesOnFromIt()
     {
-        using var drawn = await Feed(Six());
+        var posts = Six();
+        posts[1] = APost.With(id: "220", content: "Shorn this morning");
+
+        using var drawn = await Feed(posts);
 
         LeaveThePickBelow(drawn);
-        TopOffBy(drawn, item: 1, rows: 1);
+        TextOffBy(drawn, "Shorn this morning", 1);
 
         drawn.Press(Key.J);
         drawn.Press(Key.K);
@@ -198,18 +324,23 @@ public class OffPageReclaimTests
 
     /// <summary>
     ///     <c>[</c> and <c>]</c> jump from the thing the same rule reclaims: on an account scrolled so that the foot of
-    ///     the last pinned post fills the top of the page and their first post begins below it, <c>[</c> goes back to
-    ///     the first pinned post, where from the half-gone pinned one it would have had nowhere to go but the header.
+    ///     the last pinned post, its text gone, fills the top of the page and their first post begins below it, <c>[</c>
+    ///     goes back to the first pinned post, where from the half-gone pinned one it would have had nowhere to go but
+    ///     the header.
     /// </summary>
     [Fact]
     public async Task TheBracketsJumpFromWhatIsReclaimed()
     {
         using var drawn = await Account(
-            pinned: [APost.With(id: "110", account: Whose), APost.With(id: "220", account: Whose)],
+            pinned:
+            [
+                APost.With(id: "110", account: Whose),
+                APost.With(id: "220", account: Whose, content: "Shorn this morning"),
+            ],
             posts: [APost.With(id: "330", account: Whose), APost.With(id: "440", account: Whose), APost.With(id: "550", account: Whose)]);
 
         LeaveThePickBelow(drawn);
-        TopOffBy(drawn, item: 2, rows: 1);
+        TextOffBy(drawn, "Shorn this morning", 1);
 
         drawn.Press(new Key('['));
 
@@ -243,6 +374,28 @@ public class OffPageReclaimTests
         return drawn;
     }
 
+    /// <summary>The shell drawn short on the notifications screen, holding <paramref name="notifications" />.</summary>
+    private static async Task<DrawnShell> Notifications(Notification[] notifications)
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "1")),
+            Notifications = FakeNotificationInbox.Holding(notifications),
+        };
+
+        var drawn = await DrawnShell.Of(80, Short, Themes.Plain, built);
+
+        drawn.Shell.Rail.GoTo(DestinationKind.Notifications);
+        built.Host.Drain();
+        drawn.Redraw();
+
+        return drawn;
+    }
+
+    /// <summary>Which notification is picked, by its id: a follow has no post to say it by.</summary>
+    private static string? PickedNotification(DrawnShell drawn) =>
+        Assert.IsType<NotificationsScreen>(drawn.Shell.Screen).PickedGroup?.NewestId;
+
     /// <summary>The shell drawn short over a feed of <paramref name="posts" />.</summary>
     private static Task<DrawnShell> Feed(Post[] posts) =>
         DrawnShell.Of(80, Short, Themes.Plain, new AShell { Timelines = FakeTimelineReader.Holding(posts) });
@@ -251,8 +404,34 @@ public class OffPageReclaimTests
     private static void LeaveThePickBelow(DrawnShell drawn) => drawn.WalkToTheLast();
 
     /// <summary>
-    ///     The page wheeled to where the <paramref name="item" />th thing's top is <paramref name="rows" /> rows above
-    ///     its first row: nought for that top on the page's first row.
+    ///     The page wheeled to where the first row reading <paramref name="text" /> is <paramref name="rows" /> rows
+    ///     above the page's first row: nought for that row on the page's first row.
+    /// </summary>
+    private static void TextOffBy(DrawnShell drawn, string text, int rows)
+    {
+        while (drawn.Content.Top > 0)
+        {
+            drawn.Wheel(OverContent, Inside, down: false);
+        }
+
+        var first = drawn.Content.ViewportToScreen(Point.Empty).Y;
+
+        for (var notch = 0; !drawn.Rows()[first].Contains(text, StringComparison.Ordinal); notch++)
+        {
+            Assert.True(notch < 100, $"No page begins on \"{text}\":\n{string.Join('\n', drawn.Rows())}");
+
+            drawn.Wheel(OverContent, Inside);
+        }
+
+        for (var notch = 0; notch < rows; notch++)
+        {
+            drawn.Wheel(OverContent, Inside);
+        }
+    }
+
+    /// <summary>
+    ///     The page wheeled to where the <paramref name="item" />th thing's first row is <paramref name="rows" /> rows
+    ///     above the page's first row: nought for that row on the page's first row.
     /// </summary>
     private static void TopOffBy(DrawnShell drawn, int item, int rows)
     {
