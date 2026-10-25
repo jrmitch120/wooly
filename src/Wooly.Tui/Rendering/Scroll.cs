@@ -289,6 +289,47 @@ public static class Scroll
     }
 
     /// <summary>
+    ///     The references of the <paramref name="item" />th thing with a row on the page starting at
+    ///     <paramref name="from" />, in the order they are drawn — where <c>→</c> and <c>←</c> enter a walk (#477).
+    /// </summary>
+    /// <remarks>
+    ///     Read off the runs drawn for each reference (<see cref="Span.Reference" />), so a reference wrapped across
+    ///     two rows is on the page while either half is.
+    /// </remarks>
+    /// <param name="lines">The rows drawn.</param>
+    /// <param name="height">How many rows there is room for.</param>
+    /// <param name="from">Where the page starts.</param>
+    /// <param name="item">Which thing's references are asked after.</param>
+    /// <param name="pinned">How many rows at the top of the page are pinned there (<see cref="To" />).</param>
+    public static IReadOnlyList<Reference> ReferencesOn(
+        IReadOnlyList<Line> lines,
+        int height,
+        int from,
+        int item,
+        int pinned = 0)
+    {
+        var shown = new List<Reference>();
+
+        for (var at = Math.Max(0, from + pinned); at < Math.Min(lines.Count, from + height); at++)
+        {
+            if (lines[at].Item != item)
+            {
+                continue;
+            }
+
+            foreach (var span in lines[at].Spans)
+            {
+                if (span.Reference is { } reference && !shown.Contains(reference))
+                {
+                    shown.Add(reference);
+                }
+            }
+        }
+
+        return shown;
+    }
+
+    /// <summary>
     ///     Which item the page starting at <paramref name="from" /> begins on, or <see langword="null" /> for a screen
     ///     with no items on it at all. What <c>j</c> reclaims after the arrows have walked away from the selection.
     /// </summary>

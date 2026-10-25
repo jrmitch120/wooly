@@ -611,8 +611,18 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   reference it is drawn for (`Span.Reference`), and the click is answered off that rather than off a second reckoning
   of where each reference fell. It is the reference itself, not its place in the walk, so what was drawn is matched
   against what may be walked to: a mention in a bio matches nothing walkable, and the click only picks.
-- **`→` enters at the first reference, `←` at the last**; further motion in the same direction at either end
-  **clamps**, matching `Picked<T>`'s existing convention rather than wrapping.
+- **`→` enters at the first reference on the page, `←` at the last on the page** (#477), so a tall post scrolled
+  partway down is not entered at a reference scrolled off above. Where none of the pick's references are on the page,
+  `→` enters at the post's first and `←` at its last, and the page brings it in (below). Once inside, further motion
+  walks every one of the post's references, on the page or not, and at either end **clamps**, matching `Picked<T>`'s
+  existing convention rather than wrapping.
+- **With the pick off the page, `→` and `←` reclaim and enter in one press** (#477). The press picks what `j`/`k`
+  would reclaim (the first thing whose top is on the page, "What moving settled") and enters that thing's references
+  at the first or last on the page, even mid-walk: the walk inside the post gone off the page is let go with the old
+  pick rather than stepped on. Where the reclaimed thing has no references, the press only reclaims. The view says
+  both the reclaim and which references are on the page off one lot of rows (`PaintedView.OnThePage`, read off each
+  run's `Span.Reference`, so a wrapped address counts while either half shows), and the shell does the rest
+  (`Shell.WalkReference`).
 - **The page follows a walked reference** (#473). Walking to a reference that is not on the page moves the page the
   least it must to bring its row onto it — onto the bottom row walking down, the top row walking up — the same
   minimum move `j`/`k` bring the pick back with (`Scroll.ToReference`, keyed on the rows its brackets are drawn on, so
@@ -644,8 +654,10 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   (`PostKeys.OnAReference`). Said by `Screen` itself rather than by each screen, which is why a screen's own list is
   `OwnKeys` and `Keys` is what the status row reads (#83).
 - **`←/→` is announced before the walk starts too**, wherever the picked thing has a reference to walk to — the
-  same `References` the walk itself asks, so the hint shows exactly where the arrows would act. Otherwise the only
-  way to learn the walk exists is to press it. Ranked right behind `⏎:read`, so it never pushes the key used most on
+  same `References` the walk itself asks, so the hint describes the **Picked** thing — even with the pick scrolled off
+  the page, where the arrows would reclaim and act on another (#477), since a status row that changed as the pick
+  crossed the page edge would flicker as the reader scrolled. Otherwise the only way to learn the walk exists is to
+  press it. Ranked right behind `⏎:read`, so it never pushes the key used most on
   a post off the row; where there is no `⏎:read` (inside a post, the account header, a conversation) it goes in
   front (`PostKeys.BeforeAReference`). On an 80-column feed that leaves it in `…+N` and `?`, which is accepted.
 - **`⏎` does four different things, refusals share one notice** (#85, #109). Which of the four is the role the

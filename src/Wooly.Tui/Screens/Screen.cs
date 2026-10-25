@@ -443,11 +443,18 @@ public abstract class Screen
     ///     further motion in the same direction at either end clamps rather than wrapping, which is the convention
     ///     <see cref="Picked{T}" /> already walks a list by.
     /// </summary>
+    /// <remarks>
+    ///     Entering, the first and last are those of <paramref name="onThePage" /> where any of them are, so a tall post
+    ///     scrolled partway down is not entered at a reference scrolled off above it (#477). Once inside, every one of
+    ///     the post's references is walked, on the page or not.
+    /// </remarks>
+    /// <param name="by">Which way, and how far.</param>
+    /// <param name="onThePage">Which of the picked thing's references have a row on the page, in the order drawn.</param>
     /// <returns>
     ///     Whether there was anything to walk, which is what settles whether the key was used — a screen with no
     ///     references on it leaves <c>←</c> and <c>→</c> to whatever else wants them, the compose editor above all.
     /// </returns>
-    public bool WalkReference(int by)
+    public bool WalkReference(int by, IReadOnlyList<Reference>? onThePage = null)
     {
         var references = References;
 
@@ -456,8 +463,18 @@ public abstract class Screen
             return false;
         }
 
-        _reference = _reference is { } at && at < references.Count
-            ? Math.Clamp(at + by, 0, references.Count - 1)
+        if (_reference is { } at && at < references.Count)
+        {
+            _reference = Math.Clamp(at + by, 0, references.Count - 1);
+
+            return true;
+        }
+
+        var shown = onThePage?.Where(references.Contains).ToList() ?? [];
+        Reference? entered = shown.Count == 0 ? null : by > 0 ? shown[0] : shown[^1];
+
+        _reference = entered is { } reference
+            ? references.ToList().IndexOf(reference)
             : by > 0 ? 0 : references.Count - 1;
 
         return true;
