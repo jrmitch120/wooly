@@ -298,14 +298,12 @@ public sealed class AccountScreen : Screen
         if (_posts.Count == pinned)
         {
             lines.Add(Line.Of("Nothing to read here yet.", Role.Muted));
-
-            return ReadingOn?.Under(lines, holding: false) ?? lines;
         }
 
-        lines.AddRange(_walking.PostRows(drawing, from: pinned, howMany: _posts.Count - pinned));
-
         // The foot goes under their posts, which are what reads on, and so under everything (#464).
-        return ReadingOn?.Under(lines, holding: true) ?? lines;
+        lines.AddRange(WithFoot(_walking.PostRows(drawing, from: pinned, howMany: _posts.Count - pinned)));
+
+        return lines;
     }
 
     /// <summary>

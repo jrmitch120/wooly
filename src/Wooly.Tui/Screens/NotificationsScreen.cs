@@ -315,9 +315,7 @@ public sealed class NotificationsScreen(
             lines.Add(Line.Blank);
         }
 
-        var groups = _groups.Rows(drawing.Width, Draw);
-
-        lines.AddRange(ReadingOn?.Under(groups, holding: groups.Count > 0) ?? groups);
+        lines.AddRange(WithFoot(_groups.Rows(drawing.Width, Draw)));
 
         return lines;
 

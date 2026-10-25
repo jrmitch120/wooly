@@ -168,9 +168,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
             lines.Add(Line.Blank);
         }
 
-        var rows = _conversations.Rows(drawing.Width, Draw);
-
-        lines.AddRange(ReadingOn?.Under(rows, holding: Conversations.Count > 0) ?? rows);
+        lines.AddRange(WithFoot(_conversations.Rows(drawing.Width, Draw)));
 
         return lines;
 

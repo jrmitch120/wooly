@@ -191,9 +191,17 @@ public abstract class Screen
     /// <remarks>
     ///     Set by the subject's answer as it lands, beside <see cref="Subject" /> and for the same reason: where to read
     ///     on from is what the instance said, and a screen built in a test with no instance behind it reads on from
-    ///     nothing. A screen whose list reads on draws the foot of it (<see cref="Screens.ReadingOn.Under" />).
+    ///     nothing. A screen whose list reads on draws the foot of it (<see cref="WithFoot" />).
     /// </remarks>
     public ReadingOn? ReadingOn { get; internal set; }
+
+    /// <summary>
+    ///     <paramref name="rows" /> with the foot of the list under them where it reads on (<see cref="ReadingOn" />),
+    ///     and as they are where it does not — which every list that reads on draws its rows through, so that none of
+    ///     them can say what its foot says differently.
+    /// </summary>
+    /// <param name="rows">The list's own rows, and nothing above them: none where it holds nothing.</param>
+    protected IReadOnlyList<Line> WithFoot(IReadOnlyList<Line> rows) => ReadingOn?.Under(rows) ?? rows;
 
     /// <summary>
     ///     What the shell has to say about this screen's list rather than about anything on it — that nothing is on it,

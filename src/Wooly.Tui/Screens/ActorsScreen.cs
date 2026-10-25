@@ -116,9 +116,7 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen
         }
 
         // And under them all, the foot of the list: what reading on is doing, or that the group is whole.
-        var rows = _people.Rows(width, Draw, Line.Blank);
-
-        lines.AddRange(ReadingOn?.Under(rows, holding: Read > 0) ?? rows);
+        lines.AddRange(WithFoot(_people.Rows(width, Draw, Line.Blank)));
 
         return lines;
 

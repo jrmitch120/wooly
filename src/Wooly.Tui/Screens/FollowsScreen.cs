@@ -387,9 +387,7 @@ public sealed class FollowsScreen : Screen
         // nothing to separate it from, and at 900 people a rule apiece would be 900 rows of horizontal line (#180).
         // A blank between them all the same, since four-row Account blocks laid end to end run together (#198).
         // And under them all, on a browsed list, the foot of it: what reading on is doing, or that the list is whole.
-        var rows = _walking.Rows(width, Draw, Line.Blank);
-
-        lines.AddRange(ReadingOn?.Under(rows, holding: Read > 0) ?? rows);
+        lines.AddRange(WithFoot(_walking.Rows(width, Draw, Line.Blank)));
 
         return lines;
 

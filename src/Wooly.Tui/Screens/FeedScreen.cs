@@ -96,8 +96,7 @@ public sealed class FeedScreen : Screen
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var posts = _posts.Rows(drawing);
-        var rows = ReadingOn?.Under(posts, holding: posts.Count > 0) ?? posts;
+        var rows = WithFoot(_posts.Rows(drawing));
 
         if (Notice is not { } notice)
         {

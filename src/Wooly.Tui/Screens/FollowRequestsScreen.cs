@@ -131,15 +131,13 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         // Nothing implied: what this list claims of everyone on it is that they do not follow the reader, which is a
         // negative, and the compact standing only ever adds words for positives — so there is nothing here to
         // suppress and "following" is the word this screen is read for (#204).
-        var rows = _waiting.Rows(
+        lines.AddRange(WithFoot(_waiting.Rows(
             drawing.Width,
             (account, _, room) => AccountLines.Block(
                 account,
                 drawing.In(room),
                 AccountLines.Compact(account.Standing)),
-            Line.Blank);
-
-        lines.AddRange(ReadingOn?.Under(rows, holding: Waiting.Count > 0) ?? rows);
+            Line.Blank)));
 
         return lines;
     }
