@@ -102,6 +102,18 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         return false;
     }
 
+    /// <summary>
+    ///     Puts <paramref name="older" /> under the requests already held, as a read on brought them: below everybody,
+    ///     with the pick left on whoever it was on (#466).
+    /// </summary>
+    public void ReadOn(IReadOnlyList<Account> older)
+    {
+        foreach (var asking in older)
+        {
+            _waiting.Add(asking);
+        }
+    }
+
     /// <inheritdoc />
     /// <remarks>Whoever has asked since and is not on screen yet.</remarks>
     public override int PutOnTop(InboxList found) =>
@@ -125,13 +137,15 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
         // Nothing implied: what this list claims of everyone on it is that they do not follow the reader, which is a
         // negative, and the compact standing only ever adds words for positives — so there is nothing here to
         // suppress and "following" is the word this screen is read for (#204).
-        lines.AddRange(_waiting.Rows(
+        var rows = _waiting.Rows(
             drawing.Width,
             (account, _, room) => AccountLines.Block(
                 account,
                 drawing.In(room),
                 AccountLines.Compact(account.Standing)),
-            Line.Blank));
+            Line.Blank);
+
+        lines.AddRange(ReadingOn?.Under(rows, holding: Waiting.Count > 0) ?? rows);
 
         return lines;
     }

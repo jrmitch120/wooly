@@ -29,6 +29,23 @@ public interface IDirectMessages
     /// </returns>
     Task<Fetch<Conversation>> List(ActiveProfile profile, int limit, CancellationToken cancellationToken);
 
+    /// <summary>
+    ///     Reads on: up to <paramref name="limit" /> more conversations, from where a listing said to read on from — the
+    ///     ones spoken in longer ago than the last it held, never anything newer (#466).
+    /// </summary>
+    /// <param name="profile">The profile to read as.</param>
+    /// <param name="from">Where to read on from, as an earlier listing said.</param>
+    /// <param name="limit">How many more conversations are wanted, paged as <see cref="List" /> pages.</param>
+    /// <returns>
+    ///     The conversations, and where to read on from next unless the listing is now whole — reported as
+    ///     <see cref="List" /> reports, a rate limit included.
+    /// </returns>
+    Task<Fetch<Conversation>> ReadOn(
+        ActiveProfile profile,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken);
+
     /// <summary>Reads one conversation: the thread its last post belongs to, oldest first.</summary>
     /// <param name="conversationId">
     ///     The conversation's own id, as a listing reports it — not the id of any post in it.

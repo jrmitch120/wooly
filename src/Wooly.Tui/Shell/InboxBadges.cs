@@ -186,6 +186,19 @@ internal sealed class InboxBadges
     }
 
     /// <summary>
+    ///     A count off a list <b>read on</b>, put on the rail and never rung for (#466): reading on reaches only what
+    ///     stands behind what was held, which was waiting all along — so a badge counting higher for it is the count
+    ///     going further down, not anything arriving. It is the instance's count all the same, which the next one rises
+    ///     against.
+    /// </summary>
+    public void Recounted(Found.Badge badge)
+    {
+        Lands(badge.Kind, Ask());
+        _last[badge.Kind] = badge;
+        Counted(badge);
+    }
+
+    /// <summary>
     ///     Moves a count on the rail by <paramref name="by" />, for a change made here — and never below nothing
     ///     (#234). The count moved is what the instance would now say, so the next count rises against it.
     /// </summary>
