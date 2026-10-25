@@ -474,7 +474,7 @@ public static class AccountLines
 
             roled.AddRange(pieces
                 .Where(piece => piece.To > piece.From)
-                .Select(piece => new Span(span.Text[(piece.From - at)..(piece.To - at)], piece.Role)));
+                .Select(piece => span with { Text = span.Text[(piece.From - at)..(piece.To - at)], Role = piece.Role }));
 
             at = end;
         }

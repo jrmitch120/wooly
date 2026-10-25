@@ -471,7 +471,8 @@ internal sealed class ShellWindow : Window
     ///     A click at <paramref name="at" />. An open question takes it wherever it lands, and is all it does; otherwise
     ///     a click on a destination on the rail arrives there (#288), one on the toggle's <c>«</c>/<c>»</c> at the
     ///     shell's bottom-left is <c>\</c> (#443, #445), a click on a crumb of the breadcrumb walks back to it (#308),
-    ///     and a click on a row of a thing in the content picks it (#290), the first half of a double click among them
+    ///     and a click on a row of a thing in the content picks it (#290) — walking to the reference under the pointer,
+    ///     where there is one, as <c>→</c> would have (#475) — the first half of a double click among them
     ///     (<see cref="DoubleClicked" />). Everything else — a title, a heading, the API panel, a separator, the fetch
     ///     mark, a rule, a blank — is part of nothing and ignores it.
     /// </summary>
@@ -518,9 +519,18 @@ internal sealed class ShellWindow : Window
         {
             // A click on a run that stands for a key, or one with ctrl or shift held, means that key on the thing it is
             // on where the screen says so — a box in the file browser chooses (#376) — and otherwise picks the thing.
+            // A click on a reference walks to it inside the thing it picks, read off the rows as they were drawn under
+            // the pointer — before the pick lets go of a reference bracketed on the same row, and moves what follows it.
+            var reference = _content.ReferenceAt(at);
+
             if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded))
             {
                 _content.Hold();
+            }
+            else if (reference is { } walked && _content.ItemAt(at) is { } item)
+            {
+                _content.Hold();
+                _shell.PickReference(item, walked);
             }
             else
             {

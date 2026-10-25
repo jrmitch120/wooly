@@ -177,9 +177,9 @@ internal sealed class PaintedView : View
     public Raster Raster { get; private set; } = Raster.None;
 
     /// <summary>
-    ///     The item <c>j</c> and <c>k</c> should take back — the topmost one on the page — or <see langword="null" />
-    ///     while the selection is still on screen and they can simply move from it. Never a row of its own: what is
-    ///     reclaimed is the whole post the page begins on.
+    ///     The item <c>j</c> and <c>k</c> should take back — the first one whose top is on the page — or
+    ///     <see langword="null" /> while the selection is still on screen and they can simply move from it. Never a row
+    ///     of its own: what is reclaimed is a whole thing.
     /// </summary>
     /// <remarks>
     ///     Asked of the view because the view is the only thing that knows how much room there is and where the arrows
@@ -238,7 +238,20 @@ internal sealed class PaintedView : View
     ///     or <see langword="null" /> for a cell outside the rows, past the end of its row, or on a run that stands for
     ///     nothing. What a click on one of a row's several things is answered from — a crumb of the breadcrumb (#308).
     /// </summary>
-    public int? SpanItemAt(Point screen)
+    public int? SpanItemAt(Point screen) => SpanAt(screen)?.Item;
+
+    /// <summary>
+    ///     Which reference the run under the terminal cell <paramref name="screen" /> is drawn for
+    ///     (<see cref="Span.Reference" />), or <see langword="null" /> for a cell outside the rows, past the end of its
+    ///     row, or on a run that is part of no reference. What a click on a reference is answered from (#475).
+    /// </summary>
+    public Reference? ReferenceAt(Point screen) => SpanAt(screen)?.Reference;
+
+    /// <summary>
+    ///     The run drawn under the terminal cell <paramref name="screen" />, or <see langword="null" /> for a cell outside
+    ///     the rows or past the end of its row.
+    /// </summary>
+    private Span? SpanAt(Point screen)
     {
         if (LineAt(screen, out var column) is not { } line)
         {
@@ -249,7 +262,7 @@ internal sealed class PaintedView : View
         {
             if (column < span.Width)
             {
-                return span.Item;
+                return span;
             }
 
             column -= span.Width;
@@ -286,8 +299,9 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     What a key that moves the pick has to take back before it moves it: the topmost thing on the page, where
-    ///     the pick has none of its rows on it, and <see langword="null" /> while it is still visible.
+    ///     What a key that moves the pick has to take back before it moves it: the first thing whose top is on the
+    ///     page (<see cref="Scroll.Reclaim" />), where the pick has none of its rows on it, and
+    ///     <see langword="null" /> while it is still visible.
     /// </summary>
     /// <remarks>
     ///     Said once for the two keys that ask it — <c>j</c>/<c>k</c> through <see cref="Reclaimable" /> and
@@ -298,7 +312,7 @@ internal sealed class PaintedView : View
     {
         var pinned = Pinned();
 
-        return Scroll.Shows(lines, height, _top, pinned) ? null : Scroll.Topmost(lines, _top, pinned);
+        return Scroll.Shows(lines, height, _top, pinned) ? null : Scroll.Reclaim(lines, height, _top, pinned);
     }
 
     /// <summary>

@@ -605,6 +605,12 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   slice of it at that offset, so a row's spans are the post's references sliced by its own range. An address longer
   than the content region used to be cut into two halves that each matched nothing and drew as prose; it is now one
   reference drawn across two rows (#83).
+- **A click on a reference walks to it** (#475), as `→` would have arrived there, picking the thing it is inside first
+  and letting go of any reference held in another; a single click never opens anything. Every run drawn for a
+  reference — both halves of a wrapped one, its brackets, an attachment's kind, a link preview's title — carries the
+  reference it is drawn for (`Span.Reference`), and the click is answered off that rather than off a second reckoning
+  of where each reference fell. It is the reference itself, not its place in the walk, so what was drawn is matched
+  against what may be walked to: a mention in a bio matches nothing walkable, and the click only picks.
 - **`→` enters at the first reference, `←` at the last**; further motion in the same direction at either end
   **clamps**, matching `Picked<T>`'s existing convention rather than wrapping.
 - **The page follows a walked reference** (#473). Walking to a reference that is not on the page moves the page the
@@ -938,11 +944,18 @@ selection was the only scroll position a screen had and the foot of such a post 
   number is one constant in `ShellWindow`. The far end of the scroll is clamped when the rows are drawn rather than
   when a key is pressed, since working them out to clamp against would lay out every post on screen twice for one
   keypress, and that cost is what a reader feels as a slow scroll.
-- **`j` and `k` reclaim a selection that has scrolled off screen.** With no row of the selected post on the page, the
-  next `j` or `k` selects the topmost post on the page instead of moving from a post the reader can no longer see;
-  pressing it again moves normally from there. A post whose top has scrolled off but which still has rows showing *is*
-  the topmost post, so `↓ ↓ ↓ j` picks out the post being read rather than the one after it — and a page scrolled past
-  the last post entirely, which is the blank under it, reclaims that last post rather than nothing.
+- **`j` and `k` reclaim a selection that has scrolled off screen, by the first top on the page.** With no row of the
+  selected thing on the page, the next `j` or `k` picks the first thing whose *top* is on the page instead of moving
+  from a thing the reader can no longer see; the reclaiming press does nothing else, and pressing again moves normally
+  from there. A thing's top is the first row it draws: a boost line, a notification's strip, a byline, an account's
+  header block. It is read off the rows as drawn, as the first row stamped with the thing, so no screen keeps its own
+  record of where things begin. A post whose foot fills the top of the page is passed over for the first thing the
+  reader can see beginning (#472). Where no thing's top is on the page, because one post taller than the page fills
+  it, the reclaim falls back to the topmost thing with any row showing, so `↓ ↓ ↓ j` on a tall post picks out the post
+  being read rather than the one after it — and a page scrolled past the last thing entirely, which is the blank under
+  it, reclaims that last thing rather than nothing. "Off the page" still means *no* row of the pick shows: a pick with
+  only its foot on the page is where the reader stands, and `j`/`k` move on from it. The reclaim is worked out once,
+  in `Scroll.Reclaim`, and every key that reclaims asks that one answer through `PaintedView.Reclaimable`.
 - **A row says which post it is part of.** `Role.Selection` marks only the post already picked out and so cannot name
   any other; every screen holding a selection numbers its rows with the same ordinal `Screen.Pick` takes, including the
   four that do not number a plain list of posts — the post screen, where the ancestors come first and the post itself
@@ -982,7 +995,7 @@ selection was the only scroll position a screen had and the foot of such a post 
   the rest of this section rests on: a scroll answer is computed from the rows alone.
 - **`[`/`]` reclaim, like `j`/`k`, and clamp like everything else.** Working out "the run after this one" from a pick
   the reader can no longer see is the exact failure reclaiming exists to prevent, so after `↓ ↓ ↓ ]` the jump runs from
-  the topmost item on the page. At the ends it clamps and never wraps: nothing in this shell wraps, and with three runs
+  the thing `j`/`k` would reclaim: the first whose top is on the page (#472). At the ends it clamps and never wraps: nothing in this shell wraps, and with three runs
   a wrap saves one press at the cost of an ambiguous position. A reader already among the last run presses `]` and
   nothing happens, which is the clamp saying so rather than the key being broken.
 - **`k` is the next post and `j` is the one before it**, which is the opposite way round from vim. Asked for
@@ -2301,7 +2314,7 @@ panel the pointer is over. What the gesture then does is a move the keys already
 
 | Gesture | Over | Does |
 |---|---|---|
-| Wheel down / up | The content panel | The page moves one row per notch, the finest step a terminal has, so a trackpad's stream of small events glides rather than lurching three rows at a time (#292). Three notches are as far as one `↓` / `↑`, and it clamps at the same ends. **Picked** stays where it is, so after wheeling it off the page `j`/`k` reclaim the topmost thing on the page, as after the arrows. On help and notices too, which are content like any other screen. A notch is that arrow through the **Keymap**, with a row for its step, so with a confirmation open it declines it and scrolls nothing, as `↓` does (#287) |
+| Wheel down / up | The content panel | The page moves one row per notch, the finest step a terminal has, so a trackpad's stream of small events glides rather than lurching three rows at a time (#292). Three notches are as far as one `↓` / `↑`, and it clamps at the same ends. **Picked** stays where it is, so after wheeling it off the page `j`/`k` reclaim the first thing whose top is on the page (the topmost thing showing, where no top is), as after the arrows (#472). On help and notices too, which are content like any other screen. A notch is that arrow through the **Keymap**, with a row for its step, so with a confirmation open it declines it and scrolls nothing, as `↓` does (#287) |
 | Wheel | The rail | Nothing: not the cursor, not the selection, not the rail's scroll and not the page beside it |
 | Wheel down / up | Either margin of a narrowed shell | The content panel's wheel, exactly: so a reader need not aim for the panel to scroll (**Shell width**, #416) |
 | Click, double click, right click, drag | Either margin of a narrowed shell | Nothing, not even declining an open question: the margins are the terminal's, outside the shell (#416) |
@@ -2321,7 +2334,7 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Click | A group's title, a compact heading, the API panel, the rest of the edge the mark is on | Nothing. Only destinations and the mark answer a click |
 | Click | A crumb of the breadcrumb, behind the one in front | Walks back to that screen in one move: everything drilled in above it comes off the stack, as that many presses of `esc` would take it off, and the screen is in front as it was left — its **Page**, its **Picked** and any **Reference** picked on it — with nothing asked of the instance. What the screens taken off asked for is dropped, as with any pop. The first crumb is the click on the destination shown above. Which crumb a column is comes off the breadcrumb's own spans, each carrying its place in the stack as its `Span.Item`, as the rail's rows carry theirs, so the click lands on the crumb drawn under the pointer however the trail is elided. A crumb whose walk back would take a touched compose off the stack asks first, as every way out of one does (#373); a crumb above a compose still walks back. Crumbs are not drawn as clickable. The other move the keys do not have (#308) |
 | Click | The crumb in front, the `… ›` lead of an elided trail, a separator, the fetch mark, the edge after the trail | Nothing. Only a crumb behind the one in front answers a click |
-| Click | A row of a thing in the content | Picks that thing, through the same pick `[`/`]` make: any row of it counts — a tall post's byline, its text, a picture on it — since which thing a row is part of is its `Line.Item`, the ordinal `Screen.Pick` takes. The remark on the status row goes, as it does for `j`/`k`, and a **Reference** walked to inside the thing is let go, so the `⏎` after it opens the thing rather than the reference. The page stays where it is rather than following the pick, so what was clicked never moves out from under the pointer. The same on every listing screen, the account screen's header block (after which the post keys go quiet, as after `j`/`k`) and a search's results in their sections among them (#290) |
+| Click | A row of a thing in the content | Picks that thing, through the same pick `[`/`]` make: any row of it counts — a tall post's byline, its text, a picture on it — since which thing a row is part of is its `Line.Item`, the ordinal `Screen.Pick` takes. The remark on the status row goes, as it does for `j`/`k`, and a **Reference** walked to inside the thing is let go, so the `⏎` after it opens the thing rather than the reference. The page stays where it is rather than following the pick, so what was clicked never moves out from under the pointer. The same on every listing screen, the account screen's header block (after which the post keys go quiet, as after `j`/`k`) and a search's results in their sections among them (#290). A click on a **Reference** — a hashtag, mention or address in a post's text, a **Bio** or a **Custom field**, an **Attachment**'s own address, a **Link preview**'s — picks the thing it is inside and walks to it, exactly as `→` would have, brackets and the status row's reference mode included; a click on either row of an address the wrap cut in two, or on the brackets of the one already walked to, counts. It never opens anything. Which reference a column is comes off the runs drawn under the pointer, each carrying the reference it is drawn for as its `Span.Reference`, as a crumb's carry its `Span.Item`; a reference drawn and never walked, a mention in a bio, picks the thing and walks to nothing (#475) |
 | Click | A heading, a rule, a blank, the space under the last thing | Nothing. A click never guesses which thing was meant |
 | Double click | A row of a thing in the content | That click, and then `⏎` through the **Keymap** on the screen in front, so it means whatever `⏎` means there: it opens a post, a search result, a conversation, the asker of a follow request or a person, and switches to a profile on the profiles screen. Where `⏎` means nothing for what is picked — the account screen's header block — it picks and does nothing more. The click lets a walked **Reference** go first, so a double click on a post with a hashtag walked to opens the post. Terminal.Gui's own detection says what is a double click (#291) |
 | Double click | A heading, a rule, a blank, the space under the last thing | Nothing: never a `⏎` on what was picked before |

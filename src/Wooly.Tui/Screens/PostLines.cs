@@ -620,7 +620,7 @@ public static class PostLines
         int width,
         bool saysWhatItShows)
     {
-        var spans = MarkAndLabel(Capitalized(MediaKindName.Written(attached.Kind)), picked == reference);
+        var spans = MarkAndLabel(Capitalized(MediaKindName.Written(attached.Kind)), reference, picked == reference);
 
         if (saysWhatItShows && attached.Description is { } description)
         {
@@ -634,7 +634,8 @@ public static class PostLines
 
     /// <summary>
     ///     The front of a row <c>←</c>/<c>→</c> walks to: the mark and <paramref name="label" />, in the brackets a
-    ///     picked reference is drawn in where <paramref name="bracketed" />. Handed back open, for a caller with more
+    ///     picked reference is drawn in where <paramref name="bracketed" />, the label and brackets saying they are
+    ///     <paramref name="reference" />'s (<see cref="Span.Reference" />). Handed back open, for a caller with more
     ///     to say on the row — an attachment's description follows it.
     /// </summary>
     /// <remarks>
@@ -642,20 +643,20 @@ public static class PostLines
     ///     differently — the brackets are what a reader reads a pick off, on a terminal with no colour and to a reader
     ///     who cannot tell one colour from another (ADR-0014).
     /// </remarks>
-    private static List<Span> MarkAndLabel(string label, bool bracketed)
+    private static List<Span> MarkAndLabel(string label, Reference? reference, bool bracketed)
     {
         var spans = new List<Span> { new($"{LinkMark} ", Role.Media) };
 
         if (bracketed)
         {
-            spans.Add(new Span(BodyText.Opening, Role.ReferencePicked));
+            spans.Add(new Span(BodyText.Opening, Role.ReferencePicked) { Reference = reference });
         }
 
-        spans.Add(new Span(label, Role.Media));
+        spans.Add(new Span(label, Role.Media) { Reference = reference });
 
         if (bracketed)
         {
-            spans.Add(new Span(BodyText.Closing, Role.ReferencePicked));
+            spans.Add(new Span(BodyText.Closing, Role.ReferencePicked) { Reference = reference });
         }
 
         return spans;
@@ -792,7 +793,7 @@ public static class PostLines
                    - 1
                    - (bracketed ? Glyphs.Columns(BodyText.Opening) + Glyphs.Columns(BodyText.Closing) : 0);
 
-        return new Line(MarkAndLabel(TextWrap.Clip(link.Name, Math.Max(0, room)), bracketed));
+        return new Line(MarkAndLabel(TextWrap.Clip(link.Name, Math.Max(0, room)), reference, bracketed));
     }
 
     /// <summary>
