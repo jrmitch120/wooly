@@ -84,8 +84,9 @@ public sealed class AccountScreen : Screen, IReadsOn<Post>
     /// <remarks>
     ///     Every key that acts on the picked post goes quiet while the header block is picked, because there is no
     ///     post picked out there for them to act on — said by <see cref="Screen.Keys" /> for every screen at once
-    ///     rather than here (#193), so this list is the same whichever thing on the screen is picked. The screen's own
-    ///     three are on it either way: a tie is with the person, and this is their screen wherever the reader stands.
+    ///     rather than here (#193), so this list is the same whichever thing on the screen is picked but for <c>w</c>,
+    ///     which is their follows on the header block and the picked post's who on a post (#490). The ties are on it
+    ///     either way: a tie is with the person, and this is their screen wherever the reader stands.
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(
@@ -93,11 +94,17 @@ public sealed class AccountScreen : Screen, IReadsOn<Post>
             [
                 .. Jumping,
                 .. IsOwnAccount ? [EditingThePublicProfile] : Ties,
-                new KeyHint("w", "follows"),
+                .. _walking.OnHeader ? [Following] : Array.Empty<KeyHint>(),
                 new KeyHint("s", WithReplies ? "posts" : "posts and replies"),
                 Refreshing,
             ],
             new KeyHint("esc", "back"));
+
+    /// <summary>
+    ///     <c>w</c> for their follows, offered while the header block is picked — and off the row on one of their posts,
+    ///     where <c>w</c> is that post's who, as on any feed, and the post keys say so (#490).
+    /// </summary>
+    private static KeyHint Following { get; } = new("w", "follows");
 
     /// <summary>
     ///     The three tie keys, offered on anybody's account but the own one, which cannot follow, mute or block itself.
@@ -191,7 +198,8 @@ public sealed class AccountScreen : Screen, IReadsOn<Post>
     /// </summary>
     /// <remarks>
     ///     <c>w</c> opens the following side rather than the followers, that being the one a reader is likelier to have
-    ///     come for on somebody else's profile — and either way the other side is one <c>s</c> away (#180).
+    ///     come for on somebody else's profile — and either way the other side is one <c>s</c> away (#180). Only from
+    ///     the header block: on one of their posts <c>w</c> is the post's who, the shell's as on any feed (#490).
     ///     <para>
     ///         <c>s</c> swaps in place: same stack, new crumb, the pick back on the header block — the follow list's
     ///         swap made over one account's timeline, and for its reason, since a toggle that pushed would grow the

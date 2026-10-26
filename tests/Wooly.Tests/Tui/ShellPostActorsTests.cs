@@ -259,6 +259,95 @@ public class ShellPostActorsTests
         Assert.Contains(opened.Screen.Keys, key => key is { Key: "s", Does: "boosted by" });
     }
 
+    /// <summary>
+    ///     On an account's screen <c>w</c> goes by what is picked (#490): with one of their posts picked, that post's
+    ///     who — the same as on any feed, a boost's inner post included.
+    /// </summary>
+    [Fact]
+    public async Task PressW_OnAPostOnAnAccountScreenOpensItsWho()
+    {
+        var shell = OnBensTimeline(APost.With(id: "200", account: "ben@hachyderm.io", boosted: APost.With(id: "110")));
+        shell.Engagement.ActorsOf[("110", ActorSide.Favorited)] = Actors("Alice");
+        var opened = await OnBensAccount(shell);
+        var listed = shell.Accounts.Lists.Count;
+
+        opened.Move(1);
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        Assert.Equal("Favorited by", Assert.IsType<ActorsScreen>(opened.Screen).Crumb);
+        Assert.Equal("110", Assert.Single(shell.Engagement.ActorReads).PostId);
+        Assert.Equal(listed, shell.Accounts.Lists.Count);
+    }
+
+    /// <summary>With the header block picked it opens their follows, as it always has, and asks nothing of a post.</summary>
+    [Fact]
+    public async Task PressW_OnTheHeaderOfAnAccountScreenOpensTheirFollows()
+    {
+        var shell = OnBensTimeline(APost.With(id: "110", account: "ben@hachyderm.io"));
+        var opened = await OnBensAccount(shell);
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        Assert.IsType<FollowsScreen>(opened.Screen);
+        Assert.Empty(shell.Engagement.ActorReads);
+    }
+
+    /// <summary>A post of theirs nobody has favorited or boosted says so there too, and stays put.</summary>
+    [Fact]
+    public async Task PressW_OnAnAccountsPostNobodyFavoritedOrBoostedSaysSo()
+    {
+        var shell = OnBensTimeline(APost.With(id: "110", account: "ben@hachyderm.io") with { Favorites = 0, Boosts = 0 });
+        var opened = await OnBensAccount(shell);
+        var listed = shell.Accounts.Lists.Count;
+
+        opened.Move(1);
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        Assert.Equal("Nobody has favorited or boosted this.", opened.Notice);
+        Assert.IsType<AccountScreen>(opened.Screen);
+        Assert.Empty(shell.Engagement.ActorReads);
+        Assert.Equal(listed, shell.Accounts.Lists.Count);
+    }
+
+    /// <summary>The status row says what <c>w</c> will do, and changes as the pick moves: follows, then who.</summary>
+    [Fact]
+    public async Task Keys_OnAnAccountScreenSayWhatWDoesForThePick()
+    {
+        var opened = await OnBensAccount(OnBensTimeline(APost.With(id: "110", account: "ben@hachyderm.io")));
+
+        Assert.Equal(["follows"], opened.Screen.Keys.Where(key => key.Key == "w").Select(key => key.Does));
+
+        opened.Move(1);
+
+        Assert.Equal(["who"], opened.Screen.Keys.Where(key => key.Key == "w").Select(key => key.Does));
+
+        opened.Move(-1);
+
+        Assert.Equal(["follows"], opened.Screen.Keys.Where(key => key.Key == "w").Select(key => key.Does));
+    }
+
+    /// <summary>Fakes whose timeline holds <paramref name="post" /> of Ben's, and who answer about Ben.</summary>
+    private static AShell OnBensTimeline(Post post) => new()
+    {
+        Timelines = FakeTimelineReader.Holding(post),
+        Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "ben@hachyderm.io")),
+    };
+
+    /// <summary>A shell drilled into Ben's account from the post on the timeline, the header block picked.</summary>
+    private static async Task<Shell> OnBensAccount(AShell shell)
+    {
+        var opened = await shell.Opened();
+
+        await opened.OpenAuthor();
+        shell.Host.Drain();
+        Assert.IsType<AccountScreen>(opened.Screen);
+
+        return opened;
+    }
+
     private static AShell Holding(Post post) => new() { Timelines = FakeTimelineReader.Holding(post) };
 
     private static IReadOnlyList<Account> Actors(params string[] names) =>

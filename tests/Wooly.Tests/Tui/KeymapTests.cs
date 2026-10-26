@@ -271,6 +271,22 @@ public class KeymapTests
     }
 
     /// <summary>
+    ///     On the account screen <c>w</c> goes by what is picked: their follows on the header block, and the picked
+    ///     post's who on one of their posts (#490).
+    /// </summary>
+    [Fact]
+    public void TheWhoKeyOnTheAccountScreenGoesByThePick()
+    {
+        var account = new AccountScreen(AnAccount.With(), [APost.With()], pinned: []);
+
+        Assert.Equal(Verb.OpenFollows, Means("w", account));
+
+        account.Move(1);
+
+        Assert.Equal(Verb.OpenPostActors, Means("w", account));
+    }
+
+    /// <summary>
     ///     <c>s</c> swaps sides on a post's actors, which have two as a follow list does — and is nothing on a
     ///     notification group's, which have one (#489).
     /// </summary>

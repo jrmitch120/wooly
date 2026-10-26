@@ -233,13 +233,14 @@ public static class Keymap
 
         // The two a follow list added, each bound where it means something rather than shell-wide — and so each is
         // announced on exactly the screen that answers it: s swaps sides on the list, and w opens one from the
-        // account screen whose row says so (#180).
+        // account screen whose row says so (#180) — while its header block is picked, the person rather than anything
+        // they wrote (#490).
         (ShellKey.S, FollowsScreen) => Verb.SwapSide,
-        (ShellKey.W, AccountScreen) => Verb.OpenFollows,
+        (ShellKey.W, AccountScreen { Picked: null }) => Verb.OpenFollows,
 
         // And w everywhere else — below Notifications, where it is who did what the row reports, and the account
-        // screen: who favorited or boosted the picked post, a key that means one thing wherever a post can be picked
-        // (#489).
+        // screen's header block: who favorited or boosted the picked post, a key that means one thing wherever a post
+        // is picked, one of an account's own included (#489, #490).
         (ShellKey.W, _) => Verb.OpenPostActors,
 
         // And s on a post's actors, which have two sides as a follow list does — and nowhere on a notification group's,

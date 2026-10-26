@@ -299,9 +299,8 @@ public class AccountWalkTests
 
         var onAPost = Status(screen);
 
-        // Less the four that would refuse this post, which is Maria's and hides nothing (#220) — and w, which is the
-        // screen's own follows here.
-        string[] refusing = ["x:show warning", "p:pin", "e:edit", "d:delete", "w:who"];
+        // Less the four that would refuse this post, which is Maria's and hides nothing (#220).
+        string[] refusing = ["x:show warning", "p:pin", "e:edit", "d:delete"];
 
         foreach (var key in PostKeys.OnAPost.Where(key => !refusing.Contains(key.ToString())))
         {
