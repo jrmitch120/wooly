@@ -14,6 +14,8 @@ internal sealed class FakePostEngagement : IPostEngagement
 
     private Func<Task<PostThread>> _thread;
 
+    private Func<string, PostThread>? _around;
+
     private FakePostEngagement(Post answer, Exception? refusal = null, PostThread? thread = null)
     {
         _answer = answer;
@@ -72,6 +74,14 @@ internal sealed class FakePostEngagement : IPostEngagement
     public static FakePostEngagement Threaded(Post answer, IReadOnlyList<Post> ancestors, params Post[] replies) =>
         new(answer, refusal: null, new PostThread(ancestors, replies));
 
+    /// <summary>
+    ///     An instance holding a thread of its own around each post it is asked about, from <paramref name="around" />
+    ///     given the post's id — where a test walks from one post into another and each screen must hold its own
+    ///     thread (#482).
+    /// </summary>
+    public static FakePostEngagement Threading(Func<string, PostThread> around) =>
+        new(APost.With(), refusal: null) { _around = around };
+
     /// <summary>An instance that refuses everything with <paramref name="refusal" />, having recorded the attempt.</summary>
     public static FakePostEngagement Refusing(Exception refusal) => new(APost.With(), refusal);
 
@@ -113,6 +123,11 @@ internal sealed class FakePostEngagement : IPostEngagement
     {
         ThreadsRead.Add(new Shown(profile.Name, postId));
         Tokens.Add(profile.AccessToken);
+
+        if (_around is { } around)
+        {
+            return Task.FromResult(around(postId));
+        }
 
         return _refusal is null ? _thread() : Task.FromException<PostThread>(_refusal);
     }

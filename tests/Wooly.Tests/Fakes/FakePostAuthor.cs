@@ -125,12 +125,18 @@ internal sealed class FakePostAuthor : IPostAuthor
     public Task<Post> PublishAttached(ActiveProfile profile, PostDraft draft, CancellationToken cancellationToken) =>
         Publish(profile, draft, cancellationToken);
 
+    /// <summary>
+    ///     What an edit is answered with where the test says, rather than what everything else is answered with — so a
+    ///     test can send a post and then edit it into something else.
+    /// </summary>
+    public Post? Edited { get; set; }
+
     public Task<Post> Edit(ActiveProfile profile, string postId, PostEdit edit, CancellationToken cancellationToken)
     {
         Edits.Add(new Changed(profile.Name, postId, edit));
         Tokens.Add(profile.AccessToken);
 
-        return Answer();
+        return _refusal is null && Edited is { } edited ? Task.FromResult(edited) : Answer();
     }
 
     public Task Delete(ActiveProfile profile, string postId, CancellationToken cancellationToken)

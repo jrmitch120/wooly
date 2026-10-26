@@ -50,6 +50,12 @@ public sealed class ConversationScreen : Screen
     /// <summary>What was said in it, oldest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;
 
+    /// <summary>
+    ///     Whether <paramref name="post" /> is among what was said in it — which is what makes a reply to it this
+    ///     conversation's own, wherever on the stack it was written (#484).
+    /// </summary>
+    public bool Holds(Post post) => _posts.IndexOf(post.Id) >= 0;
+
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen =>
         [.. Conversation.With.Select(Mentionable.Addressed), .. Mentionable.In(Posts)];
@@ -80,9 +86,11 @@ public sealed class ConversationScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     A post sent from inside this conversation is the thread's own, whatever in it it answers, and goes on the
-    ///     end of it — so a reply written here lands where the reader is looking rather than only in the next read of
-    ///     the conversation.
+    ///     A reply to anything in this conversation is the thread's own, whatever in it it answers and wherever it was
+    ///     written — here, or on a post opened from here (#484) — and goes on the end of it, which is where the next
+    ///     read of a conversation, read around its last message, puts it too. Picked, and the page following it, only
+    ///     where it was written here; a conversation further down the stack takes it in and stays where the reader
+    ///     left it.
     /// </remarks>
     public override bool Heard(Change change)
     {
@@ -98,8 +106,13 @@ public sealed class ConversationScreen : Screen
 
                 break;
 
-            case Change.PostSent(var post, var within) when within == Conversation.Id:
+            case Change.PostSent(var post, var within, _) sending when within == Conversation.Id:
                 Said(post);
+
+                if (sending.WrittenOn(this))
+                {
+                    PickAndFollow(_posts.Count - 1);
+                }
 
                 break;
 

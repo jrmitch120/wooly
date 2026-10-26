@@ -118,7 +118,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
 
                 break;
 
-            case Change.PostSent(var post, { } within):
+            case Change.PostSent(var post, { } within, _):
                 _conversations.Rewrite(held => held.Id == within ? held with { Latest = post } : held);
 
                 break;

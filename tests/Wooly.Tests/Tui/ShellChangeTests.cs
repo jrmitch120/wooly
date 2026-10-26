@@ -96,6 +96,41 @@ public class ShellChangeTests
     }
 
     /// <summary>
+    ///     A direct message sent from Notifications is the last word of a conversation, so Messages is read again on
+    ///     the next arrival rather than handed back with a last message up to a minute stale (#485).
+    /// </summary>
+    [Fact]
+    public async Task Send_ForgetsMessagesWhereADirectReplyWasSentFromNotifications()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "34", post: Somebody)),
+            Author = FakePostAuthor.Answering(DirectReply()),
+        };
+
+        var listings = await RepliedFromNotificationsHavingReadMessages(shell);
+
+        Assert.Equal(listings + 1, shell.Messages.Listings.Count);
+    }
+
+    /// <summary>
+    ///     A post that is not direct is in no conversation, so the Messages held is handed back as it was.
+    /// </summary>
+    [Fact]
+    public async Task Send_LeavesMessagesAloneWhereThePostSentIsNotDirect()
+    {
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "34", post: Somebody)),
+            Author = FakePostAuthor.Answering(DirectReply() with { Visibility = PostVisibility.Public }),
+        };
+
+        var listings = await RepliedFromNotificationsHavingReadMessages(shell);
+
+        Assert.Equal(listings, shell.Messages.Listings.Count);
+    }
+
+    /// <summary>
     ///     Somebody followed from a follow list stands differently on it, so the list is read again rather than handed
     ///     back saying the opposite.
     /// </summary>
@@ -174,6 +209,42 @@ public class ShellChangeTests
 
         Assert.IsType<FeedScreen>(opened.Screen);
         Assert.Equal(1, opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Notifications).Unread);
+    }
+
+    /// <summary>The reply the instance answers a send with: Jeff's, to Ben's post, direct.</summary>
+    private static Post DirectReply() => APost.With(
+        id: "330",
+        content: "Sounds good",
+        visibility: PostVisibility.Direct,
+        inReplyTo: new PostReplyTarget { PostId = Somebody.Id });
+
+    /// <summary>
+    ///     Messages read and held, then a reply sent to the post on Notifications and Messages arrived at again: the
+    ///     number of listings before that last arrival.
+    /// </summary>
+    private static async Task<int> RepliedFromNotificationsHavingReadMessages(AShell shell)
+    {
+        var opened = await shell.Opened();
+
+        opened.Step(ToNotifications + 1);
+        shell.Host.Settle();
+        opened.Step(-1);
+        shell.Host.Settle();
+
+        opened.Press(ShellKey.R);
+        ((ComposeScreen)opened.Screen).Text += "Sounds good";
+
+        await opened.Drafting.Send();
+        shell.Host.Drain();
+
+        var listings = shell.Messages.Listings.Count;
+
+        opened.Step(1);
+        shell.Host.Settle();
+
+        Assert.IsType<DirectMessagesScreen>(opened.Screen);
+
+        return listings;
     }
 
     /// <summary>A shell standing on Home again, having read Local on the way — so Local is held.</summary>
