@@ -11,8 +11,9 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     A reply sent from a post screen appearing in its thread as soon as the instance takes it, where the next read
 ///     would put it, on every post screen on the stack that holds what it answers — and picked only on the screen it
-///     was written from (#482). Where in a thread it goes is the thread's own (<see cref="Core.PostThreadTakeInTests" />);
-///     these are about which screens take it in and what is picked once they have.
+///     was written from (#482), lifted ahead of everyone else's where it answers your own post (#483). Where in a
+///     thread it goes is the thread's own (<see cref="Core.PostThreadTakeInTests" />); these are about which screens
+///     take it in and what is picked once they have.
 /// </summary>
 public class ShellSentReplyTests
 {
@@ -99,6 +100,39 @@ public class ShellSentReplyTests
         var post = Assert.IsType<PostScreen>(opened.Screen);
 
         Assert.Equal(["111", "112", "130", "120"], post.Replies.Select(reply => reply.Id));
+        Assert.Equal("130", post.Picked?.Id);
+    }
+
+    /// <summary>
+    ///     A reply to your own post is one the instance lifts ahead of everyone else's answers, so it lands first rather
+    ///     than last, where the next <c>g</c> puts it, and is picked there (#483).
+    /// </summary>
+    [Fact]
+    public async Task Send_LiftsAReplyToYourOwnPostAheadOfEveryoneElsesReplies()
+    {
+        var shell = new AShell
+        {
+            Engagement = FakePostEngagement.Answered(
+                APost.With(id: "110"),
+                Answering("111", "110"),
+                Answering("112", "111"),
+                Answering("120", "110")),
+            Author = FakePostAuthor.Answering(APost.With(
+                id: "130",
+                content: "Quite",
+                inReplyTo: new PostReplyTarget { PostId = "110", Handle = "jeff@mastodon.social" })),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        await Reply(opened, shell);
+
+        var post = Assert.IsType<PostScreen>(opened.Screen);
+
+        Assert.Equal(["130", "111", "112", "120"], post.Replies.Select(reply => reply.Id));
         Assert.Equal("130", post.Picked?.Id);
     }
 

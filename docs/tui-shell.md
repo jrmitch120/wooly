@@ -570,6 +570,12 @@ A reply sent from a post screen appears in its thread as soon as the instance ta
   puts it where Mastodon's next read would: depth first, each reply followed by its own answers, and the answers to one
   post oldest first — so it lands straight after the last of the answered post's own answers. A read would reach only
   the screen in front, open at the top, and be dropped as an enquiry if the reader had walked away.
+- **Self-replies lifted, across the whole thread** (#483). Mastodon's last step (`promote_by!`) moves every reply that
+  answers its own author up to where the first reply answering someone else stands, keeping their order. `TakeIn`
+  does the same to every reply it holds, the new one included, so a thread of your own lands ahead of everyone else's
+  answers and someone's self-reply sits where the instance puts it. Whether a reply answers its own author is read off
+  its `InReplyTo.Handle`, which `PostWire` sets to the post's own author exactly when Mastodon says so — so no head
+  post's author is needed to judge a direct answer to it.
 - **Every post screen on the stack that holds what it answers takes it in**, through the `Change.PostSent` every screen
   hears. One that answers an ancestor (`N up`) is in a thread around something else and is left off; only `Sent.` says
   it went out.
