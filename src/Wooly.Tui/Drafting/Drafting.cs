@@ -399,11 +399,10 @@ public sealed class Drafting
                 break;
 
             case Outgoing.Publishing(var draft):
-                // A reply written inside a conversation carries which one, taken now from the screen it was written
-                // over rather than read back when it lands — by then the reader may be anywhere.
-                var within = compose.Purpose == ComposeFor.Reply && Beneath(compose) is ConversationScreen conversation
-                    ? conversation.Conversation.Id
-                    : null;
+                // A reply to a message carries the conversation it is in, taken now from whichever conversation on the
+                // stack holds what it answers — beneath the compose or beneath a post opened from it (#484) — rather
+                // than read back when it lands, by when the reader may be anywhere.
+                var within = compose.Purpose == ComposeFor.Reply ? HeldIn(compose.About) : null;
 
                 // And which screen it was written from, taken now for the same reason: only that one moves its pick to
                 // the reply once it lands, wherever the reader is by then (#482).
@@ -644,6 +643,17 @@ public sealed class Drafting
     private Screen? Beneath(Screen screen) => _stack.Screens
         .TakeWhile(below => !ReferenceEquals(below, screen))
         .LastOrDefault();
+
+    /// <summary>
+    ///     The id of the conversation <paramref name="answered" /> is in: that of the nearest conversation screen on the
+    ///     stack holding it, wherever on the stack that is (#484) — or none, where no conversation on it does.
+    /// </summary>
+    private string? HeldIn(Post? answered) => answered is null
+        ? null
+        : _stack.Screens
+            .OfType<ConversationScreen>()
+            .LastOrDefault(conversation => conversation.Posts.Any(post => post.Id == answered.Id))
+            ?.Conversation.Id;
 
     /// <summary>
     ///     Opens the description editor over the compose screen in front, on the attachment whose row the walk is on

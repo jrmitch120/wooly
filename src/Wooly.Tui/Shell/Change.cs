@@ -32,7 +32,8 @@ public abstract record Change
     /// <summary>A post just published, a reply included.</summary>
     /// <param name="Post">The post as the instance published it.</param>
     /// <param name="Conversation">
-    ///     The id of the conversation it was written in, where it was a reply written inside one. Carried because an
+    ///     The id of the conversation it is in, where it was a reply to a post a conversation on the stack holds — written
+    ///     inside the conversation or on a post opened from it (#484). Carried because an
     ///     instance says nothing on a post about which conversation it is in, and the list a thread was opened from
     ///     knows only each conversation's last post — so a reply to anything older would reach no row at all.
     /// </param>

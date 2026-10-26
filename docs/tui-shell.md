@@ -577,6 +577,12 @@ A reply sent from a post screen appears in its thread as soon as the instance ta
   compose when it was sent; that one picks the reply and its page follows it, so a reply landing below the rows on show
   is brought into view. Any other keeps its pick on the thing it was on and its page where the reader left it.
 - **Feeds, Notifications, account and search screens are unchanged.** A refresh is how they show what has arrived.
+- **A direct message reply reaches its conversation from wherever it was written** (#484). `Change.PostSent.Conversation`
+  is the conversation of the nearest conversation screen on the stack holding the post the reply answers — beneath the
+  compose, or beneath a post screen opened from it — worked out when it is sent. Every conversation screen of that
+  conversation puts the reply on the end, which is where the next read, around the last message, puts it too; only the
+  one it was written from picks it and has its page follow. The Messages list moves that conversation's row in place.
+  A reply to something no conversation on the stack holds reaches none of them.
 
 ### What references settled
 

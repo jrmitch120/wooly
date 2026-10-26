@@ -485,6 +485,166 @@ public class ShellMessageTests
     }
 
     /// <summary>
+    ///     A reply written inside the conversation is what the reader just said, so it is picked once it lands — as it
+    ///     is on a post screen — and not left on the message it answered (#484).
+    /// </summary>
+    [Fact]
+    public async Task Send_PicksTheReplyInTheConversationItWasWrittenIn()
+    {
+        var thread = AConversation.Thread(
+            AConversation.With(id: "7"),
+            AConversation.DirectPost(id: "110", content: "Are you about?"),
+            AConversation.DirectPost(id: "111", content: "Or not?"));
+
+        var sent = APost.With(
+            id: "112",
+            account: "jeff@mastodon.social",
+            content: "All week",
+            inReplyTo: new PostReplyTarget { PostId = "110" });
+
+        var shell = new AShell
+        {
+            Messages = FakeDirectMessages.Threading(thread),
+            Author = FakePostAuthor.Answering(sent),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToMessages);
+        shell.Host.Settle();
+
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        Assert.Equal("110", opened.Screen.Picked?.Id);
+
+        opened.Press(ShellKey.R);
+        ((ComposeScreen)opened.Screen).Text += "All week";
+
+        await opened.Drafting.Send();
+        shell.Host.Drain();
+
+        Assert.Equal("112", Assert.IsType<ConversationScreen>(opened.Screen).Picked?.Id);
+    }
+
+    /// <summary>
+    ///     A reply written on a post opened from inside a conversation is the conversation's last word too, so the
+    ///     conversation underneath puts it on the end — where its next read would — with its pick left on the message
+    ///     the reader walked in from, and the row it was opened from shows it as the last message (#484).
+    /// </summary>
+    [Fact]
+    public async Task Send_FromAPostOpenedInAConversationPutsTheReplyOnTheEndOfIt()
+    {
+        var asked = AConversation.DirectPost(id: "110", content: "Are you about?");
+        var thread = AConversation.Thread(
+            AConversation.With(id: "7", latest: AConversation.DirectPost(id: "111", content: "Or not?")),
+            asked,
+            AConversation.DirectPost(id: "111", content: "Or not?"));
+
+        var sent = APost.With(
+            id: "112",
+            account: "jeff@mastodon.social",
+            content: "All week",
+            visibility: PostVisibility.Direct,
+            inReplyTo: new PostReplyTarget { PostId = "110" });
+
+        var shell = new AShell
+        {
+            Messages = FakeDirectMessages.Threading(thread),
+            Engagement = FakePostEngagement.Answered(asked),
+            Author = FakePostAuthor.Answering(sent),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToMessages);
+        shell.Host.Settle();
+
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        Assert.Equal("110", opened.Screen.Picked?.Id);
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        Assert.Equal("110", Assert.IsType<PostScreen>(opened.Screen).Post.Id);
+
+        opened.Press(ShellKey.R);
+        ((ComposeScreen)opened.Screen).Text += "All week";
+
+        await opened.Drafting.Send();
+        shell.Host.Drain();
+
+        opened.Back();
+
+        var conversation = Assert.IsType<ConversationScreen>(opened.Screen);
+
+        Assert.Equal(["110", "111", "112"], conversation.Posts.Select(post => post.Id));
+        Assert.Equal("110", conversation.Picked?.Id);
+
+        opened.Back();
+
+        Assert.Equal("112", Assert.IsType<DirectMessagesScreen>(opened.Screen).Conversations[0].Latest?.Id);
+    }
+
+    /// <summary>
+    ///     A reply to something no conversation on the stack holds is in none of them, so every conversation and its
+    ///     row are left as they were — even one the post screen it was written on was opened from (#484).
+    /// </summary>
+    [Fact]
+    public async Task Send_LeavesAConversationAloneWhereItHoldsNothingTheReplyAnswers()
+    {
+        var asked = AConversation.DirectPost(id: "110", content: "Are you about?");
+        var thread = AConversation.Thread(AConversation.With(id: "7", latest: asked), asked);
+
+        var sent = APost.With(
+            id: "130",
+            account: "jeff@mastodon.social",
+            content: "All week",
+            visibility: PostVisibility.Direct,
+            inReplyTo: new PostReplyTarget { PostId = "120" });
+
+        var shell = new AShell
+        {
+            Messages = FakeDirectMessages.Threading(thread),
+            Engagement = FakePostEngagement.Answered(
+                asked,
+                APost.With(id: "120", account: "ben@hachyderm.io", inReplyTo: new PostReplyTarget { PostId = "110" })),
+            Author = FakePostAuthor.Answering(sent),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Step(ToMessages);
+        shell.Host.Settle();
+
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        opened.Move(1);
+
+        Assert.Equal("120", opened.Screen.Picked?.Id);
+
+        opened.Press(ShellKey.R);
+        ((ComposeScreen)opened.Screen).Text += "All week";
+
+        await opened.Drafting.Send();
+        shell.Host.Drain();
+
+        opened.Back();
+
+        Assert.Equal(["110"], Assert.IsType<ConversationScreen>(opened.Screen).Posts.Select(post => post.Id));
+
+        opened.Back();
+
+        Assert.Equal("110", Assert.IsType<DirectMessagesScreen>(opened.Screen).Conversations[0].Latest?.Id);
+    }
+
+    /// <summary>
     ///     The keys a reader can find on no other screen, on the part of the status row that survives the cut
     ///     (<c>docs/tui-shell.md</c>). A conversation list is a list of people rather than posts, so it offers none of
     ///     the keys that act on one.
