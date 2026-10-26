@@ -174,7 +174,9 @@ internal sealed class FakePostEngagement : IPostEngagement
         ActorReads.Add(new ActorRead(profile.Name, postId, side, limit));
         Tokens.Add(profile.AccessToken);
 
-        return Task.FromResult(Actors(postId, side, from: null, limit));
+        return _refusal is null
+            ? Task.FromResult(Actors(postId, side, from: null, limit))
+            : Task.FromException<Fetch<Wooly.Core.Accounts.Account>>(_refusal);
     }
 
     public Task<Fetch<Wooly.Core.Accounts.Account>> ReadActorsOn(
@@ -188,7 +190,9 @@ internal sealed class FakePostEngagement : IPostEngagement
         ActorReadsOn.Add(new ActorReadOn(profile.Name, postId, side, from, limit));
         Tokens.Add(profile.AccessToken);
 
-        return Task.FromResult(Actors(postId, side, from, limit));
+        return _refusal is null
+            ? Task.FromResult(Actors(postId, side, from, limit))
+            : Task.FromException<Fetch<Wooly.Core.Accounts.Account>>(_refusal);
     }
 
     private Fetch<Wooly.Core.Accounts.Account> Actors(string postId, ActorSide side, Onward? from, int limit) =>

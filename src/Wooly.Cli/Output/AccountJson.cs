@@ -1,6 +1,7 @@
 using Spectre.Console;
 using Wooly.Core.Accounts;
 using Wooly.Core.Paging;
+using Wooly.Core.Posts;
 using Wooly.Core.Relationships;
 
 namespace Wooly.Cli.Output;
@@ -24,6 +25,21 @@ internal static class AccountJson
     /// </param>
     public static void Write(IAnsiConsole console, FollowSide side, string? whose, Fetch<Account> fetch) =>
         Write(console, side.Either("followers", "following"), whose, fetch);
+
+    /// <summary>Writes one side of a post's <b>Actors</b>, saying which side and which post (#488).</summary>
+    /// <remarks>
+    ///     The same envelope as a follow list, so a script reads every list of accounts one way: <c>list</c> is
+    ///     <c>favoritedBy</c> or <c>boostedBy</c>, and <c>post</c> names the post in place of the <c>account</c> a follow
+    ///     list names.
+    /// </remarks>
+    public static void WriteActors(IAnsiConsole console, ActorSide side, string postId, Fetch<Account> fetch) =>
+        ListDocument.Write(
+            console,
+            fetch,
+            AccountDocument.Of,
+            "accounts",
+            ("list", side.Either("favoritedBy", "boostedBy")),
+            ("post", postId));
 
     /// <summary>Writes the accounts waiting to be let in.</summary>
     /// <remarks>

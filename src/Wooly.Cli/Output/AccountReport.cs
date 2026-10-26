@@ -2,6 +2,7 @@ using System.Globalization;
 using Spectre.Console;
 using Wooly.Core.Accounts;
 using Wooly.Core.Paging;
+using Wooly.Core.Posts;
 using Wooly.Core.Relationships;
 
 namespace Wooly.Cli.Output;
@@ -80,7 +81,19 @@ internal static class AccountReport
     ///     The account whose list this is, so that an empty one says whose it was — read on its own, "no followers"
     ///     could as easily be about the account that was named as about the profile that asked.
     /// </param>
-    public static void Write(IAnsiConsole console, FollowSide side, string? whose, Fetch<Account> fetch)
+    public static void Write(IAnsiConsole console, FollowSide side, string? whose, Fetch<Account> fetch) =>
+        Write(console, Nobody(side, whose), fetch);
+
+    /// <summary>
+    ///     Writes one side of a post's <b>Actors</b> — who favorited it, or who boosted it — each the way a follow list
+    ///     writes one, or says that there are none of them (#488).
+    /// </summary>
+    /// <param name="postId">The post, so that an empty list says which post nobody favorited.</param>
+    public static void WriteActors(IAnsiConsole console, ActorSide side, string postId, Fetch<Account> fetch) =>
+        Write(console, side.Either($"Nobody has favorited post {postId}.", $"Nobody has boosted post {postId}."), fetch);
+
+    /// <summary>Writes a list of accounts, or <paramref name="nobody" /> where there are none of them.</summary>
+    private static void Write(IAnsiConsole console, string nobody, Fetch<Account> fetch)
     {
         if (fetch.Items.Count == 0)
         {
@@ -88,7 +101,7 @@ internal static class AccountReport
             // that failure, and saying "no followers" as well would be saying the opposite of what happened.
             if (fetch.IsComplete)
             {
-                console.MarkupLineInterpolated($"{Nobody(side, whose)}");
+                console.MarkupLineInterpolated($"{nobody}");
             }
 
             return;

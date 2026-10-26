@@ -101,4 +101,38 @@ public class PostEngagementIntegrationTests
             await author.Delete(profile, published.Id, cancellationToken);
         }
     }
+
+    /// <summary>
+    ///     A post's two lists of actors, against a real instance (#488): favorited and boosted by a second account, the
+    ///     post lists that account on each side — read from the endpoint each side names, through the account mapping.
+    /// </summary>
+    [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
+    public async Task ReadActors_ListsWhoFavoritedAndWhoBoostedAPost()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var services = LiveInstance.NewServices();
+        var profile = LiveInstance.Profile;
+        var other = LiveInstance.VoterProfile;
+        var author = services.GetRequiredService<IPostAuthor>();
+        var engagement = services.GetRequiredService<IPostEngagement>();
+
+        var published = await author.Publish(profile, LiveInstance.ThrowawayDraft(), cancellationToken);
+
+        try
+        {
+            await engagement.Mark(other, published.Id, PostMark.Favorite, wanted: true, cancellationToken);
+            await engagement.Mark(other, published.Id, PostMark.Boost, wanted: true, cancellationToken);
+
+            var favorited = await engagement.ReadActors(profile, published.Id, ActorSide.Favorited, 80, cancellationToken);
+            var boosted = await engagement.ReadActors(profile, published.Id, ActorSide.Boosted, 80, cancellationToken);
+
+            Assert.StartsWith($"{LiveInstance.VoterUsername}@", Assert.Single(favorited.Items).Address);
+            Assert.StartsWith($"{LiveInstance.VoterUsername}@", Assert.Single(boosted.Items).Address);
+            Assert.True(favorited.IsWhole);
+        }
+        finally
+        {
+            await author.Delete(profile, published.Id, cancellationToken);
+        }
+    }
 }
