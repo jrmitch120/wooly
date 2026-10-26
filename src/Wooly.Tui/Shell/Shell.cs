@@ -665,6 +665,7 @@ public sealed class Shell
         Verb.PreviousGroup => Ran(() => StepGroup(-1)),
         Verb.OpenPost => Ran(Enter),
         Verb.OpenAuthor => Ran(OpenAuthor),
+        Verb.OpenPostActors => Ran(OpenPostActors),
         Verb.OpenReference => Ran(OpenReference),
         Verb.Boost => Ran(() => Mark(PostMark.Boost)),
         Verb.Favorite => Ran(() => Mark(PostMark.Favorite)),
@@ -961,6 +962,27 @@ public sealed class Shell
         var author = AccountAddress.Parse((picked.Boosted ?? picked).Account);
 
         await Actor.Arrival.Open(new Subject.Account(author, WithReplies: false));
+    }
+
+    /// <summary>
+    ///     Opens who favorited or boosted the picked post — the side its counts say has anybody on it — or says that
+    ///     nobody has done either and opens nothing (#489).
+    /// </summary>
+    public async Task OpenPostActors()
+    {
+        if (Screen.Picked is not { } picked)
+        {
+            return;
+        }
+
+        if (Subject.PostActors.Opening(picked) is { } actors)
+        {
+            await Actor.Arrival.Open(actors);
+        }
+        else
+        {
+            StatusRow.Say(Subject.PostActors.NobodyAtAll, isError: false);
+        }
     }
 
     /// <summary>Walks back up one level of the stack. Never quits, and never leaves the shell with nothing on it.</summary>

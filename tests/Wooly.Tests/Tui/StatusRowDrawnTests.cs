@@ -110,13 +110,13 @@ public class StatusRowDrawnTests
 
     /// <summary>The rows the ticket drew, which are what a reader on those screens sees.</summary>
     [Theory]
-    [InlineData(40, " Option: 1-0 | Vote: v | …+14 | Keys: ?")]
-    [InlineData(61, " Option: 1-0 | Vote: v | Thread: j/k | …+13 | Keys: ?")]
-    [InlineData(80, " Option: 1-0 | Vote: v | Thread: j/k | Refresh: g | Back: esc | …+11 | Keys: ?")]
+    [InlineData(40, " Option: 1-0 | Vote: v | …+15 | Keys: ?")]
+    [InlineData(61, " Option: 1-0 | Vote: v | Thread: j/k | …+14 | Keys: ?")]
+    [InlineData(80, " Option: 1-0 | Vote: v | Thread: j/k | Refresh: g | Back: esc | …+12 | Keys: ?")]
     [InlineData(
         120,
         " Option: 1-0 | Vote: v | Thread: j/k | Refresh: g | Back: esc | Read: ⏎ | Reply: r | Boost: b"
-        + " | …+8 | Keys: ?")]
+        + " | …+9 | Keys: ?")]
     public void AtEachWidth_APollOfYourOwnDegradesRatherThanTruncating(int width, string row) =>
         Assert.Equal(row, Row(Of("post-poll"), width).Text);
 
@@ -127,7 +127,7 @@ public class StatusRowDrawnTests
     [Fact]
     public void AtEighty_AFeedReadsDoesThenKeyDividedByBars() =>
         Assert.Equal(
-            " Post: j/k | Refresh: g | Destination: tab | Group: ` | Read: ⏎ | …+10 | Keys: ?",
+            " Post: j/k | Refresh: g | Destination: tab | Group: ` | Read: ⏎ | …+11 | Keys: ?",
             Row(Feed, 80).Text);
 
     /// <summary>The words are capitalised as a label, and only their first letter: the key keeps its case.</summary>
@@ -254,6 +254,6 @@ public class StatusRowDrawnTests
     public void TheRank_IsWalkOwnWayOutRemindersTailThenAsking() =>
         Assert.Equal(
             "j/k:post g:refresh tab:destination `:group ⏎:read r:reply b:boost f:favorite a:author c:compose "
-            + "↓/↑:row x:show warning p:pin e:edit d:delete ?:keys",
+            + "↓/↑:row w:who x:show warning p:pin e:edit d:delete ?:keys",
             string.Join(' ', Feed));
 }

@@ -237,6 +237,15 @@ public static class Keymap
         (ShellKey.S, FollowsScreen) => Verb.SwapSide,
         (ShellKey.W, AccountScreen) => Verb.OpenFollows,
 
+        // And w everywhere else — below Notifications, where it is who did what the row reports, and the account
+        // screen: who favorited or boosted the picked post, a key that means one thing wherever a post can be picked
+        // (#489).
+        (ShellKey.W, _) => Verb.OpenPostActors,
+
+        // And s on a post's actors, which have two sides as a follow list does — and nowhere on a notification group's,
+        // which have one (#489).
+        (ShellKey.S, ActorsScreen { Side: not null }) => Verb.SwapSide,
+
         // And s again on the account screen, where it swaps runs rather than sides: their posts and replies, and back
         // to their posts alone (#229). Still bound only where it does something, and announced where it is.
         (ShellKey.S, AccountScreen) => Verb.SwapPostsAndReplies,

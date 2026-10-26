@@ -62,10 +62,17 @@ public static class PostKeys
     ];
 
     /// <summary>
-    ///     And the rest, which rank behind <see cref="Scrolling" /> in the tail: <c>x</c> is learned on the first
-    ///     warning a reader meets, and the other three act only on your own posts (#218).
+    ///     Who favorited or boosted the picked post (#489) — on every screen with a post picked, and in the tail, being
+    ///     something a reader asks of a post less than they mark it.
     /// </summary>
-    private static IReadOnlyList<KeyHint> Learnable { get; } = [Revealing, .. Yours];
+    private static KeyHint Who { get; } = new("w", "who");
+
+    /// <summary>
+    ///     And the rest, which rank behind <see cref="Scrolling" /> in the tail: <c>w</c> is asked of a post less than
+    ///     it is marked, <c>x</c> is learned on the first warning a reader meets, and the other three act only on your
+    ///     own posts (#218, #489).
+    /// </summary>
+    private static IReadOnlyList<KeyHint> Learnable { get; } = [Who, Revealing, .. Yours];
 
     /// <summary>What every screen with posts on it answers to, in the rank the status row draws them in.</summary>
     public static IReadOnlyList<KeyHint> OnAPost { get; } = [.. Reminding, .. Learnable];

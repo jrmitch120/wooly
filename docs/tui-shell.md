@@ -208,6 +208,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `⏎` on a handle or profile address typed into search, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229, direct #306 |
 | Follows — everyone an account follows, or everyone who follows it | `w` on an account, `s` to swap sides | #165 |
 | Actors — everyone in one notification group, crumbed by its kind: `Favorited by`, `Boosted by`, `Followed you`, or the instance's own word | `w` on a notification group of several | #455 |
+| Actors — one side of a post's actors, everyone who favorited it or everyone who boosted it, crumbed `Favorited by` / `Boosted by` | `w` on a picked post anywhere but Notifications, `s` to swap sides | #489 |
 | Discover — who to follow, in sections by why | A rail destination | #171 |
 | Search — prompt and results | A rail destination, or `/` | #29, moving between kinds #166 |
 | Notifications | A rail destination | #29 |
@@ -260,6 +261,7 @@ Feed and post:
 | `p` | Pin / unpin | Own posts only |
 | `e` | Edit | Own posts only |
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
+| `w` | Who favorited it, or who boosted it: the actors screen, one side at a time | On a boost, the post boosted. Opens "Favorited by" where the post's count of favorites is above zero, else "Boosted by" where its boosts are, else says `Nobody has favorited or boosted this.` and opens nothing — settled from the counts before anything is read, and always the list, never a shortcut to one account (#489). On Notifications `w` is who did what the row reports, and on an account screen their follows (below) |
 | `x` | Show what the post is hiding | Its warned text and poll, its sensitive attachments and link preview, or both halves at once (#113, #116, #119). What it showed belongs to the screen it was pressed on (#121, below) |
 | `←` `→` | Walk the references (hashtag, mention, link) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below) |
 | `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll is on screen and would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
@@ -272,7 +274,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Account | `F` follow/unfollow · `M` mute/unmute · `B` block/unblock — capitals, so a lower-case mark key can never fire a tie by accident, and on nobody's account but the own one, which cannot have a tie with itself and draws no standing, nobody in common and no note · `w` follows, which is everyone they follow with `s` a keypress from everyone who follows them · `s` posts and replies, or back to posts alone, in place · `[`/`]` section, on an account carrying a pinned run · `E` edit public profile, on the own account only — **You**, or yours reached any other way — and off the status row and answered nowhere else, as `p`/`e`/`d` are on somebody else's post; it reads the public profile as written first, and a read that fails opens nothing and says why (#406) |
 | Edit public profile | `↑`/`↓` walk the fields top to bottom — display name, Avatar, Header, the custom fields, Locked, Bot, Discoverable, then the bio at the foot — stopping at either end rather than coming round; a custom field's label and value sit side by side, so `↑`/`↓` keep to the column down the rows, coming in on the labels, and `→` off the end of a label crosses to its value with the caret at the start, `←` off the start of a value back to its label; `←`/`→` move nothing else, being the caret's in a field and nobody's on a picture or toggle; in the bio `↑` walks only off its first line and `↓` only off its last, the caret having them between, and `⏎` in a one-line field walks on to the next in reading order, a label to its value; nothing is marked with a bar — a field walked to has the caret, and a picture or toggle, having none, has its value lit in `selected-text`, as compose's Media and To are · `space` or `⏎` flips the toggle walked to · on **Avatar** or **Header** `⏎` opens the file browser for one picture, crumbed `Choose avatar` or `Choose header`, and `ctrl-v` or `alt-v` pastes a picture from the clipboard — or the first copied file that is a picture — into it, saying on the status row where the clipboard holds neither, or where this machine has nothing to read the clipboard with — every press, there being no text to paste instead, where compose says the missing tool once a session; the status row offers `⏎ choose file` and `ctrl-v/alt-v paste` there, and other letters are nobody's. A picture picked is drawn in place of the current one with its file name and `sent on save` beside it, and goes up only in the save (ADR-0028) — a touch, like any other edit; on a terminal that draws, each row is two rows tall with the picture in a box (the avatar four columns wide, the header twelve, each filled by its picture, cropped from the middle — #438) and the words after the header's box width, and where nothing is drawn it is one line, `Avatar  change…`, `Avatar  none · choose…` or `Avatar  cat.png · sent on save` (#407) — `change…` and `choose…` saying what `⏎` does, the picture saying what is there · `ctrl-s` save, sending only what differs from what was read (ADR-0028): the custom fields as a set, an emptied row left out, which removes its field; with nothing changed it sends nothing and says so · `esc` leave — asking `Discard these changes? y / n` first where anything differs from how it opened, as every way out does, and only `y` goes (#373) · `tab`/`shift-tab` are the frame's, never a walk of the form's fields. On a terminal too short for the whole form the field walked to is always on screen: the form moves up or down only when the walk leaves what is shown, and only as far as brings it back. A save takes the form off and reads the account under it again, saying "Public profile saved." — the own account further down the stack shows it as saved, a list held a moment ago with the own account or a post it wrote or boosted on it is read again when next reached, and a new avatar or header is drawn rather than the old one; a refusal keeps the form and every edit in it, with the instance's own words on the status row until an edit spends them (#406). While the list of people to mention is open in the bio: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the form (#408) |
 | Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
-| Actors | `⏎` open that account |
+| Actors | `⏎` open that account · `s` swap to the other side, in place, on a post's actors only — a notification group's have one side (#489) |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
 | Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts and read on as the page nears the end (#455, #467) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
@@ -1181,7 +1183,7 @@ who walked to the bottom had no way to see anything older without leaving the TU
   trigger, from the same onward position, with the same foot (*What a follow list settled*), and ask where the profile
   stands only with the people a read on brought. A held Follow list does not: it is read whole at once, as before.
 - **Every list the spec named reads on.** Every timeline, an account's posts, the Inbox, a browsed **Follow list** and
-  a notification group's actors. Every other list (Discover, a search, a **Thread**, a conversation, a held Follow list)
+  a notification group's actors — and, since #489, one side of a post's actors. Every other list (Discover, a search, a **Thread**, a conversation, a held Follow list)
   reads once and never asks, and draws no foot.
 
 ### What conversations settled
@@ -1797,6 +1799,33 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   already free — the stack hands back the very screen with its page intact (#133) — so the cache only pays on a re-open
   after popping.
 
+### What a post's who settled
+
+`w` on a picked post opens who favorited it or who boosted it, on the actors screen Notifications uses; `s` swaps to
+the other side in place (#487, #489). `IPostEngagement.ReadActors` reads one side of a post's **Actors** from
+`/statuses/:id/favourited_by` or `/reblogged_by`, paged by the instance's link and read on by `ReadActorsOn` (#488):
+
+- **One side at a time, never merged.** The instance keeps the two lists apart and so does the screen, for the reason
+  ADR-0032 gives against grouping on the client. The crumb says which: `Favorited by` or `Boosted by`, the same words a
+  favorite or boost notification group's actors are crumbed by, from the one place (`ActorSideWords`).
+- **The opening side is the post's counts', settled before anything is read.** Favorites above zero open
+  `Favorited by`; otherwise boosts above zero open `Boosted by`; otherwise the status row says `Nobody has favorited
+  or boosted this.` and nothing is read or pushed. There is no shortcut to one account where a count is one: the list
+  is what says whether they favorited or boosted, and a count can be stale — a side that reads back empty says
+  `Nobody has favorited this.` / `Nobody has boosted this.` The instance lists only the actors it knows of, so a list
+  can be shorter than the count on the post; it is drawn as answered.
+- **On a boost it is the post boosted**, as every post verb acts on, and it is the same verb on every screen a post can
+  be picked on — a feed, a thread, the post screen, a search, a conversation — bar Notifications, where `w` stays who did
+  what the row reports (#451), and the account screen, where it is their follows. `w:who` is on the status row while a
+  post is picked, in the tail with `x` and the author's three.
+- **The actors screen is generalised, not copied.** It lists a notification group's actors or one side of a post's,
+  with the same rows (the compact Account block with **Standing**, asked once a page), `⏎`, `g` and reading on; what
+  differs is the crumb, the empty text and `s`, which only a post's actors answer. `s` swaps as a Follow list's does —
+  the other side stood in this one's place, so flipping never grows the stack and `esc` returns to the post.
+- **Never held.** A post's actors **Subject** is compared by the post's id and side and never cached, so the reader's
+  own favorite or boost is on the list the next time it is opened. An open list is not changed live by a mark.
+- **No click opens it.** A post's counts stay inert, kept for the marks themselves, as on the web.
+
 ### What moving between kinds and sections settled
 
 A search's results were always labelled — `── accounts ──`, `── hashtags ──`, `── posts ──` have been drawn over the
@@ -2197,7 +2226,7 @@ Three things stayed outside it, each deliberately:
   `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
   and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
-  `SearchScreen.cs`; `w`, `d` and `D` in `NotificationsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
+  `SearchScreen.cs`; `w`, `d` and `D` in `NotificationsScreen.cs`; the actors screen's `⏎` and `s` in `ActorsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
   conversation list's `⏎` in `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A
   `Confirmation` carries what agreeing to it does, so `D` asks the same way a delete and a vote do.
 - **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the six movements that walk the page

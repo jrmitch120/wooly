@@ -1,5 +1,6 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Notifications;
+using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -7,23 +8,52 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     Every <b>Actor</b> in one notification group: everyone who favorited the post, boosted it or followed the reader,
-///     where the row on Notifications names two and counts the rest (#455). Drawn as Account blocks the way Followers
-///     is, and an ordinary screen on the stack, so opening somebody and walking back out works as it does there.
+///     Every <b>Actor</b> in one notification group — everyone who favorited the post, boosted it or followed the
+///     reader, where the row on Notifications names two and counts the rest (#455) — or one side of a post's actors:
+///     everyone who favorited it, or everyone who boosted it (#489). Drawn as Account blocks the way Followers is, and
+///     an ordinary screen on the stack, so opening somebody and walking back out works as it does there.
 /// </summary>
 /// <remarks>
-///     Read from the group's own accounts (<see cref="Subject.Actors" />), so it lists exactly the group the row
-///     counted rather than everyone who has ever favorited the post. Nothing here fetches: what is read arrives
-///     through <see cref="Arrived" />, and the rest through <see cref="ReadOn" /> as the page nears the end of what is
-///     in hand (#467).
+///     One screen for both rather than two, because what is on it is the same: people, opened by <c>⏎</c>, read on as
+///     the page nears the end and read again by <c>g</c>. What differs is what it is about — which settles the crumb,
+///     what an empty list says, and whether <c>s</c> has another side to swap to, which only a post's actors have.
+///     <para>
+///         Read from the group's own accounts (<see cref="Subject.Actors" />) or the post's own side
+///         (<see cref="Subject.PostActors" />). Nothing here fetches: what is read arrives through
+///         <see cref="Arrived" />, and the rest through <see cref="ReadOn" /> as the page nears the end of what is in
+///         hand (#467).
+///     </para>
 /// </remarks>
-/// <param name="group">The group whose actors these are.</param>
-public sealed class ActorsScreen(NotificationGroup group) : Screen, IReadsOn<Account>
+public sealed class ActorsScreen : Screen, IReadsOn<Account>
 {
     private readonly Picked<Account> _people = new([]);
 
-    /// <summary>The group whose actors these are.</summary>
-    public NotificationGroup Group { get; } = group;
+    /// <summary>The actors of the notification group <paramref name="group" />.</summary>
+    public ActorsScreen(NotificationGroup group)
+    {
+        Group = group;
+        Crumb = KindLook.Of(group.Kind).Crumb;
+        Nobody = "Nobody is in this group any more.";
+    }
+
+    /// <summary>The actors on <paramref name="side" /> of <paramref name="post" />.</summary>
+    /// <param name="post">The post, never the boost carrying it.</param>
+    public ActorsScreen(Post post, ActorSide side)
+    {
+        Post = post;
+        Side = side;
+        Crumb = side.Crumb();
+        Nobody = side.Nobody();
+    }
+
+    /// <summary>The group whose actors these are, or nothing where they are a post's.</summary>
+    public NotificationGroup? Group { get; }
+
+    /// <summary>The post whose actors these are, or nothing where they are a group's.</summary>
+    public Post? Post { get; }
+
+    /// <summary>Which side of <see cref="Post" />'s actors these are, or nothing where they are a group's.</summary>
+    public ActorSide? Side { get; }
 
     /// <summary>Everyone read so far, in the order the instance listed them, newest first.</summary>
     public IReadOnlyList<Account> People => _people.All;
@@ -36,10 +66,10 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen, IReadsOn<Acc
 
     /// <inheritdoc />
     /// <remarks>
-    ///     What they did, as the kind says it: "Favorited by", "Boosted by", "Followed you", and for a kind this client
-    ///     has no words for, the instance's own word.
+    ///     What they did: "Favorited by" or "Boosted by" for a post's side, and for a group as its kind says it —
+    ///     "Followed you", or for a kind this client has no words for, the instance's own word.
     /// </remarks>
-    public override string Crumb => KindLook.Of(Group.Kind).Crumb;
+    public override string Crumb { get; }
 
     /// <inheritdoc />
     public override bool Refreshes => true;
@@ -47,8 +77,11 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen, IReadsOn<Acc
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => People.Select(Mentionable.Of);
 
-    /// <summary>What is said where the instance listed nobody in the group — every notification in it dismissed since.</summary>
-    public static string Nobody => "Nobody is in this group any more.";
+    /// <summary>
+    ///     What is said where the instance listed nobody: in a group, every notification in it dismissed since; on a
+    ///     post's side, a count that was stale.
+    /// </summary>
+    public string Nobody { get; }
 
     /// <inheritdoc />
     /// <remarks>A row is a person rather than a post, so none of the keys that act on one are offered.</remarks>
@@ -56,6 +89,7 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen, IReadsOn<Acc
     [
         new KeyHint("j/k", "person"),
         new KeyHint("⏎", "open", NeedsAPick: true),
+        .. Side is { } side ? [new KeyHint("s", side.Other().Crumb().ToLowerInvariant())] : Array.Empty<KeyHint>(),
         Refreshing,
         .. PostKeys.Leaving(new KeyHint("esc", "back")),
     ];
@@ -92,11 +126,17 @@ public sealed class ActorsScreen(NotificationGroup group) : Screen, IReadsOn<Acc
     }
 
     /// <inheritdoc />
-    /// <remarks><c>⏎</c> opens whoever is picked out as the same account screen <c>a</c> opens from a feed.</remarks>
-    public override Task Answer(Verb verb, Reach reach) =>
-        verb == Verb.OpenPerson && PickedPerson is { } person
-            ? reach.Open(Subject.Account.Of(person))
-            : Task.CompletedTask;
+    /// <remarks>
+    ///     <c>⏎</c> opens whoever is picked out as the same account screen <c>a</c> opens from a feed. <c>s</c> on a
+    ///     post's actors stands the other side in this one's place, as a follow list's swap does, so flipping back and
+    ///     forth never grows the stack.
+    /// </remarks>
+    public override Task Answer(Verb verb, Reach reach) => verb switch
+    {
+        Verb.OpenPerson when PickedPerson is { } person => reach.Open(Subject.Account.Of(person)),
+        Verb.SwapSide when (Post, Side) is ({ } post, { } side) => reach.Swap(new Subject.PostActors(post, side.Other())),
+        _ => Task.CompletedTask,
+    };
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)

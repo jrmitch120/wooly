@@ -256,14 +256,29 @@ public class KeymapTests
     }
 
     /// <summary>
-    ///     <c>w</c> opens a follow list from the account screen, which is the one screen that announces it — and is
-    ///     turned down everywhere else rather than firing unannounced.
+    ///     <c>w</c> opens a follow list from the account screen, and who did what a notification reports on
+    ///     Notifications (#451) — and everywhere else who favorited or boosted the picked post, the one thing it means
+    ///     wherever a post can be picked (#489).
     /// </summary>
     [Fact]
-    public void TheFollowsKeyBelongsToTheAccountScreen()
+    public void TheWhoKeyMeansThePostsActorsBarOnTheAccountScreenAndNotifications()
     {
         Assert.Equal(Verb.OpenFollows, Means("w", new AccountScreen(AnAccount.With(), [], pinned: [])));
-        Assert.Equal(Verb.None, Means("w", Feed()));
+        Assert.Equal(Verb.OpenActor, Means("w", Notifications()));
+        Assert.Equal(Verb.OpenPostActors, Means("w", Feed()));
+        Assert.Equal(Verb.OpenPostActors, Means("w", new PostScreen(APost.With(), PostThread.Alone)));
+        Assert.Equal(Verb.OpenPostActors, Means("w", new ConversationScreen(AConversation.Thread())));
+    }
+
+    /// <summary>
+    ///     <c>s</c> swaps sides on a post's actors, which have two as a follow list does — and is nothing on a
+    ///     notification group's, which have one (#489).
+    /// </summary>
+    [Fact]
+    public void TheSwapKeySwapsSidesOnAPostsActorsAlone()
+    {
+        Assert.Equal(Verb.SwapSide, Means("s", new ActorsScreen(APost.With(), ActorSide.Favorited)));
+        Assert.Equal(Verb.None, Means("s", new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]))));
     }
 
     /// <summary>

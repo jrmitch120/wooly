@@ -39,7 +39,7 @@ public static class Verbs
     public static bool NeedsAPick(this Verb verb) => verb is
         Verb.OpenPost or Verb.OpenAuthor or Verb.OpenReference or Verb.Reply or Verb.Edit
         or Verb.Boost or Verb.Favorite or Verb.Pin or Verb.Delete or Verb.Reveal or Verb.Toggle or Verb.Vote
-        or Verb.Dismiss or Verb.OpenActor or Verb.StopSuggesting or Verb.OpenPerson
+        or Verb.Dismiss or Verb.OpenActor or Verb.OpenPostActors or Verb.StopSuggesting or Verb.OpenPerson
         or Verb.AcceptRequest or Verb.RejectRequest or Verb.OpenAsker or Verb.OpenConversation or Verb.OpenResult
         or Verb.ActAs or Verb.MakeDefault or Verb.RemoveProfile or Verb.SignInAgain
         or Verb.Describe or Verb.ToggleSensitive;
