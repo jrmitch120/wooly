@@ -24,26 +24,29 @@ public sealed record PostThread(IReadOnlyList<Post> Ancestors, IReadOnlyList<Pos
     /// <summary>A post standing on its own: nothing above it and nothing under it.</summary>
     public static PostThread Alone { get; } = new([], []);
 
-    /// <summary>How two post ids order: as the numbers Mastodon makes them, though they travel as strings.</summary>
-    private static readonly Comparer<string> Oldest = Comparer<string>.Create((one, other) =>
+    /// <summary>Orders post ids as the numbers Mastodon makes them, though they travel as strings.</summary>
+    private static readonly Comparer<string> ByIdAsNumber = Comparer<string>.Create((one, other) =>
         one.Length != other.Length ? one.Length.CompareTo(other.Length) : string.CompareOrdinal(one, other));
 
     /// <summary>
-    ///     This thread with <paramref name="reply" /> among its replies, placed where the instance would place it on the
-    ///     next read — or <see langword="null" /> where it answers nothing the thread holds, and so is not this thread's
-    ///     to take in (#482).
+    ///     This thread with <paramref name="reply" /> among its replies, placed where the instance would place it on
+    ///     the next read — or <see langword="null" /> where it answers nothing the thread holds, and so is not this
+    ///     thread's to take in (#482).
     /// </summary>
     /// <remarks>
-    ///     Worked out from every reply held plus the new one, in the order Mastodon serves a thread's answers: depth
-    ///     first, each reply followed by its own answers, and the answers to one post oldest first — so a new reply
-    ///     goes straight after the last of its answered post's own answers — and then every reply answering its own
-    ///     author lifted ahead of the rest, so that a thread of your own reads ahead of everyone else's answers. Placed rather than read again, because a
-    ///     read would reach only the screen in front and a send reaches every screen holding the thread.
+    ///     The replies held keep the order they were served in, and only the new one is placed. Mastodon orders a
+    ///     thread's answers over every post in it, the ones the viewer cannot see included, and leaves those out
+    ///     afterwards — so a reply whose answered post is hidden from the viewer stands where that post would, which
+    ///     nothing held here could work out again. The new reply goes where Mastodon puts it: depth first, each reply
+    ///     followed by its own answers, and the answers to one post oldest first — so straight after the last of its
+    ///     answered post's own answers — and then with every reply answering its own author lifted ahead of the rest,
+    ///     so that a thread of your own reads ahead of everyone else's answers (#483). Placed rather than read again,
+    ///     because a read would reach only the screen in front and a send reaches every screen holding the thread.
     ///     <para>
     ///         An ancestor is not the thread's to answer: a reply to something above the post is in another thread,
     ///         which the next read of this one would not show. A reply already held is put where it goes rather than
-    ///         held twice. A reply whose answered post the thread does not hold — one the instance left out — is taken
-    ///         as answering the post itself, the nearest place there is for it.
+    ///         held twice. A reply held whose answered post the thread does not hold — one the instance left out — is
+    ///         left where it was served, and the new reply goes ahead of any such that follow the place it is put.
     ///     </para>
     /// </remarks>
     /// <param name="around">The id of the post this thread is around, which the thread does not hold.</param>
@@ -56,61 +59,82 @@ public sealed record PostThread(IReadOnlyList<Post> Ancestors, IReadOnlyList<Pos
             return null;
         }
 
-        return this with
-        {
-            Replies = Lifted(DepthFirst(around, [.. Replies.Where(held => held.Id != reply.Id), reply])),
-        };
+        List<Post> replies = [.. Replies.Where(held => held.Id != reply.Id)];
+
+        replies.Insert(Place(around, answered, replies, reply), reply);
+
+        return this with { Replies = replies };
     }
 
     /// <summary>
-    ///     <paramref name="replies" /> with every one that answers its own author lifted ahead of every one that doesn't,
-    ///     each side keeping its order — Mastodon's own last step on a thread's answers (#483).
+    ///     Where among <paramref name="replies" /> the instance would put <paramref name="reply" />, which answers
+    ///     <paramref name="answered" />: straight after the reply on its own side of the lift that comes last before it
+    ///     depth first, or first on that side where none does.
     /// </summary>
     /// <remarks>
-    ///     Mastodon moves each such reply up to where the first reply answering someone else stands, which comes to
-    ///     the same as this. A self-reply is lifted on its own, away from the reply it answers where that one is not
-    ///     lifted too, because that is how the instance serves it.
+    ///     The lift keeps each side in depth-first order, so the reply goes after whichever of its own side would come
+    ///     before it in a depth-first walk, found by walking back from it along the tree the replies held make: from a
+    ///     reply to the last of its next older sibling's part, or to what it answers where it has no older sibling.
+    ///     Only the replies whose answered post is held are on that tree; the rest are not walked, and stay put.
     /// </remarks>
-    private static List<Post> Lifted(List<Post> replies) =>
-        [.. replies.Where(AnswersItsOwnAuthor), .. replies.Where(reply => !AnswersItsOwnAuthor(reply))];
+    private static int Place(string around, string answered, List<Post> replies, Post reply)
+    {
+        var held = replies.DistinctBy(post => post.Id).ToDictionary(post => post.Id, StringComparer.Ordinal);
+        var answers = replies
+            .Where(post => post.InReplyTo?.PostId is { } target && (target == around || held.ContainsKey(target)))
+            .ToLookup(post => post.InReplyTo!.PostId!, StringComparer.Ordinal);
+
+        var lifted = AnswersItsOwnAuthor(reply);
+
+        // Each walk is bounded by the replies there are, so that a chain looping back on itself, which no instance
+        // serves but nothing here can rule out, ends.
+        var steps = replies.Count;
+
+        var before = Before(answered, reply.Id);
+
+        while (before is not null && AnswersItsOwnAuthor(before) != lifted)
+        {
+            before = steps-- > 0 && before.InReplyTo?.PostId is { } above ? Before(above, before.Id) : null;
+        }
+
+        if (before is not null)
+        {
+            return replies.FindIndex(post => ReferenceEquals(post, before)) + 1;
+        }
+
+        var first = lifted ? 0 : replies.FindIndex(post => !AnswersItsOwnAuthor(post));
+
+        return first >= 0 ? first : replies.Count;
+
+        // What comes straight before the answer to target with this id, depth first: the last of the part of its
+        // next older sibling, else target itself — or nothing, where target is the post or is not held.
+        Post? Before(string target, string id)
+        {
+            var older = answers[target]
+                .Where(sibling => ByIdAsNumber.Compare(sibling.Id, id) < 0)
+                .MaxBy(sibling => sibling.Id, ByIdAsNumber);
+
+            return older is not null ? LastOf(older) : target != around ? held.GetValueOrDefault(target) : null;
+        }
+
+        // The last post of the part a reply heads, depth first: its newest answer's last, all the way down.
+        Post LastOf(Post post)
+        {
+            for (var down = replies.Count;
+                 down > 0 && answers[post.Id].MaxBy(answer => answer.Id, ByIdAsNumber) is { } newest;
+                 down--)
+            {
+                post = newest;
+            }
+
+            return post;
+        }
+    }
 
     /// <summary>
     ///     Whether <paramref name="reply" /> answers a post by whoever wrote it, which its answered account records
-    ///     (<see cref="PostReplyTarget.Handle" />).
+    ///     (<see cref="PostReplyTarget.Handle" />) — one of the replies Mastodon lifts ahead of the rest.
     /// </summary>
     private static bool AnswersItsOwnAuthor(Post reply) =>
         string.Equals(reply.InReplyTo?.Handle, reply.Account, StringComparison.Ordinal);
-
-    /// <summary>
-    ///     <paramref name="replies" /> in depth-first order under <paramref name="around" />, each followed by its own
-    ///     answers, and the answers to one post oldest first.
-    /// </summary>
-    private static List<Post> DepthFirst(string around, IReadOnlyList<Post> replies)
-    {
-        var held = replies.Select(reply => reply.Id).ToHashSet(StringComparer.Ordinal);
-        var answers = replies.ToLookup(reply =>
-            reply.InReplyTo?.PostId is { } answered && held.Contains(answered) ? answered : around);
-
-        var order = new List<Post>(replies.Count);
-        var placed = new HashSet<string>(StringComparer.Ordinal);
-
-        Walk(around);
-
-        // Nothing is lost to a chain that loops back on itself, which no instance serves but nothing here can rule out.
-        order.AddRange(replies.Where(reply => !placed.Contains(reply.Id)));
-
-        return order;
-
-        void Walk(string answered)
-        {
-            foreach (var answer in answers[answered].OrderBy(answer => answer.Id, Oldest))
-            {
-                if (placed.Add(answer.Id))
-                {
-                    order.Add(answer);
-                    Walk(answer.Id);
-                }
-            }
-        }
-    }
 }

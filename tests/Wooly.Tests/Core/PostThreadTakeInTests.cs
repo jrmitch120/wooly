@@ -131,6 +131,22 @@ public class PostThreadTakeInTests
     }
 
     /// <summary>
+    ///     The replies already held keep the order the instance served them in, which it works out over posts the
+    ///     viewer cannot see as well: a reply whose answered post is hidden from them keeps its hidden parent's place
+    ///     rather than being moved under the post and sorted by its own id. Only the reply just sent is placed.
+    /// </summary>
+    [Fact]
+    public void TakeIn_KeepsAReplyWhoseAnsweredPostIsHiddenWhereTheInstanceServedIt()
+    {
+        // 50 answers 10, hidden from the viewer, which answered the post ahead of 20.
+        var thread = Around(Answering("50", "10"), Answering("20", Head));
+
+        Assert.Equal(["50", "20", "60"], Ids(thread.TakeIn(Head, Answering("60", Head))));
+        Assert.Equal(["50", "20", "60"], Ids(thread.TakeIn(Head, Answering("60", "20"))));
+        Assert.Equal(["50", "60", "20"], Ids(thread.TakeIn(Head, Answering("60", "50"))));
+    }
+
+    /// <summary>
     ///     An answer to your own post goes ahead of every reply that answers someone else, because Mastodon lifts every
     ///     reply answering its own author up to where the first one that doesn't stands (#483).
     /// </summary>
