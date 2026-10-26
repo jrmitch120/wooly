@@ -173,11 +173,11 @@ public sealed class PostScreen : Screen
             return;
         }
 
-        _posts.Hold([.. taken.Ancestors, Post, .. taken.Replies]);
+        _posts.ReplaceKeepingPick([.. taken.Ancestors, Post, .. taken.Replies]);
 
         if (writtenHere)
         {
-            PickAndFollow(_posts.All.TakeWhile(post => post.Id != sent.Id).Count());
+            PickAndFollow(_posts.IndexOf(sent.Id));
         }
     }
 

@@ -399,14 +399,13 @@ public sealed class Drafting
                 break;
 
             case Outgoing.Publishing(var draft):
-                // A reply to a message carries the conversation it is in, taken now from whichever conversation on the
-                // stack holds what it answers — beneath the compose or beneath a post opened from it (#484) — rather
-                // than read back when it lands, by when the reader may be anywhere.
-                var within = compose.Purpose == ComposeFor.Reply ? HeldIn(compose.About) : null;
-
-                // And which screen it was written from, taken now for the same reason: only that one moves its pick to
-                // the reply once it lands, wherever the reader is by then (#482).
-                var from = compose.Purpose == ComposeFor.Reply ? Beneath(compose) : null;
+                // A reply carries the conversation it is in, from whichever conversation on the stack holds what it
+                // answers — beneath the compose or beneath a post opened from it (#484) — and the screen it was written
+                // from, which alone moves its pick to the reply once it lands (#482). Both taken now rather than read
+                // back when it lands, by when the reader may be anywhere.
+                (string? within, Screen? from) = compose.Purpose == ComposeFor.Reply
+                    ? (HeldIn(compose.About), Beneath(compose))
+                    : default;
 
                 await reach.Put(
                     ask => ask.Of(token => reach.Ports.Author.PublishAttached(profile, draft, token)),
@@ -652,7 +651,7 @@ public sealed class Drafting
         ? null
         : _stack.Screens
             .OfType<ConversationScreen>()
-            .LastOrDefault(conversation => conversation.Posts.Any(post => post.Id == answered.Id))
+            .LastOrDefault(conversation => conversation.Holds(answered))
             ?.Conversation.Id;
 
     /// <summary>

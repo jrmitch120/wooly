@@ -50,6 +50,12 @@ public sealed class ConversationScreen : Screen
     /// <summary>What was said in it, oldest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;
 
+    /// <summary>
+    ///     Whether <paramref name="post" /> is among what was said in it — which is what makes a reply to it this
+    ///     conversation's own, wherever on the stack it was written (#484).
+    /// </summary>
+    public bool Holds(Post post) => _posts.IndexOf(post.Id) >= 0;
+
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen =>
         [.. Conversation.With.Select(Mentionable.Addressed), .. Mentionable.In(Posts)];

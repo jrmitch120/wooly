@@ -58,8 +58,14 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     /// <inheritdoc cref="Picked{T}.PutUnder" />
     public void PutUnder(IEnumerable<Post> older) => _posts.PutUnder(older);
 
-    /// <inheritdoc cref="Picked{T}.Hold" />
-    public void Hold(IReadOnlyList<Post> posts) => _posts.Hold(posts, post => post.Id);
+    /// <inheritdoc cref="Picked{T}.ReplaceKeepingPick" />
+    public void ReplaceKeepingPick(IReadOnlyList<Post> posts) => _posts.ReplaceKeepingPick(posts, post => post.Id);
+
+    /// <summary>
+    ///     Where on the list the post <paramref name="id" /> names stands — by its own id, so a boost by the id it was
+    ///     passed on under — or <c>-1</c> where it is not on it.
+    /// </summary>
+    public int IndexOf(string id) => _posts.IndexOf(id, post => post.Id);
 
     /// <summary>
     ///     Puts <paramref name="post" /> in place of the copy this list is holding, after a mark changed it — inside a

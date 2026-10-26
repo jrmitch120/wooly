@@ -127,7 +127,14 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     public void PutUnder(IEnumerable<T> older) => _things.AddRange(older);
 
     /// <summary>
-    ///     Holds <paramref name="things" /> in place of what the list held, with the same thing picked out where it is
+    ///     Where on the list the thing <paramref name="id" /> names stands, or <c>-1</c> where it is not on it.
+    /// </summary>
+    /// <param name="id">The id of the thing looked for.</param>
+    /// <param name="idOf">What tells one thing from another.</param>
+    public int IndexOf(string id, Func<T, string> idOf) => _things.FindIndex(thing => idOf(thing) == id);
+
+    /// <summary>
+    ///     Replaces what the list held with <paramref name="things" />, keeping the same thing picked out where it is
     ///     still among them — what a thread taking in a reply puts in the middle of it (#482).
     /// </summary>
     /// <remarks>
@@ -136,7 +143,7 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     /// </remarks>
     /// <param name="things">What the list holds from now on, in the order drawn and walked.</param>
     /// <param name="id">What tells one thing from another.</param>
-    public void Hold(IReadOnlyList<T> things, Func<T, string> id)
+    public void ReplaceKeepingPick(IReadOnlyList<T> things, Func<T, string> id)
     {
         var pickedId = Out is { } picked ? id(picked) : null;
 
