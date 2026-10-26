@@ -9,12 +9,12 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 public static class ActorSideWords
 {
-    /// <summary>What the people on <paramref name="side" /> are called on the screen listing them: "Favorited by".</summary>
+    /// <summary>
+    ///     What the people on <paramref name="side" /> are called on the screen listing them: "Favorited by".
+    /// </summary>
     public static string Crumb(this ActorSide side) => side.Either("Favorited by", "Boosted by");
 
     /// <summary>What a side that read back with nobody on it says — the count on the post having been stale.</summary>
-    public static string Nobody(this ActorSide side) => side.Either("Nobody has favorited this.", "Nobody has boosted this.");
-
-    /// <summary>The other side, which <c>s</c> swaps to.</summary>
-    public static ActorSide Other(this ActorSide side) => side.Either(ActorSide.Boosted, ActorSide.Favorited);
+    public static string Nobody(this ActorSide side) =>
+        side.Either("Nobody has favorited this.", "Nobody has boosted this.");
 }

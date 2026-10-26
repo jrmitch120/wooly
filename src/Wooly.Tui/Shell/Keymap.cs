@@ -238,9 +238,9 @@ public static class Keymap
         (ShellKey.S, FollowsScreen) => Verb.SwapSide,
         (ShellKey.W, AccountScreen { Picked: null }) => Verb.OpenFollows,
 
-        // And w everywhere else — below Notifications, where it is who did what the row reports, and the account
-        // screen's header block: who favorited or boosted the picked post, a key that means one thing wherever a post
-        // is picked, one of an account's own included (#489, #490).
+        // And w everywhere else: who favorited or boosted the picked post, one thing wherever a post is picked, one of
+        // an account's own included (#489, #490). Notifications, where w is who did what the row reports, and the
+        // account screen's header block, where it is their follows, have taken it above.
         (ShellKey.W, _) => Verb.OpenPostActors,
 
         // And s on a post's actors, which have two sides as a follow list does — and nowhere on a notification group's,

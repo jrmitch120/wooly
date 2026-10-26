@@ -109,7 +109,9 @@ public interface IPostEngagement
     ///     names it, and the answer is what favoriting and boosting it — the marks above — put there. The instance can
     ///     list only the actors it knows of, so the list may be shorter than the count the post carries.
     /// </remarks>
-    /// <param name="postId">The post, never the boost carrying it: a boost has no favorites of its own worth asking for.</param>
+    /// <param name="postId">
+    ///     The post, never the boost carrying it: a boost has no favorites of its own worth asking for.
+    /// </param>
     /// <param name="side">Which of the two lists.</param>
     /// <param name="limit">
     ///     How many actors are wanted. More than one page's worth is fetched by following the instance's link to the
@@ -125,7 +127,7 @@ public interface IPostEngagement
 
     /// <summary>
     ///     Reads on: up to <paramref name="limit" /> more of the same side of the same post's <b>Actors</b>, from where
-    ///     a <see cref="ReadActors" /> of it said to read on from (#467).
+    ///     a <see cref="ReadActors" /> of it said to read on from (#467, #488).
     /// </summary>
     /// <param name="postId">The post <paramref name="from" /> was handed out for.</param>
     /// <param name="side">The side <paramref name="from" /> was handed out for.</param>

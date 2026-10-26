@@ -1183,8 +1183,8 @@ who walked to the bottom had no way to see anything older without leaving the TU
   trigger, from the same onward position, with the same foot (*What a follow list settled*), and ask where the profile
   stands only with the people a read on brought. A held Follow list does not: it is read whole at once, as before.
 - **Every list the spec named reads on.** Every timeline, an account's posts, the Inbox, a browsed **Follow list** and
-  a notification group's actors — and, since #489, one side of a post's actors. Every other list (Discover, a search, a **Thread**, a conversation, a held Follow list)
-  reads once and never asks, and draws no foot.
+  a notification group's actors — and, since #489, one side of a post's actors. Every other list (Discover, a search, a
+  **Thread**, a conversation, a held Follow list) reads once and never asks, and draws no foot.
 
 ### What conversations settled
 
@@ -2227,9 +2227,10 @@ Three things stayed outside it, each deliberately:
   `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
   and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
-  `SearchScreen.cs`; `w`, `d` and `D` in `NotificationsScreen.cs`; the actors screen's `⏎` and `s` in `ActorsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the
-  conversation list's `⏎` in `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A
-  `Confirmation` carries what agreeing to it does, so `D` asks the same way a delete and a vote do.
+  `SearchScreen.cs`; `w`, `d` and `D` in `NotificationsScreen.cs`; the actors screen's `⏎` and `s` in
+  `ActorsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the conversation list's `⏎` in
+  `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A `Confirmation` carries what
+  agreeing to it does, so `D` asks the same way a delete and a vote do.
 - **The verbs that need a terminal.** `ShellWindow` still carries out `ctrl-q`, the six movements that walk the page
   rather than the list (`↓`/`↑`, `PgDn`/`PgUp`, `Home`/`End`), `j`/`k` and `[`/`]` — which move the pick *and* the
   page — the arrows and `Home`/`End` that walk the entries of the file browser and the attachments screen likewise,

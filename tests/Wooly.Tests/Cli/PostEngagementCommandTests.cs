@@ -974,7 +974,9 @@ public class PostEngagementCommandTests : IDisposable
         Assert.Equal(60, read.Limit);
     }
 
-    /// <summary>Each account printed as <c>account followers</c> prints one, so a person looks the same on both lists.</summary>
+    /// <summary>
+    ///     Each account printed as <c>account followers</c> prints one, so a person looks the same on both lists.
+    /// </summary>
     [Fact]
     public void Actors_PrintsEachAccountTheWayAFollowersListDoes()
     {

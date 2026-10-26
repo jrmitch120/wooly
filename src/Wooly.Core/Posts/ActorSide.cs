@@ -18,11 +18,16 @@ public enum ActorSide
 public static class ActorSides
 {
     /// <summary>Whichever of the two <paramref name="side" /> names.</summary>
-    /// <remarks>Here rather than a <c>switch</c> at each place that picks, as <see cref="Relationships.FollowSides" /> is.</remarks>
+    /// <remarks>
+    ///     Here rather than a <c>switch</c> at each place that picks, as <see cref="Relationships.FollowSides" /> is.
+    /// </remarks>
     public static T Either<T>(this ActorSide side, T favorited, T boosted) => side switch
     {
         ActorSide.Favorited => favorited,
         ActorSide.Boosted => boosted,
         _ => throw new ArgumentOutOfRangeException(nameof(side), side, "Not a side of a post's actors this client lists."),
     };
+
+    /// <summary>The other side, which the TUI's <c>s</c> swaps to.</summary>
+    public static ActorSide Other(this ActorSide side) => side.Either(ActorSide.Boosted, ActorSide.Favorited);
 }
