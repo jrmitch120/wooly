@@ -1,5 +1,6 @@
 using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
+using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Timelines;
 using Wooly.Tui.Screens;
@@ -284,7 +285,8 @@ public sealed class Arrival(
     ///     The cache is asked what it holds rather than told which destination was showing, because a post is on
     ///     whichever lists it is on: one marked on Home is the same post on a Local list held a minute ago. A sent
     ///     post is the exception, being on no list yet — so it is Home, which is the profile's own following, and the
-    ///     destination it was sent from. Everything else is its own destination's.
+    ///     destination it was sent from, and Messages too where it went out direct. Everything else is its own
+    ///     destination's.
     ///     <para>
     ///         A badge moves by what changed and never below nothing, and is set outright again by the next read of
     ///         its destination — so what the rail says and the list under it are the same fact however they arrived.
@@ -304,9 +306,16 @@ public sealed class Arrival(
 
                 break;
 
-            case Change.PostSent:
+            // A direct post is a conversation's last word wherever it was sent from, so Messages is read again
+            // rather than handed back with a last message up to a minute stale (#485).
+            case Change.PostSent(var post, _):
                 Forget(DestinationKind.Home);
                 Forget(showing());
+
+                if (post.Visibility == PostVisibility.Direct)
+                {
+                    Forget(DestinationKind.Messages);
+                }
 
                 break;
 
