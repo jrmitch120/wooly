@@ -405,6 +405,10 @@ public sealed class Drafting
                     ? conversation.Conversation.Id
                     : null;
 
+                // And which screen it was written from, taken now for the same reason: only that one moves its pick to
+                // the reply once it lands, wherever the reader is by then (#482).
+                var from = compose.Purpose == ComposeFor.Reply ? Beneath(compose) : null;
+
                 await reach.Put(
                     ask => ask.Of(token => reach.Ports.Author.PublishAttached(profile, draft, token)),
                     eitherWay: published =>
@@ -412,7 +416,7 @@ public sealed class Drafting
                         // A reply written in a conversation goes on the end of it, which the conversation and the
                         // list it was opened from each hear for themselves.
                         Popped();
-                        Reach.Tell(new Change.PostSent(published, within));
+                        Reach.Tell(new Change.PostSent(published, within, from));
                         Reach.Say("Sent.", isError: false);
                     });
 

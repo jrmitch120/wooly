@@ -127,6 +127,28 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     public void PutUnder(IEnumerable<T> older) => _things.AddRange(older);
 
     /// <summary>
+    ///     Holds <paramref name="things" /> in place of what the list held, with the same thing picked out where it is
+    ///     still among them — what a thread taking in a reply puts in the middle of it (#482).
+    /// </summary>
+    /// <remarks>
+    ///     The pick follows the thing rather than staying at its index, for the reason <see cref="TakeIn" /> gives:
+    ///     something put in above what the reader is on is no reason for them to be on something else.
+    /// </remarks>
+    /// <param name="things">What the list holds from now on, in the order drawn and walked.</param>
+    /// <param name="id">What tells one thing from another.</param>
+    public void Hold(IReadOnlyList<T> things, Func<T, string> id)
+    {
+        var pickedId = Out is { } picked ? id(picked) : null;
+
+        _things.Clear();
+        _things.AddRange(things);
+
+        At = _things.FindIndex(thing => id(thing) == pickedId) is var at and >= 0
+            ? at
+            : Math.Clamp(At, 0, Math.Max(0, _things.Count - 1));
+    }
+
+    /// <summary>
     ///     Takes in whatever of <paramref name="found" /> is new to the list — not on it yet, or on it but
     ///     <paramref name="changed" /> since: put at the top in the order given, except the thing picked, which is
     ///     brought up to date where it stands — and keeps the same thing picked out (#400). The one shape every Inbox

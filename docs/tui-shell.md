@@ -561,6 +561,23 @@ back to the thread's root (#72):
 - **Costs one whole post's rows per ancestor** — the same bill a reply already pays, not a new category — plus one
   heading row when any ancestor exists.
 
+### What a reply sent from the post screen settled
+
+A reply sent from a post screen appears in its thread as soon as the instance takes it, rather than only on the next
+`g` (#482):
+
+- **Placed, not read again.** The post the send answers with is taken into the thread by `PostThread.TakeIn`, which
+  puts it where Mastodon's next read would: depth first, each reply followed by its own answers, and the answers to one
+  post oldest first — so it lands straight after the last of the answered post's own answers. A read would reach only
+  the screen in front, open at the top, and be dropped as an enquiry if the reader had walked away.
+- **Every post screen on the stack that holds what it answers takes it in**, through the `Change.PostSent` every screen
+  hears. One that answers an ancestor (`N up`) is in a thread around something else and is left off; only `Sent.` says
+  it went out.
+- **Only the screen it was written from moves.** `Change.PostSent.WrittenFrom` is the screen directly beneath the
+  compose when it was sent; that one picks the reply and its page follows it, so a reply landing below the rows on show
+  is brought into view. Any other keeps its pick on the thing it was on and its page where the reader left it.
+- **Feeds, Notifications, account and search screens are unchanged.** A refresh is how they show what has arrived.
+
 ### What references settled
 
 `←` and `→` walk the things inside a post's text that point somewhere else. **Reference** is the word — a hashtag,

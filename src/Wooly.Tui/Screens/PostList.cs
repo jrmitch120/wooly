@@ -58,6 +58,9 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     /// <inheritdoc cref="Picked{T}.PutUnder" />
     public void PutUnder(IEnumerable<Post> older) => _posts.PutUnder(older);
 
+    /// <inheritdoc cref="Picked{T}.Hold" />
+    public void Hold(IReadOnlyList<Post> posts) => _posts.Hold(posts, post => post.Id);
+
     /// <summary>
     ///     Puts <paramref name="post" /> in place of the copy this list is holding, after a mark changed it — inside a
     ///     boost of it where that is what is held, since a boost is the same post as far as a mark goes.

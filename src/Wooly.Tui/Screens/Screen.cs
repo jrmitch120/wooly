@@ -667,6 +667,36 @@ public abstract class Screen
     /// </summary>
     internal bool Followed { get; set; } = true;
 
+    /// <summary>
+    ///     Whether something other than the reader has moved the pick since the last frame and asked for the page to
+    ///     follow it there — a reply just sent, picked on the screen it was written from (#482). Taken once by the
+    ///     window, which is the only thing that knows where the page is (<see cref="TakeFollow" />).
+    /// </summary>
+    private bool _followAsked;
+
+    /// <summary>
+    ///     Picks the <paramref name="at" />th thing, as <see cref="Pick" /> does, and asks for the page to follow it
+    ///     there — what moving the pick by <c>j</c> and <c>k</c> asks for, said by a screen that moved it of its own
+    ///     accord. Whether it is in front or further down the stack: walked back to, it is put on the page then.
+    /// </summary>
+    protected void PickAndFollow(int at)
+    {
+        Pick(at);
+
+        Followed = true;
+        _followAsked = true;
+    }
+
+    /// <summary>Whether the page has been asked to follow the pick since this was last asked, which it no longer is.</summary>
+    internal bool TakeFollow()
+    {
+        var asked = _followAsked;
+
+        _followAsked = false;
+
+        return asked;
+    }
+
     /// <summary>The posts the reader has asked past the warning on, by the id of each.</summary>
     /// <remarks>
     ///     Held here rather than six times over, because what <c>x</c> does turned out not to vary by screen at all —

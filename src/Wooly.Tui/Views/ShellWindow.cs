@@ -1296,6 +1296,14 @@ internal sealed class ShellWindow : Window
             _pageToTell = true;
         }
 
+        // A screen that moved its own pick — a reply just sent, picked where it was written (#482) — has the page
+        // follow it as j and k would, whether or not it was the screen in front when it moved.
+        if (_showing.TakeFollow())
+        {
+            _content.Follow();
+            _pageToTell = true;
+        }
+
         // Nothing below the block being answered is readable while composing — the editor is in front of all of it —
         // so scrolling the region can only take that block away and put rows nobody can place in its stead. ADR-0015
         // priced this as "you cannot scroll the timeline while composing" and left it to the editor to make true,

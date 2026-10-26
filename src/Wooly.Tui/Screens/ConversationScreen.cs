@@ -98,7 +98,7 @@ public sealed class ConversationScreen : Screen
 
                 break;
 
-            case Change.PostSent(var post, var within) when within == Conversation.Id:
+            case Change.PostSent(var post, var within, _) when within == Conversation.Id:
                 Said(post);
 
                 break;
