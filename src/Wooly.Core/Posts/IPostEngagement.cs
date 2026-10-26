@@ -1,3 +1,4 @@
+using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 
 namespace Wooly.Core.Posts;
@@ -97,5 +98,48 @@ public interface IPostEngagement
         ActiveProfile profile,
         Post post,
         IReadOnlyList<int> choices,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Reads up to <paramref name="limit" /> of one side of the post's <b>Actors</b>: who favorited it, or who
+    ///     boosted it, as the instance lists them (#487).
+    /// </summary>
+    /// <remarks>
+    ///     Here rather than beside the follow lists, because it is a question about a post: the post's own id is what
+    ///     names it, and the answer is what favoriting and boosting it — the marks above — put there. The instance can
+    ///     list only the actors it knows of, so the list may be shorter than the count the post carries.
+    /// </remarks>
+    /// <param name="postId">The post, never the boost carrying it: a boost has no favorites of its own worth asking for.</param>
+    /// <param name="side">Which of the two lists.</param>
+    /// <param name="limit">
+    ///     How many actors are wanted. More than one page's worth is fetched by following the instance's link to the
+    ///     next page, which the caller never sees (ADR-0007).
+    /// </param>
+    /// <returns>The actors, newest first, and where to read on from unless the list is whole.</returns>
+    Task<Fetch<Accounts.Account>> ReadActors(
+        ActiveProfile profile,
+        string postId,
+        ActorSide side,
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Reads on: up to <paramref name="limit" /> more of the same side of the same post's <b>Actors</b>, from where
+    ///     a <see cref="ReadActors" /> of it said to read on from (#467).
+    /// </summary>
+    /// <param name="postId">The post <paramref name="from" /> was handed out for.</param>
+    /// <param name="side">The side <paramref name="from" /> was handed out for.</param>
+    /// <param name="from">Where to read on from, as an earlier read of this list said.</param>
+    /// <param name="limit">How many more actors are wanted, paged as <see cref="ReadActors" /> pages.</param>
+    /// <returns>
+    ///     The actors, and where to read on from next unless the list is now whole — reported as
+    ///     <see cref="ReadActors" /> reports, a rate limit included.
+    /// </returns>
+    Task<Fetch<Accounts.Account>> ReadActorsOn(
+        ActiveProfile profile,
+        string postId,
+        ActorSide side,
+        Onward from,
+        int limit,
         CancellationToken cancellationToken);
 }

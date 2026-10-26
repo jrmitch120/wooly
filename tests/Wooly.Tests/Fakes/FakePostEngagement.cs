@@ -1,3 +1,4 @@
+using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 
@@ -151,12 +152,60 @@ internal sealed class FakePostEngagement : IPostEngagement
         return Task.FromResult(Voted ?? post);
     }
 
+    /// <summary>
+    ///     The actors it holds for each side of each post, keyed by post id and side, which a read of them answers from
+    ///     — nobody, where a test put nobody there (#487).
+    /// </summary>
+    public Dictionary<(string PostId, ActorSide Side), IReadOnlyList<Wooly.Core.Accounts.Account>> ActorsOf { get; } = [];
+
+    /// <summary>Every read of a post's actors it was asked for, in order.</summary>
+    public List<ActorRead> ActorReads { get; } = [];
+
+    /// <summary>Every read on of a post's actors it was asked for, in order — where a test proves where it went on from.</summary>
+    public List<ActorReadOn> ActorReadsOn { get; } = [];
+
+    public Task<Fetch<Wooly.Core.Accounts.Account>> ReadActors(
+        ActiveProfile profile,
+        string postId,
+        ActorSide side,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ActorReads.Add(new ActorRead(profile.Name, postId, side, limit));
+        Tokens.Add(profile.AccessToken);
+
+        return Task.FromResult(Actors(postId, side, from: null, limit));
+    }
+
+    public Task<Fetch<Wooly.Core.Accounts.Account>> ReadActorsOn(
+        ActiveProfile profile,
+        string postId,
+        ActorSide side,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ActorReadsOn.Add(new ActorReadOn(profile.Name, postId, side, from, limit));
+        Tokens.Add(profile.AccessToken);
+
+        return Task.FromResult(Actors(postId, side, from, limit));
+    }
+
+    private Fetch<Wooly.Core.Accounts.Account> Actors(string postId, ActorSide side, Onward? from, int limit) =>
+        OnwardRun.Of(ActorsOf.GetValueOrDefault((postId, side)) ?? [], actor => actor.Id, from, limit);
+
     private Task<Post> Answer() =>
         _refusal is null ? Task.FromResult(_answer) : Task.FromException<Post>(_refusal);
 
     internal sealed record Marked(string Profile, string PostId, PostMark Mark, bool Wanted);
 
     internal sealed record Shown(string Profile, string PostId);
+
+    /// <summary>One read of a post's actors: which profile, which post, which side, and how many were wanted.</summary>
+    internal sealed record ActorRead(string Profile, string PostId, ActorSide Side, int Limit);
+
+    /// <summary>One read on of a post's actors: which profile, which post, which side, from where, and how many more.</summary>
+    internal sealed record ActorReadOn(string Profile, string PostId, ActorSide Side, Onward From, int Limit);
 
     internal sealed record Cast(string Profile, string PostId, IReadOnlyList<int> Choices);
 }

@@ -1,7 +1,10 @@
 using Mastonet;
 using Mastonet.Entities;
+using Wooly.Core.Accounts;
 using Wooly.Core.Errors;
+using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
+using Account = Wooly.Core.Accounts.Account;
 
 namespace Wooly.Core.Posts;
 
@@ -100,6 +103,64 @@ public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPost
             // in the instance's own words rather than fall over on somebody else's exception type.
             throw new VoteRefusedException(refusal);
         }
+    }
+
+    /// <summary>
+    ///     How many of a post's actors to ask for at once: the most Mastodon serves from a list of accounts, as on a
+    ///     notification group's actors. The read goes on by the instance's <c>next</c> link, not by whether a page came
+    ///     back full.
+    /// </summary>
+    private const int ActorPageSize = 80;
+
+    /// <inheritdoc />
+    public Task<Fetch<Account>> ReadActors(
+        ActiveProfile profile,
+        string postId,
+        ActorSide side,
+        int limit,
+        CancellationToken cancellationToken) =>
+        Actors(profile, postId, side, from: null, limit, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<Fetch<Account>> ReadActorsOn(
+        ActiveProfile profile,
+        string postId,
+        ActorSide side,
+        Onward from,
+        int limit,
+        CancellationToken cancellationToken) =>
+        Actors(profile, postId, side, from, limit, cancellationToken);
+
+    /// <summary>
+    ///     One read of one side of a post's actors, from the top or from where an earlier one said to read on:
+    ///     <c>GET /api/v1/statuses/:id/favourited_by</c> or <c>/reblogged_by</c>.
+    /// </summary>
+    /// <remarks>
+    ///     Paged by the instance's link alone. These lists page by the favorite's or the boost's own id, which is
+    ///     nothing read here, so no account id can stand in for the cursor and a page naming no next is the last.
+    /// </remarks>
+    private Task<Fetch<Account>> Actors(
+        ActiveProfile profile,
+        string postId,
+        ActorSide side,
+        Onward? from,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
+
+        var readPage = side.Either<Func<ArrayOptions, Task<MastodonList<Mastonet.Entities.Account>>>>(
+            options => client.GetFavouritedBy(postId, options),
+            options => client.GetRebloggedBy(postId, options));
+
+        return PagedReading.Collect(
+            limit,
+            ActorPageSize,
+            readPage,
+            account => AccountWire.ToAccount(account, profile.Instance),
+            idOf: null,
+            cancellationToken,
+            from: from);
     }
 
     /// <summary>
