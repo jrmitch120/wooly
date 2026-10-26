@@ -201,7 +201,11 @@ public abstract class Screen
     ///     them can say what its foot says differently.
     /// </summary>
     /// <param name="rows">The list's own rows, and nothing above them: none where it holds nothing.</param>
-    protected IReadOnlyList<Line> WithFoot(IReadOnlyList<Line> rows) => ReadingOn?.Under(rows) ?? rows;
+    /// <param name="apart">
+    ///     What the list sets its rows apart with, which sets the foot apart too (<see cref="Screens.ReadingOn.Under" />).
+    /// </param>
+    protected IReadOnlyList<Line> WithFoot(IReadOnlyList<Line> rows, Line? apart = null) =>
+        ReadingOn?.Under(rows, apart) ?? rows;
 
     /// <summary>
     ///     What the shell has to say about this screen's list rather than about anything on it — that nothing is on it,

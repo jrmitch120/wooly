@@ -151,7 +151,7 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
         }
 
         // And under them all, the foot of the list: what reading on is doing, or that the group is whole.
-        lines.AddRange(WithFoot(_people.Rows(width, Draw, Line.Blank)));
+        lines.AddRange(WithFoot(_people.Rows(width, Draw, Line.Blank), apart: Line.Blank));
 
         return lines;
 

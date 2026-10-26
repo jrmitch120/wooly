@@ -79,12 +79,21 @@ public sealed class ReadingOn(Onward? from)
     /// <param name="rows">
     ///     The list's rows, which the foot goes under and never among — none where it holds nothing.
     /// </param>
-    public IReadOnlyList<Line> Under(IReadOnlyList<Line> rows) =>
+    /// <param name="apart">
+    ///     What the list sets its rows apart with, which sets the foot apart from the last of them too: a list of people
+    ///     divides its blocks by a blank line, and a foot pressed against the last block reads as part of it. Nothing
+    ///     on a list whose rows already end in a divider of their own.
+    /// </param>
+    public IReadOnlyList<Line> Under(IReadOnlyList<Line> rows, Line? apart = null) =>
         (InFlight, Failed, IsWhole, holding: rows.Count > 0) switch
         {
-            (true, _, _, _) => [.. rows, Line.Of(InFlightSays, Role.Muted)],
-            (_, true, _, true) => [.. rows, Line.Of(FailedSays, Role.Muted)],
-            (_, _, true, true) => [.. rows, Line.Of(WholeSays, Role.Muted)],
+            (true, _, _, _) => [.. rows, .. Apart(rows, apart), Line.Of(InFlightSays, Role.Muted)],
+            (_, true, _, true) => [.. rows, .. Apart(rows, apart), Line.Of(FailedSays, Role.Muted)],
+            (_, _, true, true) => [.. rows, .. Apart(rows, apart), Line.Of(WholeSays, Role.Muted)],
             _ => rows,
         };
+
+    /// <summary><paramref name="apart" /> where there are rows above the foot to set it apart from.</summary>
+    private static IEnumerable<Line> Apart(IReadOnlyList<Line> rows, Line? apart) =>
+        rows.Count > 0 && apart is { } line ? [line] : [];
 }

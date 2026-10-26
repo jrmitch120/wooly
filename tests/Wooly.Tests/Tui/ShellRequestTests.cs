@@ -56,7 +56,8 @@ public class ShellRequestTests
         shell.Host.Settle();
 
         // Past the one column the gutter takes, which every list on this shell stamps and no screen draws itself — and
-        // over the foot under the list, which says that one request is all there is (#466).
+        // over the foot under the list and the blank setting it apart, which say that one request is all there is
+        // (#466).
         Assert.Equal(
             [
                 "Alice",
@@ -64,7 +65,7 @@ public class ShellRequestTests
                 "4,210 posts · 187 following · 1,203 followers",
                 "Joined Jan 2020 · ⚿ locked",
             ],
-            opened.Screen.Lines(new Drawing(61, AShell.Now)).SkipLast(1).Select(line => line.Text[1..]));
+            opened.Screen.Lines(new Drawing(61, AShell.Now)).SkipLast(2).Select(line => line.Text[1..]));
     }
 
     /// <summary>
@@ -89,8 +90,9 @@ public class ShellRequestTests
 
         var rows = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text).ToList();
 
-        // Two four-row blocks, the blank between them, and the foot saying that is everybody (#466).
-        Assert.Equal(10, rows.Count);
+        // Two four-row blocks, the blank between them, and the foot saying that is everybody, set apart by a blank of
+        // its own (#466).
+        Assert.Equal(11, rows.Count);
         Assert.Equal(string.Empty, rows[4].Trim());
         Assert.DoesNotContain(rows, row => row.Contains('─', StringComparison.Ordinal));
     }

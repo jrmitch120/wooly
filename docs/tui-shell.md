@@ -1106,7 +1106,9 @@ who walked to the bottom had no way to see anything older without leaving the TU
   is in flight, "couldn't read on" after one failed, and "that's everything" once the instance has nothing behind
   what the list holds, which makes it **whole**. A whole list is never asked again, and a quiet one whose first read
   held everything says so straight away. Between reads, with more to come, the row is not drawn. Neither is it drawn
-  on an empty list, whose own notice already speaks for it.
+  on an empty list, whose own notice already speaks for it. On a list of people — a Follow list, the follow requests,
+  either kind of actors — a blank sets it apart from the last block, as one sets each block from the next, so it does
+  not read as part of the last person (#489).
 - **Being whole is the instance's call, not a count's.** The instance names no next page, or a page comes back empty
   (ADR-0007). A short page that still names a next page is not the end. What the shell holds is the instance's own
   onward position, carried on the `Fetch` and handed back as it came (ADR-0007's amendment), never a page or a cursor.

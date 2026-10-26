@@ -203,7 +203,7 @@ public class ShellPostActorsTests
         Assert.Equal(("110", ActorSide.Favorited, 80), (on.PostId, on.Side, on.Limit));
         Assert.Equal(everyone, screen.People.Select(person => person.Author));
         Assert.Equal(20, Assert.Single(shell.Accounts.Standings).AccountIds.Count);
-        Assert.Equal("that's everything", Drawn(screen)[^1]);
+        Assert.Equal(["", "that's everything"], Drawn(screen)[^2..]);
     }
 
     /// <summary><c>⏎</c> opens whoever is picked out, and <c>esc</c> walks back to the list.</summary>
