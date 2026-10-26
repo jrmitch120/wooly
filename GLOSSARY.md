@@ -13,8 +13,11 @@ What stands either side of one post on its instance: the **ancestors** it answer
 the replies said in answer to it (`PostThread`). One thing rather than two lists, because an instance serves both
 halves on the one call and the post screen draws both — the chain above the post and the answers below. The post it is
 a thread *around* is not on it: whoever asked for it already holds that post, and a second copy would be a round trip
-older than the one on screen. Distinct from a **conversation**, which is a thread of direct messages the instance keeps
-an id for; a thread has no id of its own and is only ever asked for by naming a post in it.
+older than the one on screen. Its replies are in the order the instance serves them: depth-first, each reply followed
+by its own answers, oldest first among the answers to one post — with every reply answering its own author lifted
+ahead of the rest, so a thread someone writes to themselves reads first. Distinct from a **conversation**, which is a
+thread of direct messages the instance keeps an id for; a thread has no id of its own and is only ever asked for by
+naming a post in it.
 _Avoid_: context (Mastodon's own word for the endpoint), descendants (for the replies half)
 
 **Attachment**:

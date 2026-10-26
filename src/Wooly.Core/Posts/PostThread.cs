@@ -15,8 +15,9 @@ namespace Wooly.Core.Posts;
 ///     where what it answered is no longer there for the instance to send.
 /// </param>
 /// <param name="Replies">
-///     What has been said in answer to it, oldest first — the whole subtree flattened, which is the shape Mastodon
-///     serves and the shape a thread reads in.
+///     What has been said in answer to it, the whole subtree flattened, which is the shape Mastodon serves and the
+///     shape a thread reads in: depth first and oldest first, with every reply answering its own author lifted ahead
+///     of the rest.
 /// </param>
 public sealed record PostThread(IReadOnlyList<Post> Ancestors, IReadOnlyList<Post> Replies)
 {
@@ -35,7 +36,8 @@ public sealed record PostThread(IReadOnlyList<Post> Ancestors, IReadOnlyList<Pos
     /// <remarks>
     ///     Worked out from every reply held plus the new one, in the order Mastodon serves a thread's answers: depth
     ///     first, each reply followed by its own answers, and the answers to one post oldest first — so a new reply
-    ///     goes straight after the last of its answered post's own answers. Placed rather than read again, because a
+    ///     goes straight after the last of its answered post's own answers — and then every reply answering its own
+    ///     author lifted ahead of the rest, so that a thread of your own reads ahead of everyone else's answers. Placed rather than read again, because a
     ///     read would reach only the screen in front and a send reaches every screen holding the thread.
     ///     <para>
     ///         An ancestor is not the thread's to answer: a reply to something above the post is in another thread,
@@ -54,8 +56,30 @@ public sealed record PostThread(IReadOnlyList<Post> Ancestors, IReadOnlyList<Pos
             return null;
         }
 
-        return this with { Replies = DepthFirst(around, [.. Replies.Where(held => held.Id != reply.Id), reply]) };
+        return this with
+        {
+            Replies = Lifted(DepthFirst(around, [.. Replies.Where(held => held.Id != reply.Id), reply])),
+        };
     }
+
+    /// <summary>
+    ///     <paramref name="replies" /> with every one that answers its own author lifted ahead of every one that doesn't,
+    ///     each side keeping its order — Mastodon's own last step on a thread's answers (#483).
+    /// </summary>
+    /// <remarks>
+    ///     Mastodon moves each such reply up to where the first reply answering someone else stands, which comes to
+    ///     the same as this. A self-reply is lifted on its own, away from the reply it answers where that one is not
+    ///     lifted too, because that is how the instance serves it.
+    /// </remarks>
+    private static List<Post> Lifted(List<Post> replies) =>
+        [.. replies.Where(AnswersItsOwnAuthor), .. replies.Where(reply => !AnswersItsOwnAuthor(reply))];
+
+    /// <summary>
+    ///     Whether <paramref name="reply" /> answers a post by whoever wrote it, which its answered account records
+    ///     (<see cref="PostReplyTarget.Handle" />).
+    /// </summary>
+    private static bool AnswersItsOwnAuthor(Post reply) =>
+        string.Equals(reply.InReplyTo?.Handle, reply.Account, StringComparison.Ordinal);
 
     /// <summary>
     ///     <paramref name="replies" /> in depth-first order under <paramref name="around" />, each followed by its own
