@@ -308,7 +308,7 @@ public sealed class Arrival(
 
             // A direct post is a conversation's last word wherever it was sent from, so Messages is read again
             // rather than handed back with a last message up to a minute stale (#485).
-            case Change.PostSent(var post, _):
+            case Change.PostSent { Post: var post }:
                 Forget(DestinationKind.Home);
                 Forget(showing());
 
