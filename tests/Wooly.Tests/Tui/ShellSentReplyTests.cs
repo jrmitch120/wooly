@@ -217,6 +217,161 @@ public class ShellSentReplyTests
     }
 
     /// <summary>
+    ///     A reader who walked away before the send landed — out of the compose and out of the post screen it was
+    ///     written from — still finds the reply on the post screen still on the stack that holds what it answers, with
+    ///     its pick where they left it, since it is not the screen the reply was written from.
+    /// </summary>
+    [Fact]
+    public async Task Send_PutsTheReplyOnAPostScreenStillOnTheStackWhereTheReaderWalkedAwayBeforeItLanded()
+    {
+        var shell = new AShell
+        {
+            Engagement = FakePostEngagement.Threading(around => around switch
+            {
+                "111" => new PostThread([APost.With(id: "110")], [Answering("112", "111")]),
+                _ => new PostThread([], [Answering("111", "110"), Answering("112", "111"), Answering("120", "110")]),
+            }),
+            Author = FakePostAuthor.Answering(Sent("111")),
+        };
+
+        shell.Author.HoldingPublishes = true;
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        opened.Move(1);
+        await opened.Enter();
+        shell.Host.Drain();
+
+        opened.Press(ShellKey.R);
+        ((ComposeScreen)opened.Screen).Text += "Quite";
+
+        var sending = opened.Drafting.Send();
+
+        while (opened.Screen is ComposeScreen || opened.Asking is not null)
+        {
+            if (opened.Asking is not null)
+            {
+                await opened.Answer(agreed: true);
+            }
+            else
+            {
+                opened.Back();
+            }
+        }
+
+        opened.Back();
+
+        var beneath = Assert.IsType<PostScreen>(opened.Screen);
+
+        Assert.Equal("110", beneath.Post.Id);
+
+        shell.Author.HeldPublishes.Single().Land();
+        await sending;
+        shell.Host.Drain();
+
+        Assert.Same(beneath, opened.Screen);
+        Assert.Equal(["111", "112", "130", "120"], beneath.Replies.Select(reply => reply.Id));
+        Assert.Equal("111", beneath.Picked?.Id);
+        Assert.Equal("Sent.", opened.Notice);
+    }
+
+    /// <summary>
+    ///     An edit of the reply afterwards puts the edited post in place of it on every screen that took it in, and a
+    ///     delete takes it off every one of them, as they do for any other post (#482).
+    /// </summary>
+    [Fact]
+    public async Task Edit_PutsTheEditedReplyInPlaceOnEveryScreenThatTookItIn()
+    {
+        var shell = new AShell
+        {
+            Engagement = FakePostEngagement.Threading(around => around switch
+            {
+                "111" => new PostThread([APost.With(id: "110")], [Answering("112", "111")]),
+                _ => new PostThread([], [Answering("111", "110"), Answering("112", "111"), Answering("120", "110")]),
+            }),
+            Author = FakePostAuthor.Answering(Sent("111")),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        opened.Move(1);
+        await opened.Enter();
+        shell.Host.Drain();
+
+        await Reply(opened, shell);
+
+        Assert.Equal("130", opened.Screen.Picked?.Id);
+
+        shell.Author.Edited = Sent("111") with { Content = "Quite so" };
+
+        opened.Press(ShellKey.E);
+        ((ComposeScreen)opened.Screen).Text += " so";
+
+        await opened.Drafting.Send();
+        shell.Host.Drain();
+
+        var front = Assert.IsType<PostScreen>(opened.Screen);
+
+        Assert.Equal(["112", "130"], front.Replies.Select(reply => reply.Id));
+        Assert.Equal("Quite so", front.Replies[1].Content);
+
+        opened.Back();
+
+        var beneath = Assert.IsType<PostScreen>(opened.Screen);
+
+        Assert.Equal(["111", "112", "130", "120"], beneath.Replies.Select(reply => reply.Id));
+        Assert.Equal("Quite so", beneath.Replies[2].Content);
+    }
+
+    /// <inheritdoc cref="Edit_PutsTheEditedReplyInPlaceOnEveryScreenThatTookItIn" />
+    [Fact]
+    public async Task Delete_TakesTheReplyOffEveryScreenThatTookItIn()
+    {
+        var shell = new AShell
+        {
+            Engagement = FakePostEngagement.Threading(around => around switch
+            {
+                "111" => new PostThread([APost.With(id: "110")], [Answering("112", "111")]),
+                _ => new PostThread([], [Answering("111", "110"), Answering("112", "111"), Answering("120", "110")]),
+            }),
+            Author = FakePostAuthor.Answering(Sent("111")),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Enter();
+        shell.Host.Drain();
+
+        opened.Move(1);
+        await opened.Enter();
+        shell.Host.Drain();
+
+        await Reply(opened, shell);
+
+        Assert.Equal("130", opened.Screen.Picked?.Id);
+
+        opened.AskToDelete();
+        await opened.Answer(agreed: true);
+        shell.Host.Drain();
+
+        var front = Assert.IsType<PostScreen>(opened.Screen);
+
+        Assert.Equal(["112"], front.Replies.Select(reply => reply.Id));
+
+        opened.Back();
+
+        var beneath = Assert.IsType<PostScreen>(opened.Screen);
+
+        Assert.Equal(["111", "112", "120"], beneath.Replies.Select(reply => reply.Id));
+    }
+
+    /// <summary>
     ///     A feed is left as it was by a reply to something on it: a refresh is how a feed shows what has arrived, and
     ///     a reply put in where the reader is reading would be a post the next read puts somewhere else.
     /// </summary>
