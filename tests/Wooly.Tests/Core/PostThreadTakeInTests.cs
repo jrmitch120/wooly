@@ -11,7 +11,9 @@ namespace Wooly.Tests.Core;
 /// </summary>
 public class PostThreadTakeInTests
 {
-    /// <summary>The post the thread is around, which none of the replies below is but every one of them answers in the end.</summary>
+    /// <summary>
+    ///     The post the thread is around, which none of the replies below is but every one of them answers in the end.
+    /// </summary>
     private const string Head = "100";
 
     /// <summary>Who wrote the post the thread is around, and every reply below that answers its own author.</summary>
@@ -36,7 +38,9 @@ public class PostThreadTakeInTests
     private static IReadOnlyList<string> Ids(PostThread? thread) =>
         [.. Assert.IsType<PostThread>(thread).Replies.Select(reply => reply.Id)];
 
-    /// <summary>An answer to the post itself is the newest answer to it, and goes after every reply already there.</summary>
+    /// <summary>
+    ///     An answer to the post itself is the newest answer to it, and goes after every reply already there.
+    /// </summary>
     [Fact]
     public void TakeIn_PutsAnAnswerToThePostAfterEveryReply()
     {
@@ -48,7 +52,9 @@ public class PostThreadTakeInTests
         Assert.Equal(["90"], taken!.Ancestors.Select(ancestor => ancestor.Id));
     }
 
-    /// <summary>An answer to a reply nobody has answered yet goes straight under it, ahead of the replies after it.</summary>
+    /// <summary>
+    ///     An answer to a reply nobody has answered yet goes straight under it, ahead of the replies after it.
+    /// </summary>
     [Fact]
     public void TakeIn_PutsAnAnswerToAnUnansweredReplyStraightUnderIt()
     {

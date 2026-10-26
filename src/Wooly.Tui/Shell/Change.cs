@@ -32,16 +32,16 @@ public abstract record Change
     /// <summary>A post just published, a reply included.</summary>
     /// <param name="Post">The post as the instance published it.</param>
     /// <param name="Conversation">
-    ///     The id of the conversation it is in, where it was a reply to a post a conversation on the stack holds — written
-    ///     inside the conversation or on a post opened from it (#484). Carried because an
-    ///     instance says nothing on a post about which conversation it is in, and the list a thread was opened from
-    ///     knows only each conversation's last post — so a reply to anything older would reach no row at all.
+    ///     The id of the conversation it is in, where it was a reply to a post a conversation on the stack holds —
+    ///     written inside the conversation or on a post opened from it (#484). Carried because an instance says nothing
+    ///     on a post about which conversation it is in, and the list a thread was opened from knows only each
+    ///     conversation's last post — so a reply to anything older would reach no row at all.
     /// </param>
     /// <param name="WrittenFrom">
     ///     The screen a reply was written from — the one directly beneath its compose when it was sent — or
-    ///     <see langword="null" /> for a post that answers nothing. Carried so that every screen taking the reply in can
-    ///     tell whether it is the one the reader replied on, which alone moves its pick to the reply (#482): a screen
-    ///     further down the stack takes it in and stays where the reader left it.
+    ///     <see langword="null" /> for a post that answers nothing. Carried so that every screen taking the reply in
+    ///     can tell whether it is the one the reader replied on, which alone moves its pick to the reply (#482): a
+    ///     screen further down the stack takes it in and stays where the reader left it.
     /// </param>
     public sealed record PostSent(Post Post, string? Conversation = null, Screens.Screen? WrittenFrom = null) : Change
     {

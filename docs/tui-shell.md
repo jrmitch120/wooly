@@ -570,12 +570,16 @@ A reply sent from a post screen appears in its thread as soon as the instance ta
   puts it where Mastodon's next read would: depth first, each reply followed by its own answers, and the answers to one
   post oldest first — so it lands straight after the last of the answered post's own answers. A read would reach only
   the screen in front, open at the top, and be dropped as an enquiry if the reader had walked away.
+- **Only the new reply is placed.** The replies already held keep the order they were served in. Mastodon orders a
+  thread over every post in it, including ones the viewer cannot see, and filters afterwards, so a reply whose answered
+  post is hidden keeps that post's place — which nothing held could work out again.
 - **Self-replies lifted, across the whole thread** (#483). Mastodon's last step (`promote_by!`) moves every reply that
   answers its own author up to where the first reply answering someone else stands, keeping their order. `TakeIn`
-  does the same to every reply it holds, the new one included, so a thread of your own lands ahead of everyone else's
-  answers and someone's self-reply sits where the instance puts it. Whether a reply answers its own author is read off
-  its `InReplyTo.Handle`, which `PostWire` sets to the post's own author exactly when Mastodon says so — so no head
-  post's author is needed to judge a direct answer to it.
+  places the new reply on its own side of that lift, after the nearest reply on that side that comes before it depth
+  first, so a thread of your own lands ahead of everyone else's answers and an answer to someone's self-reply goes where
+  the instance puts it. Whether a reply answers its own author is read off its `InReplyTo.Handle`, which `PostWire`
+  sets to the post's own author exactly when Mastodon says so — so no head post's author is needed to judge a direct
+  answer to it.
 - **Every post screen on the stack that holds what it answers takes it in**, through the `Change.PostSent` every screen
   hears. One that answers an ancestor (`N up`) is in a thread around something else and is left off; only `Sent.` says
   it went out.
@@ -583,12 +587,12 @@ A reply sent from a post screen appears in its thread as soon as the instance ta
   compose when it was sent; that one picks the reply and its page follows it, so a reply landing below the rows on show
   is brought into view. Any other keeps its pick on the thing it was on and its page where the reader left it.
 - **Feeds, Notifications, account and search screens are unchanged.** A refresh is how they show what has arrived.
-- **A direct message reply reaches its conversation from wherever it was written** (#484). `Change.PostSent.Conversation`
-  is the conversation of the nearest conversation screen on the stack holding the post the reply answers — beneath the
-  compose, or beneath a post screen opened from it — worked out when it is sent. Every conversation screen of that
-  conversation puts the reply on the end, which is where the next read, around the last message, puts it too; only the
-  one it was written from picks it and has its page follow. The Messages list moves that conversation's row in place.
-  A reply to something no conversation on the stack holds reaches none of them.
+- **A direct message reply reaches its conversation from wherever it was written** (#484).
+  `Change.PostSent.Conversation` is the conversation of the nearest conversation screen on the stack holding the post
+  the reply answers — beneath the compose, or beneath a post screen opened from it — worked out when it is sent. Every
+  conversation screen of that conversation puts the reply on the end, which is where the next read, around the last
+  message, puts it too; only the one it was written from picks it and has its page follow. The Messages list moves that
+  conversation's row in place. A reply to something no conversation on the stack holds reaches none of them.
 
 ### What references settled
 

@@ -644,8 +644,8 @@ public sealed class Drafting
         .LastOrDefault();
 
     /// <summary>
-    ///     The id of the conversation <paramref name="answered" /> is in: that of the nearest conversation screen on the
-    ///     stack holding it, wherever on the stack that is (#484) — or none, where no conversation on it does.
+    ///     The id of the conversation <paramref name="answered" /> is in: that of the nearest conversation screen on
+    ///     the stack holding it, wherever on the stack that is (#484) — or none, where no conversation on it does.
     /// </summary>
     private string? HeldIn(Post? answered) => answered is null
         ? null

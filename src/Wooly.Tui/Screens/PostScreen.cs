@@ -154,15 +154,15 @@ public sealed class PostScreen : Screen
     }
 
     /// <summary>
-    ///     Takes a reply just sent into the thread, where the next read of it would put it, if it answers the post this
-    ///     screen is about or one of its replies (#482). Nothing for a reply to an ancestor, which is in a thread around
-    ///     something else, nor for any other post.
+    ///     Takes a reply just sent into the thread, where the next read of it would put it, if it answers the post
+    ///     this screen is about or one of its replies (#482). Nothing for a reply to an ancestor, which is in a thread
+    ///     around something else, nor for any other post.
     /// </summary>
     /// <remarks>
-    ///     The thread places it rather than this screen, which only keeps what stands above the post and the post itself
-    ///     as they are. On the screen the reply was written from it is picked and the page follows it, so a reply landing
-    ///     well below the rows on show is brought into view; on any other it is taken in with the pick left on the thing
-    ///     it was on and the page where the reader left it.
+    ///     The thread places it rather than this screen, which only keeps what stands above the post and the post
+    ///     itself as they are. On the screen the reply was written from it is picked and the page follows it, so a
+    ///     reply landing well below the rows on show is brought into view; on any other it is taken in with the pick
+    ///     left on the thing it was on and the page where the reader left it.
     /// </remarks>
     /// <param name="sent">The post as the instance published it.</param>
     /// <param name="writtenHere">Whether it was written from this screen.</param>

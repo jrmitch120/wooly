@@ -104,8 +104,8 @@ public class ShellSentReplyTests
     }
 
     /// <summary>
-    ///     A reply to your own post is one the instance lifts ahead of everyone else's answers, so it lands first rather
-    ///     than last, where the next <c>g</c> puts it, and is picked there (#483).
+    ///     A reply to your own post is one the instance lifts ahead of everyone else's answers, so it lands first
+    ///     rather than last, where the next <c>g</c> puts it, and is picked there (#483).
     /// </summary>
     [Fact]
     public async Task Send_LiftsAReplyToYourOwnPostAheadOfEveryoneElsesReplies()

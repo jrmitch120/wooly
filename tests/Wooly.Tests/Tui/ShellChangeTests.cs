@@ -113,7 +113,9 @@ public class ShellChangeTests
         Assert.Equal(listings + 1, shell.Messages.Listings.Count);
     }
 
-    /// <summary>A post that is not direct is in no conversation, so the Messages held is handed back as it was.</summary>
+    /// <summary>
+    ///     A post that is not direct is in no conversation, so the Messages held is handed back as it was.
+    /// </summary>
     [Fact]
     public async Task Send_LeavesMessagesAloneWhereThePostSentIsNotDirect()
     {

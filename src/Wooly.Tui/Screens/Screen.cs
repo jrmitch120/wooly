@@ -687,7 +687,9 @@ public abstract class Screen
         _followAsked = true;
     }
 
-    /// <summary>Whether the page has been asked to follow the pick since this was last asked, which it no longer is.</summary>
+    /// <summary>
+    ///     Whether the page has been asked to follow the pick since this was last asked, which it no longer is.
+    /// </summary>
     internal bool TakeFollow()
     {
         var asked = _followAsked;
