@@ -231,10 +231,11 @@ never this client's; a mention is always a group of one. A group is **unread** w
 _Avoid_: group (which is a **Rail group**), bundle, stack
 
 **Actor**:
-The account that did what a **notification** reports — who favorited, boosted, followed or mentioned. Not the author
-of the post it is about: on a favorite the author is the reader, and the actor is somebody else. A **Notification
-group** has one or more actors. A word for building Wooly, not for the screen: the TUI says **who** (`w:who`), and
-the actors screen is crumbed by what they did ("Favorited by").
+An account behind a favorite, boost, follow or mention. On a **notification**, the one that did what it reports; on a
+post, one that favorited or boosted it. Not the author of the post: on a favorite the author is whoever was
+favorited, and the actor is somebody else. A **Notification group** has one or more actors, and so does a post — its
+favorites and its boosts, two lists the instance keeps apart. A word for building Wooly, not for the screen: the TUI
+says **who** (`w:who`), and the actors screen is crumbed by what they did ("Favorited by", "Boosted by").
 _Avoid_: sender, author, notifier
 
 **Read marker**:
