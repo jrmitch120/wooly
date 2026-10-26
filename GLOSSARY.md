@@ -603,8 +603,12 @@ dismissed or cleared, a follow request answered, a suggestion dismissed, a conve
 of values saying what happened and nothing about what it makes stale — that is **Arrival**'s one table, which evicts
 every cached list the change is no longer true of, moves the badge it touches, and tells every **screen** on the stack
 (`Screen.Heard`), taking off it any that are now about nothing. Reported whether or not the reader is still where the
-verb was pressed, being true of the instance rather than of where anybody is standing. Distinct from a notice, which
-stays with the verb: "Deleted." is said to a reader, and a change is said to the shell.
+verb was pressed, being true of the instance rather than of where anybody is standing — all but one thing a post sent
+carries besides: the screen a reply was written from, taken when it was sent (#482). That is no fact about the
+instance, and changes nothing about what goes stale; it is there so that the one screen the reader replied on moves
+its pick to the reply, while every other screen taking it in stays where the reader left it — wherever the reader is
+by the time the instance answers. Distinct from a notice, which stays with the verb: "Deleted." is said to a reader,
+and a change is said to the shell.
 A verb deciding what went stale could only ever decide it about the destination showing, which is how a post marked on
 Home stayed unmarked on a Local list held a minute, and a post sent from Notifications left Home as it was.
 _Avoid_: event, update, invalidation
