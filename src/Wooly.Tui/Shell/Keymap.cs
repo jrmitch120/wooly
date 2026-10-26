@@ -247,6 +247,9 @@ public static class Keymap
         // which have one (#489).
         (ShellKey.S, ActorsScreen { Side: not null }) => Verb.SwapSide,
 
+        // And o there, the one place it means anything: the post's page on its home instance (#491).
+        (ShellKey.O, ActorsScreen { Side: not null }) => Verb.OpenPostPage,
+
         // And s again on the account screen, where it swaps runs rather than sides: their posts and replies, and back
         // to their posts alone (#229). Still bound only where it does something, and announced where it is.
         (ShellKey.S, AccountScreen) => Verb.SwapPostsAndReplies,

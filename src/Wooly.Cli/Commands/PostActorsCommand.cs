@@ -29,9 +29,23 @@ internal abstract class PostActorsCommand(
         protected override string Counted => "account";
     }
 
-    protected override Listing<Account> ListingFor(ActiveProfile profile, Settings settings) =>
-        new(
-            token => posts.ReadActors(profile, settings.PostId, side, settings.Limit, token),
-            fetch => AccountJson.WriteActors(console, side, settings.PostId, fetch),
-            fetch => AccountReport.WriteActors(console, side, settings.PostId, fetch));
+    /// <remarks>
+    ///     The post is read first, for the count on the side being listed: an instance lists only the favorites and
+    ///     boosts it knows of, and without the count a list one person long under a post favorited 140 times could not
+    ///     say why it is short (#491). An id that names no post fails there, as <c>post show</c> does.
+    /// </remarks>
+    protected override Listing<Account> ListingFor(ActiveProfile profile, Settings settings)
+    {
+        Post? post = null;
+
+        return new Listing<Account>(
+            async token =>
+            {
+                post = await posts.Show(profile, settings.PostId, token);
+
+                return await posts.ReadActors(profile, settings.PostId, side, settings.Limit, token);
+            },
+            fetch => AccountJson.WriteActors(console, side, post!, fetch),
+            fetch => AccountReport.WriteActors(console, side, post!, profile.Instance, fetch));
+    }
 }

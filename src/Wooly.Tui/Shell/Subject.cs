@@ -677,7 +677,8 @@ public abstract record Subject
 
         /// <inheritdoc />
         /// <remarks>On every move, as a group's: the reader is looking at the list they opened while it fills.</remarks>
-        internal override Screen? Placeholder(Move move, ActiveProfile profile) => new ActorsScreen(Post, Side);
+        internal override Screen? Placeholder(Move move, ActiveProfile profile) =>
+            new ActorsScreen(Post, Side, profile.Instance);
 
         /// <inheritdoc />
         /// <remarks>The first page of the side, and where the reader stands with everyone on it, as a group's.</remarks>

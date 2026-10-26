@@ -1628,7 +1628,8 @@ public sealed class Shell
             arrival,
             say: StatusRow.Say,
             confirm: StatusRow.Ask,
-            changed: () => Changed?.Invoke());
+            changed: () => Changed?.Invoke(),
+            browse: OpenAddress);
 
         return new Acting(profile, arrival, reach, cache, new PeopleToMention(profile)) { Lists = lists };
     }

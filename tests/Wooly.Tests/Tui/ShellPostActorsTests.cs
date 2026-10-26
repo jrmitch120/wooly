@@ -228,19 +228,136 @@ public class ShellPostActorsTests
         Assert.Equal("Bob", Assert.IsType<ActorsScreen>(opened.Screen).PickedPerson?.Author);
     }
 
-    /// <summary>A side that reads back empty — the count was stale — says so rather than drawing nothing.</summary>
-    [Theory]
-    [InlineData(5, 0, "Nobody has favorited this.")]
-    [InlineData(0, 3, "Nobody has boosted this.")]
-    public async Task Arrived_AnEmptySideSaysNobodyIsOnIt(long favorites, long boosts, string nobody)
+    /// <summary>
+    ///     A side that reads back empty where its count was really zero — swapped to — says nobody did it.
+    /// </summary>
+    [Fact]
+    public async Task Swap_ToASideCountedZeroSaysNobodyIsOnIt()
     {
-        var shell = Holding(APost.With(id: "110") with { Favorites = favorites, Boosts = boosts });
+        var shell = Holding(APost.With(id: "110") with { Favorites = 0, Boosts = 3 });
+        shell.Engagement.ActorsOf[("110", ActorSide.Boosted)] = Actors("Carol", "Dan", "Eve");
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+        opened.Press(ShellKey.S);
+        shell.Host.Drain();
+
+        Assert.Contains("Nobody has favorited this.", Drawn(Assert.IsType<ActorsScreen>(opened.Screen)));
+    }
+
+    /// <summary>
+    ///     A remote post's side read to its end and shorter than its count says, above the list, that the reader's
+    ///     instance knows of only some and where the rest are (#491) — with the foot still under it.
+    /// </summary>
+    [Fact]
+    public async Task Arrived_ARemotePostsShortSideSaysWhereTheRestAre()
+    {
+        var shell = Holding(Remote() with { Favorites = 140 });
+        shell.Engagement.ActorsOf[("110", ActorSide.Favorited)] = Actors("Alice");
         var opened = await shell.Opened();
 
         opened.Press(ShellKey.W);
         shell.Host.Drain();
 
-        Assert.Contains(nobody, Drawn(Assert.IsType<ActorsScreen>(opened.Screen)));
+        var drawn = Drawn(Assert.IsType<ActorsScreen>(opened.Screen));
+        Assert.Equal(
+            "mastodon.social knows of 1 of 140 favorites. The rest are on hachyderm.io.",
+            string.Join(' ', drawn.TakeWhile(line => line.Length > 0)));
+        Assert.Equal("that's everything", drawn[^1]);
+    }
+
+    /// <summary>A local post's short side says how many can be listed, its rest being nowhere else.</summary>
+    [Fact]
+    public async Task Arrived_ALocalPostsShortSideSaysHowManyCanBeListed()
+    {
+        var shell = Holding(APost.With(id: "110") with { Favorites = 0, Boosts = 3 });
+        shell.Engagement.ActorsOf[("110", ActorSide.Boosted)] = Actors("Carol");
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        Assert.Equal("1 of 3 boosts can be listed.", Drawn(Assert.IsType<ActorsScreen>(opened.Screen))[0]);
+    }
+
+    /// <summary>
+    ///     A side the instance knows of nobody on, where the post counts some, says why in place of "Nobody has
+    ///     favorited this."
+    /// </summary>
+    [Fact]
+    public async Task Arrived_AnEmptySideCountedAboveZeroSaysWhy()
+    {
+        var shell = Holding(Remote() with { Favorites = 5 });
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        var drawn = Drawn(Assert.IsType<ActorsScreen>(opened.Screen));
+        Assert.Equal(
+            "mastodon.social knows of none of 5 favorites. The rest are on hachyderm.io.",
+            string.Join(' ', drawn.TakeWhile(line => line.Length > 0)));
+        Assert.DoesNotContain("Nobody has favorited this.", drawn);
+    }
+
+    /// <summary>
+    ///     Nothing is said where the side lists as many as the post counts, nor while there is more of it to read on.
+    /// </summary>
+    [Fact]
+    public async Task Arrived_SaysNothingOfAListAsLongAsItsCountOrNotYetWhole()
+    {
+        var shell = Holding(Remote() with { Favorites = 2, Boosts = 140 });
+        shell.Engagement.ActorsOf[("110", ActorSide.Favorited)] = Actors("Alice", "Bob");
+        shell.Engagement.ActorsOf[("110", ActorSide.Boosted)] = Actors([.. Enumerable.Range(1, 100).Select(at => $"Fan{at}")]);
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        Assert.EndsWith("Alice", Drawn(opened.Screen)[0]);
+
+        opened.Press(ShellKey.S);
+        shell.Host.Drain();
+
+        Assert.EndsWith("Fan1", Drawn(opened.Screen)[0]);
+    }
+
+    /// <summary>
+    ///     <c>o</c> on a remote post's actors opens the post's page on its home instance, where the whole list is, and
+    ///     says so on the status row (#491).
+    /// </summary>
+    [Fact]
+    public async Task PressO_OnARemotePostsActorsOpensThePostOnItsHomeInstance()
+    {
+        var shell = Holding(Remote());
+        shell.Engagement.ActorsOf[("110", ActorSide.Favorited)] = Actors("Alice");
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        Assert.Contains(opened.Screen.Keys, key => key is { Key: "o", Does: "on hachyderm.io" });
+
+        opened.Press(ShellKey.O);
+
+        Assert.Equal("https://hachyderm.io/@ben/110", Assert.Single(shell.Browser.Opened).ToString());
+    }
+
+    /// <summary>And on a local post's there is nowhere else to go, so <c>o</c> is neither offered nor answered.</summary>
+    [Fact]
+    public async Task PressO_OnALocalPostsActorsDoesNothing()
+    {
+        var shell = Holding(APost.With(id: "110"));
+        shell.Engagement.ActorsOf[("110", ActorSide.Favorited)] = Actors("Alice");
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+        opened.Press(ShellKey.O);
+
+        Assert.DoesNotContain(opened.Screen.Keys, key => key.Key == "o");
+        Assert.Empty(shell.Browser.Opened);
     }
 
     /// <summary>The status row offers <c>w:who</c> while a post is picked, and <c>s</c> on the screen it opens.</summary>
@@ -347,6 +464,10 @@ public class ShellPostActorsTests
 
         return opened;
     }
+
+    /// <summary>A post of Ben's on hachyderm.io, which the reader on mastodon.social sees by federation.</summary>
+    private static Post Remote() =>
+        APost.With(id: "110", account: "ben@hachyderm.io") with { Url = "https://hachyderm.io/@ben/110" };
 
     private static AShell Holding(Post post) => new() { Timelines = FakeTimelineReader.Holding(post) };
 

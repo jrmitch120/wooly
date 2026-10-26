@@ -117,7 +117,8 @@ internal sealed class ADrafting
             arrival,
             say: StatusRow.Say,
             confirm: StatusRow.Ask,
-            changed: () => Changes++);
+            changed: () => Changes++,
+            browse: _ => { });
 
         Drafting.ActingAs(profile);
     }

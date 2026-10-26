@@ -88,9 +88,28 @@ internal static class AccountReport
     ///     Writes one side of a post's <b>Actors</b> — who favorited it, or who boosted it — each the way a follow list
     ///     writes one, or says that there are none of them (#488).
     /// </summary>
-    /// <param name="postId">The post, so that an empty list says which post nobody favorited.</param>
-    public static void WriteActors(IAnsiConsole console, ActorSide side, string postId, Fetch<Account> fetch) =>
-        Write(console, side.Either($"Nobody has favorited post {postId}.", $"Nobody has boosted post {postId}."), fetch);
+    /// <remarks>
+    ///     A list read to its end that holds fewer than the post counts says why under it, and in place of saying
+    ///     nobody where it holds none (#491): the reader's instance knows of only some, and a remote post's rest are on
+    ///     its home instance. Written to the output rather than as an error — nothing failed — as an empty list's line
+    ///     is.
+    /// </remarks>
+    /// <param name="post">The post, so that an empty list says which post nobody favorited, and for its count.</param>
+    /// <param name="reader">The instance the list was read from.</param>
+    public static void WriteActors(IAnsiConsole console, ActorSide side, Post post, string reader, Fetch<Account> fetch)
+    {
+        var shortfall = fetch.IsWhole && fetch.StoppedBy is null
+            ? ActorShortfall.Of(post, side, fetch.Items.Count, reader)
+            : null;
+        var nobody = side.Either($"Nobody has favorited post {post.Id}.", $"Nobody has boosted post {post.Id}.");
+
+        Write(console, fetch.Items.Count == 0 && shortfall is { } none ? none.Says : nobody, fetch);
+
+        if (fetch.Items.Count > 0 && shortfall is { } some)
+        {
+            console.MarkupLineInterpolated($"{some.Says}");
+        }
+    }
 
     /// <summary>Writes a list of accounts, or <paramref name="nobody" /> where there are none of them.</summary>
     private static void Write(IAnsiConsole console, string nobody, Fetch<Account> fetch)

@@ -287,13 +287,25 @@ public class KeymapTests
     }
 
     /// <summary>
+    ///     <c>o</c> opens a post's page on its home instance from its actors, and means nothing anywhere else — not on a
+    ///     notification group's actors, nor on a feed (#491).
+    /// </summary>
+    [Fact]
+    public void TheOKeyBelongsToAPostsActors()
+    {
+        Assert.Equal(Verb.OpenPostPage, Means("o", new ActorsScreen(APost.With(), ActorSide.Favorited, "mastodon.social")));
+        Assert.Equal(Verb.None, Means("o", new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]))));
+        Assert.Equal(Verb.None, Means("o", Feed()));
+    }
+
+    /// <summary>
     ///     <c>s</c> swaps sides on a post's actors, which have two as a follow list does — and is nothing on a
     ///     notification group's, which have one (#489).
     /// </summary>
     [Fact]
     public void TheSwapKeySwapsSidesOnAPostsActorsAlone()
     {
-        Assert.Equal(Verb.SwapSide, Means("s", new ActorsScreen(APost.With(), ActorSide.Favorited)));
+        Assert.Equal(Verb.SwapSide, Means("s", new ActorsScreen(APost.With(), ActorSide.Favorited, "mastodon.social")));
         Assert.Equal(Verb.None, Means("s", new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]))));
     }
 

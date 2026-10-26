@@ -28,6 +28,8 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
 {
     private readonly Picked<Account> _people = new([]);
 
+    private readonly string? _reader;
+
     /// <summary>The actors of the notification group <paramref name="group" />.</summary>
     public ActorsScreen(NotificationGroup group)
     {
@@ -37,13 +39,21 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
     }
 
     /// <summary>The actors on <paramref name="side" /> of <paramref name="post" />.</summary>
-    /// <param name="post">The post, never the boost carrying it.</param>
-    public ActorsScreen(Post post, ActorSide side)
+    /// <param name="post">The post, never the boost carrying it, with the counts it carried when it was asked about.</param>
+    /// <param name="reader">
+    ///     The reader's instance, which is what listed them — and so what a list shorter than the post's count is
+    ///     short on (#491).
+    /// </param>
+    public ActorsScreen(Post post, ActorSide side, string reader)
     {
         Post = post;
         Side = side;
         Crumb = side.Crumb();
-        Nobody = side.Nobody();
+        _reader = reader;
+
+        // A side counted above zero that reads back empty is short like any other, and says why rather than that
+        // nobody did it — which only a side counted at zero says.
+        Nobody = ActorShortfall.Of(post, side, known: 0, reader)?.Says ?? side.Nobody();
     }
 
     /// <summary>The group whose actors these are, or nothing where they are a post's.</summary>
@@ -90,6 +100,7 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
         new KeyHint("j/k", "person"),
         new KeyHint("⏎", "open", NeedsAPick: true),
         .. Side is { } side ? [new KeyHint("s", side.Other().Crumb().ToLowerInvariant())] : Array.Empty<KeyHint>(),
+        .. PostPage is not null ? [new KeyHint("o", $"on {Home}")] : Array.Empty<KeyHint>(),
         Refreshing,
         .. PostKeys.Leaving(new KeyHint("esc", "back")),
     ];
@@ -135,8 +146,38 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
     {
         Verb.OpenPerson when PickedPerson is { } person => reach.Open(Subject.Account.Of(person)),
         Verb.SwapSide when (Post, Side) is ({ } post, { } side) => reach.Swap(new Subject.PostActors(post, side.Other())),
+        Verb.OpenPostPage when PostPage is { } page => Browsed(reach, page),
         _ => Task.CompletedTask,
     };
+
+    /// <summary>
+    ///     The post's home instance, where its favorites and boosts are delivered — or nothing where it is the
+    ///     reader's own, or these are a group's.
+    /// </summary>
+    private string? Home => Post is { } post && _reader is { } reader ? ActorShortfall.HomeOf(post, reader) : null;
+
+    /// <summary>
+    ///     The post's page on its home instance, which <c>o</c> opens — where the whole of a list the reader's instance
+    ///     knows only part of is (#491). Nothing on a post of the reader's own instance, there being nowhere else to go.
+    /// </summary>
+    private string? PostPage => Home is not null ? Post?.Url : null;
+
+    /// <summary>
+    ///     Why the list, read to its end, holds fewer than the post counts — or nothing, while there is more to read,
+    ///     where it holds as many, or where it holds nobody, which <see cref="Nobody" /> already says.
+    /// </summary>
+    private ActorShortfall? Shortfall =>
+        (Post, Side, _reader, ReadingOn) is ({ } post, { } side, { } reader, { IsWhole: true, InFlight: false })
+        && Read > 0
+            ? ActorShortfall.Of(post, side, Read, reader)
+            : null;
+
+    private static Task Browsed(Reach reach, string page)
+    {
+        reach.Browse(page);
+
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
@@ -144,9 +185,11 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
         var width = drawing.Width;
         var lines = new List<Line>();
 
-        if (Notice is { } notice)
+        // Wrapped rather than clipped, since why a post's list is short is a sentence that names two instances, and
+        // cut at the edge it would name neither.
+        if ((Notice ?? Shortfall?.Says) is { } notice)
         {
-            lines.Add(Line.Of(TextWrap.Clip(notice, width), Role.Muted));
+            lines.AddRange(TextWrap.Wrap(notice, width).Select(row => Line.Of(row, Role.Muted)));
             lines.Add(Line.Blank);
         }
 

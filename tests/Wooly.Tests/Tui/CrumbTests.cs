@@ -218,10 +218,10 @@ public class CrumbTests
                 return new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]));
 
             case "favorited-by":
-                return new ActorsScreen(post, ActorSide.Favorited);
+                return new ActorsScreen(post, ActorSide.Favorited, "mastodon.social");
 
             case "boosted-by":
-                return new ActorsScreen(post, ActorSide.Boosted);
+                return new ActorsScreen(post, ActorSide.Boosted, "mastodon.social");
 
             case "profiles":
                 return new ProfilesScreen([], "personal", []);

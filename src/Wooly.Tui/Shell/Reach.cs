@@ -31,6 +31,7 @@ public sealed class Reach
 {
     private readonly Arrival _arrival;
     private readonly Action _changed;
+    private readonly Action<string> _browse;
     private readonly Action<Confirmation> _confirm;
     private readonly Enquiry _enquiry;
     private readonly Says _say;
@@ -43,7 +44,8 @@ public sealed class Reach
         Arrival arrival,
         Says say,
         Action<Confirmation> confirm,
-        Action changed)
+        Action changed,
+        Action<string> browse)
     {
         Profile = profile;
         Ports = ports;
@@ -52,6 +54,7 @@ public sealed class Reach
         _say = say;
         _confirm = confirm;
         _changed = changed;
+        _browse = browse;
     }
 
     /// <summary>Who is asking.</summary>
@@ -94,6 +97,12 @@ public sealed class Reach
 
     /// <summary>Asks before going ahead, and goes ahead with what the confirmation carries once it is agreed to.</summary>
     public void Confirm(Confirmation confirmation) => _confirm(confirmation);
+
+    /// <summary>
+    ///     Opens <paramref name="address" /> in the platform's browser, the way <c>⏎</c> on a link does — refused, and said
+    ///     so, where it is not an address a browser should be handed or there is no browser to hand it to (#491).
+    /// </summary>
+    public void Browse(string address) => _browse(address);
 
     /// <summary>Says something on screen has changed, so that it is drawn again.</summary>
     public void Changed() => _changed();

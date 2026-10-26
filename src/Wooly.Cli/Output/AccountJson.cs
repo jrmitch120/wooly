@@ -29,17 +29,19 @@ internal static class AccountJson
     /// <summary>Writes one side of a post's <b>Actors</b>, saying which side and which post (#488).</summary>
     /// <remarks>
     ///     The same envelope as a follow list, so a script reads every list of accounts one way: <c>list</c> is
-    ///     <c>favoritedBy</c> or <c>boostedBy</c>, and <c>post</c> names the post in place of the <c>account</c> a follow
-    ///     list names.
+    ///     <c>favoritedBy</c> or <c>boostedBy</c>, <c>post</c> names the post in place of the <c>account</c> a follow
+    ///     list names, and <c>total</c> is how many the post counts on that side — which an instance that knows of only
+    ///     some of them lists fewer of (#491).
     /// </remarks>
-    public static void WriteActors(IAnsiConsole console, ActorSide side, string postId, Fetch<Account> fetch) =>
+    public static void WriteActors(IAnsiConsole console, ActorSide side, Post post, Fetch<Account> fetch) =>
         ListDocument.Write(
             console,
             fetch,
             AccountDocument.Of,
             "accounts",
             ("list", side.Either("favoritedBy", "boostedBy")),
-            ("post", postId));
+            ("post", post.Id),
+            ("total", side.Either(post.Favorites, post.Boosts)));
 
     /// <summary>Writes the accounts waiting to be let in.</summary>
     /// <remarks>

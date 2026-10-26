@@ -29,15 +29,15 @@ internal static class ListDocument
     /// </param>
     /// <param name="about">
     ///     What this list is, ahead of the envelope's own three fields, for the lists that say so — which timeline and
-    ///     which hashtag, which side of a follow and whose. A field whose value is <see langword="null" /> is one that
-    ///     does not apply here, and is left out.
+    ///     which hashtag, which side of a follow and whose, and how many a post counts on the side of its actors listed.
+    ///     A field whose value is <see langword="null" /> is one that does not apply here, and is left out.
     /// </param>
     public static void Write<TItem, TDocument>(
         IAnsiConsole console,
         Fetch<TItem> fetch,
         Func<TItem, TDocument> asDocument,
         string plural,
-        params (string Field, string? Value)[] about)
+        params (string Field, object? Value)[] about)
     {
         // Written field by field rather than as a record because the plural is only known at the call site, and a
         // record's field names are attributes fixed at compile time. Ordered, because the order these come out in is
