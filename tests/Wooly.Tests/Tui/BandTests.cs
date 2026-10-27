@@ -68,6 +68,33 @@ public class BandTests
         Assert.All(Row(cells, 0), cell => Assert.Equal(band, cell.Background));
     }
 
+    /// <summary>
+    ///     A rule is ruled to the edge of the view the way the band is, in the rule's muted role, however wide the view
+    ///     is — it carries no width of its own to stop at (#494).
+    /// </summary>
+    [Fact]
+    public async Task ARuleIsRuledToTheEdgeOfTheView()
+    {
+        var muted = Themes.Dark.For(Role.Muted);
+
+        var cells = await Drawn(Themes.Dark, Line.Rule());
+
+        Assert.All(
+            Enumerable.Range(0, cells.GetLength(1)),
+            column => Assert.Equal(("─", muted), (cells[0, column].Grapheme, cells[0, column].Attribute!.Value)));
+    }
+
+    /// <summary>And a rule in the thing picked out is ruled on the band.</summary>
+    [Fact]
+    public async Task APickedRuleIsRuledOnTheBand()
+    {
+        var band = Themes.Dark.For(Role.Band).Background;
+
+        var cells = await Drawn(Themes.Dark, Line.Rule() with { Picked = true });
+
+        Assert.All(Row(cells, 0), cell => Assert.Equal(band, cell.Background));
+    }
+
     /// <summary>And a row nobody picked is left on the page.</summary>
     [Fact]
     public async Task AnUnmarkedRowStaysOnThePage()

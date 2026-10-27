@@ -694,7 +694,12 @@ internal sealed class PaintedView : View
         var bandsTo = Math.Min(width, line?.BandsTo ?? width);
         var column = 0;
 
-        foreach (var span in line?.Spans ?? [])
+        // A rule says no width of its own: its stroke is repeated to the edge of the view, the way the band is (#494).
+        var spans = line is { Ruled: true, Spans: [var stroke] }
+            ? [stroke with { Text = string.Concat(Enumerable.Repeat(stroke.Text, Math.Max(0, width))) }]
+            : line?.Spans ?? [];
+
+        foreach (var span in spans)
         {
             if (column >= width)
             {

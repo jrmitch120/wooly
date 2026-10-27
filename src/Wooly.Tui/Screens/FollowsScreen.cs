@@ -381,7 +381,7 @@ public sealed class FollowsScreen : Screen, IReadsOn<Account>
         if (Read > 0)
         {
             lines.Add(Line.Of(TextWrap.Clip(Counted(), width), Role.Muted));
-            lines.Add(Line.Rule(width));
+            lines.Add(Line.Rule());
         }
 
         // No rule between people, and one under the prompt instead: there is one kind of thing on this list and

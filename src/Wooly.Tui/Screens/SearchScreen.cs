@@ -338,7 +338,7 @@ public sealed class SearchScreen : Screen
 
         for (var at = 0; at < _results.Count; at++)
         {
-            lines.AddRange(Heads(at) ? Heading(at) : Between(_results.All[at], width));
+            lines.AddRange(Heads(at) ? Heading(at) : Between(_results.All[at]));
             lines.AddRange(_results.RowsOf(at, width, Draw));
         }
 
@@ -411,11 +411,11 @@ public sealed class SearchScreen : Screen
     ///     under a heading that has already said how many there are, where a separator per row would spend as many
     ///     rows on the gaps as on the tags and the gutter already says which one is picked out.
     /// </remarks>
-    private static IReadOnlyList<Line> Between(Result result, int width) => result switch
+    private static IReadOnlyList<Line> Between(Result result) => result switch
     {
         Result.OfAccount => [Line.Blank],
         Result.OfHashtag => [],
-        _ => [Line.Rule(width)],
+        _ => [Line.Rule()],
     };
 
     /// <summary>

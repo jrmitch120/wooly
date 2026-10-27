@@ -68,7 +68,7 @@ public class PickedTests
         var rules = lines.Where(line => line.Item is null).ToList();
 
         Assert.Equal(3, rules.Count);
-        Assert.All(rules, rule => Assert.Equal(new string('─', 61), rule.Text));
+        Assert.All(rules, rule => Assert.True(rule.Ruled));
         Assert.All(rules, rule => Assert.Equal(Role.Muted, rule.Role));
     }
 
@@ -112,9 +112,9 @@ public class PickedTests
     [Fact]
     public void Rule_RunsTheWholeWidthAndCarriesNoSelection()
     {
-        var rule = Line.Rule(61);
+        var rule = Line.Rule();
 
-        Assert.Equal(61, rule.Width);
+        Assert.True(rule.Ruled);
         Assert.Null(rule.Item);
         Assert.False(rule.Has(Role.Selection));
     }

@@ -72,6 +72,27 @@ public class ContentPanelTests
     }
 
     /// <summary>
+    ///     The rule between two posts runs from the column inside the panel's left edge to the column inside its right
+    ///     edge, with no gap at either end — ruled to the view's edge rather than drawn at a width it is handed (#494).
+    /// </summary>
+    [Fact]
+    public async Task TheRuleBetweenTwoPostsRunsFromEdgeToEdge()
+    {
+        using var drawn = await Draw(
+            80,
+            24,
+            built: new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(APost.With(id: "1"), APost.With(id: "2")),
+            });
+
+        var rules = drawn.Rows()[1..22].Where(row => row[RailLines.Width + 1] == '─').ToList();
+
+        Assert.NotEmpty(rules);
+        Assert.All(rules, rule => Assert.Equal(new string('─', 58), rule[(RailLines.Width + 1)..^1]));
+    }
+
+    /// <summary>
     ///     The frame's cells are the theme's answer for the panel roles, the edge in the active one — the content
     ///     panel is the one being read — and the title in the title's.
     /// </summary>

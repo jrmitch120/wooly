@@ -290,7 +290,7 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
         for (var at = from; at < from + howMany; at++)
         {
             lines.AddRange(RowsOf(at, width, draw, ordinals));
-            lines.Add(Line.Rule(width));
+            lines.Add(Line.Rule());
         }
 
         return lines;

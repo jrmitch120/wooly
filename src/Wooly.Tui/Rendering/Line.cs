@@ -106,6 +106,12 @@ public sealed record Line
     /// </summary>
     public int? BandsTo { get; init; }
 
+    /// <summary>
+    ///     Whether this row is a rule (<see cref="Rule" />): its one span repeated by the view that paints it from the
+    ///     row's first column to the view's last, rather than drawn as wide as it is.
+    /// </summary>
+    public bool Ruled { get; init; }
+
     /// <summary>What the row reads as with the roles taken off — what a test asserts against, and what a screenshot shows.</summary>
     public string Text
     {
@@ -132,15 +138,19 @@ public sealed record Line
     public static Line Of(string text, Role role) => new([new Span(text, role)]);
 
     /// <summary>
-    ///     A row ruled across its whole width, which is what says one thing on a screen has ended and the next begun.
+    ///     A row ruled across the whole width of the view it is painted in, which is what says one thing on a screen
+    ///     has ended and the next begun.
     /// </summary>
     /// <remarks>
     ///     Said here rather than by whatever puts one between two things, so that the separator a list draws and the
     ///     separator a screen splicing headings between things draws cannot come to be two different separators
     ///     (<see cref="Screens.Picked{T}.Rows" />).
+    ///     <para>
+    ///         It carries no width: its one span is the stroke, which the view repeats to its edge the way it runs a
+    ///         picked row's band out (#269), so a rule reaches the edge whatever width the screen was drawn at (#494).
+    ///     </para>
     /// </remarks>
-    /// <param name="width">How wide the content region is — 58 at an 80-column terminal, inside the panel's edges.</param>
-    public static Line Rule(int width) => Of(new string('─', Math.Max(0, width)), Theme.Role.Muted);
+    public static Line Rule() => Of("─", Theme.Role.Muted) with { Ruled = true };
 
     /// <summary>
     ///     The role every span on this row takes, or <see langword="null" /> where they do not agree. What a test asks
@@ -197,5 +207,6 @@ public sealed record Line
         ContentStarts = ContentStarts,
         Picked = Picked,
         BandsTo = BandsTo,
+        Ruled = Ruled,
     };
 }

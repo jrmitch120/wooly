@@ -195,7 +195,7 @@ public sealed class PostScreen : Screen
         {
             if (at > 0)
             {
-                lines.Add(Line.Rule(width));
+                lines.Add(Line.Rule());
             }
 
             lines.AddRange(_posts.RowsOf(at, drawing));
@@ -224,7 +224,7 @@ public sealed class PostScreen : Screen
         for (var at = subject + 1; at < _posts.Count; at++)
         {
             lines.AddRange(_posts.RowsOf(at, drawing));
-            lines.Add(Line.Rule(width));
+            lines.Add(Line.Rule());
         }
 
         return lines;
