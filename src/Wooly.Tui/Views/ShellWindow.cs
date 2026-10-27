@@ -49,12 +49,20 @@ internal sealed class ShellWindow : Window
     private const int Edge = 1;
 
     /// <summary>
+    ///     The column a screen in the content panel gives up on its right, the margin mirroring the gutter on its left
+    ///     (#495): taken here, once, off the room every screen is drawn in, so that text, pictures and right-aligned
+    ///     columns all stop short of the panel's edge without any screen knowing. The view keeps its whole width, so a
+    ///     rule and the picked thing's band still run to the edge over it.
+    /// </summary>
+    private const int RightMargin = 1;
+
+    /// <summary>
     ///     What the content region answers to among its siblings — four regions are painted the same way and only
     ///     this one shows posts, so it is the one worth being able to name.
     /// </summary>
     /// <remarks>
-    ///     Its <c>Frame</c> is the whole panel and its <c>Viewport</c> the inside of it, which is the room every screen
-    ///     is drawn in.
+    ///     Its <c>Frame</c> is the whole panel and its <c>Viewport</c> the inside of it, which every screen is drawn in
+    ///     less the <see cref="RightMargin" /> — but for a draft's, laid out under widgets sized from the viewport.
     /// </remarks>
     internal const string ContentId = "content";
 
@@ -242,7 +250,8 @@ internal sealed class ShellWindow : Window
         // scrolling while a post is being written, which Refresh settles.
         //
         // It is a panel titled with the breadcrumb (ADR-0021), its edges laid round its viewport, so the width every
-        // screen is drawn at and every picture's box are the inside of it: 58 columns at an 80-column terminal.
+        // screen is drawn at and every picture's box are the inside of it less the margin: 57 columns at an 80-column
+        // terminal, of a viewport 58 wide (#495).
         _content = new PaintedView(
             theme,
             // Laid out under the Raster the region settled the frame by, read rather than asked again here, so that a
@@ -250,7 +259,14 @@ internal sealed class ShellWindow : Window
             // region is built, which is all the null-forgiving says. Told where the page is, for a screen with something
             // that keeps to it (#382).
             (width, height) => shell.Screen.Lines(
-                new Drawing(width, clock.GetUtcNow(), pictures, _content!.Raster, hideDrawnCaption, height, blurs)
+                new Drawing(
+                    Room(shell.Screen, width),
+                    clock.GetUtcNow(),
+                    pictures,
+                    _content!.Raster,
+                    hideDrawnCaption,
+                    height,
+                    blurs)
                 {
                     Top = _content.Top,
                 }),
@@ -1224,6 +1240,14 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private static Point ViewportOrigin(View? content) =>
         content is null ? Point.Empty : content.Frame.Location + new Size(Edge, Edge);
+
+    /// <summary>
+    ///     How wide <paramref name="screen" /> is drawn in a viewport <paramref name="width" /> wide: a column short, for
+    ///     the <see cref="RightMargin" />, unless it is a draft — compose, a description or the public profile form —
+    ///     whose rows lie under widgets sized from the viewport and which already pads both sides evenly (#495).
+    /// </summary>
+    private static int Room(Screen screen, int width) =>
+        screen is ComposeScreen or DescriptionScreen or PublicProfileScreen ? width : Math.Max(0, width - RightMargin);
 
     /// <summary>
     ///     Lays the rail out where the shell has one and takes it away where it has none — with nobody to act as, which

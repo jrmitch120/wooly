@@ -46,9 +46,13 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
 from the left so it always ends where you are, and the fetch mark, a star spinner, a space after it while a fetch
 is in flight. The mark's 2 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is
-always `panel-border-active`: it is the panel being read. Its rows are 58 columns wide at an 80-column terminal. That is
-the width every screen must read well at: the 61 of ADR-0014 less the cell the gutter column gave up to the content
-panel's left edge, and less the two the rail took when it widened to 20 so that a label and its count both fit (#272).
+always `panel-border-active`: it is the panel being read. Its rows are 58 columns wide at an 80-column terminal: the 61
+of ADR-0014 less the cell the gutter column gave up to the content panel's left edge, and less the two the rail took
+when it widened to 20 so that a label and its count both fit (#272). A screen is drawn in 57 of them, the margin's
+column given up on the right to mirror the gutter on the left (#495), so text, pictures and the right-aligned status and
+age stop one column short of the edge; 57 is the width every screen must read well at. The rules between things and
+the picked thing's band still run to the edge, over the margin. The drafting overlays — compose, the description
+screen and the public profile form — are sized from the panel's whole 58 and keep their 2 columns of padding each side.
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
 it 23. Shorter than that, it steps down rather than clipping:
@@ -160,7 +164,7 @@ inside its edges. Hiding changes nothing about the stack or about where you are.
 The shell is drawn in a share of the terminal's width: all of it, or less, in steps of ten down to half (`GLOSSARY.md`,
 #413). `-` narrows it a step and `+` or `=` widens it a step (**Keys**, below), and each step taken is saved as
 `shell_width` for the next launch to open at (#414, #415; "Starting it", below). Every width this document gives — the
-rail's 20, the 58 columns at 80 — is the shell's, which is the terminal's at 100%.
+rail's 20, the 58 columns at 80 and the 57 a screen is drawn in — is the shell's, which is the terminal's at 100%.
 
 - **The columns** are worked out from the terminal's `T` and the share `p` on every layout:
   `min(T, max(80, ⌊T × p / 100⌋))`, and the shell's first column is `⌊(T − columns) / 2⌋`, so it is centred and the
@@ -223,7 +227,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
-Every screen owes three things: it reads at 58 columns, it says what its keys are on the status row, and it names roles
+Every screen owes three things: it reads at 57 columns, it says what its keys are on the status row, and it names roles
 rather than colours (below).
 
 ## Keys

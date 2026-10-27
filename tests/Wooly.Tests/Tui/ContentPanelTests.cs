@@ -22,7 +22,8 @@ public class ContentPanelTests
 {
     /// <summary>
     ///     At 80×24 the panel runs from the column after the rail to the last column, from row 0 to the row above the
-    ///     status row — and its rows are the 58 columns inside it, starting on row 1.
+    ///     status row — and its viewport is the 58 columns inside it, starting on row 1, of which a screen is drawn in
+    ///     57 (#495).
     /// </summary>
     [Fact]
     public async Task AtEightyByTwentyFourThePanelsRowsAreFiftyEightColumnsWideAndStartOnRowOne()
@@ -59,14 +60,14 @@ public class ContentPanelTests
 
     /// <summary>
     ///     The first row of the screen is drawn on row 1, inside the left edge — where the breadcrumb row and the blank
-    ///     row under it used to push it to row 2.
+    ///     row under it used to push it to row 2 — drawn 57 wide, the margin's column given up on the right (#495).
     /// </summary>
     [Fact]
     public async Task TheScreensFirstRowIsDrawnInsideTheFrameOnRowOne()
     {
         using var drawn = await Draw(80, 24);
 
-        var first = drawn.Shell.Screen.Lines(new Wooly.Tui.Rendering.Drawing(58, AShell.Now))[0].Text;
+        var first = drawn.Shell.Screen.Lines(new Wooly.Tui.Rendering.Drawing(57, AShell.Now))[0].Text;
 
         Assert.Equal(first, drawn.Rows()[1][(RailLines.Width + 1)..^1].TrimEnd());
     }
@@ -90,6 +91,73 @@ public class ContentPanelTests
 
         Assert.NotEmpty(rules);
         Assert.All(rules, rule => Assert.Equal(new string('─', 58), rule[(RailLines.Width + 1)..^1]));
+    }
+
+    /// <summary>
+    ///     A post whose text wraps — a long link broken across rows — wraps one column short of the panel's right edge:
+    ///     the column just inside it is the margin, mirroring the gutter on the left, and nothing is written there.
+    /// </summary>
+    [Fact]
+    public async Task APostsWrappedTextLeavesTheMarginBlank()
+    {
+        using var drawn = await Draw(
+            80,
+            24,
+            built: new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(content: "https://example.com/" + new string('a', 150))),
+            });
+
+        var rows = drawn.Rows()[1..22];
+
+        Assert.Contains(rows, row => row[^3] == 'a');
+        Assert.All(rows.Where(row => row[RailLines.Width + 1] != '─'), row => Assert.Equal(' ', row[^2]));
+    }
+
+    /// <summary>
+    ///     A post header's right-aligned age stops at the margin, one column in from the panel's right edge, rather
+    ///     than against it.
+    /// </summary>
+    [Fact]
+    public async Task APostHeadersAgeEndsOneColumnInFromTheEdge()
+    {
+        using var drawn = await Draw(80, 24);
+
+        var header = drawn.Rows()[1];
+
+        Assert.Equal(' ', header[^2]);
+        Assert.NotEqual(' ', header[^3]);
+    }
+
+    /// <summary>
+    ///     The picked post's band covers the margin as it covers the gutter, running to the column just inside the
+    ///     panel's right edge past where the words stop.
+    /// </summary>
+    [Fact]
+    public async Task ThePickedPostsBandCoversTheMargin()
+    {
+        using var drawn = await Draw(80, 24, Themes.Dark);
+
+        Assert.Equal(Themes.Dark.For(Role.Band).Background, drawn.Cell(1, 78).Background);
+    }
+
+    /// <summary>
+    ///     Compose is sized from the panel's viewport, not the room a screen is drawn in, so the margin takes nothing
+    ///     from it: its hairlines still run from two columns inside the left edge to two inside the right.
+    /// </summary>
+    [Fact]
+    public async Task ComposeKeepsItsPaddingInsideTheWholeViewport()
+    {
+        using var drawn = await Draw(80, 24);
+
+        drawn.Shell.Press(ShellKey.C);
+        drawn.Redraw();
+
+        var hairlines = drawn.Rows()[1..22].Where(row => row[RailLines.Width + 3] == '─').ToList();
+
+        Assert.NotEmpty(hairlines);
+        Assert.All(hairlines, row => Assert.Equal("  " + new string('─', 54) + "  ", row[(RailLines.Width + 1)..^1]));
     }
 
     /// <summary>

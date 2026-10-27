@@ -518,7 +518,8 @@ public class HiddenRailTests
 
     /// <summary>
     ///     A picture is laid out again at the content's new width and sent again in the frame the toggle lands — from
-    ///     just past the panel's edge and gutter, to the column before the panel's right edge — and back.
+    ///     just past the panel's edge and gutter, to the column before the margin inside the panel's right edge — and
+    ///     back.
     /// </summary>
     [Fact]
     public async Task AToggleLaysAPictureOutAgainAtTheNewWidth()
@@ -540,12 +541,12 @@ public class HiddenRailTests
         drawn.PressAsTheLoopDraws(Toggle);
 
         Assert.Equal(1, drawn.SixelsSent());
-        Assert.Equal((2, 78), Across(drawn));
+        Assert.Equal((2, 77), Across(drawn));
 
         drawn.PressAsTheLoopDraws(Toggle);
 
         Assert.Equal(1, drawn.SixelsSent());
-        Assert.Equal((RailLines.Width + 2, 78), Across(drawn));
+        Assert.Equal((RailLines.Width + 2, 77), Across(drawn));
     }
 
     /// <summary>
