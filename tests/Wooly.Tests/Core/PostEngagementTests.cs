@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core;
 using Wooly.Core.Errors;
@@ -258,6 +259,149 @@ public class PostEngagementTests
 
         Assert.Contains("already voted", refusal.Message);
     }
+
+    /// <summary>
+    ///     A post's <b>Actors</b> are two lists the instance keeps apart, and each side is read from its own endpoint,
+    ///     a page of the most accounts Mastodon serves at a time (#487).
+    /// </summary>
+    [Theory]
+    [InlineData(ActorSide.Favorited, "favourited_by")]
+    [InlineData(ActorSide.Boosted, "reblogged_by")]
+    public async Task ReadActors_AsksTheEndpointForTheSide(ActorSide side, string endpoint)
+    {
+        var network = new ScriptedHttpMessageHandler(Page(Accounts(AccountJson("alice", "7")), nextPageAt: null));
+
+        var fetch = await NewEngagement(network).ReadActors(
+            Profile,
+            "110",
+            side,
+            80,
+            TestContext.Current.CancellationToken);
+
+        var request = Assert.Single(network.Requests);
+        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.Equal($"https://mastodon.social/api/v1/statuses/110/{endpoint}?limit=80", request.RequestUri?.ToString());
+        var alice = Assert.Single(fetch.Items);
+        Assert.Equal("7", alice.Id);
+        Assert.Equal("alice@mastodon.social", alice.Address);
+        Assert.True(fetch.IsWhole);
+    }
+
+    /// <summary>
+    ///     Paged by the instance's link, which names the next page in the id space of the favorite or boost rather than
+    ///     of the account — so more than a page is read by following it, and nothing is guessed from an account's id.
+    /// </summary>
+    [Fact]
+    public async Task ReadActors_FollowsTheInstancesLinkToTheNextPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Page(FullPage(), nextPageAt: "4801"),
+            Page(Accounts(AccountJson("last", "999")), nextPageAt: null));
+
+        var fetch = await NewEngagement(network).ReadActors(
+            Profile,
+            "110",
+            ActorSide.Favorited,
+            100,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(81, fetch.Items.Count);
+        Assert.Contains("max_id=4801", network.Requests[1].RequestUri?.Query);
+        Assert.True(fetch.IsWhole);
+    }
+
+    /// <summary>Where the instance names no next page the list is whole, however full the page it sent.</summary>
+    [Fact]
+    public async Task ReadActors_EndsWhereTheInstanceNamesNoNextPage()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Page(FullPage(), nextPageAt: null),
+            Page(Accounts(AccountJson("never-read", "999")), nextPageAt: null));
+
+        var fetch = await NewEngagement(network).ReadActors(
+            Profile,
+            "110",
+            ActorSide.Boosted,
+            100,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(80, fetch.Items.Count);
+        Assert.True(fetch.IsWhole);
+        Assert.Single(network.Requests);
+    }
+
+    /// <summary>
+    ///     Reading on (#467): a read that stopped at what was asked for says where to read on from, and handing that back
+    ///     asks the same side of the same post for the page the instance named next.
+    /// </summary>
+    [Fact]
+    public async Task ReadActorsOn_AsksForThePageTheLastReadNamedNext()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            Page(FullPage(), nextPageAt: "4801"),
+            Page(Accounts(AccountJson("last", "999")), nextPageAt: null));
+        var engagement = NewEngagement(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await engagement.ReadActors(Profile, "110", ActorSide.Boosted, 80, token);
+        var onward = await engagement.ReadActorsOn(Profile, "110", ActorSide.Boosted, first.Onward!, 80, token);
+
+        Assert.False(first.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/statuses/110/reblogged_by?max_id=4801&limit=80",
+            network.Requests[1].RequestUri?.ToString());
+        Assert.Equal("999", Assert.Single(onward.Items).Id);
+        Assert.True(onward.IsWhole);
+    }
+
+    private static string Accounts(params string[] accounts) => $"[{string.Join(",", accounts)}]";
+
+    /// <summary>A page as full as the endpoint serves.</summary>
+    private static string FullPage() =>
+        Accounts([.. Enumerable.Range(1, 80).Select(id => AccountJson($"a{id}", $"{id}"))]);
+
+    /// <summary>One page of a post's actors, with the link header an instance names the next page in.</summary>
+    /// <param name="nextPageAt">
+    ///     Where the next page starts, in the id space the endpoint pages by — a favorite's or a boost's, nothing like
+    ///     any account id on the page — or <see langword="null" /> for the last page.
+    /// </param>
+    private static Func<HttpRequestMessage, HttpResponseMessage> Page(string json, string? nextPageAt) =>
+        _ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json"),
+            };
+
+            if (nextPageAt is not null)
+            {
+                response.Headers.TryAddWithoutValidation(
+                    "Link",
+                    $"""<https://mastodon.social/api/v1/statuses/110/favourited_by?max_id={nextPageAt}>; rel="next" """);
+            }
+
+            return response;
+        };
+
+    private static string AccountJson(string account, string id) =>
+        $$"""
+          {
+            "id": "{{id}}",
+            "username": "{{account}}",
+            "acct": "{{account}}",
+            "display_name": "Alice",
+            "url": "https://mastodon.social/@{{account}}",
+            "note": "",
+            "avatar": "https://mastodon.social/avatars/default.png",
+            "locked": false,
+            "bot": false,
+            "fields": [],
+            "created_at": "2020-01-01T00:00:00.000Z",
+            "followers_count": 1,
+            "following_count": 1,
+            "statuses_count": 1
+          }
+          """;
 
     /// <summary>What each request asked to be voted for, in the order the choices were given.</summary>
     private static IReadOnlyList<string> Choices(ScriptedHttpMessageHandler network) =>

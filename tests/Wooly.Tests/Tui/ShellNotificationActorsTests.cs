@@ -116,7 +116,7 @@ public class ShellNotificationActorsTests
         Assert.Single(shell.Notifications.ActorReads);
         Assert.Equal(everyone, screen.People.Select(person => person.Author));
         Assert.Equal("Fan4", screen.PickedPerson?.Author);
-        Assert.Equal("that's everything", Drawn(screen)[^1]);
+        Assert.Equal(["", "that's everything"], Drawn(screen)[^2..]);
     }
 
     /// <summary>Further than a screenful from the end, nothing more of the group is asked for.</summary>

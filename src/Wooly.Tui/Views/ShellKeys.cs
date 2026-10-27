@@ -64,6 +64,7 @@ internal static class ShellKeys
         ['j'] = ShellKey.J,
         ['k'] = ShellKey.K,
         ['m'] = ShellKey.M,
+        ['o'] = ShellKey.O,
         ['p'] = ShellKey.P,
         ['r'] = ShellKey.R,
         ['s'] = ShellKey.S,

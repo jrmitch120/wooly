@@ -43,6 +43,8 @@ public class CrumbTests
         ("following", "@maria@fosstodon.org following"),
         ("followers", "@maria@fosstodon.org followers"),
         ("actors", "Favorited by"),
+        ("favorited-by", "Favorited by"),
+        ("boosted-by", "Boosted by"),
         ("profiles", "Profiles"),
         ("add-profile", "Add a profile"),
         ("browser", "Attach"),
@@ -214,6 +216,12 @@ public class CrumbTests
 
             case "actors":
                 return new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]));
+
+            case "favorited-by":
+                return new ActorsScreen(post, ActorSide.Favorited, "mastodon.social");
+
+            case "boosted-by":
+                return new ActorsScreen(post, ActorSide.Boosted, "mastodon.social");
 
             case "profiles":
                 return new ProfilesScreen([], "personal", []);

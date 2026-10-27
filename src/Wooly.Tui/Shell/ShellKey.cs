@@ -160,6 +160,9 @@ public enum ShellKey
     /// <summary><c>m</c>.</summary>
     M,
 
+    /// <summary><c>o</c>.</summary>
+    O,
+
     /// <summary><c>p</c>.</summary>
     P,
 

@@ -1,4 +1,5 @@
 using Wooly.Core.Notifications;
+using Wooly.Core.Posts;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -16,13 +17,16 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 /// <param name="Icon">The mark that says the kind without colour.</param>
 /// <param name="Role">The kind's colour.</param>
-/// <param name="Crumb">What a group's actors are called on the screen listing them: "Favorited by".</param>
+/// <param name="Crumb">
+///     What a group's actors are called on the screen listing them: "Favorited by" — for a favorite and a boost, the
+///     words a post's own actors are called by (<see cref="ActorSideWords" />).
+/// </param>
 public sealed record KindLook(string Icon, Role Role, string Crumb)
 {
     private static readonly Dictionary<NotificationKind, KindLook> Known = new()
     {
-        [NotificationKind.Favorite] = new("★", Role.Favorite, "Favorited by"),
-        [NotificationKind.Boost] = new("↺", Role.Boost, "Boosted by"),
+        [NotificationKind.Favorite] = new("★", Role.Favorite, ActorSide.Favorited.Crumb()),
+        [NotificationKind.Boost] = new("↺", Role.Boost, ActorSide.Boosted.Crumb()),
         [NotificationKind.Mention] = new("@", Role.Mention, "Mentioned you"),
         [NotificationKind.Follow] = new("+", Role.BylineHandle, "Followed you"),
     };

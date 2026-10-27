@@ -233,9 +233,25 @@ public static class Keymap
 
         // The two a follow list added, each bound where it means something rather than shell-wide — and so each is
         // announced on exactly the screen that answers it: s swaps sides on the list, and w opens one from the
-        // account screen whose row says so (#180).
+        // account screen whose row says so (#180) — while its header block is picked, the person rather than anything
+        // they wrote (#490).
         (ShellKey.S, FollowsScreen) => Verb.SwapSide,
-        (ShellKey.W, AccountScreen) => Verb.OpenFollows,
+        (ShellKey.W, AccountScreen { Picked: null }) => Verb.OpenFollows,
+
+        // And w on every other screen a post can be picked on: who favorited or boosted it, one of an account's own
+        // included (#489, #490). Notifications, where w is who did what the row reports, and the account screen's
+        // header block, where it is their follows, have taken it above; a screen with no post on it leaves w nobody's
+        // rather than bound to a verb with nothing to act on.
+        (ShellKey.W, FeedScreen or PostScreen or ConversationScreen or SearchScreen or AccountScreen) =>
+            Verb.OpenPostActors,
+
+        // And s on a post's actors, which have two sides as a follow list does — and nowhere on a notification group's,
+        // which have one (#489).
+        (ShellKey.S, ActorsScreen { Of: ActorsOf.PostSide }) => Verb.SwapSide,
+
+        // And o there, on a remote post's with a page to open, the one place it means anything: the post's page on its
+        // home instance (#491). A local post's list has nowhere else to be, and leaves o nobody's.
+        (ShellKey.O, ActorsScreen { Of: ActorsOf.PostSide { Page: not null } }) => Verb.OpenPostPage,
 
         // And s again on the account screen, where it swaps runs rather than sides: their posts and replies, and back
         // to their posts alone (#229). Still bound only where it does something, and announced where it is.

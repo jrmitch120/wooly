@@ -117,6 +117,12 @@ public static class WoolyCommandApp
                 post.AddCommand<PostUnfavoriteCommand>("unfavorite")
                     .WithDescription("Take a favorite back off a post.");
 
+                post.AddCommand<PostFavoritedByCommand>("favorited-by")
+                    .WithDescription("List the accounts that favorited a post.");
+
+                post.AddCommand<PostBoostedByCommand>("boosted-by")
+                    .WithDescription("List the accounts that boosted a post.");
+
                 post.AddCommand<PostVoteCommand>("vote")
                     .WithDescription("Vote in the poll on a post. A vote cannot be taken back.");
 

@@ -951,6 +951,184 @@ public class PostEngagementCommandTests : IDisposable
     private static FakePostEngagement WithAPoll(PostPoll? poll = null) =>
         FakePostEngagement.Answering(APost.With(poll: poll ?? APost.APoll()));
 
+    /// <summary>
+    ///     A post's <b>Actors</b>, one side a command: who favorited it and who boosted it, read from the post the id
+    ///     names with the limit the paged-list options say (#488).
+    /// </summary>
+    [Theory]
+    [InlineData("favorited-by", ActorSide.Favorited)]
+    [InlineData("boosted-by", ActorSide.Boosted)]
+    public void Actors_ReadsTheSideTheVerbNamesOfThePostTheIdNames(string verb, ActorSide side)
+    {
+        AddProfile();
+        _posts.ActorsOf[("110", side)] = [AnAccount.With()];
+
+        var run = Run(["post", verb, "110", "--limit", "60"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+
+        var read = Assert.Single(_posts.ActorReads);
+        Assert.Equal("personal", read.Profile);
+        Assert.Equal("110", read.PostId);
+        Assert.Equal(side, read.Side);
+        Assert.Equal(60, read.Limit);
+    }
+
+    /// <summary>
+    ///     Each account printed as <c>account followers</c> prints one, so a person looks the same on both lists.
+    /// </summary>
+    [Fact]
+    public void Actors_PrintsEachAccountTheWayAFollowersListDoes()
+    {
+        AddProfile();
+        _posts.ActorsOf[("110", ActorSide.Favorited)] = [AnAccount.With()];
+
+        var run = Run(["post", "favorited-by", "110"]);
+
+        Assert.Contains("alice@hachyderm.io", run.Output);
+        Assert.Contains("Alice", run.Output);
+        Assert.Contains("1203 followers", run.Output);
+        Assert.Contains("https://hachyderm.io/@alice", run.Output);
+        Assert.DoesNotContain("Cat photographer.", run.Output);
+    }
+
+    /// <summary>A post nobody favorited or boosted says so and succeeds, naming the post it was about.</summary>
+    [Theory]
+    [InlineData("favorited-by", "Nobody has favorited post 110.")]
+    [InlineData("boosted-by", "Nobody has boosted post 110.")]
+    public void Actors_SaysSoWhereNobodyIsOnTheList(string verb, string nobody)
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(id: "110") with { Favorites = 0, Boosts = 0 });
+
+        var run = Run(["post", verb, "110"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains(nobody, run.Output);
+    }
+
+    /// <summary>
+    ///     A list shorter than the post's count says why under it (#491): a remote post's actors are delivered to its
+    ///     home instance, so the reader's instance knows of only its own — and the line names where the rest are.
+    /// </summary>
+    [Fact]
+    public void Actors_SaysWhyAListIsShorterThanThePostsCount()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(id: "110", account: "ben@hachyderm.io") with { Favorites = 140 });
+        _posts.ActorsOf[("110", ActorSide.Favorited)] = [AnAccount.With()];
+
+        var run = Run(["post", "favorited-by", "110"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.EndsWith(
+            "mastodon.social knows of 1 of 140 favorites. The rest are on hachyderm.io.",
+            run.Output.TrimEnd());
+        Assert.Empty(run.ErrorOutput.Trim());
+    }
+
+    /// <summary>And in place of "nobody" where the instance knows of none of a count above zero.</summary>
+    [Fact]
+    public void Actors_SaysWhyAListIsEmptyWhereThePostCountsSome()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(id: "110") with { Boosts = 3 });
+
+        var run = Run(["post", "boosted-by", "110"]);
+
+        Assert.Contains("None of 3 boosts can be listed.", run.Output);
+        Assert.DoesNotContain("Nobody has boosted", run.Output);
+    }
+
+    /// <summary>Nor where a rate limit cut the list short, which is reported as that failure instead.</summary>
+    [Fact]
+    public void Actors_SaysNothingOfAListARateLimitCutShort()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(id: "110", account: "ben@hachyderm.io") with { Favorites = 140 });
+        _posts.ActorsOf[("110", ActorSide.Favorited)] = [AnAccount.With()];
+        _posts.ActorsStoppedBy = new RateLimitedException("mastodon.social", DateTimeOffset.UnixEpoch);
+
+        var run = Run(["post", "favorited-by", "110"]);
+
+        Assert.Equal((int)ExitCode.RateLimited, run.ExitCode);
+        Assert.DoesNotContain("knows of", run.Output);
+    }
+
+    /// <summary>Nothing is said where the list holds as many as the post counts.</summary>
+    [Fact]
+    public void Actors_SaysNothingOfAListAsLongAsThePostsCount()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(id: "110") with { Favorites = 1 });
+        _posts.ActorsOf[("110", ActorSide.Favorited)] = [AnAccount.With()];
+
+        var run = Run(["post", "favorited-by", "110"]);
+
+        Assert.DoesNotContain("can be listed", run.Output);
+        Assert.DoesNotContain("knows of", run.Output);
+    }
+
+    /// <summary>The same envelope <c>account followers --json</c> writes, led by which list it is and whose post.</summary>
+    [Theory]
+    [InlineData("favorited-by", ActorSide.Favorited, "favoritedBy")]
+    [InlineData("boosted-by", ActorSide.Boosted, "boostedBy")]
+    public void Actors_WritesTheListAsMachineReadableJson(string verb, ActorSide side, string list)
+    {
+        AddProfile();
+        _posts.ActorsOf[("110", side)] = [AnAccount.With()];
+
+        var run = Run(["post", verb, "110", "--json"]);
+
+        var document = JsonDocument.Parse(run.Output).RootElement;
+        Assert.Equal(list, document.GetProperty("list").GetString());
+        Assert.Equal("110", document.GetProperty("post").GetString());
+        Assert.Equal(side == ActorSide.Favorited ? 5 : 3, document.GetProperty("total").GetInt64());
+        Assert.True(document.GetProperty("complete").GetBoolean());
+
+        var account = Assert.Single(document.GetProperty("accounts").EnumerateArray().ToList());
+        Assert.Equal("alice@hachyderm.io", account.GetProperty("account").GetString());
+        Assert.Equal("Cat photographer.", account.GetProperty("bio").GetString());
+    }
+
+    /// <summary>An id that names no post fails the way <c>post show</c> does, in the instance's own words.</summary>
+    [Fact]
+    public void Actors_ReportsAPostTheInstanceDoesNotKnowInItsOwnWords()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Refusing(new ServerErrorException(new Error { Description = "Record not found" }));
+
+        var run = Run(["post", "favorited-by", "999"]);
+        var shown = Run(["post", "show", "999"]);
+
+        Assert.Equal(shown.ExitCode, run.ExitCode);
+        Assert.NotEqual((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("Record not found", run.ErrorOutput);
+    }
+
+    /// <summary>Both are offered in <c>post --help</c>, each saying what it lists.</summary>
+    [Fact]
+    public void Actors_AreOfferedInThePostHelp()
+    {
+        var help = Run(["post", "--help"]).Output;
+
+        Assert.Contains("favorited-by", help);
+        Assert.Contains("boosted-by", help);
+        Assert.Contains("List the accounts that favorited a post", help);
+        Assert.Contains("List the accounts that boosted a post", help);
+    }
+
+    [Fact]
+    public void Actors_ReportsALimitOfNoAccountsAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["post", "boosted-by", "110", "--limit", "0"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Empty(_posts.ActorReads);
+    }
+
     /// <summary>GLOSSARY.md's vocabulary, at the one place a user reads it: nothing on screen says reblog or favourite.</summary>
     [Fact]
     public void Post_NamesWhatItDoesInThisProjectsVocabulary()

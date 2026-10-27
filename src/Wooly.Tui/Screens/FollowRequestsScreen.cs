@@ -133,7 +133,8 @@ public sealed class FollowRequestsScreen(IReadOnlyList<Account> waiting, string?
                 account,
                 drawing.In(room),
                 AccountLines.Compact(account.Standing)),
-            Line.Blank)));
+            Line.Blank),
+            apart: Line.Blank));
 
         return lines;
     }

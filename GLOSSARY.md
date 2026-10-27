@@ -231,10 +231,11 @@ never this client's; a mention is always a group of one. A group is **unread** w
 _Avoid_: group (which is a **Rail group**), bundle, stack
 
 **Actor**:
-The account that did what a **notification** reports — who favorited, boosted, followed or mentioned. Not the author
-of the post it is about: on a favorite the author is the reader, and the actor is somebody else. A **Notification
-group** has one or more actors. A word for building Wooly, not for the screen: the TUI says **who** (`w:who`), and
-the actors screen is crumbed by what they did ("Favorited by").
+An account behind a favorite, boost, follow or mention. On a **notification**, the one that did what it reports; on a
+post, one that favorited or boosted it. Not the author of the post: on a favorite the author is whoever was
+favorited, and the actor is somebody else. A **Notification group** has one or more actors, and so does a post — its
+favorites and its boosts, two lists the instance keeps apart. A word for building Wooly, not for the screen: the TUI
+says **who** (`w:who`), and the actors screen is crumbed by what they did ("Favorited by", "Boosted by").
 _Avoid_: sender, author, notifier
 
 **Read marker**:
@@ -615,9 +616,9 @@ _Avoid_: event, update, invalidation
 
 **Subject**:
 What a screen that is read is read from, as a value: a **destination** on the rail, a post's thread, an account (and
-whether with its replies), one side of an account's **Follow list**, a **Notification group**'s **Actor**s, a hashtag
-walked to, or a conversation (#233). A closed set; each carries its own read and builds its own screen, and says
-whether what it read is cached and how it **reads on**. A screen exposes its subject, which is what `g` asks again and
+whether with its replies), one side of an account's **Follow list**, a **Notification group**'s **Actor**s, one side
+of a post's **Actor**s (#489), a hashtag walked to, or a conversation (#233). A closed set; each carries its own read
+and builds its own screen, and says whether what it read is cached and how it **reads on**. A screen exposes its subject, which is what `g` asks again and
 what the one cache is keyed by. Compared by value, so a follow list is the same subject however its account was last
 answered about, and a destination the same whatever its badge says. The search prompt has none: a live search is its
 own question (#84).

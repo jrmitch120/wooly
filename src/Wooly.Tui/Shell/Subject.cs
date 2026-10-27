@@ -15,13 +15,14 @@ namespace Wooly.Tui.Shell;
 
 /// <summary>
 ///     What a screen that is read is read from: a destination on the rail, a post's thread, an account, one side of an
-///     account's follows, a notification group's actors, a hashtag walked to, or a conversation (GLOSSARY.md, #233).
+///     account's follows, a notification group's actors, one side of a post's actors, a hashtag walked to, or a
+///     conversation (GLOSSARY.md, #233).
 /// </summary>
 /// <remarks>
 ///     A closed set of values, each of which carries its own read and builds its own screen, and says whether what it
 ///     read is held for a while and how it reads on. Everything else about bringing a screen up — the stale rule, the
 ///     cache, the placeholder, the rail's badge, when to read on — is <see cref="Arrival" />'s, and is the same for all
-///     seven.
+///     eight.
 ///     <para>
 ///         Compared by value, which is what the cache is keyed by and what <c>g</c> asks again: two follow lists of the
 ///         same side of the same account are the same subject however the account was last answered about, and a rail
@@ -37,8 +38,8 @@ public abstract record Subject
     private const int FollowsPage = 80;
 
     /// <summary>
-    ///     How many of a notification group's actors the actors screen asks for at a time: the most Mastodon serves from
-    ///     a group's accounts in one call (#455).
+    ///     How many actors the actors screen asks for at a time, a notification group's or a post's: the most Mastodon
+    ///     serves from a list of accounts in one call (#455, #489).
     /// </summary>
     private const int ActorsPage = 80;
 
@@ -599,18 +600,13 @@ public abstract record Subject
         ///     The first page of the group, and where the reader stands with everyone on it — once for the page, as a
         ///     follow list asks it. The rest is read on from where this stopped (<see cref="ReadOn" />).
         /// </remarks>
-        internal override async Task<Found> Read(
+        internal override Task<Found> Read(
             Enquiry.Ask ask,
             ShellPorts ports,
             ActiveProfile profile,
-            Screen? standing)
-        {
-            var fetch = await ask.Of(token =>
+            Screen? standing) =>
+            ActorsRead(ask, ports, profile, token =>
                 ports.Notifications.ReadGroupActors(profile, Group.Key, ActorsPage, token));
-            var stood = await ask.Of(token => ports.StoodOrSilent(profile, fetch.Items, token));
-
-            return new Filled(stood, fetch.StoppedBy, fetch.Onward);
-        }
 
         /// <inheritdoc />
         /// <remarks>
@@ -626,25 +622,126 @@ public abstract record Subject
             PeopleReadOn((ports, profile, at, token) =>
                     ports.Notifications.ReadGroupActorsOn(profile, Group.Key, at, ActorsPage, token))
                 .From(ask, ports, profile, from);
+    }
 
-        /// <summary>What the first read of a group's actors came back with, and where to read on from.</summary>
-        /// <param name="People">Everyone read, each carrying their standing where the instance answered.</param>
-        /// <param name="StoppedBy">The rate limit that cut the read short, or nothing where none did.</param>
-        /// <param name="Onward">Where to read on from, or nothing where the instance has no more of the group.</param>
-        private sealed record Filled(IReadOnlyList<Person> People, RateLimitedException? StoppedBy, Onward? Onward)
-            : Found
+    /// <summary>
+    ///     One side of a post's <b>Actors</b>: everyone who favorited it, or everyone who boosted it (#489). Read on as
+    ///     the page nears the end, as a group's actors are.
+    /// </summary>
+    /// <remarks>
+    ///     Never held, so that the reader's own favorite or boost is on the list the next time it is opened. Compared by
+    ///     the post's id and the side alone, since the post itself is answered about afresh every time it is marked —
+    ///     which changes its counts and not whose list this is.
+    /// </remarks>
+    /// <param name="Post">The post, never the boost carrying it, as the screen it was opened from was holding it.</param>
+    /// <param name="Side">Which of its two lists.</param>
+    public sealed record PostActors(Post Post, ActorSide Side) : Subject
+    {
+        /// <summary>
+        ///     What <c>w</c> says where the post the reader is on has neither favorites nor boosts, and opens nothing.
+        /// </summary>
+        public static string NobodyAtAll => "Nobody has favorited or boosted this.";
+
+        /// <summary>
+        ///     The side of <paramref name="picked" />'s actors <c>w</c> opens, or nothing where it has neither: who
+        ///     favorited it where anybody has, and otherwise who boosted it.
+        /// </summary>
+        /// <remarks>
+        ///     Settled from the counts the post already carries, before anything is read, so that an empty list is
+        ///     never opened when the post says it would be. Never a shortcut to one account where the count is one: the
+        ///     list is what says whether they favorited or boosted, and a count can be stale.
+        /// </remarks>
+        /// <param name="picked">The picked post, which on a boost is the post boosted that is asked about.</param>
+        public static PostActors? Opening(Post picked)
         {
-            /// <inheritdoc />
-            /// <remarks>Read into the screen standing for the group, which is already up, and read on from there.</remarks>
-            public override Screen Becomes(Screen? standing)
+            var post = picked.Boosted ?? picked;
+
+            return post switch
             {
-                var screen = (ActorsScreen)standing!;
+                { Favorites: > 0 } => new PostActors(post, ActorSide.Favorited),
+                { Boosts: > 0 } => new PostActors(post, ActorSide.Boosted),
+                _ => null,
+            };
+        }
 
-                screen.Arrived(People, Arrival.Emptiness(People.Count, ActorsScreen.Nobody, of: null, StoppedBy));
-                screen.ReadingOn = new ReadingOn(Onward);
+        /// <inheritdoc />
+        public bool Equals(PostActors? other) => other is not null && other.Post.Id == Post.Id && other.Side == Side;
 
-                return screen;
-            }
+        /// <inheritdoc />
+        public override int GetHashCode() => HashCode.Combine(Post.Id, Side);
+
+        /// <inheritdoc />
+        /// <remarks>On every move, as a group's: the reader is looking at the list they opened while it fills.</remarks>
+        internal override Screen? Placeholder(Move move, ActiveProfile profile) =>
+            new ActorsScreen(Post, Side, profile.Instance);
+
+        /// <inheritdoc />
+        /// <remarks>The first page of the side, and where the reader stands with everyone on it, as a group's.</remarks>
+        internal override Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing) =>
+            ActorsRead(ask, ports, profile, token =>
+                ports.Engagement.ReadActors(profile, Post.Id, Side, ActorsPage, token));
+
+        /// <inheritdoc />
+        /// <remarks>The next page of the same side from where the last read stopped, as a group's.</remarks>
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
+            PeopleReadOn((ports, profile, at, token) =>
+                    ports.Engagement.ReadActorsOn(profile, Post.Id, Side, at, ActorsPage, token))
+                .From(ask, ports, profile, from);
+    }
+
+    /// <summary>
+    ///     The first read of either kind of actors — a group's or a post's side: the first page <paramref name="read" />
+    ///     answers, and where the reader stands with everyone on it, asked once for the page as a follow list asks it.
+    ///     The rest is read on from where this stopped.
+    /// </summary>
+    /// <param name="ask">What every call it makes is put through.</param>
+    /// <param name="ports">What the standing is asked through.</param>
+    /// <param name="profile">Who is asking.</param>
+    /// <param name="read">The first page of the actors, which is all that differs between the two kinds.</param>
+    private static async Task<Found> ActorsRead(
+        Enquiry.Ask ask,
+        ShellPorts ports,
+        ActiveProfile profile,
+        Func<CancellationToken, Task<Fetch<Person>>> read)
+    {
+        var fetch = await ask.Of(read);
+        var stood = await ask.Of(token => ports.StoodOrSilent(profile, fetch.Items, token));
+
+        return new ActorsFilled(stood, fetch.StoppedBy, fetch.Onward);
+    }
+
+    /// <summary>
+    ///     What the first read of either kind of actors came back with — a group's or a post's side — and where to read
+    ///     on from.
+    /// </summary>
+    /// <param name="People">Everyone read, each carrying their standing where the instance answered.</param>
+    /// <param name="StoppedBy">The rate limit that cut the read short, or nothing where none did.</param>
+    /// <param name="Onward">Where to read on from, or nothing where the instance has no more of them.</param>
+    private sealed record ActorsFilled(IReadOnlyList<Person> People, RateLimitedException? StoppedBy, Onward? Onward)
+        : Found
+    {
+        /// <inheritdoc />
+        /// <remarks>
+        ///     Read into the screen standing for them, which is already up, and read on from there. What an empty list
+        ///     says is the screen's, which knows what it is a list of.
+        /// </remarks>
+        public override Screen Becomes(Screen? standing)
+        {
+            var screen = (ActorsScreen)standing!;
+
+            screen.Arrived(People, Arrival.Emptiness(People.Count, screen.Nobody, of: null, StoppedBy));
+            screen.ReadingOn = new ReadingOn(Onward);
+
+            return screen;
         }
     }
 

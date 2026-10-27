@@ -37,8 +37,8 @@ public enum Verb
     OpenFollows,
 
     /// <summary>
-    ///     <c>s</c>: the other side of the same account's follows, in place. A toggle that pushed would grow the
-    ///     stack on every flip.
+    ///     <c>s</c>: the other side of the same account's follows, or of the same post's actors (#489), in place. A
+    ///     toggle that pushed would grow the stack on every flip.
     /// </summary>
     SwapSide,
 
@@ -266,6 +266,19 @@ public enum Verb
     ///     author on a favorite or a boost (GLOSSARY.md, #451).
     /// </summary>
     OpenActor,
+
+    /// <summary>
+    ///     <c>w</c> on a picked post anywhere but Notifications: who favorited it, or who boosted it, one side at a time
+    ///     on the actors screen — whichever side the post's counts say has anybody on it, and on a boost the post
+    ///     boosted (#489).
+    /// </summary>
+    OpenPostActors,
+
+    /// <summary>
+    ///     <c>o</c> on a remote post's actors: the post's page on its home instance, in the browser — where the whole of
+    ///     a list the reader's instance knows only part of is (#491).
+    /// </summary>
+    OpenPostPage,
 
     /// <summary>
     ///     A click on a face in a notification group's avatar strip: that one actor's account, whoever else the group

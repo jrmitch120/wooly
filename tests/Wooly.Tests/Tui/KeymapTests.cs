@@ -256,14 +256,76 @@ public class KeymapTests
     }
 
     /// <summary>
-    ///     <c>w</c> opens a follow list from the account screen, which is the one screen that announces it — and is
-    ///     turned down everywhere else rather than firing unannounced.
+    ///     <c>w</c> opens a follow list from the account screen, and who did what a notification reports on
+    ///     Notifications (#451) — and everywhere else who favorited or boosted the picked post, the one thing it means
+    ///     wherever a post can be picked (#489).
     /// </summary>
     [Fact]
-    public void TheFollowsKeyBelongsToTheAccountScreen()
+    public void TheWhoKeyMeansThePostsActorsBarOnTheAccountScreenAndNotifications()
     {
         Assert.Equal(Verb.OpenFollows, Means("w", new AccountScreen(AnAccount.With(), [], pinned: [])));
-        Assert.Equal(Verb.None, Means("w", Feed()));
+        Assert.Equal(Verb.OpenActor, Means("w", Notifications()));
+        Assert.Equal(Verb.OpenPostActors, Means("w", Feed()));
+        Assert.Equal(Verb.OpenPostActors, Means("w", new PostScreen(APost.With(), PostThread.Alone)));
+        Assert.Equal(Verb.OpenPostActors, Means("w", new ConversationScreen(AConversation.Thread())));
+    }
+
+    /// <summary>
+    ///     And nothing on a screen where no post can be picked, rather than a key bound to a verb with nothing to act on.
+    /// </summary>
+    [Fact]
+    public void TheWhoKeyMeansNothingWhereNoPostCanBePicked()
+    {
+        Assert.Equal(Verb.None, Means("w", Follows()));
+        Assert.Equal(Verb.None, Means("w", new DiscoverScreen([ASuggestion.With()])));
+        Assert.Equal(Verb.None, Means("w", new ActorsScreen(APost.With(), ActorSide.Favorited, "mastodon.social")));
+        Assert.Equal(Verb.None, Means("w", new ProfilesScreen([], "personal", [])));
+        Assert.Equal(Verb.OpenPostActors, Means("w", Searched()));
+    }
+
+    /// <summary>
+    ///     On the account screen <c>w</c> goes by what is picked: their follows on the header block, and the picked
+    ///     post's who on one of their posts (#490).
+    /// </summary>
+    [Fact]
+    public void TheWhoKeyOnTheAccountScreenGoesByThePick()
+    {
+        var account = new AccountScreen(AnAccount.With(), [APost.With()], pinned: []);
+
+        Assert.Equal(Verb.OpenFollows, Means("w", account));
+
+        account.Move(1);
+
+        Assert.Equal(Verb.OpenPostActors, Means("w", account));
+    }
+
+    /// <summary>
+    ///     <c>o</c> opens a post's page on its home instance from a remote post's actors, and means nothing anywhere else
+    ///     — not on a local post's, nor a remote one with no page, a notification group's actors, or a feed (#491).
+    /// </summary>
+    [Fact]
+    public void TheOKeyBelongsToARemotePostsActors()
+    {
+        var remote = APost.With(account: "ben@hachyderm.io");
+
+        Assert.Equal(Verb.OpenPostPage, Means("o", new ActorsScreen(remote, ActorSide.Favorited, "mastodon.social")));
+        Assert.Equal(Verb.None, Means("o", new ActorsScreen(APost.With(), ActorSide.Favorited, "mastodon.social")));
+        Assert.Equal(
+            Verb.None,
+            Means("o", new ActorsScreen(remote with { Url = null }, ActorSide.Favorited, "mastodon.social")));
+        Assert.Equal(Verb.None, Means("o", new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]))));
+        Assert.Equal(Verb.None, Means("o", Feed()));
+    }
+
+    /// <summary>
+    ///     <c>s</c> swaps sides on a post's actors, which have two as a follow list does — and is nothing on a
+    ///     notification group's, which have one (#489).
+    /// </summary>
+    [Fact]
+    public void TheSwapKeySwapsSidesOnAPostsActorsAlone()
+    {
+        Assert.Equal(Verb.SwapSide, Means("s", new ActorsScreen(APost.With(), ActorSide.Favorited, "mastodon.social")));
+        Assert.Equal(Verb.None, Means("s", new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]))));
     }
 
     /// <summary>

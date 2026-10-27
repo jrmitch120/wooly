@@ -249,7 +249,7 @@ public class ShellFollowsTests
         Assert.Equal(2, fakes.Accounts.ListsOn.Count);
         Assert.Contains("200 of 877,000 read", rows);
         Assert.DoesNotContain(rows, row => row.Contains("offers no more", StringComparison.Ordinal));
-        Assert.Equal("that's everything", rows[^1]);
+        Assert.Equal(["", "that's everything"], rows.TakeLast(2));
     }
 
     /// <summary>Between reads, with more to come, a browsed list's foot says nothing.</summary>

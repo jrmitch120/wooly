@@ -43,6 +43,7 @@ public class ShellInboxReadingOnTests
         Assert.Equal(Ids(55), requests.Waiting.Select(asking => asking.Id));
         Assert.Equal("a2", requests.PickedAccount?.Id);
         Assert.Equal("that's everything", Foot(requests));
+        Assert.Equal("", Rows(requests)[^2]);
     }
 
     /// <summary>
