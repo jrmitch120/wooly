@@ -271,6 +271,19 @@ public class KeymapTests
     }
 
     /// <summary>
+    ///     And nothing on a screen where no post can be picked, rather than a key bound to a verb with nothing to act on.
+    /// </summary>
+    [Fact]
+    public void TheWhoKeyMeansNothingWhereNoPostCanBePicked()
+    {
+        Assert.Equal(Verb.None, Means("w", Follows()));
+        Assert.Equal(Verb.None, Means("w", new DiscoverScreen([ASuggestion.With()])));
+        Assert.Equal(Verb.None, Means("w", new ActorsScreen(APost.With(), ActorSide.Favorited, "mastodon.social")));
+        Assert.Equal(Verb.None, Means("w", new ProfilesScreen([], "personal", [])));
+        Assert.Equal(Verb.OpenPostActors, Means("w", Searched()));
+    }
+
+    /// <summary>
     ///     On the account screen <c>w</c> goes by what is picked: their follows on the header block, and the picked
     ///     post's who on one of their posts (#490).
     /// </summary>
