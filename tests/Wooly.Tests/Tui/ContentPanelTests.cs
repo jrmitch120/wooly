@@ -1,4 +1,5 @@
 using System.Drawing;
+using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Core.Posts;
 using Wooly.Core.Paging;
@@ -22,7 +23,8 @@ public class ContentPanelTests
 {
     /// <summary>
     ///     At 80×24 the panel runs from the column after the rail to the last column, from row 0 to the row above the
-    ///     status row — and its rows are the 58 columns inside it, starting on row 1.
+    ///     status row — and its viewport is the 58 columns inside it, starting on row 1, of which a screen is drawn in
+    ///     57 (#495).
     /// </summary>
     [Fact]
     public async Task AtEightyByTwentyFourThePanelsRowsAreFiftyEightColumnsWideAndStartOnRowOne()
@@ -59,14 +61,14 @@ public class ContentPanelTests
 
     /// <summary>
     ///     The first row of the screen is drawn on row 1, inside the left edge — where the breadcrumb row and the blank
-    ///     row under it used to push it to row 2.
+    ///     row under it used to push it to row 2 — drawn 57 wide, the margin's column given up on the right (#495).
     /// </summary>
     [Fact]
     public async Task TheScreensFirstRowIsDrawnInsideTheFrameOnRowOne()
     {
         using var drawn = await Draw(80, 24);
 
-        var first = drawn.Shell.Screen.Lines(new Wooly.Tui.Rendering.Drawing(58, AShell.Now))[0].Text;
+        var first = drawn.Shell.Screen.Lines(new Wooly.Tui.Rendering.Drawing(57, AShell.Now))[0].Text;
 
         Assert.Equal(first, drawn.Rows()[1][(RailLines.Width + 1)..^1].TrimEnd());
     }
@@ -90,6 +92,146 @@ public class ContentPanelTests
 
         Assert.NotEmpty(rules);
         Assert.All(rules, rule => Assert.Equal(new string('─', 58), rule[(RailLines.Width + 1)..^1]));
+    }
+
+    /// <summary>
+    ///     A post whose text wraps — a long link broken across rows — wraps one column short of the panel's right edge:
+    ///     the column just inside it is the margin, mirroring the gutter on the left, and nothing is written there.
+    /// </summary>
+    [Fact]
+    public async Task APostsWrappedTextLeavesTheMarginBlank()
+    {
+        using var drawn = await Draw(
+            80,
+            24,
+            built: new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(content: "https://example.com/" + new string('a', 150))),
+            });
+
+        var rows = drawn.Rows()[1..22];
+
+        Assert.Contains(rows, row => row[^3] == 'a');
+        Assert.All(rows.Where(row => row[RailLines.Width + 1] != '─'), row => Assert.Equal(' ', row[^2]));
+    }
+
+    /// <summary>
+    ///     A post header's right-aligned age stops at the margin, one column in from the panel's right edge, rather
+    ///     than against it.
+    /// </summary>
+    [Fact]
+    public async Task APostHeadersAgeEndsOneColumnInFromTheEdge()
+    {
+        using var drawn = await Draw(80, 24);
+
+        var header = drawn.Rows()[1];
+
+        Assert.Equal(' ', header[^2]);
+        Assert.NotEqual(' ', header[^3]);
+    }
+
+    /// <summary>
+    ///     The picked post's band covers the margin as it covers the gutter, running to the column just inside the
+    ///     panel's right edge past where the words stop.
+    /// </summary>
+    [Fact]
+    public async Task ThePickedPostsBandCoversTheMargin()
+    {
+        using var drawn = await Draw(80, 24, Themes.Dark);
+
+        Assert.Equal(Themes.Dark.For(Role.Band).Background, drawn.Cell(1, 78).Background);
+    }
+
+    /// <summary>
+    ///     Compose is sized from the panel's viewport, not the room a screen is drawn in, so the margin takes nothing
+    ///     from it: its hairlines still run from two columns inside the left edge to two inside the right.
+    /// </summary>
+    [Fact]
+    public async Task ComposeKeepsItsPaddingInsideTheWholeViewport()
+    {
+        using var drawn = await Draw(80, 24);
+
+        drawn.Shell.Press(ShellKey.C);
+        drawn.Redraw();
+
+        var hairlines = drawn.Rows()[1..22].Where(row => row[RailLines.Width + 3] == '─').ToList();
+
+        Assert.NotEmpty(hairlines);
+        Assert.All(hairlines, row => Assert.Equal("  " + new string('─', 54) + "  ", row[(RailLines.Width + 1)..^1]));
+        AssertPaddedTwoAndTwo(drawn);
+    }
+
+    /// <summary>
+    ///     The description editor, a screen with widgets of its own like compose, is drawn the viewport's whole 58
+    ///     columns: two blank columns inside the left edge and two inside the right on every row, the margin taking
+    ///     nothing from it (#495).
+    /// </summary>
+    [Fact]
+    public async Task TheDescriptionScreenKeepsItsPaddingInsideTheWholeViewport()
+    {
+        using var files = new TemporaryDirectory();
+        using var drawn = await Draw(80, 24);
+
+        drawn.Shell.Press(ShellKey.C);
+        drawn.Shell.Paste(files.WriteFile("cat.png"));
+        drawn.Settle();
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.Enter);
+        drawn.Redraw();
+
+        Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+        AssertPaddedTwoAndTwo(drawn);
+    }
+
+    /// <summary>And the edit public profile form, the third screen with widgets of its own (#495).</summary>
+    [Fact]
+    public async Task ThePublicProfileFormKeepsItsPaddingInsideTheWholeViewport()
+    {
+        var me = AnAccount.With(address: "jeff@mastodon.social", author: "Jeff", id: "7");
+
+        using var drawn = await Draw(
+            80,
+            24,
+            built: new AShell
+            {
+                Accounts = FakeAccountRelationships.Holding(me),
+                PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(account: me)),
+            });
+
+        drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+        drawn.Settle();
+        drawn.Press(new Key('E'));
+        drawn.Settle();
+        drawn.Redraw();
+
+        Assert.IsType<PublicProfileScreen>(drawn.Shell.Screen);
+        AssertPaddedTwoAndTwo(drawn);
+    }
+
+    /// <summary>
+    ///     A click in the margin column of a post's row picks that post, as a click on the row's blank space just inside
+    ///     the margin does: the margin is part of the row, not a dead zone of a new kind (#493, story 16).
+    /// </summary>
+    [Fact]
+    public async Task AClickInTheMarginPicksThePostAsAClickOnItsBlankSpaceDoes()
+    {
+        const int blank = 77;
+        const int margin = 78;
+
+        using var onBlank = await Draw(80, 24, built: TwoPosts());
+        using var onMargin = await Draw(80, 24, built: TwoPosts());
+
+        var row = ContentClicks.RowOf(onBlank, "Two sheep");
+
+        Assert.Equal(' ', onBlank.Rows()[row][blank]);
+        Assert.Equal(' ', onMargin.Rows()[row][margin]);
+
+        onBlank.Click(blank, row);
+        onMargin.Click(margin, row);
+
+        Assert.Equal("220", onBlank.Shell.Screen.Picked?.Id);
+        Assert.Equal("220", onMargin.Shell.Screen.Picked?.Id);
     }
 
     /// <summary>
@@ -246,6 +388,25 @@ public class ContentPanelTests
         Assert.Equal(new Size(78, 21), drawn.Content.Viewport.Size);
         Assert.StartsWith("╭ Add a profile ─", drawn.Rows()[0], StringComparison.Ordinal);
     }
+
+    /// <summary>
+    ///     That every row inside the panel's edges leaves the two columns inside its left edge and the two inside its
+    ///     right blank, with something written in the column before those two — padding kept evenly either side of the
+    ///     viewport's whole width, which a screen drawn a column short of it would not keep.
+    /// </summary>
+    private static void AssertPaddedTwoAndTwo(DrawnShell drawn)
+    {
+        var inside = drawn.Rows()[1..22].Select(row => row[(RailLines.Width + 1)..^1]).ToList();
+
+        Assert.All(inside, row => Assert.Equal("  ", row[..2]));
+        Assert.All(inside, row => Assert.Equal("  ", row[^2..]));
+        Assert.Contains(inside, row => row[^3] != ' ');
+    }
+
+    private static AShell TwoPosts() => new()
+    {
+        Timelines = FakeTimelineReader.Holding(APost.With(id: "110"), APost.With(id: "220", content: "Two sheep")),
+    };
 
     private static Task<DrawnShell> Draw(
         int width,

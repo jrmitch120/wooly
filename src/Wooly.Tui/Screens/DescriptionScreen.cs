@@ -61,6 +61,9 @@ public sealed class DescriptionScreen(ComposeScreen compose, ComposeAttachment a
     public override bool TypesBackslash => true;
 
     /// <inheritdoc />
+    public override bool HasWidgetsOfItsOwn => true;
+
+    /// <inheritdoc />
     /// <remarks>Both "done": what was typed is kept either way.</remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys => [new("esc", "done"), new("ctrl-s", "done")];
 

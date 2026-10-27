@@ -302,6 +302,18 @@ public abstract class Screen
     public virtual bool TypesBackslash => false;
 
     /// <summary>
+    ///     Whether this is a screen with widgets of its own — compose, the description editor pushed over it, or the
+    ///     edit public profile form — laid over the content panel's viewport (ADR-0030) rather than drawn as rows alone.
+    /// </summary>
+    /// <remarks>
+    ///     The one place a screen says so, read both by the keymap, since those widgets take <c>?</c>, <c>-</c>,
+    ///     <c>+</c> and <c>=</c> as letters before the window sees them (#320, #414), and by the shell window, which
+    ///     draws such a screen the viewport's whole width rather than leaving the right margin, its rows lying under
+    ///     widgets sized from the viewport (#495).
+    /// </remarks>
+    public virtual bool HasWidgetsOfItsOwn => false;
+
+    /// <summary>
     ///     Whether something on this screen keeps to the page rather than to its rows, and so reads
     ///     <see cref="Drawing.Top" />: the content region lays it out again whenever the page moves (#382).
     /// </summary>
