@@ -600,18 +600,13 @@ public abstract record Subject
         ///     The first page of the group, and where the reader stands with everyone on it — once for the page, as a
         ///     follow list asks it. The rest is read on from where this stopped (<see cref="ReadOn" />).
         /// </remarks>
-        internal override async Task<Found> Read(
+        internal override Task<Found> Read(
             Enquiry.Ask ask,
             ShellPorts ports,
             ActiveProfile profile,
-            Screen? standing)
-        {
-            var fetch = await ask.Of(token =>
+            Screen? standing) =>
+            ActorsRead(ask, ports, profile, token =>
                 ports.Notifications.ReadGroupActors(profile, Group.Key, ActorsPage, token));
-            var stood = await ask.Of(token => ports.StoodOrSilent(profile, fetch.Items, token));
-
-            return new ActorsFilled(stood, fetch.StoppedBy, fetch.Onward);
-        }
 
         /// <inheritdoc />
         /// <remarks>
@@ -682,17 +677,13 @@ public abstract record Subject
 
         /// <inheritdoc />
         /// <remarks>The first page of the side, and where the reader stands with everyone on it, as a group's.</remarks>
-        internal override async Task<Found> Read(
+        internal override Task<Found> Read(
             Enquiry.Ask ask,
             ShellPorts ports,
             ActiveProfile profile,
-            Screen? standing)
-        {
-            var fetch = await ask.Of(token => ports.Engagement.ReadActors(profile, Post.Id, Side, ActorsPage, token));
-            var stood = await ask.Of(token => ports.StoodOrSilent(profile, fetch.Items, token));
-
-            return new ActorsFilled(stood, fetch.StoppedBy, fetch.Onward);
-        }
+            Screen? standing) =>
+            ActorsRead(ask, ports, profile, token =>
+                ports.Engagement.ReadActors(profile, Post.Id, Side, ActorsPage, token));
 
         /// <inheritdoc />
         /// <remarks>The next page of the same side from where the last read stopped, as a group's.</remarks>
@@ -705,6 +696,27 @@ public abstract record Subject
             PeopleReadOn((ports, profile, at, token) =>
                     ports.Engagement.ReadActorsOn(profile, Post.Id, Side, at, ActorsPage, token))
                 .From(ask, ports, profile, from);
+    }
+
+    /// <summary>
+    ///     The first read of either kind of actors — a group's or a post's side: the first page <paramref name="read" />
+    ///     answers, and where the reader stands with everyone on it, asked once for the page as a follow list asks it.
+    ///     The rest is read on from where this stopped.
+    /// </summary>
+    /// <param name="ask">What every call it makes is put through.</param>
+    /// <param name="ports">What the standing is asked through.</param>
+    /// <param name="profile">Who is asking.</param>
+    /// <param name="read">The first page of the actors, which is all that differs between the two kinds.</param>
+    private static async Task<Found> ActorsRead(
+        Enquiry.Ask ask,
+        ShellPorts ports,
+        ActiveProfile profile,
+        Func<CancellationToken, Task<Fetch<Person>>> read)
+    {
+        var fetch = await ask.Of(read);
+        var stood = await ask.Of(token => ports.StoodOrSilent(profile, fetch.Items, token));
+
+        return new ActorsFilled(stood, fetch.StoppedBy, fetch.Onward);
     }
 
     /// <summary>

@@ -1836,8 +1836,10 @@ the other side in place (#487, #489). `IPostEngagement.ReadActors` reads one sid
   `x` and the author's three, and the account screen's `w:follows` only while its header block is.
 - **The actors screen is generalised, not copied.** It lists a notification group's actors or one side of a post's,
   with the same rows (the compact Account block with **Standing**, asked once a page), `⏎`, `g` and reading on; what
-  differs is the crumb, the empty text and `s`, which only a post's actors answer. `s` swaps as a Follow list's does —
-  the other side stood in this one's place, so flipping never grows the stack and `esc` returns to the post.
+  differs is the crumb, the empty text, why a list is short, and `s` and `o`, which only a post's actors answer — each
+  said once by `ActorsOf`, the closed pair of a group and a post's side the screen holds. Both kinds' first read is
+  one shape in `Subject`, differing only in the port it asks. `s` swaps as a Follow list's does — the other side stood
+  in this one's place, so flipping never grows the stack and `esc` returns to the post.
 - **Never held.** A post's actors **Subject** is compared by the post's id and side and never cached, so the reader's
   own favorite or boost is on the list the next time it is opened. An open list is not changed live by a mark.
 - **No click opens it.** A post's counts stay inert, kept for the marks themselves, as on the web.

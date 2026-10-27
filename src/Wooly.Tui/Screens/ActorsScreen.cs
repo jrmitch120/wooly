@@ -28,42 +28,26 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
 {
     private readonly Picked<Account> _people = new([]);
 
-    private readonly string? _reader;
+    /// <summary>The actors of <paramref name="of" />: a notification group, or one side of a post.</summary>
+    public ActorsScreen(ActorsOf of) => Of = of;
 
     /// <summary>The actors of the notification group <paramref name="group" />.</summary>
     public ActorsScreen(NotificationGroup group)
+        : this(new ActorsOf.Group(group))
     {
-        Group = group;
-        Crumb = KindLook.Of(group.Kind).Crumb;
-        Nobody = "Nobody is in this group any more.";
     }
 
-    /// <summary>The actors on <paramref name="side" /> of <paramref name="post" />.</summary>
-    /// <param name="post">The post, never the boost carrying it, with the counts it carried when it was asked about.</param>
-    /// <param name="reader">
-    ///     The reader's instance, which is what listed them — and so what a list shorter than the post's count is
-    ///     short on (#491).
-    /// </param>
+    /// <summary>
+    ///     The actors on <paramref name="side" /> of <paramref name="post" />, as <paramref name="reader" /> knows them.
+    /// </summary>
+    /// <inheritdoc cref="ActorsOf.PostSide" />
     public ActorsScreen(Post post, ActorSide side, string reader)
+        : this(new ActorsOf.PostSide(post, side, reader))
     {
-        Post = post;
-        Side = side;
-        Crumb = side.Crumb();
-        _reader = reader;
-
-        // A side counted above zero that reads back empty is short like any other, and says why rather than that
-        // nobody did it — which only a side counted at zero says.
-        Nobody = ActorShortfall.Of(post, side, known: 0, reader)?.Says ?? side.Nobody();
     }
 
-    /// <summary>The group whose actors these are, or nothing where they are a post's.</summary>
-    public NotificationGroup? Group { get; }
-
-    /// <summary>The post whose actors these are, or nothing where they are a group's.</summary>
-    public Post? Post { get; }
-
-    /// <summary>Which side of <see cref="Post" />'s actors these are, or nothing where they are a group's.</summary>
-    public ActorSide? Side { get; }
+    /// <summary>What these are the actors of.</summary>
+    public ActorsOf Of { get; }
 
     /// <summary>Everyone read so far, in the order the instance listed them, newest first.</summary>
     public IReadOnlyList<Account> People => _people.All;
@@ -75,11 +59,8 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
     public Account? PickedPerson => _people.Out;
 
     /// <inheritdoc />
-    /// <remarks>
-    ///     What they did: "Favorited by" or "Boosted by" for a post's side, and for a group as its kind says it —
-    ///     "Followed you", or for a kind this client has no words for, the instance's own word.
-    /// </remarks>
-    public override string Crumb { get; }
+    /// <remarks>What they did, as <see cref="Of" /> says it: "Favorited by", "Followed you".</remarks>
+    public override string Crumb => Of.Crumb;
 
     /// <inheritdoc />
     public override bool Refreshes => true;
@@ -87,11 +68,8 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => People.Select(Mentionable.Of);
 
-    /// <summary>
-    ///     What is said where the instance listed nobody: in a group, every notification in it dismissed since; on a
-    ///     post's side, a count that was stale.
-    /// </summary>
-    public string Nobody { get; }
+    /// <summary>What is said where the instance listed nobody, as <see cref="Of" /> says it.</summary>
+    public string Nobody => Of.Nobody;
 
     /// <inheritdoc />
     /// <remarks>A row is a person rather than a post, so none of the keys that act on one are offered.</remarks>
@@ -99,8 +77,12 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
     [
         new KeyHint("j/k", "person"),
         new KeyHint("⏎", "open", NeedsAPick: true),
-        .. Side is { } side ? [new KeyHint("s", side.Other().Crumb().ToLowerInvariant())] : Array.Empty<KeyHint>(),
-        .. PostPage is not null ? [new KeyHint("o", $"on {Home}")] : Array.Empty<KeyHint>(),
+        .. Of is ActorsOf.PostSide side
+            ? [new KeyHint("s", side.Side.Other().Crumb().ToLowerInvariant())]
+            : Array.Empty<KeyHint>(),
+        .. Of is ActorsOf.PostSide { Page: not null, Home: { } home }
+            ? [new KeyHint("o", $"on {home}")]
+            : Array.Empty<KeyHint>(),
         Refreshing,
         .. PostKeys.Leaving(new KeyHint("esc", "back")),
     ];
@@ -145,32 +127,18 @@ public sealed class ActorsScreen : Screen, IReadsOn<Account>
     public override Task Answer(Verb verb, Reach reach) => verb switch
     {
         Verb.OpenPerson when PickedPerson is { } person => reach.Open(Subject.Account.Of(person)),
-        Verb.SwapSide when (Post, Side) is ({ } post, { } side) => reach.Swap(new Subject.PostActors(post, side.Other())),
-        Verb.OpenPostPage when PostPage is { } page => Browsed(reach, page),
+        Verb.SwapSide when Of is ActorsOf.PostSide side =>
+            reach.Swap(new Subject.PostActors(side.Post, side.Side.Other())),
+        Verb.OpenPostPage when Of is ActorsOf.PostSide { Page: { } page } => Browsed(reach, page),
         _ => Task.CompletedTask,
     };
-
-    /// <summary>
-    ///     The post's home instance, where its favorites and boosts are delivered — or nothing where it is the
-    ///     reader's own, or these are a group's.
-    /// </summary>
-    private string? Home => Post is { } post && _reader is { } reader ? ActorShortfall.HomeOf(post, reader) : null;
-
-    /// <summary>
-    ///     The post's page on its home instance, which <c>o</c> opens — where the whole of a list the reader's instance
-    ///     knows only part of is (#491). Nothing on a post of the reader's own instance, there being nowhere else to go.
-    /// </summary>
-    private string? PostPage => Home is not null ? Post?.Url : null;
 
     /// <summary>
     ///     Why the list, read to its end, holds fewer than the post counts — or nothing, while there is more to read,
     ///     where it holds as many, or where it holds nobody, which <see cref="Nobody" /> already says.
     /// </summary>
     private ActorShortfall? Shortfall =>
-        (Post, Side, _reader, ReadingOn) is ({ } post, { } side, { } reader, { IsWhole: true, InFlight: false })
-        && Read > 0
-            ? ActorShortfall.Of(post, side, Read, reader)
-            : null;
+        ReadingOn is { IsWhole: true, InFlight: false } && Read > 0 ? Of.ShortBy(Read) : null;
 
     private static Task Browsed(Reach reach, string page)
     {
