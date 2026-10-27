@@ -1,4 +1,5 @@
 using Wooly.Core.Accounts;
+using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
@@ -323,6 +324,21 @@ public class ShellPostActorsTests
         Assert.EndsWith("Fan1", Drawn(opened.Screen)[0]);
     }
 
+    /// <summary>A side a rate limit cut short is not whole, so it says nothing of being short — only that it stopped.</summary>
+    [Fact]
+    public async Task Arrived_SaysNothingOfAListARateLimitCutShort()
+    {
+        var shell = Holding(Remote() with { Favorites = 140 });
+        shell.Engagement.ActorsOf[("110", ActorSide.Favorited)] = Actors("Alice");
+        shell.Engagement.ActorsStoppedBy = new RateLimitedException("mastodon.social", AShell.Now.AddMinutes(5));
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+
+        Assert.DoesNotContain(Drawn(opened.Screen), line => line.Contains("knows of", StringComparison.Ordinal));
+    }
+
     /// <summary>
     ///     <c>o</c> on a remote post's actors opens the post's page on its home instance, where the whole list is, and
     ///     says so on the status row (#491).
@@ -342,6 +358,22 @@ public class ShellPostActorsTests
         opened.Press(ShellKey.O);
 
         Assert.Equal("https://hachyderm.io/@ben/110", Assert.Single(shell.Browser.Opened).ToString());
+    }
+
+    /// <summary>A remote post with no web address has no page to open, so <c>o</c> is not offered there either.</summary>
+    [Fact]
+    public async Task PressO_OnARemotePostWithNoPageIsNotOffered()
+    {
+        var shell = Holding(Remote() with { Url = null });
+        shell.Engagement.ActorsOf[("110", ActorSide.Favorited)] = Actors("Alice");
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.W);
+        shell.Host.Drain();
+        opened.Press(ShellKey.O);
+
+        Assert.DoesNotContain(opened.Screen.Keys, key => key.Key == "o");
+        Assert.Empty(shell.Browser.Opened);
     }
 
     /// <summary>And on a local post's there is nowhere else to go, so <c>o</c> is neither offered nor answered.</summary>

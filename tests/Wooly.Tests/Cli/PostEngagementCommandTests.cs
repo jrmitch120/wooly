@@ -1040,6 +1040,21 @@ public class PostEngagementCommandTests : IDisposable
         Assert.DoesNotContain("Nobody has boosted", run.Output);
     }
 
+    /// <summary>Nor where a rate limit cut the list short, which is reported as that failure instead.</summary>
+    [Fact]
+    public void Actors_SaysNothingOfAListARateLimitCutShort()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(id: "110", account: "ben@hachyderm.io") with { Favorites = 140 });
+        _posts.ActorsOf[("110", ActorSide.Favorited)] = [AnAccount.With()];
+        _posts.ActorsStoppedBy = new RateLimitedException("mastodon.social", DateTimeOffset.UnixEpoch);
+
+        var run = Run(["post", "favorited-by", "110"]);
+
+        Assert.Equal((int)ExitCode.RateLimited, run.ExitCode);
+        Assert.DoesNotContain("knows of", run.Output);
+    }
+
     /// <summary>Nothing is said where the list holds as many as the post counts.</summary>
     [Fact]
     public void Actors_SaysNothingOfAListAsLongAsThePostsCount()

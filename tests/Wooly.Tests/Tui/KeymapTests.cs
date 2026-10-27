@@ -300,13 +300,19 @@ public class KeymapTests
     }
 
     /// <summary>
-    ///     <c>o</c> opens a post's page on its home instance from its actors, and means nothing anywhere else — not on a
-    ///     notification group's actors, nor on a feed (#491).
+    ///     <c>o</c> opens a post's page on its home instance from a remote post's actors, and means nothing anywhere else
+    ///     — not on a local post's, nor a remote one with no page, a notification group's actors, or a feed (#491).
     /// </summary>
     [Fact]
-    public void TheOKeyBelongsToAPostsActors()
+    public void TheOKeyBelongsToARemotePostsActors()
     {
-        Assert.Equal(Verb.OpenPostPage, Means("o", new ActorsScreen(APost.With(), ActorSide.Favorited, "mastodon.social")));
+        var remote = APost.With(account: "ben@hachyderm.io");
+
+        Assert.Equal(Verb.OpenPostPage, Means("o", new ActorsScreen(remote, ActorSide.Favorited, "mastodon.social")));
+        Assert.Equal(Verb.None, Means("o", new ActorsScreen(APost.With(), ActorSide.Favorited, "mastodon.social")));
+        Assert.Equal(
+            Verb.None,
+            Means("o", new ActorsScreen(remote with { Url = null }, ActorSide.Favorited, "mastodon.social")));
         Assert.Equal(Verb.None, Means("o", new ActorsScreen(ANotification.Group(count: 2, actors: ["Alice", "Bob"]))));
         Assert.Equal(Verb.None, Means("o", Feed()));
     }

@@ -249,8 +249,9 @@ public static class Keymap
         // which have one (#489).
         (ShellKey.S, ActorsScreen { Of: ActorsOf.PostSide }) => Verb.SwapSide,
 
-        // And o there, the one place it means anything: the post's page on its home instance (#491).
-        (ShellKey.O, ActorsScreen { Of: ActorsOf.PostSide }) => Verb.OpenPostPage,
+        // And o there, on a remote post's with a page to open, the one place it means anything: the post's page on its
+        // home instance (#491). A local post's list has nowhere else to be, and leaves o nobody's.
+        (ShellKey.O, ActorsScreen { Of: ActorsOf.PostSide { Page: not null } }) => Verb.OpenPostPage,
 
         // And s again on the account screen, where it swaps runs rather than sides: their posts and replies, and back
         // to their posts alone (#229). Still bound only where it does something, and announced where it is.
