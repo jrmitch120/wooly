@@ -61,8 +61,9 @@ internal sealed class ShellWindow : Window
     ///     this one shows posts, so it is the one worth being able to name.
     /// </summary>
     /// <remarks>
-    ///     Its <c>Frame</c> is the whole panel and its <c>Viewport</c> the inside of it, which every screen is drawn in
-    ///     less the <see cref="RightMargin" /> — but for a draft's, laid out under widgets sized from the viewport.
+    ///     Its <c>Frame</c> is the whole panel and its <c>Viewport</c> the inside of it. A screen is drawn one column
+    ///     narrower than the viewport, leaving the <see cref="RightMargin" />; a screen with widgets of its own is drawn
+    ///     the viewport's whole width, since its widgets are sized from the viewport.
     /// </remarks>
     internal const string ContentId = "content";
 
@@ -1243,11 +1244,12 @@ internal sealed class ShellWindow : Window
 
     /// <summary>
     ///     How wide <paramref name="screen" /> is drawn in a viewport <paramref name="width" /> wide: a column short, for
-    ///     the <see cref="RightMargin" />, unless it is a draft — compose, a description or the public profile form —
-    ///     whose rows lie under widgets sized from the viewport and which already pads both sides evenly (#495).
+    ///     the <see cref="RightMargin" />, unless it is a screen with widgets of its own
+    ///     (<see cref="Screen.HasWidgetsOfItsOwn" />), whose rows lie under widgets sized from the viewport and which
+    ///     already pads both sides evenly (#495).
     /// </summary>
     private static int Room(Screen screen, int width) =>
-        screen is ComposeScreen or DescriptionScreen or PublicProfileScreen ? width : Math.Max(0, width - RightMargin);
+        screen.HasWidgetsOfItsOwn ? width : Math.Max(0, width - RightMargin);
 
     /// <summary>
     ///     Lays the rail out where the shell has one and takes it away where it has none — with nobody to act as, which

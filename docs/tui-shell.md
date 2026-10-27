@@ -51,8 +51,9 @@ of ADR-0014 less the cell the gutter column gave up to the content panel's left 
 when it widened to 20 so that a label and its count both fit (#272). A screen is drawn in 57 of them, the margin's
 column given up on the right to mirror the gutter on the left (#495), so text, pictures and the right-aligned status and
 age stop one column short of the edge; 57 is the width every screen must read well at. The rules between things and
-the picked thing's band still run to the edge, over the margin. The drafting overlays — compose, the description
-screen and the public profile form — are sized from the panel's whole 58 and keep their 2 columns of padding each side.
+the picked thing's band still run to the edge, over the margin. The exception is a screen with widgets of its own —
+compose, the description screen and the public profile form (ADR-0030) — which is drawn the panel's whole 58, since its
+widgets are sized from the viewport, and keeps its 2 columns of padding each side.
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
 it 23. Shorter than that, it steps down rather than clipping:
@@ -227,8 +228,9 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
-Every screen owes three things: it reads at 57 columns, it says what its keys are on the status row, and it names roles
-rather than colours (below).
+Every screen owes three things: it reads at 57 columns (58 for a screen with widgets of its own — compose, the
+description screen and the public profile form — which is drawn the panel's whole width), it says what its keys are on
+the status row, and it names roles rather than colours (below).
 
 ## Keys
 

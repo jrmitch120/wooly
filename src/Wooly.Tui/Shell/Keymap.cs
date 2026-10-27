@@ -55,7 +55,7 @@ public static class Keymap
         // widget has the typing would be one a reader can never reach, over a draft, and where the typing is in none —
         // Media, a picture, a toggle — a key from under a draft is no-one's.
         (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign, _)
-            when HasWidgetsOfItsOwn(screen) => Verb.None,
+            when screen.HasWidgetsOfItsOwn => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
@@ -300,14 +300,6 @@ public static class Keymap
         (Verb.Follow, DiscoverScreen) or (Verb.MarkRead, DirectMessagesScreen) => true,
         _ => verb.NeedsAPick(),
     };
-
-    /// <summary>
-    ///     Whether <paramref name="screen" /> is one with widgets of its own — compose, the description editor pushed
-    ///     over it, or the edit public profile form — whose fields take <c>?</c>, <c>-</c>, <c>+</c> and <c>=</c> as
-    ///     letters before the window sees them, so that those keys mean nothing there (#320, #414).
-    /// </summary>
-    private static bool HasWidgetsOfItsOwn(Screen screen) =>
-        screen is ComposeScreen or DescriptionScreen or PublicProfileScreen;
 
     /// <summary>
     ///     What <paramref name="key" /> does on an attachment's row — under compose's Media header and on the attachments

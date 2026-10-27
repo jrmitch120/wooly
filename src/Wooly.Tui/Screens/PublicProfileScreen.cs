@@ -173,6 +173,9 @@ public sealed class PublicProfileScreen : Screen, IDraft
     public override bool TypesBackslash => true;
 
     /// <inheritdoc />
+    public override bool HasWidgetsOfItsOwn => true;
+
+    /// <inheritdoc />
     /// <remarks>
     ///     <c>space</c> first on a toggle, and <c>⏎</c> and the paste on a picture, being what the row is for; then the
     ///     walk, offered only the ways it goes, as compose's is (#337): it stops at either end rather than coming round.

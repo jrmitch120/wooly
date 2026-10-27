@@ -510,6 +510,9 @@ public sealed class ComposeScreen : Screen, IDraft
     public override bool TypesBackslash => true;
 
     /// <inheritdoc />
+    public override bool HasWidgetsOfItsOwn => true;
+
+    /// <inheritdoc />
     /// <remarks>
     ///     No keymap key, in either field: <c>?</c> is a letter in the post and in the warning alike, each field taking
     ///     its own keys before the shell sees them (#320) — so naming it would be offering a press that types a

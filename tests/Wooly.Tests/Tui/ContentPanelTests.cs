@@ -1,4 +1,5 @@
 using System.Drawing;
+using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Core.Posts;
 using Wooly.Core.Paging;
@@ -158,6 +159,79 @@ public class ContentPanelTests
 
         Assert.NotEmpty(hairlines);
         Assert.All(hairlines, row => Assert.Equal("  " + new string('─', 54) + "  ", row[(RailLines.Width + 1)..^1]));
+        AssertPaddedTwoAndTwo(drawn);
+    }
+
+    /// <summary>
+    ///     The description editor, a screen with widgets of its own like compose, is drawn the viewport's whole 58
+    ///     columns: two blank columns inside the left edge and two inside the right on every row, the margin taking
+    ///     nothing from it (#495).
+    /// </summary>
+    [Fact]
+    public async Task TheDescriptionScreenKeepsItsPaddingInsideTheWholeViewport()
+    {
+        using var files = new TemporaryDirectory();
+        using var drawn = await Draw(80, 24);
+
+        drawn.Shell.Press(ShellKey.C);
+        drawn.Shell.Paste(files.WriteFile("cat.png"));
+        drawn.Settle();
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.Enter);
+        drawn.Redraw();
+
+        Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+        AssertPaddedTwoAndTwo(drawn);
+    }
+
+    /// <summary>And the edit public profile form, the third screen with widgets of its own (#495).</summary>
+    [Fact]
+    public async Task ThePublicProfileFormKeepsItsPaddingInsideTheWholeViewport()
+    {
+        var me = AnAccount.With(address: "jeff@mastodon.social", author: "Jeff", id: "7");
+
+        using var drawn = await Draw(
+            80,
+            24,
+            built: new AShell
+            {
+                Accounts = FakeAccountRelationships.Holding(me),
+                PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(account: me)),
+            });
+
+        drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+        drawn.Settle();
+        drawn.Press(new Key('E'));
+        drawn.Settle();
+        drawn.Redraw();
+
+        Assert.IsType<PublicProfileScreen>(drawn.Shell.Screen);
+        AssertPaddedTwoAndTwo(drawn);
+    }
+
+    /// <summary>
+    ///     A click in the margin column of a post's row picks that post, as a click on the row's blank space just inside
+    ///     the margin does: the margin is part of the row, not a dead zone of a new kind (#493, story 16).
+    /// </summary>
+    [Fact]
+    public async Task AClickInTheMarginPicksThePostAsAClickOnItsBlankSpaceDoes()
+    {
+        const int blank = 77;
+        const int margin = 78;
+
+        using var onBlank = await Draw(80, 24, built: TwoPosts());
+        using var onMargin = await Draw(80, 24, built: TwoPosts());
+
+        var row = ContentClicks.RowOf(onBlank, "Two sheep");
+
+        Assert.Equal(' ', onBlank.Rows()[row][blank]);
+        Assert.Equal(' ', onMargin.Rows()[row][margin]);
+
+        onBlank.Click(blank, row);
+        onMargin.Click(margin, row);
+
+        Assert.Equal("220", onBlank.Shell.Screen.Picked?.Id);
+        Assert.Equal("220", onMargin.Shell.Screen.Picked?.Id);
     }
 
     /// <summary>
@@ -314,6 +388,25 @@ public class ContentPanelTests
         Assert.Equal(new Size(78, 21), drawn.Content.Viewport.Size);
         Assert.StartsWith("╭ Add a profile ─", drawn.Rows()[0], StringComparison.Ordinal);
     }
+
+    /// <summary>
+    ///     That every row inside the panel's edges leaves the two columns inside its left edge and the two inside its
+    ///     right blank, with something written in the column before those two — padding kept evenly either side of the
+    ///     viewport's whole width, which a screen drawn a column short of it would not keep.
+    /// </summary>
+    private static void AssertPaddedTwoAndTwo(DrawnShell drawn)
+    {
+        var inside = drawn.Rows()[1..22].Select(row => row[(RailLines.Width + 1)..^1]).ToList();
+
+        Assert.All(inside, row => Assert.Equal("  ", row[..2]));
+        Assert.All(inside, row => Assert.Equal("  ", row[^2..]));
+        Assert.Contains(inside, row => row[^3] != ' ');
+    }
+
+    private static AShell TwoPosts() => new()
+    {
+        Timelines = FakeTimelineReader.Holding(APost.With(id: "110"), APost.With(id: "220", content: "Two sheep")),
+    };
 
     private static Task<DrawnShell> Draw(
         int width,
