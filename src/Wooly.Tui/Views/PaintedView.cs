@@ -1,6 +1,7 @@
 using System.Drawing;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
+using Wooly.Core.Configuration;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -182,11 +183,15 @@ internal sealed class PaintedView : View
     public Action? LetReferenceGo { get; init; }
 
     /// <summary>
-    ///     Whether the frame's right edge is a <b>Scrollbar</b> wherever this view scrolls and its rows don't fit the
-    ///     page: the edge's own <c>│</c> the track beside the rows that scroll, and a <c>█</c> thumb on it (#500). Off
-    ///     where nobody said, and nothing to draw on for a view with no frame.
+    ///     How the frame's right edge draws a <b>Scrollbar</b> wherever this view scrolls and its rows don't fit the page,
+    ///     or that it draws none: the edge's own <c>│</c> the track beside the rows that scroll, and a thumb on it in the
+    ///     style's glyph (#500, #505). <see cref="ScrollbarStyle.None" /> where nobody said, and nothing to draw on for a
+    ///     view with no frame.
     /// </summary>
-    public bool HasScrollbar { get; init; }
+    public ScrollbarStyle ScrollbarStyle { get; init; } = ScrollbarStyle.None;
+
+    /// <summary>Whether the frame's right edge is a <b>Scrollbar</b> where the rows don't fit, in any style.</summary>
+    private bool HasScrollbar => ScrollbarStyle is not ScrollbarStyle.None;
 
     /// <summary>
     ///     How this terminal paints pixels as of the last frame settled, or <see cref="Media.Raster.None" /> before the
@@ -772,8 +777,8 @@ internal sealed class PaintedView : View
 
     /// <summary>
     ///     The right edge beside the rows that scroll, where they don't fit the page, as the scrollbar: the edge's own
-    ///     <c>│</c> in <see cref="Role.PanelBorder" /> for the track and <c>█</c> in <see cref="Role.Scrollbar" /> for the
-    ///     thumb — the glyphs carrying it where there is no colour. Beside the pinned rows the edge is left as it is.
+    ///     <c>│</c> in <see cref="Role.PanelBorder" /> for the track and the style's thumb in <see cref="Role.Scrollbar" />
+    ///     — the glyphs carrying it where there is no colour. Beside the pinned rows the edge is left as it is.
     /// </summary>
     private void PaintScrollbar(int width)
     {
@@ -782,12 +787,14 @@ internal sealed class PaintedView : View
             return;
         }
 
+        var thumb = Scrollbar.ThumbOf(ScrollbarStyle);
+
         for (var row = bar.Pinned; row < Viewport.Height; row++)
         {
             var thumbed = bar.Thumb.Covers(row - bar.Pinned);
 
             SetAttribute(_theme.For(thumbed ? Role.Scrollbar : Role.PanelBorder));
-            AddStr(width - 2, row, thumbed ? Scrollbar.Thumb : Scrollbar.Track);
+            AddStr(width - 2, row, thumbed ? thumb : Scrollbar.Track);
         }
     }
 

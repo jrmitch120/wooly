@@ -152,10 +152,10 @@ internal sealed class AShell
     public bool HiddenRail { get; set; }
 
     /// <summary>
-    ///     The config file's <c>scrollbar</c>: whether the content panel's right edge is a scrollbar where a screen
-    ///     overflows (#501). On, unless said.
+    ///     The config file's <c>scrollbar</c>: how the content panel's right edge draws a scrollbar's thumb where a screen
+    ///     overflows, or that it draws none (#501, #505). A block, unless said.
     /// </summary>
-    public bool Scrollbar { get; set; } = true;
+    public ScrollbarStyle Scrollbar { get; set; } = ScrollbarStyle.Block;
 
     /// <summary>The config file's preferences, as far as these tests set them.</summary>
     private Preferences Preferences => new()

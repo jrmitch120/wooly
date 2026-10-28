@@ -1,4 +1,5 @@
 using Terminal.Gui.Input;
+using Wooly.Core.Configuration;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Theme;
 using static Wooly.Tests.Tui.ScrollbarFeeds;
@@ -67,6 +68,33 @@ public class ScrollbarDragTests
 
         Assert.False(drawn.Application.Mouse.IsGrabbed());
         Assert.Equal(12, drawn.Content.Top);
+        Assert.Equal("1", drawn.Shell.Screen.Picked?.Id);
+    }
+
+    /// <summary>
+    ///     Every style of thumb answers the mouse as the block does (#505): a click on the margin beside the track moves
+    ///     and picks nothing, and the thumb grabbed by the margin and dragged three rows brings the page six, drawn in its
+    ///     own glyph under the pointer.
+    /// </summary>
+    [Theory]
+    [InlineData(ScrollbarStyle.Line, '┃')]
+    [InlineData(ScrollbarStyle.LeftHalf, '▌')]
+    [InlineData(ScrollbarStyle.RightHalf, '▐')]
+    public async Task EveryStyleIsClickedAndDraggedAsTheBlockIs(ScrollbarStyle style, char thumb)
+    {
+        using var drawn = await Feed(Posts(6), style: style);
+
+        drawn.Click(Margin, 15);
+
+        Assert.Equal(0, drawn.Content.Top);
+        Assert.Equal("1", drawn.Shell.Screen.Picked?.Id);
+
+        Press(drawn, Margin, Grabbed);
+        Move(drawn, Margin, 6);
+        Let(drawn, Margin, 6);
+
+        Assert.Equal(6, drawn.Content.Top);
+        Assert.Equal($"│{new string(thumb, 10)}│", EdgeBetween(drawn, 3, 15));
         Assert.Equal("1", drawn.Shell.Screen.Picked?.Id);
     }
 

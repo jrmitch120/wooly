@@ -23,7 +23,7 @@ public class ShellPreferenceStoreTests
             {
                 ["personal"] = new() { Instance = "mastodon.social", Account = "jeff@mastodon.social" },
             },
-            Preferences = new Preferences { Hashtag = "dotnet", Bell = false, Scrollbar = false },
+            Preferences = new Preferences { Hashtag = "dotnet", Bell = false, Scrollbar = ScrollbarStyle.RightHalf },
         });
 
         new ShellPreferenceStore(config).SaveWidth(ShellWidth.Of(70));
@@ -32,7 +32,7 @@ public class ShellPreferenceStoreTests
         Assert.Equal(70, saved.Preferences.ShellWidth);
         Assert.Equal("dotnet", saved.Preferences.Hashtag);
         Assert.False(saved.Preferences.Bell);
-        Assert.False(saved.Preferences.Scrollbar);
+        Assert.Equal(ScrollbarStyle.RightHalf, saved.Preferences.Scrollbar);
         Assert.Equal("personal", saved.CurrentProfile);
         Assert.Equal("jeff@mastodon.social", saved.Profiles["personal"].Account);
     }

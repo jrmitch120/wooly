@@ -1,3 +1,4 @@
+using Wooly.Core.Configuration;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
@@ -16,9 +17,20 @@ internal static class ScrollbarFeeds
     public static Post[] Posts(int count) =>
         [.. Enumerable.Range(1, count).Select(at => APost.With(id: $"{at}"))];
 
-    /// <summary>The shell drawn <paramref name="height" /> rows tall at 80 columns over a timeline holding <paramref name="posts" />.</summary>
-    public static Task<DrawnShell> Feed(Post[] posts, int height = 24, ITheme? theme = null) =>
-        DrawnShell.Of(80, height, theme ?? Themes.Plain, new AShell { Timelines = FakeTimelineReader.Holding(posts) });
+    /// <summary>
+    ///     The shell drawn <paramref name="height" /> rows tall at 80 columns over a timeline holding
+    ///     <paramref name="posts" />, its scrollbar in <paramref name="style" /> (#505) — the default where unsaid.
+    /// </summary>
+    public static Task<DrawnShell> Feed(
+        Post[] posts,
+        int height = 24,
+        ITheme? theme = null,
+        ScrollbarStyle style = ScrollbarStyle.Block) =>
+        DrawnShell.Of(
+            80,
+            height,
+            theme ?? Themes.Plain,
+            new AShell { Timelines = FakeTimelineReader.Holding(posts), Scrollbar = style });
 
     /// <summary>How many rows the screen on top draws, at the width the content region draws them.</summary>
     public static int RowsOf(DrawnShell drawn) =>

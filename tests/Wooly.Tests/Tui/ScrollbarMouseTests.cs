@@ -1,4 +1,5 @@
 using Terminal.Gui.Input;
+using Wooly.Core.Configuration;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -115,7 +116,7 @@ public class ScrollbarMouseTests
     }
 
     /// <summary>
-    ///     With <c>scrollbar = false</c> a screen that overflows draws no bar, so the edge answers no button where the
+    ///     With <c>scrollbar = "none"</c> a screen that overflows draws no bar, so the edge answers no button where the
     ///     track would be and the margin beside a post's row picks it, as before there was a bar.
     /// </summary>
     [Fact]
@@ -125,7 +126,7 @@ public class ScrollbarMouseTests
             80,
             24,
             Themes.Plain,
-            new AShell { Timelines = FakeTimelineReader.Holding(Posts(6)), Scrollbar = false });
+            new AShell { Timelines = FakeTimelineReader.Holding(Posts(6)), Scrollbar = ScrollbarStyle.None });
 
         drawn.Click(Edge, BelowTheThumb);
 

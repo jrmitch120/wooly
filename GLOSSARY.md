@@ -683,10 +683,11 @@ _Avoid_: scroll state, viewport
 
 **Scrollbar**:
 Where the **Page** stands among a screen's rows, drawn on the content panel's right edge (#500): the edge's own `│` is
-the track, beside the rows that scroll, and a `█` thumb on it is the page's share of those rows and where it is among
-them, never shorter than two rows. Drawn only while the rows don't fit the page, measured against the rows laid out for
-that frame — on a list that **reads on**, the rows loaded so far — and moved on the same frame as they are. Not on a
-screen with widgets of its own, which do their own scrolling.
+the track, beside the rows that scroll, and a thumb on it — `█` unless the `scrollbar` preference picks `┃`, `▌` or
+`▐` (#505) — is the page's share of those rows and where it is among them, never shorter than two rows. Drawn only
+while the rows don't fit the page, measured against the rows laid out for that frame — on a list that **reads on**, the
+rows loaded so far — and moved on the same frame as they are. Not on a screen with widgets of its own, which do their
+own scrolling, nor anywhere with the preference `"none"`.
 _Avoid_: scroll indicator, position gauge
 
 **Reclaim**:

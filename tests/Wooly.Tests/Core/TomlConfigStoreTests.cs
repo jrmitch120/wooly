@@ -119,11 +119,11 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Contains("bell", exception.Message);
     }
 
-    /// <summary>#501: the scrollbar is on unless the file says otherwise, with no file and with a file that leaves it out.</summary>
+    /// <summary>#505: the thumb is a block unless the file says otherwise, with no file and with a file that leaves it out.</summary>
     [Fact]
-    public void Load_ReadsTheScrollbarAsOnWhenAbsent()
+    public void Load_ReadsTheScrollbarAsABlockWhenAbsent()
     {
-        Assert.True(NewStore().Load().Preferences.Scrollbar);
+        Assert.Equal(ScrollbarStyle.Block, NewStore().Load().Preferences.Scrollbar);
 
         WriteConfigFile(
             """
@@ -131,56 +131,94 @@ public class TomlConfigStoreTests : IDisposable
             hashtag = "dotnet"
             """);
 
-        Assert.True(NewStore().Load().Preferences.Scrollbar);
+        Assert.Equal(ScrollbarStyle.Block, NewStore().Load().Preferences.Scrollbar);
     }
 
-    [Fact]
-    public void Save_ThenLoad_RoundTripsTheScrollbarTurnedOff()
-    {
-        var store = NewStore();
-
-        store.Save(new WoolyConfig { Preferences = new Preferences { Scrollbar = false } });
-
-        Assert.Contains("scrollbar = false", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
-        Assert.False(store.Load().Preferences.Scrollbar);
-    }
-
-    /// <summary>On is what an absent key reads as, so it is not written: no new line in a file nothing else touched.</summary>
-    [Fact]
-    public void Save_OmitsTheScrollbarWhenOn()
-    {
-        NewStore().Save(new WoolyConfig { Preferences = new Preferences { Scrollbar = true } });
-
-        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
-    }
-
-    /// <summary>Turned off, it is kept through a save of something else, as the bell is.</summary>
-    [Fact]
-    public void Save_KeepsTheScrollbarTurnedOffBesideTheOtherPreferences()
+    /// <summary>Each spelling but the default's is read as the style it names and written back as it was.</summary>
+    [Theory]
+    [InlineData("line", ScrollbarStyle.Line)]
+    [InlineData("left-half", ScrollbarStyle.LeftHalf)]
+    [InlineData("right-half", ScrollbarStyle.RightHalf)]
+    [InlineData("none", ScrollbarStyle.None)]
+    public void Save_ThenLoad_RoundTripsTheScrollbar(string written, ScrollbarStyle style)
     {
         var store = NewStore();
 
         WriteConfigFile(
+            $"""
+            [preferences]
+            scrollbar = "{written}"
+            """);
+
+        Assert.Equal(style, store.Load().Preferences.Scrollbar);
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { Scrollbar = style } });
+
+        Assert.Contains($"scrollbar = \"{written}\"", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+        Assert.Equal(style, store.Load().Preferences.Scrollbar);
+    }
+
+    /// <summary>
+    ///     A block is what an absent key reads as, so it is not written: no new line in a file nothing else touched — though
+    ///     the file may spell it out.
+    /// </summary>
+    [Fact]
+    public void Save_OmitsTheScrollbarWhenABlock()
+    {
+        WriteConfigFile(
             """
             [preferences]
-            scrollbar = false
+            scrollbar = "block"
+            """);
+
+        var store = NewStore();
+
+        Assert.Equal(ScrollbarStyle.Block, store.Load().Preferences.Scrollbar);
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { Scrollbar = ScrollbarStyle.Block } });
+
+        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+    }
+
+    /// <summary>A style set, or the bar turned off, is kept through a save of something else, as the bell is.</summary>
+    [Theory]
+    [InlineData("none", ScrollbarStyle.None)]
+    [InlineData("line", ScrollbarStyle.Line)]
+    public void Save_KeepsTheScrollbarBesideTheOtherPreferences(string written, ScrollbarStyle style)
+    {
+        var store = NewStore();
+
+        WriteConfigFile(
+            $"""
+            [preferences]
+            scrollbar = "{written}"
             """);
 
         store.Save(store.Load() with { Preferences = store.Load().Preferences with { HiddenRail = true } });
 
         var preferences = store.Load().Preferences;
 
-        Assert.False(preferences.Scrollbar);
+        Assert.Equal(style, preferences.Scrollbar);
         Assert.True(preferences.HiddenRail);
     }
 
-    [Fact]
-    public void Load_RefusesASpellingOfTheScrollbarThatIsNotABoolean()
+    /// <summary>
+    ///     Anything but the five spellings is refused, the booleans #501 once took among them: neither was released, so
+    ///     neither is read as anything.
+    /// </summary>
+    [Theory]
+    [InlineData("true")]
+    [InlineData("false")]
+    [InlineData("\"off\"")]
+    [InlineData("\"Block\"")]
+    [InlineData("\"\"")]
+    [InlineData("1")]
+    public void Load_RefusesAScrollbarThatIsNotOneOfTheStyles(string written)
     {
         WriteConfigFile(
-            """
+            $"""
             [preferences]
-            scrollbar = "off"
+            scrollbar = {written}
             """);
 
         var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());

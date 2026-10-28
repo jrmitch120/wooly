@@ -60,9 +60,10 @@ public sealed record Preferences
     public bool HiddenRail { get; init; }
 
     /// <summary>
-    ///     Whether the TUI's content panel draws its <b>Scrollbar</b> on its right edge where a screen's rows don't fit
-    ///     the page (#500, #501). <see langword="true" /> (absent) draws it; one setting for every profile, read at
-    ///     launch, with no key in the TUI to change it.
+    ///     How the TUI's content panel draws its <b>Scrollbar</b>'s thumb on its right edge where a screen's rows don't fit
+    ///     the page, or <see cref="ScrollbarStyle.None" /> for no scrollbar (#500, #501, #505).
+    ///     <see cref="ScrollbarStyle.Block" /> (absent) is the default; one setting for every profile, read at launch, with
+    ///     no key in the TUI to change it.
     /// </summary>
-    public bool Scrollbar { get; init; } = true;
+    public ScrollbarStyle Scrollbar { get; init; } = ScrollbarStyle.Block;
 }

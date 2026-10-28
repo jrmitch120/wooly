@@ -190,7 +190,7 @@ public sealed class Shell
             launchedFrom ?? Environment.CurrentDirectory);
         ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
         RailState = preferences?.HiddenRail is true ? RailState.Hidden : RailState.Shown;
-        DrawsScrollbar = preferences?.Scrollbar ?? true;
+        ScrollbarStyle = preferences?.Scrollbar ?? ScrollbarStyle.Block;
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
         _badges = new InboxBadges(
@@ -295,10 +295,11 @@ public sealed class Shell
     public ShellWidth ShellWidth { get; private set; }
 
     /// <summary>
-    ///     Whether the content panel's right edge is a <b>Scrollbar</b> where a screen's rows don't fit the page: what the
-    ///     config file's <c>scrollbar</c> says, read at launch, or on where it says nothing (#501). No key changes it.
+    ///     How the content panel's right edge draws a <b>Scrollbar</b>'s thumb where a screen's rows don't fit the page, or
+    ///     that it draws none: what the config file's <c>scrollbar</c> says, read at launch, or a block where it says
+    ///     nothing (#501, #505). No key changes it.
     /// </summary>
-    public bool DrawsScrollbar { get; }
+    public ScrollbarStyle ScrollbarStyle { get; }
 
     /// <summary>
     ///     Whether the rail is the <b>hidden rail</b> (<c>GLOSSARY.md</c>), out of sight with the content taking its

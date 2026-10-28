@@ -1,3 +1,5 @@
+using Wooly.Core.Configuration;
+
 namespace Wooly.Tui.Views;
 
 /// <summary>
@@ -12,8 +14,19 @@ internal readonly record struct Scrollbar(int Start, int Length)
     /// <summary>The track: the panel edge's own glyph, so the outline stays whole.</summary>
     public const string Track = "│";
 
-    /// <summary>The thumb, told from the track by its glyph where there is no colour to tell them apart.</summary>
-    public const string Thumb = "█";
+    /// <summary>
+    ///     The thumb drawn in <paramref name="style" /> (#505), told from the track by its glyph where there is no colour
+    ///     to tell them apart — <c>┃</c> by its weight alone. There is none for <see cref="ScrollbarStyle.None" />,
+    ///     which draws no bar to put one on.
+    /// </summary>
+    public static string ThumbOf(ScrollbarStyle style) => style switch
+    {
+        ScrollbarStyle.Block => "█",
+        ScrollbarStyle.Line => "┃",
+        ScrollbarStyle.LeftHalf => "▌",
+        ScrollbarStyle.RightHalf => "▐",
+        _ => throw new ArgumentOutOfRangeException(nameof(style), style, "No scrollbar has no thumb."),
+    };
 
     /// <summary>The fewest rows a thumb is drawn, so that on a long list it does not shrink to one cell to lose.</summary>
     private const int Least = 2;

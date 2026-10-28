@@ -1,4 +1,5 @@
 using Terminal.Gui.Input;
+using Wooly.Core.Configuration;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -459,9 +460,9 @@ public class ScrollbarTests
     }
 
     /// <summary>
-    ///     <c>scrollbar = false</c> in the config file's preferences, read at launch (#501): a screen whose rows don't fit
-    ///     the page draws its right edge as it always was, <c>│</c> the whole way down in the active edge's colour, at the
-    ///     top and after scrolling to the foot.
+    ///     <c>scrollbar = "none"</c> in the config file's preferences, read at launch (#501, #505): a screen whose rows
+    ///     don't fit the page draws its right edge as it always was, <c>│</c> the whole way down in the active edge's
+    ///     colour, at the top and after scrolling to the foot.
     /// </summary>
     [Fact]
     public async Task TurnedOffNoBarIsDrawnOnAScreenThatOverflows()
@@ -470,7 +471,7 @@ public class ScrollbarTests
             80,
             24,
             Themes.Dark,
-            new AShell { Timelines = FakeTimelineReader.Holding(Posts(6)), Scrollbar = false });
+            new AShell { Timelines = FakeTimelineReader.Holding(Posts(6)), Scrollbar = ScrollbarStyle.None });
 
         Assert.True(RowsOf(drawn) > drawn.Content.Viewport.Height, "Six posts fit the page.");
         Assert.Equal(EdgeWithThumb(First, 0), Edge(drawn));
@@ -484,6 +485,42 @@ public class ScrollbarTests
     }
 
     /// <summary>
+    ///     <c>scrollbar</c> names the thumb's glyph (#505): the same thumb, as long and in the same place, at the top and
+    ///     at the foot, in the scrollbar's role on a track in the inactive edge's — only the glyph differs.
+    /// </summary>
+    [Theory]
+    [InlineData(ScrollbarStyle.Block, '█')]
+    [InlineData(ScrollbarStyle.Line, '┃')]
+    [InlineData(ScrollbarStyle.LeftHalf, '▌')]
+    [InlineData(ScrollbarStyle.RightHalf, '▐')]
+    public async Task EachStyleDrawsTheThumbInItsGlyph(ScrollbarStyle style, char thumb)
+    {
+        using var drawn = await Feed(Posts(6), 24, Themes.Dark, style);
+
+        Assert.Equal(EdgeWithThumb(1, 10, thumb: thumb), Edge(drawn));
+        Assert.Equal(Themes.Dark.For(Role.Scrollbar), drawn.Cell(1, 79));
+        Assert.Equal(Themes.Dark.For(Role.Scrollbar), drawn.Cell(10, 79));
+        Assert.Equal(Themes.Dark.For(Role.PanelBorder), drawn.Cell(11, 79));
+        Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(0, 79));
+
+        drawn.Press(Key.End);
+
+        Assert.Equal(EdgeWithThumb(12, 10, thumb: thumb), Edge(drawn));
+    }
+
+    /// <summary>A style is a glyph and nothing else: on a screen whose rows fit, there is no bar in any of them.</summary>
+    [Theory]
+    [InlineData(ScrollbarStyle.Line)]
+    [InlineData(ScrollbarStyle.RightHalf)]
+    public async Task NoStyleDrawsABarWhenEveryRowFits(ScrollbarStyle style)
+    {
+        using var drawn = await Feed(Posts(2), 24, Themes.Dark, style);
+
+        Assert.Equal(EdgeWithThumb(First, 0), Edge(drawn));
+        Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(5, 79));
+    }
+
+    /// <summary>
     ///     The right edge beside the content panel's viewport, as the glyphs drawn there — top to foot, on the terminal's
     ///     last column.
     /// </summary>
@@ -492,9 +529,9 @@ public class ScrollbarTests
 
     /// <summary>
     ///     The edge as a thumb <paramref name="length" /> rows long from the terminal's row <paramref name="from" />
-    ///     draws it, the track on every other row down to <paramref name="last" />.
+    ///     draws it in <paramref name="thumb" />, the track on every other row down to <paramref name="last" />.
     /// </summary>
-    private static string EdgeWithThumb(int from, int length, int last = Last) =>
+    private static string EdgeWithThumb(int from, int length, int last = Last, char thumb = '█') =>
         string.Concat(Enumerable.Range(First, last - First + 1)
-                                .Select(row => row >= from && row < from + length ? '█' : '│'));
+                                .Select(row => row >= from && row < from + length ? thumb : '│'));
 }
