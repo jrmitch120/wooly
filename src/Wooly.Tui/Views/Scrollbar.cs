@@ -41,6 +41,27 @@ internal readonly record struct Scrollbar(int Start, int Length)
         return new Scrollbar(Math.Clamp(start, 0, travel), length);
     }
 
+    /// <summary>
+    ///     The thumb's maths inverted (#503): the page's top that puts the thumb's first row <paramref name="start" />
+    ///     rows down the track, for a page <paramref name="page" /> rows tall over <paramref name="total" /> rows that
+    ///     scroll — held at the track's ends, so a thumb dragged past either stops there and the page with it.
+    /// </summary>
+    /// <remarks>
+    ///     Where the page can move further than the thumb can travel, every row of the track is a top the thumb is
+    ///     drawn at again; where it can move less, rows of the track share a top, as they must.
+    /// </remarks>
+    public static int TopFor(int total, int page, int start)
+    {
+        if (Of(total, 0, page) is not { } bar)
+        {
+            return 0;
+        }
+
+        var travel = page - bar.Length;
+
+        return travel <= 0 ? 0 : Rounded((double)Math.Clamp(start, 0, travel) * (total - page) / travel);
+    }
+
     /// <summary>Whether the track's row <paramref name="row" /> is under the thumb.</summary>
     public bool Covers(int row) => row >= Start && row < Start + Length;
 

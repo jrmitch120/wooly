@@ -58,6 +58,9 @@ internal sealed class PaintedView : View
     /// </summary>
     private (Scrollbar? Thumb, int Pinned) _bar;
 
+    /// <summary>How many rows scroll under the pinned ones, as the last frame settled them, which the thumb measures.</summary>
+    private int _scrolling;
+
     /// <summary>
     ///     Whether this frame has been settled already, by whichever of its passes came first — the frame's edges or the
     ///     viewport's rows — so that the other draws from the same rows and scroll rather than settling again (#500).
@@ -415,6 +418,25 @@ internal sealed class PaintedView : View
         }
 
         _top = (int)Math.Clamp((long)_top + rows, 0, int.MaxValue);
+        _following = false;
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>
+    ///     Moves the page to where the <b>Scrollbar</b>'s thumb begins <paramref name="start" /> rows down its track, held
+    ///     at the track's ends, and leaves the selection where it is, as <see cref="Step" /> does — what dragging the
+    ///     thumb does (#503). Measured against the rows the last frame settled, which are the rows the thumb was drawn
+    ///     over; nothing where no bar was drawn.
+    /// </summary>
+    public void ThumbTo(int start)
+    {
+        if (!HasScrollbar || !Scrolls || _bar is not ({ }, var pinned))
+        {
+            return;
+        }
+
+        _top = Scrollbar.TopFor(_scrolling, Viewport.Height - pinned, start);
         _following = false;
 
         SetNeedsDraw();
@@ -867,7 +889,8 @@ internal sealed class PaintedView : View
 
         var pinned = Scrolls ? Pinned() : 0;
 
-        _bar = (HasScrollbar && Scrolls ? Scrollbar.Of(lines.Count - pinned, _top, height - pinned) : null, pinned);
+        _scrolling = lines.Count - pinned;
+        _bar = (HasScrollbar && Scrolls ? Scrollbar.Of(_scrolling, _top, height - pinned) : null, pinned);
 
         Settled?.Invoke(Math.Max(0, lines.Count - (_top + height)), height);
     }
