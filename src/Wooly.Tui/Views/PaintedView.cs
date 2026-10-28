@@ -53,13 +53,10 @@ internal sealed class PaintedView : View
     private int? _keeping;
 
     /// <summary>
-    ///     The thumb the last frame settled, and how many of the page's rows are pinned above the track — or no thumb,
-    ///     where every row fit or there is no scrollbar here (#500).
+    ///     The scrollbar the last frame settled, or none where every row fit or there is no scrollbar here (#500). Read
+    ///     through <see cref="Bar" />.
     /// </summary>
-    private (Scrollbar? Thumb, int Pinned) _bar;
-
-    /// <summary>How many rows scroll under the pinned ones, as the last frame settled them, which the thumb measures.</summary>
-    private int _scrolling;
+    private SettledScrollbar? _bar;
 
     /// <summary>
     ///     Whether this frame has been settled already, by whichever of its passes came first — the frame's edges or the
@@ -312,19 +309,29 @@ internal sealed class PaintedView : View
     /// </remarks>
     public ScrollbarHit? ScrollbarAt(Point screen)
     {
-        if (!HasScrollbar || !Scrolls || _frame is null || _bar is not ({ } thumb, var pinned))
+        if (Bar is not { } bar)
         {
             return null;
         }
 
         var inside = ViewportToScreen(new Rectangle(Point.Empty, Viewport.Size));
         var edge = inside.Right;
-        var row = screen.Y - inside.Y - pinned;
+        var row = TrackRow(screen.Y, bar);
 
         return screen.X >= edge - 1 && screen.X <= edge && row >= 0 && screen.Y < inside.Bottom
-            ? new ScrollbarHit(thumb, row)
+            ? new ScrollbarHit(bar.Thumb, row)
             : null;
     }
+
+    /// <summary>
+    ///     The <b>Scrollbar</b> as the last frame drew it, or <see langword="null" /> where none was drawn: no bar asked
+    ///     for, a view that doesn't scroll or has no frame to draw it on, or every row fitting the page. The one place
+    ///     that says whether there is a bar to point at, drag or paint.
+    /// </summary>
+    private SettledScrollbar? Bar => HasScrollbar && Scrolls && _frame is not null ? _bar : null;
+
+    /// <summary>How far down <paramref name="bar" />'s track the terminal row <paramref name="screen" /> is.</summary>
+    private int TrackRow(int screen, SettledScrollbar bar) => screen - ViewportToScreen(Point.Empty).Y - bar.Pinned;
 
     /// <summary>
     ///     The run drawn under the terminal cell <paramref name="screen" />, or <see langword="null" /> for a cell outside
@@ -401,7 +408,7 @@ internal sealed class PaintedView : View
     private int Shown(int row, int pinned) => row < pinned ? row : _top + row;
 
     /// <summary>
-    ///     Moves the screen by <paramref name="rows" /> and leaves the selection where it is, which is what <c>↓</c>
+    ///     Moves the screen by <paramref name="rows" /> and leaves <b>Picked</b> where it is, which is what <c>↓</c>
     ///     and <c>↑</c> do — and the only way to read a post taller than the terminal to its end.
     /// </summary>
     /// <remarks>
@@ -424,19 +431,20 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     Moves the page to where the <b>Scrollbar</b>'s thumb begins <paramref name="start" /> rows down its track, held
-    ///     at the track's ends, and leaves the selection where it is, as <see cref="Step" /> does — what dragging the
-    ///     thumb does (#503). Measured against the rows the last frame settled, which are the rows the thumb was drawn
-    ///     over; nothing where no bar was drawn.
+    ///     Moves the page to where the <b>Scrollbar</b>'s thumb has its row <paramref name="grabbed" /> rows into it beside
+    ///     the terminal row <paramref name="screen" />, held at the track's ends, and leaves <b>Picked</b> where it is, as
+    ///     <see cref="Step" /> does — what dragging the thumb does (#503). Measured against the rows the last frame
+    ///     settled, which are the rows the thumb was drawn over, the grabbed point held inside the thumb as it is now so
+    ///     that one shortened by rows arriving mid-drag comes back under the pointer; nothing where no bar was drawn.
     /// </summary>
-    public void ThumbTo(int start)
+    public void ThumbTo(int screen, int grabbed)
     {
-        if (!HasScrollbar || !Scrolls || _bar is not ({ }, var pinned))
+        if (Bar is not { } bar)
         {
             return;
         }
 
-        _top = Scrollbar.TopFor(_scrolling, Viewport.Height - pinned, start);
+        _top = bar.TopWith(grabbed, TrackRow(screen, bar));
         _following = false;
 
         SetNeedsDraw();
@@ -769,14 +777,14 @@ internal sealed class PaintedView : View
     /// </summary>
     private void PaintScrollbar(int width)
     {
-        if (!HasScrollbar || !Scrolls || _bar is not ({ } thumb, var pinned))
+        if (Bar is not { } bar)
         {
             return;
         }
 
-        for (var row = pinned; row < Viewport.Height; row++)
+        for (var row = bar.Pinned; row < Viewport.Height; row++)
         {
-            var thumbed = thumb.Covers(row - pinned);
+            var thumbed = bar.Thumb.Covers(row - bar.Pinned);
 
             SetAttribute(_theme.For(thumbed ? Role.Scrollbar : Role.PanelBorder));
             AddStr(width - 2, row, thumbed ? Scrollbar.Thumb : Scrollbar.Track);
@@ -887,10 +895,7 @@ internal sealed class PaintedView : View
 
         _settled = lines;
 
-        var pinned = Scrolls ? Pinned() : 0;
-
-        _scrolling = lines.Count - pinned;
-        _bar = (HasScrollbar && Scrolls ? Scrollbar.Of(_scrolling, _top, height - pinned) : null, pinned);
+        _bar = HasScrollbar && Scrolls ? SettledScrollbar.Of(lines.Count, Pinned(), _top, height) : null;
 
         Settled?.Invoke(Math.Max(0, lines.Count - (_top + height)), height);
     }

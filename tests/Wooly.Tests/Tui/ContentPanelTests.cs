@@ -50,7 +50,9 @@ public class ContentPanelTests
 
         var rows = drawn.Rows();
 
-        Assert.True(Fits(drawn), "The screen overflows the page, so its right edge is a scrollbar.");
+        Assert.True(
+            ScrollbarFeeds.RowsOf(drawn) <= drawn.Content.Viewport.Height,
+            "The screen overflows the page, so its right edge is a scrollbar.");
 
         Assert.StartsWith("╭ Home ─", rows[0][RailLines.Width..], StringComparison.Ordinal);
         Assert.EndsWith("─╮", rows[0], StringComparison.Ordinal);
@@ -408,14 +410,6 @@ public class ContentPanelTests
         Assert.All(inside, row => Assert.Equal("  ", row[^2..]));
         Assert.Contains(inside, row => row[^3] != ' ');
     }
-
-    /// <summary>
-    ///     Whether every row of the screen on top fits the content panel's page, which is what leaves its right edge
-    ///     <c>│</c> the whole way down rather than a scrollbar (#500).
-    /// </summary>
-    private static bool Fits(DrawnShell drawn) =>
-        drawn.Shell.Screen.Lines(new Wooly.Tui.Rendering.Drawing(drawn.Content.Viewport.Width - 1, AShell.Now)).Count
-        <= drawn.Content.Viewport.Height;
 
     private static AShell TwoPosts() => new()
     {

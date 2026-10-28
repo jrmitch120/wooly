@@ -163,12 +163,10 @@ internal sealed class ShellWindow : Window
     private bool _dragged;
 
     /// <summary>
-    ///     The <b>Scrollbar</b>'s thumb held by a press on it (#503): where on the track it began then and the terminal
-    ///     row the press was on, so that each row the pointer moves moves the thumb a row and the grabbed point of it
-    ///     stays under the pointer. Kept past the button's let-go until the click Terminal.Gui makes of it, which is the
-    ///     drag's and not a click on whatever it lands on.
+    ///     The <b>Scrollbar</b>'s thumb, held by a press on it or let go and awaiting the click Terminal.Gui makes of the
+    ///     let-go (#503), or <see langword="null" /> where neither.
     /// </summary>
-    private (int Start, int Row, bool LetGo)? _thumbHeld;
+    private ThumbGrip? _thumbGrip;
 
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
@@ -1252,7 +1250,7 @@ internal sealed class ShellWindow : Window
             && _shell.Asking is null)
         {
             _pressedOn = null;
-            _thumbHeld = (hit.Bar.Start, mouse.ScreenPosition.Y, false);
+            _thumbGrip = new ThumbGrip.Held(hit.Row - hit.Bar.Start);
             App?.Mouse.GrabMouse(this);
 
             return;
@@ -1282,7 +1280,7 @@ internal sealed class ShellWindow : Window
 
     /// <summary>
     ///     A mouse event while the <b>Scrollbar</b>'s thumb is held (#503), wherever the pointer is: the pointer moving
-    ///     with the button down takes the thumb a row for each row it has moved since the press, the page following as
+    ///     with the button down puts the point of the thumb grabbed beside the pointer's row, the page following as
     ///     <c>↓</c>/<c>↑</c> move it — <b>Picked</b> left where it is, the shell told the page moved so that a list read
     ///     near its foot reads on — and the button let go lets go of the thumb and the mouse. The click Terminal.Gui
     ///     makes of the press and its let-go is spent here too, wherever it lands, so the next click is a click.
@@ -1290,15 +1288,15 @@ internal sealed class ShellWindow : Window
     /// <remarks>Taken before any view is asked, and before the window's other handlers, which leave a held mouse alone.</remarks>
     private void ThumbDragged(Mouse mouse)
     {
-        if (mouse.Handled || _thumbHeld is not { } held)
+        if (mouse.Handled || _thumbGrip is not { } grip)
         {
             return;
         }
 
-        if (held.LetGo && !mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
+        if (grip is ThumbGrip.LetGo && !mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
             // The let-go's click never came; this is another gesture, and its own.
-            _thumbHeld = null;
+            _thumbGrip = null;
 
             return;
         }
@@ -1307,17 +1305,19 @@ internal sealed class ShellWindow : Window
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
         {
-            _thumbHeld = null;
+            _thumbGrip = null;
             LetGoOfTheMouse();
         }
         else if (mouse.Flags.HasFlag(MouseFlags.LeftButtonReleased))
         {
-            _thumbHeld = held with { LetGo = true };
+            _thumbGrip = ThumbGrip.LetGo.Awaiting;
             LetGoOfTheMouse();
         }
-        else if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) && mouse.Flags.HasFlag(MouseFlags.PositionReport))
+        else if (grip is ThumbGrip.Held held
+                 && mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed)
+                 && mouse.Flags.HasFlag(MouseFlags.PositionReport))
         {
-            _content.ThumbTo(held.Start + mouse.ScreenPosition.Y - held.Row);
+            _content.ThumbTo(mouse.ScreenPosition.Y, held.Grabbed);
             _pageToTell = true;
 
             SetNeedsDraw();

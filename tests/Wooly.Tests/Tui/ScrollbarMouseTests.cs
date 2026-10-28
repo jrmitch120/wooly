@@ -1,9 +1,9 @@
 using Terminal.Gui.Input;
-using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using static Wooly.Tests.Tui.ScrollbarFeeds;
 
 namespace Wooly.Tests.Tui;
 
@@ -315,11 +315,4 @@ public class ScrollbarMouseTests
 
         return drawn;
     }
-
-    /// <summary>Posts from 1 up to <paramref name="count" />.</summary>
-    private static Post[] Posts(int count) =>
-        [.. Enumerable.Range(1, count).Select(at => APost.With(id: $"{at}"))];
-
-    private static Task<DrawnShell> Feed(Post[] posts, int height = 24, ITheme? theme = null) =>
-        DrawnShell.Of(80, height, theme ?? Themes.Plain, new AShell { Timelines = FakeTimelineReader.Holding(posts) });
 }

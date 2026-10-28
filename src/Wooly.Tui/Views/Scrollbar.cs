@@ -98,3 +98,57 @@ internal readonly record struct ScrollbarHit(Scrollbar Bar, int Row)
     /// <summary>Which part of the bar the pointer is on.</summary>
     public ScrollbarPart Part => Bar.PartAt(Row);
 }
+
+/// <summary>
+///     The <b>Scrollbar</b> as a frame settled it (#500): the thumb, how many of the page's rows are pinned above the
+///     track, and how many rows scroll beside it — what the thumb was measured against, so that a click on the bar and
+///     the thumb's drag answer from the bar as it was drawn.
+/// </summary>
+/// <param name="Thumb">The thumb as drawn.</param>
+/// <param name="Pinned">How many of the page's rows are pinned above the track, which begins under them.</param>
+/// <param name="Scrolling">How many rows scroll under the pinned ones, which the thumb measures.</param>
+/// <param name="Track">How many rows the track is: the page's rows under the pinned ones.</param>
+internal readonly record struct SettledScrollbar(Scrollbar Thumb, int Pinned, int Scrolling, int Track)
+{
+    /// <summary>
+    ///     The bar for <paramref name="rows" /> rows on a page <paramref name="height" /> rows tall whose top is
+    ///     <paramref name="top" />, <paramref name="pinned" /> of them pinned above the track — or <see langword="null" />
+    ///     where every row that scrolls fits and there is no bar.
+    /// </summary>
+    public static SettledScrollbar? Of(int rows, int pinned, int top, int height) =>
+        Scrollbar.Of(rows - pinned, top, height - pinned) is { } thumb
+            ? new SettledScrollbar(thumb, pinned, rows - pinned, height - pinned)
+            : null;
+
+    /// <summary>
+    ///     The page's top that puts the thumb's row <paramref name="grabbed" /> rows into it beside the track's row
+    ///     <paramref name="row" /> (#503) — the grabbed point held inside the thumb as it is now, which rows arriving
+    ///     mid-drag may have shortened, and the thumb held at the track's ends.
+    /// </summary>
+    public int TopWith(int grabbed, int row) =>
+        Scrollbar.TopFor(Scrolling, Track, row - Math.Clamp(grabbed, 0, Thumb.Length - 1));
+}
+
+/// <summary>
+///     The <b>Scrollbar</b>'s thumb taken hold of by a press on it (#503): <see cref="Held" /> while the button is down,
+///     then <see cref="LetGo" /> until the click Terminal.Gui makes of the let-go, which is the drag's and not a click on
+///     whatever it lands on.
+/// </summary>
+internal abstract record ThumbGrip
+{
+    private ThumbGrip()
+    {
+    }
+
+    /// <summary>
+    ///     The thumb held, by its row <paramref name="Grabbed" /> rows from its top — kept rather than where the thumb
+    ///     began, so that the pointer drags that point of it however the thumb's length changes under it.
+    /// </summary>
+    internal sealed record Held(int Grabbed) : ThumbGrip;
+
+    /// <summary>The button let go of the thumb, its click still to come.</summary>
+    internal sealed record LetGo : ThumbGrip
+    {
+        public static LetGo Awaiting { get; } = new();
+    }
+}

@@ -1,10 +1,9 @@
 using Terminal.Gui.Input;
-using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
-using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using static Wooly.Tests.Tui.ScrollbarFeeds;
 
 namespace Wooly.Tests.Tui;
 
@@ -30,7 +29,7 @@ public class ScrollbarTests
         using var drawn = await Feed(Posts(6), 24);
 
         Assert.Equal(43, RowsOf(drawn));
-        Assert.Equal(Thumb(1, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(1, 10), Edge(drawn));
     }
 
     /// <summary>Two posts fit the page, so the right edge is drawn as it always was: <c>│</c> the whole way down.</summary>
@@ -39,7 +38,7 @@ public class ScrollbarTests
     {
         using var drawn = await Feed(Posts(2), 24, Themes.Dark);
 
-        Assert.Equal(Thumb(First, 0), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(First, 0), Edge(drawn));
         Assert.All(
             Enumerable.Range(First, Last - First + 1),
             row => Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(row, 79)));
@@ -73,7 +72,7 @@ public class ScrollbarTests
     {
         using var drawn = await Feed(Posts(6), 24, Themes.Plain);
 
-        Assert.Equal(Thumb(1, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(1, 10), Edge(drawn));
         Assert.Equal(drawn.Cell(5, RailLines.Width), drawn.Cell(1, 79));
         Assert.Equal(drawn.Cell(5, RailLines.Width), drawn.Cell(15, 79));
     }
@@ -100,14 +99,14 @@ public class ScrollbarTests
         drawn.Press(Key.CursorDown);
 
         Assert.Equal(6, drawn.Content.Top);
-        Assert.Equal(Thumb(4, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(4, 10), Edge(drawn));
 
         for (var press = 0; press < 2; press++)
         {
             drawn.Press(Key.CursorUp);
         }
 
-        Assert.Equal(Thumb(1, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(1, 10), Edge(drawn));
     }
 
     /// <summary>
@@ -122,16 +121,16 @@ public class ScrollbarTests
         drawn.PressAsTheLoopDraws(Key.CursorDown);
 
         Assert.Equal(3, drawn.Content.Top);
-        Assert.Equal(Thumb(3, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(3, 10), Edge(drawn));
 
         drawn.PressAsTheLoopDraws(Key.CursorDown);
 
         Assert.Equal(6, drawn.Content.Top);
-        Assert.Equal(Thumb(4, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(4, 10), Edge(drawn));
 
         drawn.PressAsTheLoopDraws(Key.End);
 
-        Assert.Equal(Thumb(12, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(12, 10), Edge(drawn));
     }
 
     /// <summary><c>End</c> puts the thumb at the foot of the track and <c>Home</c> back at its top.</summary>
@@ -142,11 +141,11 @@ public class ScrollbarTests
 
         drawn.Press(Key.End);
 
-        Assert.Equal(Thumb(12, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(12, 10), Edge(drawn));
 
         drawn.Press(Key.Home);
 
-        Assert.Equal(Thumb(1, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(1, 10), Edge(drawn));
     }
 
     /// <summary>
@@ -160,11 +159,11 @@ public class ScrollbarTests
         drawn.Press(Key.PageDown);
 
         Assert.Equal(21, drawn.Content.Top);
-        Assert.Equal(Thumb(12, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(12, 10), Edge(drawn));
 
         drawn.Press(Key.PageUp);
 
-        Assert.Equal(Thumb(1, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(1, 10), Edge(drawn));
     }
 
     /// <summary>A notch of the wheel moves the page, and the thumb with it.</summary>
@@ -179,7 +178,7 @@ public class ScrollbarTests
         }
 
         Assert.Equal(6, drawn.Content.Top);
-        Assert.Equal(Thumb(4, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(4, 10), Edge(drawn));
     }
 
     /// <summary>
@@ -197,7 +196,7 @@ public class ScrollbarTests
         }
 
         Assert.True(drawn.Content.Top > 43 - 21, $"The page only came to {drawn.Content.Top}.");
-        Assert.Equal(Thumb(12, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(12, 10), Edge(drawn));
     }
 
     /// <summary>
@@ -212,7 +211,7 @@ public class ScrollbarTests
         drawn.WalkToTheLast();
 
         Assert.Equal(20, drawn.Content.Top);
-        Assert.Equal(Thumb(11, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(11, 10), Edge(drawn));
     }
 
     /// <summary>
@@ -224,11 +223,11 @@ public class ScrollbarTests
     {
         using var drawn = await Feed(Posts(100), 24);
 
-        Assert.Equal(Thumb(1, 2), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(1, 2), Edge(drawn));
 
         drawn.Press(Key.End);
 
-        Assert.Equal(Thumb(20, 2), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(20, 2), Edge(drawn));
     }
 
     /// <summary>
@@ -269,7 +268,7 @@ public class ScrollbarTests
 
         drawn.Resize(80, 30);
 
-        Assert.Equal(Thumb(1, 17, last: 27), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(1, 17, last: 27), Edge(drawn));
     }
 
     /// <summary>
@@ -285,11 +284,11 @@ public class ScrollbarTests
 
         using var drawn = await Feed(wrapping, 24);
 
-        Assert.Equal(Thumb(1, 9), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(1, 9), Edge(drawn));
 
         drawn.PressAsTheLoopDraws(new Key('\\'));
 
-        Assert.Equal(Thumb(1, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(1, 10), Edge(drawn));
     }
 
     /// <summary>
@@ -310,11 +309,11 @@ public class ScrollbarTests
             Themes.Plain,
             new AShell { Timelines = FakeTimelineReader.Holding(wide) });
 
-        Assert.Equal(Thumb(1, 17, last: 27), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(1, 17, last: 27), Edge(drawn));
 
         drawn.PressAsTheLoopDraws(new Key('-'));
 
-        Assert.Equal(Thumb(1, 15, last: 27), Edge(drawn, column: 189));
+        Assert.Equal(EdgeWithThumb(1, 15, last: 27), Edge(drawn, column: 189));
     }
 
     /// <summary>
@@ -334,7 +333,7 @@ public class ScrollbarTests
         drawn.Press(Key.Esc);
 
         Assert.Equal(3, drawn.Content.Top);
-        Assert.Equal(Thumb(3, 10), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(3, 10), Edge(drawn));
     }
 
     /// <summary>
@@ -388,7 +387,7 @@ public class ScrollbarTests
         drawn.Redraw();
 
         Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
-        Assert.Equal(Thumb(First, 0), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(First, 0), Edge(drawn));
         Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(5, 79));
     }
 
@@ -474,22 +473,15 @@ public class ScrollbarTests
             new AShell { Timelines = FakeTimelineReader.Holding(Posts(6)), Scrollbar = false });
 
         Assert.True(RowsOf(drawn) > drawn.Content.Viewport.Height, "Six posts fit the page.");
-        Assert.Equal(Thumb(First, 0), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(First, 0), Edge(drawn));
 
         drawn.Press(Key.End);
 
-        Assert.Equal(Thumb(First, 0), Edge(drawn));
+        Assert.Equal(EdgeWithThumb(First, 0), Edge(drawn));
         Assert.All(
             Enumerable.Range(First, Last - First + 1),
             row => Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(row, 79)));
     }
-
-    /// <summary>Posts from 1 up to <paramref name="count" />.</summary>
-    private static Post[] Posts(int count) =>
-        [.. Enumerable.Range(1, count).Select(at => APost.With(id: $"{at}"))];
-
-    private static Task<DrawnShell> Feed(Post[] posts, int height, ITheme? theme = null) =>
-        DrawnShell.Of(80, height, theme ?? Themes.Plain, new AShell { Timelines = FakeTimelineReader.Holding(posts) });
 
     /// <summary>
     ///     The right edge beside the content panel's viewport, as the glyphs drawn there — top to foot, on the terminal's
@@ -502,11 +494,7 @@ public class ScrollbarTests
     ///     The edge as a thumb <paramref name="length" /> rows long from the terminal's row <paramref name="from" />
     ///     draws it, the track on every other row down to <paramref name="last" />.
     /// </summary>
-    private static string Thumb(int from, int length, int last = Last) =>
+    private static string EdgeWithThumb(int from, int length, int last = Last) =>
         string.Concat(Enumerable.Range(First, last - First + 1)
                                 .Select(row => row >= from && row < from + length ? '█' : '│'));
-
-    /// <summary>How many rows the screen on top draws, at the width the content region draws them.</summary>
-    private static int RowsOf(DrawnShell drawn) =>
-        drawn.Shell.Screen.Lines(new Drawing(drawn.Content.Viewport.Width - 1, drawn.Built.Clock.GetUtcNow())).Count;
 }

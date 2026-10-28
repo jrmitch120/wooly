@@ -1,7 +1,7 @@
 using Terminal.Gui.Input;
-using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Theme;
+using static Wooly.Tests.Tui.ScrollbarFeeds;
 
 namespace Wooly.Tests.Tui;
 
@@ -40,7 +40,7 @@ public class ScrollbarDragTests
         Move(drawn, column, 6);
 
         Assert.Equal(6, drawn.Content.Top);
-        Assert.Equal("│██████████│", Thumb(drawn, 3, 15));
+        Assert.Equal("│██████████│", EdgeBetween(drawn, 3, 15));
     }
 
     /// <summary>
@@ -56,12 +56,12 @@ public class ScrollbarDragTests
         drawn.Reports(Sgr.Drag(Edge, 6));
 
         Assert.Equal(6, drawn.Content.Top);
-        Assert.Equal("│██████████│", Thumb(drawn, 3, 15));
+        Assert.Equal("│██████████│", EdgeBetween(drawn, 3, 15));
 
         drawn.Reports(Sgr.Drag(Edge, 9));
 
         Assert.Equal(12, drawn.Content.Top);
-        Assert.Equal("│██████████│", Thumb(drawn, 6, 18));
+        Assert.Equal("│██████████│", EdgeBetween(drawn, 6, 18));
 
         drawn.Reports(Sgr.Release(Edge, 9));
 
@@ -80,12 +80,12 @@ public class ScrollbarDragTests
         Move(drawn, Edge, 23);
 
         Assert.Equal(22, drawn.Content.Top);
-        Assert.Equal("│██████████", Thumb(drawn, 11, 22));
+        Assert.Equal("│██████████", EdgeBetween(drawn, 11, 22));
 
         Move(drawn, Edge, 0);
 
         Assert.Equal(0, drawn.Content.Top);
-        Assert.Equal("██████████│", Thumb(drawn, 1, 12));
+        Assert.Equal("██████████│", EdgeBetween(drawn, 1, 12));
     }
 
     /// <summary>
@@ -208,6 +208,36 @@ public class ScrollbarDragTests
         Assert.Equal("1", drawn.Shell.Screen.Picked?.Id);
     }
 
+    /// <summary>
+    ///     The grabbed point stays under the pointer when rows arrive mid-drag: at 80 × 60 the first posts read are a
+    ///     thumb twelve rows long, grabbed by its last row and dragged to the foot, which reads the list on and halves
+    ///     it. The next motion puts the thumb's last row — the nearest it has to the point grabbed — back under the
+    ///     pointer, rather than the thumb where the press's start would put it, clear of the pointer.
+    /// </summary>
+    [Fact]
+    public async Task RowsArrivingMidDragKeepTheGrabbedPointUnderThePointer()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.ReadingOn(
+                [.. Enumerable.Range(1, 100).Select(at => APost.With(id: $"{at}"))]),
+        };
+
+        using var drawn = await DrawnShell.Of(80, 60, Themes.Plain, built);
+
+        Assert.Equal("████████████│", EdgeBetween(drawn, 1, 14));
+
+        Press(drawn, Edge, 12);
+        Move(drawn, Edge, 57);
+        drawn.Settle();
+
+        Assert.Single(built.Timelines.ReadsOn);
+
+        Move(drawn, Edge, 40);
+
+        Assert.Equal("│██████│", EdgeBetween(drawn, 34, 42));
+    }
+
     /// <summary>With a confirmation open a drag moves nothing, and its let-go declines the confirmation as a click does.</summary>
     [Fact]
     public async Task WithAConfirmationOpenADragMovesNothing()
@@ -249,13 +279,6 @@ public class ScrollbarDragTests
     }
 
     /// <summary>The right edge read down the terminal's rows <paramref name="from" /> to <paramref name="to" />.</summary>
-    private static string Thumb(DrawnShell drawn, int from, int to) =>
+    private static string EdgeBetween(DrawnShell drawn, int from, int to) =>
         string.Concat(drawn.Rows()[from..to].Select(row => row[Edge]));
-
-    /// <summary>Posts from 1 up to <paramref name="count" />.</summary>
-    private static Post[] Posts(int count) =>
-        [.. Enumerable.Range(1, count).Select(at => APost.With(id: $"{at}"))];
-
-    private static Task<DrawnShell> Feed(Post[] posts) =>
-        DrawnShell.Of(80, 24, Themes.Plain, new AShell { Timelines = FakeTimelineReader.Holding(posts) });
 }
