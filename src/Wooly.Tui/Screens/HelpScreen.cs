@@ -33,6 +33,9 @@ public sealed class HelpScreen(Screen about) : Screen
         // The pointer: it adds no keys of its own, only another way to ask for these (#286). An action a row, its input
         // in the key column as a key's is (#446).
         new("wheel", "scroll the content"),
+        // The Scrollbar's, said wherever it is drawn or not, as the wheel is (#502, #503).
+        new("click the track", "a page toward it, as pgup / pgdn"),
+        new("drag the thumb", "scroll the content with it"),
         new("click", "arrive on the rail; pick a row"),
         new("double click", "read (⏎)"),
         new("right click", "up one level, as esc"),

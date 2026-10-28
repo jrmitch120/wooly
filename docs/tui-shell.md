@@ -2532,6 +2532,8 @@ key's is (#446):
 
 ```
 wheel           scroll the content
+click the track a page toward it, as pgup / pgdn
+drag the thumb  scroll the content with it
 click           arrive on the rail; pick a row
 double click    read (⏎)
 right click     up one level, as esc
