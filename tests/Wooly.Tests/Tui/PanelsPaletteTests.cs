@@ -63,6 +63,10 @@ public class PanelsPaletteTests
         [Role.PanelBorder] = (Surface2, null),
         [Role.PanelBorderActive] = (Blue, null),
         [Role.PanelTitle] = (Blue, null),
+
+        // Not the panels prototype's but the scrollbar prototype's (#499): the thumb in the active edge's blue, on a
+        // track in the inactive edge's grey.
+        [Role.Scrollbar] = (Blue, null),
         [Role.Loading] = (Overlay, null),
         [Role.Spinner] = (Peach, null),
         [Role.Destructive] = (Red, null),

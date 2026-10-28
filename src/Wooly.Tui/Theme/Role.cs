@@ -168,6 +168,13 @@ public enum Role
     PanelBorderActive,
 
     /// <summary>
+    ///     The <b>Scrollbar</b>'s thumb on the content panel's right edge, whose track is drawn in
+    ///     <see cref="PanelBorder" /> so that the thumb stands out by contrast rather than by weight (#500). Carried without
+    ///     colour by <c>█</c> against the track's <c>│</c>.
+    /// </summary>
+    Scrollbar,
+
+    /// <summary>
     ///     A panel's title on its top edge: a rail group's name, and the crumb you are standing on at the end of the
     ///     content panel's trail — told from the crumbs walked through, which are <see cref="Muted" />. Carried without
     ///     colour by position, on the edge, and the current crumb by being the last.

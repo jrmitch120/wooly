@@ -123,6 +123,10 @@ public partial class RoleTests
         // widget which colour, which ComposeThemeTests checks on a drawn frame (#316).
         seen.Add(Role.SelectedText);
 
+        // The scrollbar's thumb is the content panel's frame's rather than a span's: the view paints it on the right
+        // edge, which ScrollbarTests checks on a drawn frame (#500).
+        seen.Add(Role.Scrollbar);
+
         Assert.Empty(Enum.GetValues<Role>().Except(seen).Except(NotYetDrawn));
         Assert.Empty(NotYetDrawn.Intersect(seen));
     }
@@ -192,6 +196,7 @@ public partial class RoleTests
     [InlineData(Role.PanelBorder, "panel-border")]
     [InlineData(Role.PanelBorderActive, "panel-border-active")]
     [InlineData(Role.PanelTitle, "panel-title")]
+    [InlineData(Role.Scrollbar, "scrollbar")]
     [InlineData(Role.Band, "band")]
     [InlineData(Role.RailCursor, "rail-cursor")]
     [InlineData(Role.Gauge, "gauge")]

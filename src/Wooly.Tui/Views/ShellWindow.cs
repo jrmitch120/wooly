@@ -290,6 +290,7 @@ internal sealed class ShellWindow : Window
             Height = Dim.Fill(1),
             CanFocus = false,
             Scrolls = true,
+            HasScrollbar = true,
             KeepsToThePage = () => shell.Screen.KeepsToThePage,
             Pinned = () => shell.Screen.Pinned,
             Settled = Paged,

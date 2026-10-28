@@ -46,7 +46,7 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
 from the left so it always ends where you are, and the fetch mark, a star spinner, a space after it while a fetch
 is in flight. The mark's 2 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is
-always `panel-border-active`: it is the panel being read. Its rows are 58 columns wide at an 80-column terminal: the 61
+`panel-border-active`, bar a scrollbar's track (below): it is the panel being read. Its rows are 58 columns wide at an 80-column terminal: the 61
 of ADR-0014 less the cell the gutter column gave up to the content panel's left edge, and less the two the rail took
 when it widened to 20 so that a label and its count both fit (#272). A screen is drawn in 57 of them, the margin's
 column given up on the right to mirror the gutter on the left (#495), so text, pictures and the right-aligned status and
@@ -54,6 +54,20 @@ age stop one column short of the edge; 57 is the width every screen must read we
 the picked thing's band still run to the edge, over the margin. The exception is a screen with widgets of its own —
 compose, the description screen and the public profile form (ADR-0030) — which is drawn the panel's whole 58, since its
 widgets are sized from the viewport, and keeps its 2 columns of padding each side.
+
+Whenever a screen's rows don't fit the page, the panel's right edge is its **Scrollbar** (#500): beside the rows that
+scroll, the edge's own `│` is the track, drawn in `panel-border`, and a `█` thumb on it, in `scrollbar`, is the page's
+share of those rows and where the page stands among them. It costs no columns — every screen still reads at 57 — and
+leaves the rules and the picked thing's band running to the column inside the edge; a picture, clipped to the viewport,
+never reaches it. Only while there is a bar does the right edge differ from the other three, which stay
+`panel-border-active`; without colour the glyphs carry it. The thumb is `round(track × page / total)` rows, never fewer
+than 2, and travels the rest of the track as the page's top travels from the first row to the last page's, a page
+scrolled onto the blank under the last thing measured as at the foot. It is measured off the rows and scroll the frame
+settles — every row of every loaded thing, pictures included, so a list that **reads on** is measured against what is
+loaded so far — and the view settles the frame in whichever of its passes comes first, the edge or the rows, so the
+thumb moves on the same frame as the rows whatever moved them. Beside a screen's pinned rows — the file browser's folder,
+filter and rule — the edge stays as it is, and the track measures only the rows that scroll under them. A screen with
+widgets of its own draws none.
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
 it 23. Shorter than that, it steps down rather than clipping:
@@ -2596,6 +2610,7 @@ is drawn reversed instead (#316).
 | `chrome` | The frame's furniture: the status row's leading space and ` \| ` separators | position |
 | `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — last in its pair, after the words' colon; first column on the help screen |
 | `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the cursor | the box characters; which group is active is carried by the cursor's entry's band in colour, and by `▶` on it without |
+| `scrollbar` | The **Scrollbar**'s thumb on the content panel's right edge, on a track drawn in `panel-border` so the thumb stands out by contrast. Both built-ins draw it in `panel-border-active`'s colour (#500) | `█` against the track's `│` |
 | `panel-title` | A panel's title on its top edge: a rail group's name, and the crumb being stood on at the end of the content panel's trail, told from the crumbs walked through by foreground | position, on the edge — the current crumb is always the last, and the trail elides from the left |
 | `loading` | Something under way that the reader waits on, said in words: the sign-in screen's wait for the browser | the words |
 | `spinner` | The fetch mark a space after the content panel's trail — one star spinner frame, in 2 columns held whether or not it is drawn. Both built-ins draw it in `rail-unread`'s colour | a spinner frame, moving, drawn only while a fetch is in flight |

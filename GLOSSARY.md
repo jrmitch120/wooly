@@ -681,6 +681,14 @@ following, which is what opens a pushed screen, an **Arrival** and a **Refresh**
 which of the three it is.
 _Avoid_: scroll state, viewport
 
+**Scrollbar**:
+Where the **Page** stands among a screen's rows, drawn on the content panel's right edge (#500): the edge's own `│` is
+the track, beside the rows that scroll, and a `█` thumb on it is the page's share of those rows and where it is among
+them, never shorter than two rows. Drawn only while the rows don't fit the page, measured against the rows laid out for
+that frame — on a list that **reads on**, the rows loaded so far — and moved on the same frame as they are. Not on a
+screen with widgets of its own, which do their own scrolling.
+_Avoid_: scroll indicator, position gauge
+
 **Reclaim**:
 What the first key that needs the **Picked** thing does when none of its rows are on the **Page**: pick out the first
 thing whose start is on the page — or, where no thing's start is, the topmost thing with any row showing — and do

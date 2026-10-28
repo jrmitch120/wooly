@@ -40,7 +40,8 @@ public class ContentPanelTests
 
     /// <summary>
     ///     The edges are where the frame says: the top one titled with the breadcrumb on row 0, the sides down the
-    ///     column after the rail and the last column, the bottom one on row 22 — and the status row the last row.
+    ///     column after the rail and the last column, the bottom one on row 22 — and the status row the last row. The one
+    ///     post fits the page, so the right edge is <c>│</c> the whole way down rather than a scrollbar (#500).
     /// </summary>
     [Fact]
     public async Task ThePanelReachesTheLastColumnAndTheStatusRowIsTheLastRow()
@@ -48,6 +49,8 @@ public class ContentPanelTests
         using var drawn = await Draw(80, 24);
 
         var rows = drawn.Rows();
+
+        Assert.True(Fits(drawn), "The screen overflows the page, so its right edge is a scrollbar.");
 
         Assert.StartsWith("╭ Home ─", rows[0][RailLines.Width..], StringComparison.Ordinal);
         Assert.EndsWith("─╮", rows[0], StringComparison.Ordinal);
@@ -321,7 +324,9 @@ public class ContentPanelTests
 
     /// <summary>
     ///     A reply draws inside the panel: the "answering" block on the panel's first rows, the warning field under
-    ///     it, and the editor under both — every one of them between the panel's edges, and the edges still drawn.
+    ///     it, and the editor under both — every one of them between the panel's edges, and the edges still drawn. The
+    ///     right edge is <c>│</c> the whole way down whatever the reply's rows: compose has widgets of its own and draws
+    ///     no scrollbar (#500).
     /// </summary>
     [Theory]
     [InlineData(80, 24)]
@@ -352,6 +357,7 @@ public class ContentPanelTests
         Assert.Equal(compose.EditorAt(inside.Size).Y, editor.FrameToScreen().Y - inside.Y);
         Assert.StartsWith("╭ Home › Reply to @", rows[0][RailLines.Width..], StringComparison.Ordinal);
         Assert.All(rows[1..(height - 2)], row => Assert.Equal('│', row[RailLines.Width]));
+        Assert.True(compose.HasWidgetsOfItsOwn);
         Assert.All(rows[1..(height - 2)], row => Assert.Equal('│', row[^1]));
         Assert.StartsWith("╰─", rows[height - 2][RailLines.Width..], StringComparison.Ordinal);
     }
@@ -402,6 +408,14 @@ public class ContentPanelTests
         Assert.All(inside, row => Assert.Equal("  ", row[^2..]));
         Assert.Contains(inside, row => row[^3] != ' ');
     }
+
+    /// <summary>
+    ///     Whether every row of the screen on top fits the content panel's page, which is what leaves its right edge
+    ///     <c>│</c> the whole way down rather than a scrollbar (#500).
+    /// </summary>
+    private static bool Fits(DrawnShell drawn) =>
+        drawn.Shell.Screen.Lines(new Wooly.Tui.Rendering.Drawing(drawn.Content.Viewport.Width - 1, AShell.Now)).Count
+        <= drawn.Content.Viewport.Height;
 
     private static AShell TwoPosts() => new()
     {
