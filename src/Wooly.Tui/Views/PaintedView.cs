@@ -298,6 +298,32 @@ internal sealed class PaintedView : View
     public Reference? ReferenceAt(Point screen) => SpanAt(screen)?.Reference;
 
     /// <summary>
+    ///     Where on the <b>Scrollbar</b> the terminal cell <paramref name="screen" /> is, or <see langword="null" /> where
+    ///     it is not on one (#502). The bar answers the pointer on two columns, the edge it is drawn on and the margin
+    ///     column just inside it (#495), so that there are two to aim for though only one is drawn — beside the track's
+    ///     rows only, and only while a bar is drawn: elsewhere both columns keep whatever they meant without one.
+    /// </summary>
+    /// <remarks>
+    ///     Answered from the bar the last frame settled, so a click between frames lands on the bar as it was drawn. The
+    ///     one place that says where the bar can be pointed at, for a click on the track and the thumb's drag alike.
+    /// </remarks>
+    public ScrollbarHit? ScrollbarAt(Point screen)
+    {
+        if (!HasScrollbar || !Scrolls || _frame is null || _bar is not ({ } thumb, var pinned))
+        {
+            return null;
+        }
+
+        var inside = ViewportToScreen(new Rectangle(Point.Empty, Viewport.Size));
+        var edge = inside.Right;
+        var row = screen.Y - inside.Y - pinned;
+
+        return screen.X >= edge - 1 && screen.X <= edge && row >= 0 && screen.Y < inside.Bottom
+            ? new ScrollbarHit(thumb, row)
+            : null;
+    }
+
+    /// <summary>
     ///     The run drawn under the terminal cell <paramref name="screen" />, or <see langword="null" /> for a cell outside
     ///     the rows or past the end of its row.
     /// </summary>

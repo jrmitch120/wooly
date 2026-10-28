@@ -44,5 +44,36 @@ internal readonly record struct Scrollbar(int Start, int Length)
     /// <summary>Whether the track's row <paramref name="row" /> is under the thumb.</summary>
     public bool Covers(int row) => row >= Start && row < Start + Length;
 
+    /// <summary>Which part of the bar the track's row <paramref name="row" /> is: above the thumb, on it, or below it.</summary>
+    public ScrollbarPart PartAt(int row) =>
+        row < Start ? ScrollbarPart.AboveTheThumb
+        : Covers(row) ? ScrollbarPart.Thumb
+        : ScrollbarPart.BelowTheThumb;
+
     private static int Rounded(double rows) => (int)Math.Round(rows, MidpointRounding.AwayFromZero);
+}
+
+/// <summary>The parts of a <see cref="Scrollbar" /> the pointer can be on (#502).</summary>
+internal enum ScrollbarPart
+{
+    /// <summary>The track above the thumb, a click on which turns a page up.</summary>
+    AboveTheThumb,
+
+    /// <summary>The thumb itself.</summary>
+    Thumb,
+
+    /// <summary>The track below the thumb, a click on which turns a page down.</summary>
+    BelowTheThumb,
+}
+
+/// <summary>
+///     The pointer on the <b>Scrollbar</b> as it was last drawn (#502): the bar, and the row of its track the pointer is
+///     beside — counted from the track's top, under any pinned rows — whichever of its two columns it is in.
+/// </summary>
+/// <param name="Bar">The bar as drawn.</param>
+/// <param name="Row">How far down the track the pointer is.</param>
+internal readonly record struct ScrollbarHit(Scrollbar Bar, int Row)
+{
+    /// <summary>Which part of the bar the pointer is on.</summary>
+    public ScrollbarPart Part => Bar.PartAt(Row);
 }
