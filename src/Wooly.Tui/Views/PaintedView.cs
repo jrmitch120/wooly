@@ -305,7 +305,7 @@ internal sealed class PaintedView : View
     /// </summary>
     /// <remarks>
     ///     Answered from the bar the last frame settled, so a click between frames lands on the bar as it was drawn. The
-    ///     one place that says where the bar can be pointed at, for a click on the track and the thumb's drag alike.
+    ///     one place that says where the bar can be pointed at, for a click on the bar and the thumb's drag alike.
     /// </remarks>
     public ScrollbarHit? ScrollbarAt(Point screen)
     {

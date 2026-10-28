@@ -8,9 +8,9 @@ using static Wooly.Tests.Tui.ScrollbarFeeds;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The <b>Scrollbar</b> answering the mouse (#502): a click on the track turns one page toward it, as <c>PgUp</c> and
-///     <c>PgDn</c> do. It answers on the edge and the margin column just inside it, beside the bar's rows only. Driven
-///     through the whole shell headless.
+///     The <b>Scrollbar</b> answering the mouse (#502): a click on it, the track or the thumb, moves nothing — only the
+///     thumb's drag moves the page (#503). It answers on the edge and the margin column just inside it, beside the bar's
+///     rows only, so that the margin there picks no post. Driven through the whole shell headless.
 /// </summary>
 public class ScrollbarMouseTests
 {
@@ -26,22 +26,31 @@ public class ScrollbarMouseTests
     /// </summary>
     private const int BelowTheThumb = 15;
 
-    [Fact]
-    public async Task AClickOnTheTrackBelowTheThumbTurnsOnePageDown()
+    /// <summary>
+    ///     A click on the track below the thumb, on the edge or the margin beside it, moves nothing: no page turned, the
+    ///     pick where it was, and no post beside the margin picked.
+    /// </summary>
+    [Theory]
+    [InlineData(Edge)]
+    [InlineData(Margin)]
+    public async Task AClickOnTheTrackBelowTheThumbMovesNothing(int column)
     {
         using var drawn = await Feed(Posts(6));
 
-        var picked = drawn.Shell.Screen.Picked?.Id;
+        var rows = drawn.Rows();
 
-        drawn.Click(Edge, BelowTheThumb);
+        drawn.Click(column, BelowTheThumb);
 
-        Assert.Equal(21, drawn.Content.Top);
-        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
+        Assert.Equal(0, drawn.Content.Top);
+        Assert.Equal("1", drawn.Shell.Screen.Picked?.Id);
+        Assert.Equal(rows, drawn.Rows());
     }
 
-    /// <summary>A page turned down puts the thumb at the foot; a click on the track above it turns back to the top.</summary>
-    [Fact]
-    public async Task AClickOnTheTrackAboveTheThumbTurnsOnePageUp()
+    /// <summary>A page turned down puts the thumb at the foot; a click on the track above it moves nothing.</summary>
+    [Theory]
+    [InlineData(Edge)]
+    [InlineData(Margin)]
+    public async Task AClickOnTheTrackAboveTheThumbMovesNothing(int column)
     {
         using var drawn = await Feed(Posts(6));
 
@@ -49,54 +58,14 @@ public class ScrollbarMouseTests
 
         Assert.Equal(21, drawn.Content.Top);
 
-        drawn.Click(Edge, 5);
+        var picked = drawn.Shell.Screen.Picked?.Id;
+        var rows = drawn.Rows();
 
-        Assert.Equal(0, drawn.Content.Top);
-    }
+        drawn.Click(column, 5);
 
-    /// <summary>
-    ///     With the last post picked the page is 20 rows down, the thumb on the terminal's rows 11 to 20 and one row of
-    ///     track under it: a click there turns the page no further than <c>PgDn</c> does from there.
-    /// </summary>
-    [Fact]
-    public async Task AClickOnTheTrackStopsAtTheFootWherePgDnStops()
-    {
-        using var clicked = await Feed(Posts(6));
-        using var pressed = await Feed(Posts(6));
-
-        clicked.WalkToTheLast();
-        pressed.WalkToTheLast();
-
-        Assert.Equal(20, clicked.Content.Top);
-
-        clicked.Click(Edge, 21);
-        pressed.Press(Key.PageDown);
-
-        Assert.Equal(pressed.Content.Top, clicked.Content.Top);
-        Assert.Equal(pressed.Rows(), clicked.Rows());
-    }
-
-    /// <summary>
-    ///     A page turned by a click leaves the pick where it was, off the page now, and <c>j</c> reclaims from the page it
-    ///     came to — as after <c>PgDn</c>.
-    /// </summary>
-    [Fact]
-    public async Task AClickOnTheTrackLeavesThePickAndJReclaims()
-    {
-        using var clicked = await Feed(Posts(6));
-        using var pressed = await Feed(Posts(6));
-
-        clicked.Click(Edge, BelowTheThumb);
-        pressed.Press(Key.PageDown);
-
-        Assert.Equal("1", clicked.Shell.Screen.Picked?.Id);
-
-        clicked.Press(Key.J);
-        pressed.Press(Key.J);
-
-        Assert.NotEqual("1", pressed.Shell.Screen.Picked?.Id);
-        Assert.Equal(pressed.Shell.Screen.Picked?.Id, clicked.Shell.Screen.Picked?.Id);
-        Assert.Equal(pressed.Content.Top, clicked.Content.Top);
+        Assert.Equal(21, drawn.Content.Top);
+        Assert.Equal(picked, drawn.Shell.Screen.Picked?.Id);
+        Assert.Equal(rows, drawn.Rows());
     }
 
     /// <summary>A click on the thumb, on the edge or the margin beside it, moves nothing.</summary>
@@ -116,18 +85,6 @@ public class ScrollbarMouseTests
         Assert.Equal(3, drawn.Content.Top);
         Assert.Equal("1", drawn.Shell.Screen.Picked?.Id);
         Assert.Equal(rows, drawn.Rows());
-    }
-
-    /// <summary>The margin column just inside the edge answers as the edge does beside the bar's rows.</summary>
-    [Fact]
-    public async Task TheMarginBesideTheBarTurnsAPageAsTheEdgeDoes()
-    {
-        using var drawn = await Feed(Posts(6));
-
-        drawn.Click(Margin, BelowTheThumb);
-
-        Assert.Equal(21, drawn.Content.Top);
-        Assert.Equal("1", drawn.Shell.Screen.Picked?.Id);
     }
 
     /// <summary>
@@ -202,8 +159,8 @@ public class ScrollbarMouseTests
     }
 
     /// <summary>
-    ///     An open confirmation wins: a click on the track declines it, as <c>PgDn</c> does, and turns nothing — and a
-    ///     click on the thumb declines it too, as a click anywhere does.
+    ///     An open confirmation wins: a click on the track or the thumb declines it, as a click anywhere does, and moves
+    ///     nothing.
     /// </summary>
     [Theory]
     [InlineData(BelowTheThumb)]
@@ -241,18 +198,17 @@ public class ScrollbarMouseTests
     }
 
     /// <summary>
-    ///     A double click on the track is its first click's page turn and nothing more: never a <c>⏎</c> on whatever is
-    ///     picked.
+    ///     A double click on the track does nothing: no page turned, and never a <c>⏎</c> on whatever is picked.
     /// </summary>
     [Fact]
-    public async Task ADoubleClickOnTheBarIsItsFirstClicksTurnAndNothingMore()
+    public async Task ADoubleClickOnTheBarDoesNothing()
     {
         using var drawn = await Feed(Posts(6));
 
         drawn.DoubleClick(Edge, BelowTheThumb);
 
         Assert.IsNotType<PostScreen>(drawn.Shell.Screen);
-        Assert.Equal(21, drawn.Content.Top);
+        Assert.Equal(0, drawn.Content.Top);
     }
 
     /// <summary>The wheel over the bar scrolls the page as it does anywhere over the panel: a notch is a row.</summary>
@@ -268,7 +224,7 @@ public class ScrollbarMouseTests
 
     /// <summary>
     ///     On a 200-column terminal stepped narrower to 180 the shell sits in columns 10 to 189, its edge on 189 and its
-    ///     margin on 188: the bar answers where it is drawn, and a page of 27 is turned.
+    ///     margin on 188: the bar answers where it is drawn, so a click on its track there moves nothing and picks no post.
     /// </summary>
     [Theory]
     [InlineData(189)]
@@ -289,7 +245,8 @@ public class ScrollbarMouseTests
 
         drawn.Click(column, 27);
 
-        Assert.Equal(27, drawn.Content.Top);
+        Assert.Equal(0, drawn.Content.Top);
+        Assert.Equal("1", drawn.Shell.Screen.Picked?.Id);
     }
 
     /// <summary>A post with six replies under it, opened: a thread taller than the page.</summary>

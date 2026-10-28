@@ -90,7 +90,7 @@ public class ScrollbarDragTests
 
     /// <summary>
     ///     The drag holds the mouse: dragged sideways off the bar into the posts, and on out of the panel onto the status
-    ///     row, the page still follows the pointer's row, and letting go there ends it — the next click is a click.
+    ///     row, the page still follows the pointer's row, and letting go there ends it — the next click is a click, picking the post under it.
     /// </summary>
     [Fact]
     public async Task TheDragIsKeptOffTheBarUntilLetGoAnywhere()
@@ -117,9 +117,9 @@ public class ScrollbarDragTests
         Assert.Equal(22, drawn.Content.Top);
         Assert.Equal("1", drawn.Shell.Screen.Picked?.Id);
 
-        drawn.Click(Edge, 5);
+        drawn.Click(ContentClicks.OverContent, ContentClicks.ContentRowOf(drawn, 4));
 
-        Assert.Equal(1, drawn.Content.Top);
+        Assert.Equal("5", drawn.Shell.Screen.Picked?.Id);
     }
 
     /// <summary>

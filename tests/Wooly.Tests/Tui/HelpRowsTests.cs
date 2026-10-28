@@ -13,8 +13,8 @@ public class HelpRowsTests
     private const int Tall = 80;
 
     /// <summary>
-    ///     At 80 columns with the rail shown, the mouse is eight rows of the <i>Everywhere</i> block, one action each,
-    ///     read from the key column to the panel's right edge — the <b>Scrollbar</b>'s two among them (#502, #503).
+    ///     At 80 columns with the rail shown, the mouse is seven rows of the <i>Everywhere</i> block, one action each,
+    ///     read from the key column to the panel's right edge — the <b>Scrollbar</b>'s drag among them (#503).
     /// </summary>
     [Fact]
     public async Task TheMouseIsOneActionARowWithItsInputInTheKeyColumn()
@@ -28,7 +28,6 @@ public class HelpRowsTests
         Assert.Equal(
             [
                 "wheel           scroll the content",
-                "click the track a page toward it, as pgup / pgdn",
                 "drag the thumb  scroll the content with it",
                 "click           arrive on the rail; pick a row",
                 "double click    read (⏎)",
@@ -36,7 +35,7 @@ public class HelpRowsTests
                 "click a crumb   walk back to it",
                 "click «/»       hide or show the rail",
             ],
-            From(rows, "wheel", 8));
+            From(rows, "wheel", 7));
         Assert.DoesNotContain(rows, row => row.Contains("│mouse ", StringComparison.Ordinal));
     }
 

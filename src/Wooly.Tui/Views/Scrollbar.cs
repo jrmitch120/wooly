@@ -65,26 +65,7 @@ internal readonly record struct Scrollbar(int Start, int Length)
     /// <summary>Whether the track's row <paramref name="row" /> is under the thumb.</summary>
     public bool Covers(int row) => row >= Start && row < Start + Length;
 
-    /// <summary>Which part of the bar the track's row <paramref name="row" /> is: above the thumb, on it, or below it.</summary>
-    public ScrollbarPart PartAt(int row) =>
-        row < Start ? ScrollbarPart.AboveTheThumb
-        : Covers(row) ? ScrollbarPart.Thumb
-        : ScrollbarPart.BelowTheThumb;
-
     private static int Rounded(double rows) => (int)Math.Round(rows, MidpointRounding.AwayFromZero);
-}
-
-/// <summary>The parts of a <see cref="Scrollbar" /> the pointer can be on (#502).</summary>
-internal enum ScrollbarPart
-{
-    /// <summary>The track above the thumb, a click on which turns a page up.</summary>
-    AboveTheThumb,
-
-    /// <summary>The thumb itself.</summary>
-    Thumb,
-
-    /// <summary>The track below the thumb, a click on which turns a page down.</summary>
-    BelowTheThumb,
 }
 
 /// <summary>
@@ -95,14 +76,14 @@ internal enum ScrollbarPart
 /// <param name="Row">How far down the track the pointer is.</param>
 internal readonly record struct ScrollbarHit(Scrollbar Bar, int Row)
 {
-    /// <summary>Which part of the bar the pointer is on.</summary>
-    public ScrollbarPart Part => Bar.PartAt(Row);
+    /// <summary>Whether the pointer is on the thumb, where a press takes hold of it (#503), rather than the track.</summary>
+    public bool OnTheThumb => Bar.Covers(Row);
 }
 
 /// <summary>
 ///     The <b>Scrollbar</b> as a frame settled it (#500): the thumb, how many of the page's rows are pinned above the
-///     track, and how many rows scroll beside it — what the thumb was measured against, so that a click on the bar and
-///     the thumb's drag answer from the bar as it was drawn.
+///     track, and how many rows scroll beside it — what the thumb was measured against, so that the pointer on the bar
+///     and the thumb's drag answer from the bar as it was drawn.
 /// </summary>
 /// <param name="Thumb">The thumb as drawn.</param>
 /// <param name="Pinned">How many of the page's rows are pinned above the track, which begins under them.</param>

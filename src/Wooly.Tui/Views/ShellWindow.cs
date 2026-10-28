@@ -1218,13 +1218,11 @@ internal sealed class ShellWindow : Window
     /// <summary>
     ///     A button on the <b>Scrollbar</b>, taken before any view is asked (#502): the bar is drawn on the content
     ///     panel's frame, whose cells Terminal.Gui hands to the panel's own edge and never on to the window, and answers
-    ///     on the margin column inside it too, which would otherwise pick the row beside it. A click on the track turns
-    ///     one page toward it, through the <see cref="Keymap" /> as <c>PgUp</c> and <c>PgDn</c> — so it stops at the
-    ///     ends where they do, leaves the pick where it is and is declined by an open confirmation as they are — and a
-    ///     click on the thumb moves nothing, bar declining a confirmation as a click anywhere does — though the press
-    ///     before it takes hold of the thumb for a drag (<see cref="ThumbDragged" />, #503). Every other button
-    ///     there does nothing; the wheel is left to scroll the page as it does anywhere over the panel. Where no bar is
-    ///     drawn none of this is asked, and both columns answer as they did without one.
+    ///     on the margin column inside it too, which would otherwise pick the row beside it. A press on the thumb takes
+    ///     hold of it for a drag (<see cref="ThumbDragged" />, #503); a click anywhere on the bar, track or thumb, moves
+    ///     nothing, bar declining a confirmation as a click anywhere does. Every other button there does nothing; the
+    ///     wheel is left to scroll the page as it does anywhere over the panel. Where no bar is drawn none of this is
+    ///     asked, and both columns answer as they did without one.
     /// </summary>
     /// <remarks>
     ///     A view holding the mouse keeps every event, as <see cref="InTheMargins" /> leaves it, and a drag ending on the
@@ -1246,7 +1244,7 @@ internal sealed class ShellWindow : Window
         // confirmation open, which the drag's click declines and nothing moves behind (#503).
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed)
             && !mouse.Flags.HasFlag(MouseFlags.PositionReport)
-            && hit.Part == ScrollbarPart.Thumb
+            && hit.OnTheThumb
             && _shell.Asking is null)
         {
             _pressedOn = null;
@@ -1262,20 +1260,7 @@ internal sealed class ShellWindow : Window
         }
 
         _pressedOn = null;
-
-        if (hit.Part == ScrollbarPart.Thumb)
-        {
-            _ = Declined();
-
-            return;
-        }
-
-        var turn = hit.Part == ScrollbarPart.AboveTheThumb ? ShellKey.PageUp : ShellKey.PageDown;
-
-        if (!_shell.StatusRow.Answered(turn))
-        {
-            _ = Do(turn);
-        }
+        _ = Declined();
     }
 
     /// <summary>
