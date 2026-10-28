@@ -158,6 +158,30 @@ public class ScrollbarMouseTests
     }
 
     /// <summary>
+    ///     With <c>scrollbar = false</c> a screen that overflows draws no bar, so the edge answers no button where the
+    ///     track would be and the margin beside a post's row picks it, as before there was a bar.
+    /// </summary>
+    [Fact]
+    public async Task TurnedOffTheEdgeAnswersNoButtonAndTheMarginPicks()
+    {
+        using var drawn = await DrawnShell.Of(
+            80,
+            24,
+            Themes.Plain,
+            new AShell { Timelines = FakeTimelineReader.Holding(Posts(6)), Scrollbar = false });
+
+        drawn.Click(Edge, BelowTheThumb);
+
+        Assert.Equal(0, drawn.Content.Top);
+        Assert.Equal("1", drawn.Shell.Screen.Picked?.Id);
+
+        drawn.Click(Margin, BelowTheThumb);
+
+        Assert.Equal(0, drawn.Content.Top);
+        Assert.Equal("3", drawn.Shell.Screen.Picked?.Id);
+    }
+
+    /// <summary>
     ///     Compose over a feed that overflows has widgets of its own and draws no bar: a click on its edge where the
     ///     track would be leaves the draft where it is.
     /// </summary>

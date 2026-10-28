@@ -459,6 +459,31 @@ public class ScrollbarTests
         Assert.Equal(Themes.Dark.For(Role.Band).Background, drawn.Cell(1, 78).Background);
     }
 
+    /// <summary>
+    ///     <c>scrollbar = false</c> in the config file's preferences, read at launch (#501): a screen whose rows don't fit
+    ///     the page draws its right edge as it always was, <c>│</c> the whole way down in the active edge's colour, at the
+    ///     top and after scrolling to the foot.
+    /// </summary>
+    [Fact]
+    public async Task TurnedOffNoBarIsDrawnOnAScreenThatOverflows()
+    {
+        using var drawn = await DrawnShell.Of(
+            80,
+            24,
+            Themes.Dark,
+            new AShell { Timelines = FakeTimelineReader.Holding(Posts(6)), Scrollbar = false });
+
+        Assert.True(RowsOf(drawn) > drawn.Content.Viewport.Height, "Six posts fit the page.");
+        Assert.Equal(Thumb(First, 0), Edge(drawn));
+
+        drawn.Press(Key.End);
+
+        Assert.Equal(Thumb(First, 0), Edge(drawn));
+        Assert.All(
+            Enumerable.Range(First, Last - First + 1),
+            row => Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(row, 79)));
+    }
+
     /// <summary>Posts from 1 up to <paramref name="count" />.</summary>
     private static Post[] Posts(int count) =>
         [.. Enumerable.Range(1, count).Select(at => APost.With(id: $"{at}"))];
