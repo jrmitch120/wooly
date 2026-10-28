@@ -119,6 +119,75 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Contains("bell", exception.Message);
     }
 
+    /// <summary>#501: the scrollbar is on unless the file says otherwise, with no file and with a file that leaves it out.</summary>
+    [Fact]
+    public void Load_ReadsTheScrollbarAsOnWhenAbsent()
+    {
+        Assert.True(NewStore().Load().Preferences.Scrollbar);
+
+        WriteConfigFile(
+            """
+            [preferences]
+            hashtag = "dotnet"
+            """);
+
+        Assert.True(NewStore().Load().Preferences.Scrollbar);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTripsTheScrollbarTurnedOff()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { Scrollbar = false } });
+
+        Assert.Contains("scrollbar = false", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+        Assert.False(store.Load().Preferences.Scrollbar);
+    }
+
+    /// <summary>On is what an absent key reads as, so it is not written: no new line in a file nothing else touched.</summary>
+    [Fact]
+    public void Save_OmitsTheScrollbarWhenOn()
+    {
+        NewStore().Save(new WoolyConfig { Preferences = new Preferences { Scrollbar = true } });
+
+        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+    }
+
+    /// <summary>Turned off, it is kept through a save of something else, as the bell is.</summary>
+    [Fact]
+    public void Save_KeepsTheScrollbarTurnedOffBesideTheOtherPreferences()
+    {
+        var store = NewStore();
+
+        WriteConfigFile(
+            """
+            [preferences]
+            scrollbar = false
+            """);
+
+        store.Save(store.Load() with { Preferences = store.Load().Preferences with { HiddenRail = true } });
+
+        var preferences = store.Load().Preferences;
+
+        Assert.False(preferences.Scrollbar);
+        Assert.True(preferences.HiddenRail);
+    }
+
+    [Fact]
+    public void Load_RefusesASpellingOfTheScrollbarThatIsNotABoolean()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            scrollbar = "off"
+            """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("scrollbar", exception.Message);
+    }
+
     [Fact]
     public void Load_RefusesASpellingOfHideDrawnCaptionThatIsNotABoolean()
     {

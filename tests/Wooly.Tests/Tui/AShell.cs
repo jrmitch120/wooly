@@ -151,6 +151,12 @@ internal sealed class AShell
     /// </summary>
     public bool HiddenRail { get; set; }
 
+    /// <summary>
+    ///     The config file's <c>scrollbar</c>: whether the content panel's right edge is a scrollbar where a screen
+    ///     overflows (#501). On, unless said.
+    /// </summary>
+    public bool Scrollbar { get; set; } = true;
+
     /// <summary>The config file's preferences, as far as these tests set them.</summary>
     private Preferences Preferences => new()
     {
@@ -160,6 +166,7 @@ internal sealed class AShell
         Bell = Bell,
         ShellWidth = ShellWidth,
         HiddenRail = HiddenRail,
+        Scrollbar = Scrollbar,
     };
 
     /// <summary>

@@ -148,8 +148,8 @@ public sealed class Shell
     /// </param>
     /// <param name="preferences">
     ///     The config file's preferences: the hashtag the rail keeps a place for, what compose starts on, whether a
-    ///     rising Inbox badge rings the bell, and the shell width and the rail the launch opens at. None where the file
-    ///     sets none.
+    ///     rising Inbox badge rings the bell, whether the content panel draws a scrollbar, and the shell width and the
+    ///     rail the launch opens at. None where the file sets none.
     /// </param>
     /// <param name="launchedFrom">
     ///     The folder Wooly was launched from, where the file browser first opens (#376): the working folder, where
@@ -190,6 +190,7 @@ public sealed class Shell
             launchedFrom ?? Environment.CurrentDirectory);
         ShellWidth = preferences is null ? ShellWidth.Full : ShellWidth.Of(preferences.ShellWidth);
         RailState = preferences?.HiddenRail is true ? RailState.Hidden : RailState.Shown;
+        DrawsScrollbar = preferences?.Scrollbar ?? true;
 
         Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
         _badges = new InboxBadges(
@@ -292,6 +293,12 @@ public sealed class Shell
     ///     as saved, for a wider one to honour.
     /// </summary>
     public ShellWidth ShellWidth { get; private set; }
+
+    /// <summary>
+    ///     Whether the content panel's right edge is a <b>Scrollbar</b> where a screen's rows don't fit the page: what the
+    ///     config file's <c>scrollbar</c> says, read at launch, or on where it says nothing (#501). No key changes it.
+    /// </summary>
+    public bool DrawsScrollbar { get; }
 
     /// <summary>
     ///     Whether the rail is the <b>hidden rail</b> (<c>GLOSSARY.md</c>), out of sight with the content taking its

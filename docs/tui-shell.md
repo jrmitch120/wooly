@@ -67,7 +67,8 @@ settles — every row of every loaded thing, pictures included, so a list that *
 loaded so far — and the view settles the frame in whichever of its passes comes first, the edge or the rows, so the
 thumb moves on the same frame as the rows whatever moved them. Beside a screen's pinned rows — the file browser's folder,
 filter and rule — the edge stays as it is, and the track measures only the rows that scroll under them. A screen with
-widgets of its own draws none.
+widgets of its own draws none, and nor does any screen where `scrollbar = false` in the config file's preferences turns
+it off ("Starting it", below; #501).
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
 it 23. Shorter than that, it steps down rather than clipping:
@@ -2552,6 +2553,7 @@ hide_drawn_caption = true
 bell = false
 shell_width = 70
 hidden_rail = true
+scrollbar = false
 ```
 
 `hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
@@ -2570,6 +2572,12 @@ it by hand do not survive.
 (the default, and what an absent key means) opens on the shown rail, so it is never written, and showing the rail
 again takes the line away. Anything but `true` or `false` is refused against the file, as a `shell_width` that is not a
 whole number is. Like `shell_width` it has a key, `\`, and each toggle saves it, rewriting the whole file the same way.
+
+`scrollbar` is a sixth (#501): `false` turns the content panel's **Scrollbar** off (above), so that from the next launch
+its right edge is drawn as it was before, `│` the whole way down in `panel-border-active`, on every screen. `true` (the
+default, and what an absent key means) draws it, so it is never written; `false`, once set, is kept through every save
+of the others, as `bell` is. Anything but `true` or `false` is refused against the file. Like `bell` it is read at
+launch, the same for every profile, and has no key in the shell.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.

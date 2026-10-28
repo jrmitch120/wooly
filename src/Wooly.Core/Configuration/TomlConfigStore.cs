@@ -34,6 +34,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     /// <summary>Whether the TUI's rail is the hidden rail rather than the shown one (#442, #445).</summary>
     private const string HiddenRailKey = "hidden_rail";
 
+    /// <summary>Whether the TUI's content panel draws its scrollbar where a screen's rows don't fit (#500, #501).</summary>
+    private const string ScrollbarKey = "scrollbar";
+
     /// <summary>The theme the TUI draws in, and the themes written in this same file (#46).</summary>
     private const string ThemeKey = "theme";
 
@@ -76,7 +79,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
         if (config.Preferences is { DefaultVisibility: not null } or { DefaultLanguage: not null } or { Hashtag: not null }
             or { HideDrawnCaption: true } or { Bell: false } or { ShellWidth: not Preferences.FullShellWidth }
-            or { HiddenRail: true })
+            or { HiddenRail: true } or { Scrollbar: false })
         {
             var preferences = new TomlTable();
 
@@ -121,6 +124,12 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             if (config.Preferences.HiddenRail)
             {
                 preferences[HiddenRailKey] = true;
+            }
+
+            // Absent rather than written as true, the scrollbar an absent key reads back as, as the bell is (#501).
+            if (!config.Preferences.Scrollbar)
+            {
+                preferences[ScrollbarKey] = false;
             }
 
             root[PreferencesKey] = preferences;
@@ -311,6 +320,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             Bell = ReadBool(stored, BellKey, whenAbsent: true),
             ShellWidth = ReadShellWidth(stored),
             HiddenRail = ReadBool(stored, HiddenRailKey),
+            Scrollbar = ReadBool(stored, ScrollbarKey, whenAbsent: true),
         };
     }
 
