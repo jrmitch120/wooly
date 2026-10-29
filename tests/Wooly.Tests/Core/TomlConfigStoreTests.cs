@@ -96,7 +96,11 @@ public class TomlConfigStoreTests : IDisposable
         var preferencesAt = toml.IndexOf("[preferences]", StringComparison.Ordinal);
         var after = store.Load();
 
+        Assert.Contains("bell = false", toml);
+        Assert.Contains("hide_drawn_caption = false", toml);
+        Assert.Contains("shell_width = 100", toml);
         Assert.Contains("hidden_rail = false", toml);
+        Assert.Contains("scrollbar = \"block\"", toml);
         Assert.True(preferencesAt >= 0 && preferencesAt < toml.IndexOf("[profiles", StringComparison.Ordinal));
         Assert.Equal(before.Preferences, after.Preferences);
         Assert.Equal(before.CurrentProfile, after.CurrentProfile);
@@ -434,7 +438,9 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Equal(70, preferences.ShellWidth);
     }
 
-    /// <summary>Shown is written as shown, and showing the rail again writes it so rather than dropping it (#506).</summary>
+    /// <summary>
+    ///     Shown is written as shown, and showing the rail again writes it so rather than dropping the line (#506).
+    /// </summary>
     [Fact]
     public void Save_WritesTheRailWhenShown_AndOnceShownAgain()
     {
