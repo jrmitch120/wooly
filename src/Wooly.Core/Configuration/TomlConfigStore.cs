@@ -81,16 +81,20 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         }
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
-        var preferences = new TomlTable();
-
-        if (config.Preferences.DefaultVisibility is { } visibility)
-        {
-            preferences[DefaultVisibilityKey] = PostVisibilityName.Of(visibility);
-        }
+        // Its keys go in alphabetical order, so a reader looking for one knows where it is. Every preference with a
+        // default is written, at its default too, so that a reader opening a file nobody has tuned finds each setting
+        // they can change in it (#506). The language, visibility and hashtag have none — absent is the server's own,
+        // or none, and TOML has no null — so they are written only once set.
+        var preferences = new TomlTable { [BellKey] = config.Preferences.Bell };
 
         if (config.Preferences.DefaultLanguage is { } language)
         {
             preferences[DefaultLanguageKey] = language;
+        }
+
+        if (config.Preferences.DefaultVisibility is { } visibility)
+        {
+            preferences[DefaultVisibilityKey] = PostVisibilityName.Of(visibility);
         }
 
         if (config.Preferences.Hashtag is { } hashtag)
@@ -98,14 +102,10 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             preferences[HashtagKey] = hashtag;
         }
 
-        // Every preference with a default is written, at its default too, so that a reader opening a file nobody has
-        // tuned finds each setting they can change in it (#506). The three above have none — absent is the server's
-        // own, or none, and TOML has no null — so they are written only once set.
-        preferences[BellKey] = config.Preferences.Bell;
-        preferences[HideDrawnCaptionKey] = config.Preferences.HideDrawnCaption;
-        preferences[ShellWidthKey] = (long)config.Preferences.ShellWidth;
         preferences[HiddenRailKey] = config.Preferences.HiddenRail;
+        preferences[HideDrawnCaptionKey] = config.Preferences.HideDrawnCaption;
         preferences[ScrollbarKey] = ScrollbarStyleName.Of(config.Preferences.Scrollbar);
+        preferences[ShellWidthKey] = (long)config.Preferences.ShellWidth;
 
         root[PreferencesKey] = preferences;
 

@@ -47,8 +47,8 @@ public class TomlConfigStoreTests : IDisposable
     }
 
     /// <summary>
-    ///     #506: every preference with a default is written at it, in a fixed order, so a reader opening a file nobody
-    ///     has tuned sees each setting they can change — and only those: the three with no default stay absent.
+    ///     #506: every preference with a default is written at it, in alphabetical order, so a reader opening a file
+    ///     nobody has tuned sees each setting they can change — and only those: the three with no default stay absent.
     /// </summary>
     [Fact]
     public void Save_WritesEveryPreferenceWithADefaultAtItsDefault()
@@ -59,10 +59,40 @@ public class TomlConfigStoreTests : IDisposable
             """
             [preferences]
             bell = true
-            hide_drawn_caption = false
-            shell_width = 100
             hidden_rail = false
+            hide_drawn_caption = false
             scrollbar = "block"
+            shell_width = 100
+
+            """,
+            File.ReadAllText(Path.Combine(_directory.Path, "config.toml")).ReplaceLineEndings("\n"));
+    }
+
+    /// <summary>
+    ///     The three with no default, once set, take their places among the rest in the same alphabetical order.
+    /// </summary>
+    [Fact]
+    public void Save_WritesEveryPreferenceInAlphabeticalOrder()
+    {
+        NewStore().Save(new WoolyConfig
+        {
+            Preferences = new Preferences
+            {
+                DefaultVisibility = PostVisibility.Unlisted, DefaultLanguage = "en", Hashtag = "dotnet",
+            },
+        });
+
+        Assert.Equal(
+            """
+            [preferences]
+            bell = true
+            default_language = "en"
+            default_visibility = "unlisted"
+            hashtag = "dotnet"
+            hidden_rail = false
+            hide_drawn_caption = false
+            scrollbar = "block"
+            shell_width = 100
 
             """,
             File.ReadAllText(Path.Combine(_directory.Path, "config.toml")).ReplaceLineEndings("\n"));

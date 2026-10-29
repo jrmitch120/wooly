@@ -2560,12 +2560,12 @@ business but the reader's, so it is a setting in the same TOML file everything e
 
 ```toml
 [preferences]
-hashtag = "dotnet"
 bell = false
-hide_drawn_caption = true
-shell_width = 70
+hashtag = "dotnet"
 hidden_rail = true
+hide_drawn_caption = true
 scrollbar = "line"
+shell_width = 70
 ```
 
 `hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
@@ -2603,13 +2603,14 @@ same for every profile, and has no key in the shell.
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.
 
-Every save writes each preference that has a default, at its current value, the default included, and in the order of
-the example above, so a file nobody has tuned still lists every setting there is to change (#506): `bell = true`,
-`hide_drawn_caption = false`, `shell_width = 100`, `hidden_rail = false` and `scrollbar = "block"`. They are real keys
-rather than commented-out lines, because a save rewrites the whole file and a comment would not survive it. A file
-without them gains them on its next save and means what it meant, since an absent key still reads as its default — a
-`[preferences]` written by hand can leave any of them out. `hashtag`, `default_visibility` and `default_language` have
-no default to write (absent is none, or the server's own, and TOML has no null), so they are written only once set.
+Every save writes each preference that has a default, at its current value, the default included, so a file nobody has
+tuned still lists every setting there is to change (#506): `bell = true`, `hidden_rail = false`,
+`hide_drawn_caption = false`, `scrollbar = "block"` and `shell_width = 100`. They are real keys rather than
+commented-out lines, because a save rewrites the whole file and a comment would not survive it. A file without them
+gains them on its next save and means what it meant, since an absent key still reads as its default — a `[preferences]`
+written by hand can leave any of them out. `hashtag`, `default_visibility` and `default_language` have no default to
+write (absent is none, or the server's own, and TOML has no null), so they are written only once set. Every key is
+written in alphabetical order, as in the example above, whichever order a file written by hand had them in.
 
 ## Roles
 
