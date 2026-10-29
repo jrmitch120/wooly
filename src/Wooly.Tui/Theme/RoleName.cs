@@ -42,6 +42,7 @@ public static class RoleName
         [Role.Key] = "key",
         [Role.PanelBorder] = "panel-border",
         [Role.PanelBorderActive] = "panel-border-active",
+        [Role.Scrollbar] = "scrollbar",
         [Role.PanelTitle] = "panel-title",
         [Role.Loading] = "loading",
         [Role.Spinner] = "spinner",

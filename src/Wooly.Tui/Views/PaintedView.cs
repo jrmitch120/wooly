@@ -1,6 +1,7 @@
 using System.Drawing;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
+using Wooly.Core.Configuration;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -51,6 +52,18 @@ internal sealed class PaintedView : View
 
     /// <summary>Where the next frame is to draw the pick's first row (<see cref="KeepPickOnItsRow" />).</summary>
     private int? _keeping;
+
+    /// <summary>
+    ///     The scrollbar the last frame settled, or none where every row fit or there is no scrollbar here (#500). Read
+    ///     through <see cref="Bar" />.
+    /// </summary>
+    private SettledScrollbar? _bar;
+
+    /// <summary>
+    ///     Whether this frame has been settled already, by whichever of its passes came first — the frame's edges or the
+    ///     viewport's rows — so that the other draws from the same rows and scroll rather than settling again (#500).
+    /// </summary>
+    private bool _settledThisFrame;
 
     /// <param name="theme">What answers the roles.</param>
     /// <param name="rows">The rows to draw, given how much room there is.</param>
@@ -170,6 +183,17 @@ internal sealed class PaintedView : View
     public Action? LetReferenceGo { get; init; }
 
     /// <summary>
+    ///     How the frame's right edge draws a <b>Scrollbar</b> wherever this view scrolls and its rows don't fit the page,
+    ///     or that it draws none: the edge's own <c>│</c> the track beside the rows that scroll, and a thumb on it in the
+    ///     style's glyph (#500, #505). <see cref="ScrollbarStyle.None" /> where nobody said, and nothing to draw on for a
+    ///     view with no frame.
+    /// </summary>
+    public ScrollbarStyle ScrollbarStyle { get; init; } = ScrollbarStyle.None;
+
+    /// <summary>Whether the frame's right edge is a <b>Scrollbar</b> where the rows don't fit, in any style.</summary>
+    private bool HasScrollbar => ScrollbarStyle is not ScrollbarStyle.None;
+
+    /// <summary>
     ///     How this terminal paints pixels as of the last frame settled, or <see cref="Media.Raster.None" /> before the
     ///     first. Worked out once a frame, before the rows are, and read rather than asked again everywhere else — the
     ///     rows laid out for a click or a key between frames included — so the rows, the boxes and the picture cache
@@ -279,6 +303,42 @@ internal sealed class PaintedView : View
     public Reference? ReferenceAt(Point screen) => SpanAt(screen)?.Reference;
 
     /// <summary>
+    ///     Where on the <b>Scrollbar</b> the terminal cell <paramref name="screen" /> is, or <see langword="null" /> where
+    ///     it is not on one (#502). The bar answers the pointer on two columns, the edge it is drawn on and the margin
+    ///     column just inside it (#495), so that there are two to aim for though only one is drawn — beside the track's
+    ///     rows only, and only while a bar is drawn: elsewhere both columns keep whatever they meant without one.
+    /// </summary>
+    /// <remarks>
+    ///     Answered from the bar the last frame settled, so a click between frames lands on the bar as it was drawn. The
+    ///     one place that says where the bar can be pointed at, for a click on the bar and the thumb's drag alike.
+    /// </remarks>
+    public ScrollbarHit? ScrollbarAt(Point screen)
+    {
+        if (Bar is not { } bar)
+        {
+            return null;
+        }
+
+        var inside = ViewportToScreen(new Rectangle(Point.Empty, Viewport.Size));
+        var edge = inside.Right;
+        var row = TrackRow(screen.Y, bar);
+
+        return screen.X >= edge - 1 && screen.X <= edge && row >= 0 && screen.Y < inside.Bottom
+            ? new ScrollbarHit(bar.Thumb, row)
+            : null;
+    }
+
+    /// <summary>
+    ///     The <b>Scrollbar</b> as the last frame drew it, or <see langword="null" /> where none was drawn: no bar asked
+    ///     for, a view that doesn't scroll or has no frame to draw it on, or every row fitting the page. The one place
+    ///     that says whether there is a bar to point at, drag or paint.
+    /// </summary>
+    private SettledScrollbar? Bar => HasScrollbar && Scrolls && _frame is not null ? _bar : null;
+
+    /// <summary>How far down <paramref name="bar" />'s track the terminal row <paramref name="screen" /> is.</summary>
+    private int TrackRow(int screen, SettledScrollbar bar) => screen - ViewportToScreen(Point.Empty).Y - bar.Pinned;
+
+    /// <summary>
     ///     The run drawn under the terminal cell <paramref name="screen" />, or <see langword="null" /> for a cell outside
     ///     the rows or past the end of its row.
     /// </summary>
@@ -353,7 +413,7 @@ internal sealed class PaintedView : View
     private int Shown(int row, int pinned) => row < pinned ? row : _top + row;
 
     /// <summary>
-    ///     Moves the screen by <paramref name="rows" /> and leaves the selection where it is, which is what <c>↓</c>
+    ///     Moves the screen by <paramref name="rows" /> and leaves <b>Picked</b> where it is, which is what <c>↓</c>
     ///     and <c>↑</c> do — and the only way to read a post taller than the terminal to its end.
     /// </summary>
     /// <remarks>
@@ -370,6 +430,26 @@ internal sealed class PaintedView : View
         }
 
         _top = (int)Math.Clamp((long)_top + rows, 0, int.MaxValue);
+        _following = false;
+
+        SetNeedsDraw();
+    }
+
+    /// <summary>
+    ///     Moves the page to where the <b>Scrollbar</b>'s thumb has its row <paramref name="grabbed" /> rows into it beside
+    ///     the terminal row <paramref name="screen" />, held at the track's ends, and leaves <b>Picked</b> where it is, as
+    ///     <see cref="Step" /> does — what dragging the thumb does (#503). Measured against the rows the last frame
+    ///     settled, which are the rows the thumb was drawn over, the grabbed point held inside the thumb as it is now so
+    ///     that one shortened by rows arriving mid-drag comes back under the pointer; nothing where no bar was drawn.
+    /// </summary>
+    public void ThumbTo(int screen, int grabbed)
+    {
+        if (Bar is not { } bar)
+        {
+            return;
+        }
+
+        _top = bar.TopWith(grabbed, TrackRow(screen, bar));
         _following = false;
 
         SetNeedsDraw();
@@ -562,11 +642,35 @@ internal sealed class PaintedView : View
     /// </remarks>
     protected override bool OnClearingViewport()
     {
+        SettleOnce();
+
+        return true;
+    }
+
+    /// <summary>
+    ///     The frame settled, unless one of its passes has settled it already. Terminal.Gui draws a view's frame before
+    ///     its viewport, and the scrollbar on the frame must be drawn from the rows and scroll the viewport's text and
+    ///     pictures are, never the frame before's (#500).
+    /// </summary>
+    private void SettleOnce()
+    {
+        if (_settledThisFrame)
+        {
+            return;
+        }
+
         // Before anything of this frame can have been written: it is still being drawn.
         _frames?.Open();
         Settle();
 
-        return true;
+        _settledThisFrame = true;
+    }
+
+    protected override void OnDrawComplete(DrawContext? context)
+    {
+        _settledThisFrame = false;
+
+        base.OnDrawComplete(context);
     }
 
     protected override bool OnDrawingContent(DrawContext? context)
@@ -648,6 +752,12 @@ internal sealed class PaintedView : View
             return false;
         }
 
+        // The scrollbar on the edge is measured off this frame's rows, so they are settled before the edge is drawn.
+        if (HasScrollbar)
+        {
+            SettleOnce();
+        }
+
         var width = Frame.Width;
         var edges = _frame(width, Frame.Height);
 
@@ -660,7 +770,32 @@ internal sealed class PaintedView : View
             }
         }
 
+        PaintScrollbar(width);
+
         return true;
+    }
+
+    /// <summary>
+    ///     The right edge beside the rows that scroll, where they don't fit the page, as the scrollbar: the edge's own
+    ///     <c>│</c> in <see cref="Role.PanelBorder" /> for the track and the style's thumb in <see cref="Role.Scrollbar" />
+    ///     — the glyphs carrying it where there is no colour. Beside the pinned rows the edge is left as it is.
+    /// </summary>
+    private void PaintScrollbar(int width)
+    {
+        if (Bar is not { } bar)
+        {
+            return;
+        }
+
+        var thumb = Scrollbar.ThumbOf(ScrollbarStyle);
+
+        for (var row = bar.Pinned; row < Viewport.Height; row++)
+        {
+            var thumbed = bar.Thumb.Covers(row - bar.Pinned);
+
+            SetAttribute(_theme.For(thumbed ? Role.Scrollbar : Role.PanelBorder));
+            AddStr(width - 2, row, thumbed ? thumb : Scrollbar.Track);
+        }
     }
 
     /// <summary>
@@ -766,6 +901,8 @@ internal sealed class PaintedView : View
         _placed = _placing?.Frame(lines, _top, width, height, Raster) ?? [];
 
         _settled = lines;
+
+        _bar = HasScrollbar && Scrolls ? SettledScrollbar.Of(lines.Count, Pinned(), _top, height) : null;
 
         Settled?.Invoke(Math.Max(0, lines.Count - (_top + height)), height);
     }

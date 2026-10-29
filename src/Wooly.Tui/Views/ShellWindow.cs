@@ -162,6 +162,12 @@ internal sealed class ShellWindow : Window
     /// <summary>Whether the row pressed on has moved, which makes the button's release a drop rather than a click.</summary>
     private bool _dragged;
 
+    /// <summary>
+    ///     The <b>Scrollbar</b>'s thumb, held by a press on it or let go and awaiting the click Terminal.Gui makes of the
+    ///     let-go (#503), or <see langword="null" /> where neither.
+    /// </summary>
+    private ThumbGrip? _thumbGrip;
+
     /// <param name="quit">
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
     ///     the run loop and this window is one of the things running in it.
@@ -221,9 +227,13 @@ internal sealed class ShellWindow : Window
 
             if (App is { } application)
             {
+                // The thumb's drag first: while it is held every event is its own, its let-go's click on the rail's
+                // mark or a margin included (#503).
+                application.Mouse.MouseEvent += (_, mouse) => ThumbDragged(mouse);
                 application.Mouse.MouseEvent += (_, mouse) => Dropped(mouse);
                 application.Mouse.MouseEvent += (_, mouse) => InTheMargins(mouse);
                 application.Mouse.MouseEvent += (_, mouse) => AtTheToggleMark(mouse);
+                application.Mouse.MouseEvent += (_, mouse) => OnTheScrollbar(mouse);
             }
         };
 
@@ -290,6 +300,7 @@ internal sealed class ShellWindow : Window
             Height = Dim.Fill(1),
             CanFocus = false,
             Scrolls = true,
+            ScrollbarStyle = shell.ScrollbarStyle,
             KeepsToThePage = () => shell.Screen.KeepsToThePage,
             Pinned = () => shell.Screen.Pinned,
             Settled = Paged,
@@ -1203,6 +1214,114 @@ internal sealed class ShellWindow : Window
             mouse.Handled = DoubleClicked(mouse.ScreenPosition, Chorded(mouse));
         }
     }
+
+    /// <summary>
+    ///     The mouse on the <b>Scrollbar</b>, taken before any view is asked: the bar is drawn on the content panel's
+    ///     frame, whose cells Terminal.Gui hands to the panel's own edge and never on to the window, and answers on the
+    ///     margin column inside it too, which would otherwise pick the row beside it (the hit area #502 gave it). A
+    ///     click anywhere on the bar, track or thumb, moves nothing; like a click anywhere else, it declines an open
+    ///     confirmation. A press on the thumb takes hold of it for #503's drag (<see cref="ThumbDragged" />). Every
+    ///     other button there does nothing; the wheel is left to scroll the page as it does anywhere over the panel.
+    ///     Where no bar is drawn none of this is asked, and both columns answer as they did without one.
+    /// </summary>
+    /// <remarks>
+    ///     A view holding the mouse keeps every event, as <see cref="InTheMargins" /> leaves it, and a drag ending on the
+    ///     bar is the drop it already is (<see cref="Dropped" />).
+    /// </remarks>
+    private void OnTheScrollbar(Mouse mouse)
+    {
+        if (mouse.Handled
+            || App?.Mouse.IsGrabbed() == true
+            || Wheeling(mouse)
+            || _content.ScrollbarAt(mouse.ScreenPosition) is not { } hit)
+        {
+            return;
+        }
+
+        mouse.Handled = true;
+
+        // A press on the thumb takes hold of it, and of the mouse, wherever the pointer goes next (Pointer) — unless a
+        // confirmation is open, which the press's click declines with nothing moved behind it (#503).
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed)
+            && !mouse.Flags.HasFlag(MouseFlags.PositionReport)
+            && hit.OnTheThumb
+            && _shell.Asking is null)
+        {
+            _pressedOn = null;
+            _thumbGrip = new ThumbGrip.Held(hit.Row - hit.Bar.Start);
+            App?.Mouse.GrabMouse(this);
+
+            return;
+        }
+
+        if (!mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
+        {
+            return;
+        }
+
+        _pressedOn = null;
+        _ = Declined();
+    }
+
+    /// <summary>
+    ///     A mouse event while the <b>Scrollbar</b>'s thumb is held (#503), wherever the pointer is: the pointer moving
+    ///     with the button down puts the point of the thumb grabbed beside the pointer's row, the page following as
+    ///     <c>↓</c>/<c>↑</c> move it — <b>Picked</b> left where it is, the shell told the page moved so that a list read
+    ///     near its foot reads on — and the button let go lets go of the thumb and the mouse. The click Terminal.Gui
+    ///     makes of the press and its let-go is spent here too, wherever it lands, so the next click is a click.
+    /// </summary>
+    /// <remarks>Taken before any view is asked, and before the window's other handlers, which leave a held mouse alone.</remarks>
+    private void ThumbDragged(Mouse mouse)
+    {
+        if (mouse.Handled || _thumbGrip is not { } grip)
+        {
+            return;
+        }
+
+        if (grip is ThumbGrip.LetGo && !mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
+        {
+            // The let-go's click never came; this is another gesture, and its own.
+            _thumbGrip = null;
+
+            return;
+        }
+
+        mouse.Handled = true;
+
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
+        {
+            _thumbGrip = null;
+            LetGoOfTheMouse();
+        }
+        else if (mouse.Flags.HasFlag(MouseFlags.LeftButtonReleased))
+        {
+            _thumbGrip = ThumbGrip.LetGo.Awaiting;
+            LetGoOfTheMouse();
+        }
+        else if (grip is ThumbGrip.Held held
+                 && mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed)
+                 && mouse.Flags.HasFlag(MouseFlags.PositionReport))
+        {
+            _content.ThumbTo(mouse.ScreenPosition.Y, held.Grabbed);
+            _pageToTell = true;
+
+            SetNeedsDraw();
+        }
+    }
+
+    /// <summary>The mouse let go of, where this window holds it.</summary>
+    private void LetGoOfTheMouse()
+    {
+        if (App?.Mouse.IsGrabbed(this) == true)
+        {
+            App.Mouse.UngrabMouse();
+        }
+    }
+
+    /// <summary>Whether <paramref name="mouse" /> is a notch of the wheel, either way, rather than a button.</summary>
+    private static bool Wheeling(Mouse mouse) =>
+        (mouse.Flags & (MouseFlags.WheeledUp | MouseFlags.WheeledDown | MouseFlags.WheeledLeft | MouseFlags.WheeledRight))
+        != 0;
 
     /// <summary>How wide the terminal is, which the shell's columns are a share of.</summary>
     private int TerminalColumns => App?.Screen.Width ?? 0;

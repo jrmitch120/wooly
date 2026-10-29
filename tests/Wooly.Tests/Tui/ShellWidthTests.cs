@@ -444,7 +444,8 @@ public class ShellWidthTests
 
     /// <summary>
     ///     <see cref="Typed" /> is drawn whole, all three keys typed rather than acted on, inside the narrowed shell's
-    ///     content panel — and the shell is the width it was.
+    ///     content panel — and the shell is the width it was. The edge beside it is <c>│</c> whatever the screen's rows:
+    ///     every screen typed into here has widgets of its own and draws no scrollbar (#500).
     /// </summary>
     private static void AssertTypedInsideTheContentPanel(DrawnShell drawn)
     {
@@ -453,6 +454,7 @@ public class ShellWidthTests
 
         Assert.True(row >= 0, string.Join('\n', rows));
         Assert.InRange(rows[row].IndexOf(Typed, StringComparison.Ordinal), InsideTheContent, ContentsRightEdge - Typed.Length);
+        Assert.True(drawn.Shell.Screen.HasWidgetsOfItsOwn);
         Assert.Equal('│', rows[row][ContentsRightEdge]);
         Assert.Equal((10, 180), Shell(drawn));
     }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Tomlyn;
 using Tomlyn.Model;
 using Wooly.Core.Errors;
@@ -33,6 +34,12 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
     /// <summary>Whether the TUI's rail is the hidden rail rather than the shown one (#442, #445).</summary>
     private const string HiddenRailKey = "hidden_rail";
+
+    /// <summary>
+    ///     How the TUI's content panel draws its scrollbar's thumb where a screen's rows don't fit, or that it draws
+    ///     none (#500, #501, #505).
+    /// </summary>
+    private const string ScrollbarKey = "scrollbar";
 
     /// <summary>The theme the TUI draws in, and the themes written in this same file (#46).</summary>
     private const string ThemeKey = "theme";
@@ -76,7 +83,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
         if (config.Preferences is { DefaultVisibility: not null } or { DefaultLanguage: not null } or { Hashtag: not null }
             or { HideDrawnCaption: true } or { Bell: false } or { ShellWidth: not Preferences.FullShellWidth }
-            or { HiddenRail: true })
+            or { HiddenRail: true } or { Scrollbar: not ScrollbarStyle.Block })
         {
             var preferences = new TomlTable();
 
@@ -121,6 +128,12 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             if (config.Preferences.HiddenRail)
             {
                 preferences[HiddenRailKey] = true;
+            }
+
+            // Absent rather than written as "block", the thumb an absent key reads back as, as the bell is (#501, #505).
+            if (config.Preferences.Scrollbar is not ScrollbarStyle.Block)
+            {
+                preferences[ScrollbarKey] = ScrollbarStyleName.Of(config.Preferences.Scrollbar);
             }
 
             root[PreferencesKey] = preferences;
@@ -311,6 +324,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             Bell = ReadBool(stored, BellKey, whenAbsent: true),
             ShellWidth = ReadShellWidth(stored),
             HiddenRail = ReadBool(stored, HiddenRailKey),
+            Scrollbar = ReadScrollbar(stored),
         };
     }
 
@@ -356,6 +370,29 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
 
         return PostLanguageName.Parse(raw)?.Code
                ?? throw new ConfigurationException(paths.ConfigFile, PostLanguageName.Rejection(raw));
+    }
+
+    /// <summary>
+    ///     The scrollbar's style (#505), one of <see cref="ScrollbarStyleName" />'s five spellings and nothing else — the
+    ///     booleans #501 took before either was released refused with the rest.
+    /// </summary>
+    private ScrollbarStyle ReadScrollbar(TomlTable preferences)
+    {
+        if (!preferences.TryGetValue(ScrollbarKey, out var value))
+        {
+            return ScrollbarStyle.Block;
+        }
+
+        // A boolean or a number is quoted as the file spells it, and is never one of the five words.
+        var raw = value switch
+        {
+            string name => name,
+            bool flag => flag ? "true" : "false",
+            _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty,
+        };
+
+        return ScrollbarStyleName.Parse(raw)
+               ?? throw new ConfigurationException(paths.ConfigFile, ScrollbarStyleName.Rejection(raw));
     }
 
     private string? ReadString(TomlTable table, string key) => table.TryGetValue(key, out var value)

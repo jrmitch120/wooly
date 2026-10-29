@@ -1,4 +1,5 @@
 using Terminal.Gui.Input;
+using Wooly.Core.Configuration;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
@@ -13,8 +14,8 @@ public class HelpRowsTests
     private const int Tall = 80;
 
     /// <summary>
-    ///     At 80 columns with the rail shown, the mouse is six rows of the <i>Everywhere</i> block, one action each,
-    ///     read from the key column to the panel's right edge.
+    ///     At 80 columns with the rail shown, the mouse is seven rows of the <i>Everywhere</i> block, one action each,
+    ///     read from the key column to the panel's right edge — the <b>Scrollbar</b>'s drag among them (#503).
     /// </summary>
     [Fact]
     public async Task TheMouseIsOneActionARowWithItsInputInTheKeyColumn()
@@ -28,14 +29,50 @@ public class HelpRowsTests
         Assert.Equal(
             [
                 "wheel           scroll the content",
+                "drag the thumb  scroll the content with it",
                 "click           arrive on the rail; pick a row",
                 "double click    read (⏎)",
                 "right click     up one level, as esc",
                 "click a crumb   walk back to it",
                 "click «/»       hide or show the rail",
             ],
-            From(rows, "wheel", 6));
+            From(rows, "wheel", 7));
         Assert.DoesNotContain(rows, row => row.Contains("│mouse ", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     With <c>scrollbar = "none"</c> there is no thumb to drag on any screen, so the mouse is six rows, the drag
+    ///     left out (#505); every other style draws a thumb, and says so.
+    /// </summary>
+    [Theory]
+    [InlineData(ScrollbarStyle.None, false)]
+    [InlineData(ScrollbarStyle.Block, true)]
+    [InlineData(ScrollbarStyle.Line, true)]
+    [InlineData(ScrollbarStyle.LeftHalf, true)]
+    [InlineData(ScrollbarStyle.RightHalf, true)]
+    public async Task TheThumbsDragIsSaidOnlyWhereThereIsAScrollbar(ScrollbarStyle style, bool said)
+    {
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, new AShell { Scrollbar = style });
+
+        drawn.Press(new Key('?'));
+
+        var rows = drawn.Rows();
+
+        Assert.Equal(said, rows.Any(row => row.Contains("drag the thumb", StringComparison.Ordinal)));
+
+        if (!said)
+        {
+            Assert.Equal(
+                [
+                    "wheel           scroll the content",
+                    "click           arrive on the rail; pick a row",
+                    "double click    read (⏎)",
+                    "right click     up one level, as esc",
+                    "click a crumb   walk back to it",
+                    "click «/»       hide or show the rail",
+                ],
+                From(rows, "wheel", 6));
+        }
     }
 
     /// <summary>

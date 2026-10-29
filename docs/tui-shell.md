@@ -46,7 +46,7 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 The content panel's title is the stack: the crumbs walked through in `muted`, the one stood on in `panel-title`, eliding
 from the left so it always ends where you are, and the fetch mark, a star spinner, a space after it while a fetch
 is in flight. The mark's 2 columns are held whether or not it is drawn, so it never moves the trail. The panel's edge is
-always `panel-border-active`: it is the panel being read. Its rows are 58 columns wide at an 80-column terminal: the 61
+`panel-border-active`, bar a scrollbar's track (below): it is the panel being read. Its rows are 58 columns wide at an 80-column terminal: the 61
 of ADR-0014 less the cell the gutter column gave up to the content panel's left edge, and less the two the rail took
 when it widened to 20 so that a label and its count both fit (#272). A screen is drawn in 57 of them, the margin's
 column given up on the right to mirror the gutter on the left (#495), so text, pictures and the right-aligned status and
@@ -54,6 +54,24 @@ age stop one column short of the edge; 57 is the width every screen must read we
 the picked thing's band still run to the edge, over the margin. The exception is a screen with widgets of its own —
 compose, the description screen and the public profile form (ADR-0030) — which is drawn the panel's whole 58, since its
 widgets are sized from the viewport, and keeps its 2 columns of padding each side.
+
+Whenever a screen's rows don't fit the page, the panel's right edge is its **Scrollbar** (#500): beside the rows that
+scroll, the edge's own `│` is the track, drawn in `panel-border`, and a thumb on it, in `scrollbar` — `█` unless the
+config file's `scrollbar` preference chooses another glyph ("Starting it", below; #505) — is the page's share of those
+rows and where the page stands among them. It costs no columns — every screen still reads at 57 — and leaves the rules
+and the picked thing's band running to the column inside the edge; a picture, clipped to the viewport, never reaches it.
+Only while there is a bar does the right edge differ from the other three, which stay `panel-border-active`; without
+colour the glyphs carry it. The thumb is `round(track × page / total)` rows, never fewer than 2, and travels the rest of
+the track as the page's top travels from the first row to the last page's, a page scrolled onto the blank under the last
+thing measured as at the foot. It is measured off the rows and scroll the frame settles — every row of every loaded
+thing, pictures included, so a list that **reads on** is measured against what is loaded so far — and the view settles
+the frame in whichever of its passes comes first, the edge or the rows, so the thumb moves on the same frame as the rows
+whatever moved them. Beside a screen's pinned rows — the file browser's folder, filter and rule — the edge stays as it
+is, and the track measures only the rows that scroll under them. A screen with widgets of its own draws none, and nor
+does any screen where `scrollbar = "none"` in the config file's preferences turns it off ("Starting it", below; #501,
+#505). A click on the bar, track or thumb, moves nothing — only the thumb's drag moves the page — and the bar answers
+the pointer on the margin column inside the edge as well, beside the track's rows only, so that no click there picks the
+row beside it (#502, #503; the mouse table, below).
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
 it 23. Shorter than that, it steps down rather than clipping:
@@ -2446,7 +2464,7 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Wheel down / up | The content panel | The page moves one row per notch, the finest step a terminal has, so a trackpad's stream of small events glides rather than lurching three rows at a time (#292). Three notches are as far as one `↓` / `↑`, and it clamps at the same ends. **Picked** stays where it is, so after wheeling it off the page `j`/`k` reclaim the first thing whose start — the first row of its content, or its first row where it has none — is on the page (the topmost thing showing, where no start is), as after the arrows (#472, asked in review of #480). On help and notices too, which are content like any other screen. A notch is that arrow through the **Keymap**, with a row for its step, so with a confirmation open it declines it and scrolls nothing, as `↓` does (#287) |
 | Wheel | The rail | Nothing: not the cursor, not the selection, not the rail's scroll and not the page beside it |
 | Wheel down / up | Either margin of a narrowed shell | The content panel's wheel, exactly: so a reader need not aim for the panel to scroll (**Shell width**, #416) |
-| Click, double click, right click, drag | Either margin of a narrowed shell | Nothing, not even declining an open question: the margins are the terminal's, outside the shell (#416) |
+| Click, double click, right click, drag | Either margin of a narrowed shell | Nothing, not even declining an open question: the margins are the terminal's, outside the shell (#416). A drag begun inside the shell — a row of the attachments screen, the **Scrollbar**'s thumb — carries on there, holding the mouse (#503) |
 | Wheel sideways | Anywhere | Nothing. A trackpad drifting sideways sends these between vertical notches, and Terminal.Gui's left and right carry up's and down's bits, so they are asked about first and dropped |
 | Wheel, click | The compose editor | Terminal.Gui's own handling: the wheel scrolls the draft and a click places the caret. Nothing of the shell's |
 | Click | A value of compose's **To** | Chooses it and gives To the typing, so `←`/`→` carry on from there; a click on either arrow of the narrow form steps, and anywhere else on the row gives To the typing. A value To does not allow, and the whole row on an edit, ignores it. The wheel over the row does nothing (ADR-0024, #338) |
@@ -2468,7 +2486,11 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Double click | A row of a thing in the content | That click, and then `⏎` through the **Keymap** on the screen in front, so it means whatever `⏎` means there: it opens a post, a search result, a conversation, the asker of a follow request or a person, and switches to a profile on the profiles screen. Where `⏎` means nothing for what is picked — the account screen's header block — it picks and does nothing more. On a **Reference** it opens the reference: the first click walks to it (#475), and the `⏎` opens it and lets it go (#474) — a hashtag's screen, a mention's account, an address handed to the browser. It opens the one the first click walked to, without asking the row again, so the brackets that click drew moving the row a column on, or wrapping a long address anew, cannot change what opens (#479). Off any reference the click lets a walked **Reference** go first, so a double click on a post's text with a hashtag walked to opens the post. Terminal.Gui's own detection says what is a double click (#291) |
 | Double click | A heading, a rule, a blank, the space under the last thing | Nothing: never a `⏎` on what was picked before |
 | Double click | The breadcrumb | Its first click's walk back and nothing more: never a `⏎` on the screen it landed on (#308) |
-| Right click | Anywhere: the content, the rail, the breadcrumb, the status row | `esc`, through the **Keymap** on the screen in front, so up one level of whichever kind is open: it lets a picked **Reference** or an uncast poll toggle go before it pops the screen, declines a confirmation, clears the filter prompt's filter (as `esc` does, not as a left click does) and calls off a sign-in in flight on Add a profile. On a destination's own screen it does nothing, and never quits. Over the rail it does not arrive at the destination under the pointer, and over the breadcrumb it does not walk back to the crumb. Each right click the terminal reports is one `esc`, Terminal.Gui's double and triple included, so three quick right clicks walk back three levels. Only the terminal's right button counts: ctrl+click stays a left click, and the middle button means nothing (#307) |
+| Click | The **Scrollbar**, its track or its thumb: the content panel's right edge or the margin column just inside it, beside the track's rows | Nothing: the click moves no page, leaves **Picked** where it is and picks no row beside the margin. With a confirmation open it declines it, as a click anywhere does. A press on the thumb instead takes hold of it for the drag, the only thing on the bar that moves the page (below, #503). The bar answers on two columns though only the edge is drawn, so there are two to aim for the thumb with; the window answers them before any view is asked, the edge being the panel's frame — the hit area #502 gave the bar, whose page turn on the track was dropped |
+| Drag | The **Scrollbar**'s thumb, on the edge or the margin column inside it | The **Page** follows the pointer row by row, the grabbed point of the thumb kept under it — held as how far into the thumb it is, so that a thumb shortened by rows arriving mid-drag, a list read on, comes back under the pointer on the next motion with the grabbed point inside it — and thumb and page are drawn moved on the frame the motion lands in. The page's top is the thumb's maths inverted, held at the track's ends, so dragged past the top or the foot of the track they stop there. The press takes hold of the mouse (the window grabs it), so the drag carries on wherever the pointer wanders — off the bar sideways, out of the panel, into a margin of a narrowed shell — and letting go anywhere ends it, the click Terminal.Gui makes of the let-go spent on it, so that nothing under the pointer is clicked and the next click is a click. It moves the page as `↓`/`↑` do and not **Picked**, so `j`/`k` reclaim afterwards; a held **Reference** carried off the page is let go; and near the foot of a list that reads on it reads on, as every scroll there does. With a confirmation open the press takes nothing and moves nothing, and the let-go's click declines it (#503) |
+| Double click, right click | The **Scrollbar** | Nothing: the double click is no `⏎`, and the right click is no `esc` (#502) |
+| Click, double click, right click | The content panel's right edge, and the margin column inside it, where no bar is drawn — a screen whose rows fit, one with widgets of its own, or with `scrollbar = "none"` | As without a scrollbar: the edge answers no button, and a click in the margin beside a thing's row picks it, as on its blank space (#502) |
+| Right click | Anywhere but the **Scrollbar**: the content, the rail, the breadcrumb, the status row | `esc`, through the **Keymap** on the screen in front, so up one level of whichever kind is open: it lets a picked **Reference** or an uncast poll toggle go before it pops the screen, declines a confirmation, clears the filter prompt's filter (as `esc` does, not as a left click does) and calls off a sign-in in flight on Add a profile. On a destination's own screen it does nothing, and never quits. Over the rail it does not arrive at the destination under the pointer, and over the breadcrumb it does not walk back to the crumb. Each right click the terminal reports is one `esc`, Terminal.Gui's double and triple included, so three quick right clicks walk back three levels. Only the terminal's right button counts: ctrl+click stays a left click, and the middle button means nothing (#307) |
 | Right click | Anywhere, with compose in front | `esc`, wherever it lands — a field, the rail, the breadcrumb, the status row: over a touched draft it asks `Discard this post? y / n`, and a second right click agrees as a second `esc` does; over an untouched one it leaves (#373). Taken ahead of the view under the pointer, so the compose editor's own context menu never opens, and on the open list of people to mention it neither closes the list nor picks |
 | Right click | Anywhere, with the description editor in front | `esc`, wherever it lands, its field included, as on compose and the edit public profile form: done, back to the draft with the description kept and sent as leaving it any other way sends it. With a question open — `tab` off a touched draft under it asks — it answers it as `esc` does. Taken ahead of the field, whose own context menu never opens (#430) |
 
@@ -2503,19 +2525,24 @@ was one of those counts only the clicks there were. What the gesture then means 
 A double click on a run that stands for a key of its own — an attachment's `x` or `retry (r)`, a file's box — is a
 click on it and no `⏎`, since Terminal.Gui reports the second of two quick clicks on one cell only as the pair.
 
-Mouse tracking stays on, and nothing turns it off: drag means nothing, and selecting text to copy goes through the
-terminal's modifier bypass (`⌥` in iTerm2, `Fn` in Terminal.app) until selection is a feature of its own. The `?`
+Mouse tracking stays on, and nothing turns it off: drag means nothing but a row of the attachments screen and the
+**Scrollbar**'s thumb, and selecting text to copy goes through the terminal's modifier bypass (`⌥` in iTerm2, `Fn` in
+Terminal.app) until selection is a feature of its own. The `?`
 screen says what the mouse does beside the frame's keys, an action a row with its input in the key column, as every
 key's is (#446):
 
 ```
 wheel           scroll the content
+drag the thumb  scroll the content with it
 click           arrive on the rail; pick a row
 double click    read (⏎)
 right click     up one level, as esc
 click a crumb   walk back to it
 click «/»       hide or show the rail
 ```
+
+The `drag the thumb` row is left out when `scrollbar = "none"` turns the **Scrollbar** off ("Starting it", below), since
+no screen then has a thumb to drag; it is there for every other style (#505).
 
 A meaning too long for the screen's width, the mouse's or any key's, carries on to the rows under it, each starting in
 the meaning column, rather than being cut with `…`: at 80 columns with the rail shown that is `tab / shift-tab`'s and
@@ -2538,6 +2565,7 @@ hide_drawn_caption = true
 bell = false
 shell_width = 70
 hidden_rail = true
+scrollbar = "line"
 ```
 
 `hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
@@ -2556,6 +2584,22 @@ it by hand do not survive.
 (the default, and what an absent key means) opens on the shown rail, so it is never written, and showing the rail
 again takes the line away. Anything but `true` or `false` is refused against the file, as a `shell_width` that is not a
 whole number is. Like `shell_width` it has a key, `\`, and each toggle saves it, rewriting the whole file the same way.
+
+`scrollbar` is a sixth (#501, #505): how the content panel's **Scrollbar** (above) draws its thumb, or that there is
+none, one of five strings:
+
+| Value | Thumb | |
+|---|---|---|
+| `"block"` | `█` | the default, and what an absent key means |
+| `"line"` | `┃` | a heavy line on the edge's `│` — without colour (`NO_COLOR` or the plain theme), told from the track by weight alone |
+| `"left-half"` | `▌` | the cell's left half, toward the screen |
+| `"right-half"` | `▐` | the cell's right half, toward the terminal's edge |
+| `"none"` | — | no scrollbar: from the next launch the right edge is drawn as it was before, `│` the whole way down in `panel-border-active`, and answers no button, on every screen |
+
+Only the thumb's glyph differs: the track, the colours, the thumb's length and place, where the bar answers the pointer
+and the thumb's drag are the same in every style. `"block"` is never written; any other, once set, is kept through
+every save of the others, as `bell` is. Anything else — `true` and `false` among it — is refused against the file. Like
+`bell` it is read at launch, the same for every profile, and has no key in the shell.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.
@@ -2596,6 +2640,7 @@ is drawn reversed instead (#316).
 | `chrome` | The frame's furniture: the status row's leading space and ` \| ` separators | position |
 | `key` | A key you press: the status row's, the help screen's key column, a confirmation's `y` and `esc` — never prose that names a key, never the padding beside one | position — last in its pair, after the words' colon; first column on the help screen |
 | `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the cursor | the box characters; which group is active is carried by the cursor's entry's band in colour, and by `▶` on it without |
+| `scrollbar` | The **Scrollbar**'s thumb on the content panel's right edge, on a track drawn in `panel-border` so the thumb stands out by contrast. Both built-ins draw it in `panel-border-active`'s colour (#500) | the thumb's glyph — `█`, or the `scrollbar` preference's `┃`, `▌` or `▐` (#505) — against the track's `│` |
 | `panel-title` | A panel's title on its top edge: a rail group's name, and the crumb being stood on at the end of the content panel's trail, told from the crumbs walked through by foreground | position, on the edge — the current crumb is always the last, and the trail elides from the left |
 | `loading` | Something under way that the reader waits on, said in words: the sign-in screen's wait for the browser | the words |
 | `spinner` | The fetch mark a space after the content panel's trail — one star spinner frame, in 2 columns held whether or not it is drawn. Both built-ins draw it in `rail-unread`'s colour | a spinner frame, moving, drawn only while a fetch is in flight |
