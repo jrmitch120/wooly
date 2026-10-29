@@ -8,6 +8,15 @@ and config layer:
 
 Sign in once and both of them act as the same profile.
 
+## Screenshots
+
+| | |
+|---|---|
+| ![The home timeline, with a link preview's picture drawn inline](docs/screenshots/home.png) | ![Composing a post, with the mention picker open](docs/screenshots/compose.png) |
+| The home timeline, with pictures drawn inline | Compose, with the mention picker |
+| ![Notifications, with favorites and boosts grouped by post](docs/screenshots/notifications.png) | ![Search results for accounts and hashtags](docs/screenshots/search.png) |
+| Notifications, grouped by post | One search across accounts and hashtags |
+
 ## Features
 
 **Both front ends**
