@@ -22,11 +22,20 @@ public static class ScrollbarStyleName
     public static string Of(ScrollbarStyle style) => Names.Single(name => name.Style == style).Name;
 
     /// <summary>
-    ///     The style <paramref name="name" /> spells, or <see langword="null" /> if it spells none of them — matched exactly,
-    ///     as written, since nothing but these five has ever been read.
+    ///     The style <paramref name="name" /> spells, or <see langword="null" /> if it spells none of them.
     /// </summary>
+    /// <remarks>
+    ///     Matched exactly, deliberately: no trimming and no case folding, unlike a visibility, since nothing but these
+    ///     five lower-case words has ever been read here.
+    /// </remarks>
     public static ScrollbarStyle? Parse(string name) =>
         Names.Where(each => string.Equals(each.Name, name, StringComparison.Ordinal))
              .Select(each => (ScrollbarStyle?)each.Style)
              .FirstOrDefault();
+
+    /// <summary>
+    ///     How a value that is not a style is described, kept beside the spellings so that the message lists the words
+    ///     <see cref="Parse" /> takes and no others.
+    /// </summary>
+    public static string Rejection(string name) => $"'{name}' is not a scrollbar style. Use one of: {Accepted}.";
 }

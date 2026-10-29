@@ -224,6 +224,7 @@ public class TomlConfigStoreTests : IDisposable
         var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
 
         Assert.Contains("scrollbar", exception.Message);
+        Assert.Contains(ScrollbarStyleName.Accepted, exception.Message);
     }
 
     [Fact]

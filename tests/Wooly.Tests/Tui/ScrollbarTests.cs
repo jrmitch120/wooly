@@ -339,10 +339,15 @@ public class ScrollbarTests
 
     /// <summary>
     ///     In the file browser the folder, the filter and the rule under them are pinned at the top of the page: the edge
-    ///     beside them is left the active edge's <c>│</c>, and the track begins on the row under the rule.
+    ///     beside them is left the active edge's <c>│</c>, and the track begins on the row under the rule — the
+    ///     thumb in whichever glyph the <c>scrollbar</c> preference picks (#505).
     /// </summary>
-    [Fact]
-    public async Task InTheFileBrowserTheTrackStartsBelowThePinnedRows()
+    [Theory]
+    [InlineData(ScrollbarStyle.Block, '█')]
+    [InlineData(ScrollbarStyle.Line, '┃')]
+    [InlineData(ScrollbarStyle.LeftHalf, '▌')]
+    [InlineData(ScrollbarStyle.RightHalf, '▐')]
+    public async Task InTheFileBrowserTheTrackStartsBelowThePinnedRows(ScrollbarStyle style, char thumb)
     {
         using var files = new TemporaryDirectory();
 
@@ -355,6 +360,7 @@ public class ScrollbarTests
         {
             LaunchedFrom = files.Path,
             Timelines = FakeTimelineReader.Holding(APost.With(id: "220")),
+            Scrollbar = style,
         });
 
         ComposeRows.Open(drawn.Shell, ComposeFor.Post);
@@ -365,13 +371,13 @@ public class ScrollbarTests
 
         var edge = Edge(drawn);
 
-        Assert.Equal("│││██", edge[..5]);
+        Assert.Equal($"│││{thumb}{thumb}", edge[..5]);
         Assert.All([1, 2, 3], row => Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(row, 79)));
         Assert.Equal(Themes.Dark.For(Role.Scrollbar), drawn.Cell(4, 79));
 
         drawn.Press(Key.End);
 
-        Assert.EndsWith("█", Edge(drawn), StringComparison.Ordinal);
+        Assert.EndsWith($"{thumb}", Edge(drawn), StringComparison.Ordinal);
         Assert.Equal("│││", Edge(drawn)[..3]);
     }
 

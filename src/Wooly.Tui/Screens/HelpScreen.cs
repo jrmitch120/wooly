@@ -9,8 +9,16 @@ namespace Wooly.Tui.Screens;
 ///     in-app help story, and this is the shell adding one so that every screen #29, #30 and #31 bring gets it for
 ///     free (<c>docs/tui-shell.md</c>).
 /// </summary>
-public sealed class HelpScreen(Screen about) : Screen
+/// <param name="about">The screen whose keys these are.</param>
+/// <param name="scrollbar">
+///     Whether the content panel draws a <b>Scrollbar</b>, so that there is a thumb to drag: false only where the
+///     <c>scrollbar</c> preference is <c>"none"</c> (#505), and then the drag is left out.
+/// </param>
+public sealed class HelpScreen(Screen about, bool scrollbar = true) : Screen
 {
+    /// <summary>The <b>Scrollbar</b>'s drag, said wherever a bar can be drawn, as the wheel is (#503).</summary>
+    private static readonly KeyHint Drag = new("drag the thumb", "scroll the content with it");
+
     /// <summary>
     ///     The keys that mean the same thing everywhere. What may vary from screen to screen is everything else; these
     ///     are the frame, and a reader has to be able to rely on them.
@@ -33,8 +41,7 @@ public sealed class HelpScreen(Screen about) : Screen
         // The pointer: it adds no keys of its own, only another way to ask for these (#286). An action a row, its input
         // in the key column as a key's is (#446).
         new("wheel", "scroll the content"),
-        // The Scrollbar's, said wherever it is drawn or not, as the wheel is (#503).
-        new("drag the thumb", "scroll the content with it"),
+        Drag,
         new("click", "arrive on the rail; pick a row"),
         new("double click", "read (⏎)"),
         new("right click", "up one level, as esc"),
@@ -64,7 +71,7 @@ public sealed class HelpScreen(Screen about) : Screen
         lines.Add(Line.Blank);
         lines.Add(Line.Of("Everywhere", Role.BylineName));
         lines.Add(Line.Blank);
-        lines.AddRange(Frame.SelectMany(key => Rows(key, drawing.Width)));
+        lines.AddRange(Frame.Where(key => scrollbar || key != Drag).SelectMany(key => Rows(key, drawing.Width)));
 
         return lines;
     }

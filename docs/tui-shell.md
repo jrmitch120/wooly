@@ -57,20 +57,21 @@ widgets are sized from the viewport, and keeps its 2 columns of padding each sid
 
 Whenever a screen's rows don't fit the page, the panel's right edge is its **Scrollbar** (#500): beside the rows that
 scroll, the edge's own `│` is the track, drawn in `panel-border`, and a thumb on it, in `scrollbar` — `█` unless the
-config file's `scrollbar` preference chooses another glyph ("Starting it", below; #505) — is the page's share of those rows and where the page stands among them. It costs no columns — every screen still reads at 57 — and
-leaves the rules and the picked thing's band running to the column inside the edge; a picture, clipped to the viewport,
-never reaches it. Only while there is a bar does the right edge differ from the other three, which stay
-`panel-border-active`; without colour the glyphs carry it. The thumb is `round(track × page / total)` rows, never fewer
-than 2, and travels the rest of the track as the page's top travels from the first row to the last page's, a page
-scrolled onto the blank under the last thing measured as at the foot. It is measured off the rows and scroll the frame
-settles — every row of every loaded thing, pictures included, so a list that **reads on** is measured against what is
-loaded so far — and the view settles the frame in whichever of its passes comes first, the edge or the rows, so the
-thumb moves on the same frame as the rows whatever moved them. Beside a screen's pinned rows — the file browser's folder,
-filter and rule — the edge stays as it is, and the track measures only the rows that scroll under them. A screen with
-widgets of its own draws none, and nor does any screen where `scrollbar = "none"` in the config file's preferences turns
-it off ("Starting it", below; #501, #505). A click on the bar, track or thumb, moves nothing — only the thumb's drag moves the page
-— and the bar answers the pointer on the margin column inside the edge as well, beside the track's rows only, so that
-no click there picks the row beside it (#502, #503; the mouse table, below).
+config file's `scrollbar` preference chooses another glyph ("Starting it", below; #505) — is the page's share of those
+rows and where the page stands among them. It costs no columns — every screen still reads at 57 — and leaves the rules
+and the picked thing's band running to the column inside the edge; a picture, clipped to the viewport, never reaches it.
+Only while there is a bar does the right edge differ from the other three, which stay `panel-border-active`; without
+colour the glyphs carry it. The thumb is `round(track × page / total)` rows, never fewer than 2, and travels the rest of
+the track as the page's top travels from the first row to the last page's, a page scrolled onto the blank under the last
+thing measured as at the foot. It is measured off the rows and scroll the frame settles — every row of every loaded
+thing, pictures included, so a list that **reads on** is measured against what is loaded so far — and the view settles
+the frame in whichever of its passes comes first, the edge or the rows, so the thumb moves on the same frame as the rows
+whatever moved them. Beside a screen's pinned rows — the file browser's folder, filter and rule — the edge stays as it
+is, and the track measures only the rows that scroll under them. A screen with widgets of its own draws none, and nor
+does any screen where `scrollbar = "none"` in the config file's preferences turns it off ("Starting it", below; #501,
+#505). A click on the bar, track or thumb, moves nothing — only the thumb's drag moves the page — and the bar answers
+the pointer on the margin column inside the edge as well, beside the track's rows only, so that no click there picks the
+row beside it (#502, #503; the mouse table, below).
 
 The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
 it 23. Shorter than that, it steps down rather than clipping:
@@ -2485,7 +2486,7 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Double click | A row of a thing in the content | That click, and then `⏎` through the **Keymap** on the screen in front, so it means whatever `⏎` means there: it opens a post, a search result, a conversation, the asker of a follow request or a person, and switches to a profile on the profiles screen. Where `⏎` means nothing for what is picked — the account screen's header block — it picks and does nothing more. On a **Reference** it opens the reference: the first click walks to it (#475), and the `⏎` opens it and lets it go (#474) — a hashtag's screen, a mention's account, an address handed to the browser. It opens the one the first click walked to, without asking the row again, so the brackets that click drew moving the row a column on, or wrapping a long address anew, cannot change what opens (#479). Off any reference the click lets a walked **Reference** go first, so a double click on a post's text with a hashtag walked to opens the post. Terminal.Gui's own detection says what is a double click (#291) |
 | Double click | A heading, a rule, a blank, the space under the last thing | Nothing: never a `⏎` on what was picked before |
 | Double click | The breadcrumb | Its first click's walk back and nothing more: never a `⏎` on the screen it landed on (#308) |
-| Click | The **Scrollbar**, its track or its thumb: the content panel's right edge or the margin column just inside it, beside the track's rows | Nothing: no page turned, **Picked** left where it is, and no row beside the margin picked — bar declining an open confirmation as a click anywhere does. Only the thumb's drag moves the page (below). The bar answers on two columns though only the edge is drawn, so there are two to aim for the thumb with; the window answers them before any view is asked, the edge being the panel's frame (#502) |
+| Click | The **Scrollbar**, its track or its thumb: the content panel's right edge or the margin column just inside it, beside the track's rows | Nothing: the click moves no page, leaves **Picked** where it is and picks no row beside the margin. With a confirmation open it declines it, as a click anywhere does. A press on the thumb instead takes hold of it for the drag, the only thing on the bar that moves the page (below, #503). The bar answers on two columns though only the edge is drawn, so there are two to aim for the thumb with; the window answers them before any view is asked, the edge being the panel's frame — the hit area #502 gave the bar, whose page turn on the track was dropped |
 | Drag | The **Scrollbar**'s thumb, on the edge or the margin column inside it | The **Page** follows the pointer row by row, the grabbed point of the thumb kept under it — held as how far into the thumb it is, so that a thumb shortened by rows arriving mid-drag, a list read on, comes back under the pointer on the next motion with the grabbed point inside it — and thumb and page are drawn moved on the frame the motion lands in. The page's top is the thumb's maths inverted, held at the track's ends, so dragged past the top or the foot of the track they stop there. The press takes hold of the mouse (the window grabs it), so the drag carries on wherever the pointer wanders — off the bar sideways, out of the panel, into a margin of a narrowed shell — and letting go anywhere ends it, the click Terminal.Gui makes of the let-go spent on it, so that nothing under the pointer is clicked and the next click is a click. It moves the page as `↓`/`↑` do and not **Picked**, so `j`/`k` reclaim afterwards; a held **Reference** carried off the page is let go; and near the foot of a list that reads on it reads on, as every scroll there does. With a confirmation open the press takes nothing and moves nothing, and the let-go's click declines it (#503) |
 | Double click, right click | The **Scrollbar** | Nothing: the double click is no `⏎`, and the right click is no `esc` (#502) |
 | Click, double click, right click | The content panel's right edge, and the margin column inside it, where no bar is drawn — a screen whose rows fit, one with widgets of its own, or with `scrollbar = "none"` | As without a scrollbar: the edge answers no button, and a click in the margin beside a thing's row picks it, as on its blank space (#502) |
@@ -2539,6 +2540,9 @@ right click     up one level, as esc
 click a crumb   walk back to it
 click «/»       hide or show the rail
 ```
+
+The `drag the thumb` row is left out when `scrollbar = "none"` turns the **Scrollbar** off ("Starting it", below), since
+no screen then has a thumb to drag; it is there for every other style (#505).
 
 A meaning too long for the screen's width, the mouse's or any key's, carries on to the rows under it, each starting in
 the meaning column, rather than being cut with `…`: at 80 columns with the rail shown that is `tab / shift-tab`'s and

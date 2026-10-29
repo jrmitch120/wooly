@@ -1216,13 +1216,13 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     A button on the <b>Scrollbar</b>, taken before any view is asked (#502): the bar is drawn on the content
-    ///     panel's frame, whose cells Terminal.Gui hands to the panel's own edge and never on to the window, and answers
-    ///     on the margin column inside it too, which would otherwise pick the row beside it. A press on the thumb takes
-    ///     hold of it for a drag (<see cref="ThumbDragged" />, #503); a click anywhere on the bar, track or thumb, moves
-    ///     nothing, bar declining a confirmation as a click anywhere does. Every other button there does nothing; the
-    ///     wheel is left to scroll the page as it does anywhere over the panel. Where no bar is drawn none of this is
-    ///     asked, and both columns answer as they did without one.
+    ///     The mouse on the <b>Scrollbar</b>, taken before any view is asked: the bar is drawn on the content panel's
+    ///     frame, whose cells Terminal.Gui hands to the panel's own edge and never on to the window, and answers on the
+    ///     margin column inside it too, which would otherwise pick the row beside it (the hit area #502 gave it). A
+    ///     click anywhere on the bar, track or thumb, moves nothing; like a click anywhere else, it declines an open
+    ///     confirmation. A press on the thumb takes hold of it for #503's drag (<see cref="ThumbDragged" />). Every
+    ///     other button there does nothing; the wheel is left to scroll the page as it does anywhere over the panel.
+    ///     Where no bar is drawn none of this is asked, and both columns answer as they did without one.
     /// </summary>
     /// <remarks>
     ///     A view holding the mouse keeps every event, as <see cref="InTheMargins" /> leaves it, and a drag ending on the
@@ -1240,8 +1240,8 @@ internal sealed class ShellWindow : Window
 
         mouse.Handled = true;
 
-        // A press on the thumb takes hold of it, and of the mouse, wherever the pointer goes next (Pointer) — bar with a
-        // confirmation open, which the drag's click declines and nothing moves behind (#503).
+        // A press on the thumb takes hold of it, and of the mouse, wherever the pointer goes next (Pointer) — unless a
+        // confirmation is open, which the press's click declines with nothing moved behind it (#503).
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed)
             && !mouse.Flags.HasFlag(MouseFlags.PositionReport)
             && hit.OnTheThumb

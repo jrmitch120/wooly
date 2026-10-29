@@ -1,3 +1,4 @@
+using System.Globalization;
 using Tomlyn;
 using Tomlyn.Model;
 using Wooly.Core.Errors;
@@ -34,7 +35,10 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     /// <summary>Whether the TUI's rail is the hidden rail rather than the shown one (#442, #445).</summary>
     private const string HiddenRailKey = "hidden_rail";
 
-    /// <summary>How the TUI's content panel draws its scrollbar's thumb where a screen's rows don't fit, or that it draws none (#500, #501, #505).</summary>
+    /// <summary>
+    ///     How the TUI's content panel draws its scrollbar's thumb where a screen's rows don't fit, or that it draws
+    ///     none (#500, #501, #505).
+    /// </summary>
     private const string ScrollbarKey = "scrollbar";
 
     /// <summary>The theme the TUI draws in, and the themes written in this same file (#46).</summary>
@@ -372,13 +376,24 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     ///     The scrollbar's style (#505), one of <see cref="ScrollbarStyleName" />'s five spellings and nothing else — the
     ///     booleans #501 took before either was released refused with the rest.
     /// </summary>
-    private ScrollbarStyle ReadScrollbar(TomlTable preferences) =>
-        preferences.TryGetValue(ScrollbarKey, out var value)
-            ? (value is string name ? ScrollbarStyleName.Parse(name) : null)
-              ?? throw new ConfigurationException(
-                  paths.ConfigFile,
-                  $"'{ScrollbarKey}' must be one of: {ScrollbarStyleName.Accepted}.")
-            : ScrollbarStyle.Block;
+    private ScrollbarStyle ReadScrollbar(TomlTable preferences)
+    {
+        if (!preferences.TryGetValue(ScrollbarKey, out var value))
+        {
+            return ScrollbarStyle.Block;
+        }
+
+        // A boolean or a number is quoted as the file spells it, and is never one of the five words.
+        var raw = value switch
+        {
+            string name => name,
+            bool flag => flag ? "true" : "false",
+            _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty,
+        };
+
+        return ScrollbarStyleName.Parse(raw)
+               ?? throw new ConfigurationException(paths.ConfigFile, ScrollbarStyleName.Rejection(raw));
+    }
 
     private string? ReadString(TomlTable table, string key) => table.TryGetValue(key, out var value)
         ? value as string ?? throw new ConfigurationException(paths.ConfigFile, $"'{key}' must be text.")

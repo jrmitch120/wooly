@@ -1436,7 +1436,7 @@ public sealed class Shell
     {
         if (Screen is not HelpScreen)
         {
-            Push(new HelpScreen(Screen));
+            Push(new HelpScreen(Screen, scrollbar: ScrollbarStyle is not ScrollbarStyle.None));
         }
     }
 

@@ -118,7 +118,8 @@ public class ScrollbarDragTests
 
     /// <summary>
     ///     The drag holds the mouse: dragged sideways off the bar into the posts, and on out of the panel onto the status
-    ///     row, the page still follows the pointer's row, and letting go there ends it — the next click is a click, picking the post under it.
+    ///     row, the page still follows the pointer's row, and letting go there ends it — the next click is a click,
+    ///     picking the post under it.
     /// </summary>
     [Fact]
     public async Task TheDragIsKeptOffTheBarUntilLetGoAnywhere()
