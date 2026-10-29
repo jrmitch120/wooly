@@ -47,15 +47,110 @@ public class TomlConfigStoreTests : IDisposable
     }
 
     /// <summary>
-    ///     Written only when set: a reader who never asked for this should find no new line in a file nothing else
-    ///     touched.
+    ///     #506: every preference with a default is written at it, in alphabetical order, so a reader opening a file
+    ///     nobody has tuned sees each setting they can change — and only those: the three with no default stay absent.
     /// </summary>
     [Fact]
-    public void Save_OmitsHideDrawnCaptionWhenFalse()
+    public void Save_WritesEveryPreferenceWithADefaultAtItsDefault()
     {
-        NewStore().Save(new WoolyConfig { Preferences = new Preferences { HideDrawnCaption = false } });
+        NewStore().Save(WoolyConfig.Empty);
 
-        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+        Assert.Equal(
+            """
+            [preferences]
+            bell = true
+            hidden_rail = false
+            hide_drawn_caption = false
+            scrollbar = "block"
+            shell_width = 100
+
+            """,
+            File.ReadAllText(Path.Combine(_directory.Path, "config.toml")).ReplaceLineEndings("\n"));
+    }
+
+    /// <summary>
+    ///     The three with no default, once set, take their places among the rest in the same alphabetical order.
+    /// </summary>
+    [Fact]
+    public void Save_WritesEveryPreferenceInAlphabeticalOrder()
+    {
+        NewStore().Save(new WoolyConfig
+        {
+            Preferences = new Preferences
+            {
+                DefaultVisibility = PostVisibility.Unlisted, DefaultLanguage = "en", Hashtag = "dotnet",
+            },
+        });
+
+        Assert.Equal(
+            """
+            [preferences]
+            bell = true
+            default_language = "en"
+            default_visibility = "unlisted"
+            hashtag = "dotnet"
+            hidden_rail = false
+            hide_drawn_caption = false
+            scrollbar = "block"
+            shell_width = 100
+
+            """,
+            File.ReadAllText(Path.Combine(_directory.Path, "config.toml")).ReplaceLineEndings("\n"));
+    }
+
+    /// <summary>
+    ///     A file written by hand without those keys gains them on the next save, before the profiles, and means what
+    ///     it meant: every value reads back as it did.
+    /// </summary>
+    [Fact]
+    public void Save_GivesAFileWithoutThePreferencesThemAtTheirDefaults_ChangingNothingItMeans()
+    {
+        WriteConfigFile(
+            """
+            current_profile = "personal"
+
+            [preferences]
+            hashtag = "dotnet"
+            bell = false
+
+            [profiles.personal]
+            instance = "mastodon.social"
+            """);
+
+        var store = NewStore();
+        var before = store.Load();
+
+        store.Save(before);
+
+        var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
+        var preferencesAt = toml.IndexOf("[preferences]", StringComparison.Ordinal);
+        var after = store.Load();
+
+        Assert.Contains("bell = false", toml);
+        Assert.Contains("hide_drawn_caption = false", toml);
+        Assert.Contains("shell_width = 100", toml);
+        Assert.Contains("hidden_rail = false", toml);
+        Assert.Contains("scrollbar = \"block\"", toml);
+        Assert.True(preferencesAt >= 0 && preferencesAt < toml.IndexOf("[profiles", StringComparison.Ordinal));
+        Assert.Equal(before.Preferences, after.Preferences);
+        Assert.Equal(before.CurrentProfile, after.CurrentProfile);
+        Assert.Equal("mastodon.social", after.Profiles["personal"].Instance);
+    }
+
+    /// <summary>
+    ///     The visibility, language and hashtag have no default to write — absent means the server's own, or none, and
+    ///     TOML has no null — so they are written only once set.
+    /// </summary>
+    [Fact]
+    public void Save_LeavesOutThePreferencesWithNoDefaultUntilSet()
+    {
+        NewStore().Save(WoolyConfig.Empty);
+
+        var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
+
+        Assert.DoesNotContain("default_visibility", toml);
+        Assert.DoesNotContain("default_language", toml);
+        Assert.DoesNotContain("hashtag", toml);
     }
 
     /// <summary>#399: the bell is on unless the file says otherwise, with no file and with a file that leaves it out.</summary>
@@ -84,13 +179,13 @@ public class TomlConfigStoreTests : IDisposable
         Assert.False(store.Load().Preferences.Bell);
     }
 
-    /// <summary>On is what an absent key reads as, so it is not written: no new line in a file nothing else touched.</summary>
+    /// <summary>On is written as on, though an absent key reads as it too (#506).</summary>
     [Fact]
-    public void Save_OmitsTheBellWhenOn()
+    public void Save_WritesTheBellWhenOn()
     {
         NewStore().Save(new WoolyConfig { Preferences = new Preferences { Bell = true } });
 
-        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+        Assert.Contains("bell = true", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
     }
 
     [Fact]
@@ -158,12 +253,9 @@ public class TomlConfigStoreTests : IDisposable
         Assert.Equal(style, store.Load().Preferences.Scrollbar);
     }
 
-    /// <summary>
-    ///     A block is what an absent key reads as, so it is not written: no new line in a file nothing else touched — though
-    ///     the file may spell it out.
-    /// </summary>
+    /// <summary>A block is written as a block, spelled out in the file or not (#506).</summary>
     [Fact]
-    public void Save_OmitsTheScrollbarWhenABlock()
+    public void Save_WritesTheScrollbarWhenABlock()
     {
         WriteConfigFile(
             """
@@ -177,7 +269,7 @@ public class TomlConfigStoreTests : IDisposable
 
         store.Save(new WoolyConfig { Preferences = new Preferences { Scrollbar = ScrollbarStyle.Block } });
 
-        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+        Assert.Contains("scrollbar = \"block\"", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
     }
 
     /// <summary>A style set, or the bar turned off, is kept through a save of something else, as the bell is.</summary>
@@ -311,21 +403,9 @@ public class TomlConfigStoreTests : IDisposable
         Assert.False(preferences.Bell);
     }
 
-    /// <summary>
-    ///     The whole terminal is what an absent key reads as, so it is not written: a reader who never changes the width
-    ///     finds no new line in a file nothing else touched.
-    /// </summary>
+    /// <summary>Widening back to 100 writes 100, the line kept for the reader to find (#506).</summary>
     [Fact]
-    public void Save_OmitsTheShellWidthAtFull()
-    {
-        NewStore().Save(new WoolyConfig { Preferences = new Preferences { ShellWidth = 100 } });
-
-        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
-    }
-
-    /// <summary>Widening back to 100 removes the line, leaving the file the one there would be had it never changed.</summary>
-    [Fact]
-    public void Save_RemovesTheShellWidthOnceItIsBackAtFull()
+    public void Save_WritesTheShellWidthOnceItIsBackAtFull()
     {
         var store = NewStore();
 
@@ -334,7 +414,7 @@ public class TomlConfigStoreTests : IDisposable
 
         var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
 
-        Assert.DoesNotContain("shell_width", toml);
+        Assert.Contains("shell_width = 100", toml);
         Assert.Contains("hashtag = \"dotnet\"", toml);
     }
 
@@ -389,24 +469,23 @@ public class TomlConfigStoreTests : IDisposable
     }
 
     /// <summary>
-    ///     Shown is what an absent key reads as, so it is not written: showing the rail again takes the line away,
-    ///     leaving the file as it would be had the rail never been hidden.
+    ///     Shown is written as shown, and showing the rail again writes it so rather than dropping the line (#506).
     /// </summary>
     [Fact]
-    public void Save_OmitsTheRailWhenShown_AndRemovesItOnceShownAgain()
+    public void Save_WritesTheRailWhenShown_AndOnceShownAgain()
     {
         var store = NewStore();
 
         store.Save(new WoolyConfig { Preferences = new Preferences { HiddenRail = false } });
 
-        Assert.Empty(File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+        Assert.Contains("hidden_rail = false", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
 
         store.Save(new WoolyConfig { Preferences = new Preferences { Hashtag = "dotnet", HiddenRail = true } });
         store.Save(store.Load() with { Preferences = store.Load().Preferences with { HiddenRail = false } });
 
         var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
 
-        Assert.DoesNotContain("hidden_rail", toml);
+        Assert.Contains("hidden_rail = false", toml);
         Assert.Contains("hashtag = \"dotnet\"", toml);
     }
 

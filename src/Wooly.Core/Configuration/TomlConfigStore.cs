@@ -81,63 +81,33 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         }
 
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
-        if (config.Preferences is { DefaultVisibility: not null } or { DefaultLanguage: not null } or { Hashtag: not null }
-            or { HideDrawnCaption: true } or { Bell: false } or { ShellWidth: not Preferences.FullShellWidth }
-            or { HiddenRail: true } or { Scrollbar: not ScrollbarStyle.Block })
+        // Its keys go in alphabetical order, so a reader looking for one knows where it is. Every preference with a
+        // default is written, at its default too, so that a reader opening a file nobody has tuned finds each setting
+        // they can change in it (#506). The language, visibility and hashtag have none — absent is the server's own,
+        // or none, and TOML has no null — so they are written only once set.
+        var preferences = new TomlTable { [BellKey] = config.Preferences.Bell };
+
+        if (config.Preferences.DefaultLanguage is { } language)
         {
-            var preferences = new TomlTable();
-
-            if (config.Preferences.DefaultVisibility is { } visibility)
-            {
-                preferences[DefaultVisibilityKey] = PostVisibilityName.Of(visibility);
-            }
-
-            if (config.Preferences.DefaultLanguage is { } language)
-            {
-                preferences[DefaultLanguageKey] = language;
-            }
-
-            if (config.Preferences.Hashtag is { } hashtag)
-            {
-                preferences[HashtagKey] = hashtag;
-            }
-
-            // Absent rather than written as false: false is what an absent key already reads back as, and the reader
-            // who never asked for this should not find a new line in a file nothing else touched.
-            if (config.Preferences.HideDrawnCaption)
-            {
-                preferences[HideDrawnCaptionKey] = true;
-            }
-
-            // Absent rather than written as true, for the same reason the other way round: on is what an absent key
-            // reads back as (#399).
-            if (!config.Preferences.Bell)
-            {
-                preferences[BellKey] = false;
-            }
-
-            // Absent rather than written as 100, the whole terminal an absent key reads back as — so widening back to it
-            // takes the line away again (#415).
-            if (config.Preferences.ShellWidth != Preferences.FullShellWidth)
-            {
-                preferences[ShellWidthKey] = (long)config.Preferences.ShellWidth;
-            }
-
-            // Absent rather than written as false, the shown rail an absent key reads back as — so showing it again
-            // takes the line away, as widening back to the whole terminal does (#442, #445).
-            if (config.Preferences.HiddenRail)
-            {
-                preferences[HiddenRailKey] = true;
-            }
-
-            // Absent rather than written as "block", the thumb an absent key reads back as, as the bell is (#501, #505).
-            if (config.Preferences.Scrollbar is not ScrollbarStyle.Block)
-            {
-                preferences[ScrollbarKey] = ScrollbarStyleName.Of(config.Preferences.Scrollbar);
-            }
-
-            root[PreferencesKey] = preferences;
+            preferences[DefaultLanguageKey] = language;
         }
+
+        if (config.Preferences.DefaultVisibility is { } visibility)
+        {
+            preferences[DefaultVisibilityKey] = PostVisibilityName.Of(visibility);
+        }
+
+        if (config.Preferences.Hashtag is { } hashtag)
+        {
+            preferences[HashtagKey] = hashtag;
+        }
+
+        preferences[HiddenRailKey] = config.Preferences.HiddenRail;
+        preferences[HideDrawnCaptionKey] = config.Preferences.HideDrawnCaption;
+        preferences[ScrollbarKey] = ScrollbarStyleName.Of(config.Preferences.Scrollbar);
+        preferences[ShellWidthKey] = (long)config.Preferences.ShellWidth;
+
+        root[PreferencesKey] = preferences;
 
         if (config.Profiles.Count > 0)
         {
