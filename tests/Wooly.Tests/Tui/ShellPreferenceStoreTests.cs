@@ -37,9 +37,9 @@ public class ShellPreferenceStoreTests
         Assert.Equal("jeff@mastodon.social", saved.Profiles["personal"].Account);
     }
 
-    /// <summary>Widened back to the whole terminal, the line goes, leaving the file it would be had it never changed.</summary>
+    /// <summary>Widened back to the whole terminal, the line stays, at 100 (#506).</summary>
     [Fact]
-    public void SavingTheWholeTerminalTakesTheLineAway()
+    public void SavingTheWholeTerminalWritesItAtFull()
     {
         using var directory = new TemporaryDirectory();
         var paths = new WoolyPaths(directory.Path);
@@ -51,15 +51,15 @@ public class ShellPreferenceStoreTests
 
         store.SaveWidth(ShellWidth.Full);
 
-        Assert.Empty(File.ReadAllText(paths.ConfigFile));
+        Assert.Contains("shell_width = 100", File.ReadAllText(paths.ConfigFile));
     }
 
     /// <summary>
-    ///     Hiding the rail writes it beside the width, and showing it again takes the line away, leaving the width
+    ///     Hiding the rail writes it beside the width, and showing it again writes it shown (#506), leaving the width
     ///     where it was.
     /// </summary>
     [Fact]
-    public void SavingTheRailWritesItBesideTheWidth_AndShowingItTakesTheLineAway()
+    public void SavingTheRailWritesItBesideTheWidth_AndShowingItWritesItShown()
     {
         using var directory = new TemporaryDirectory();
         var paths = new WoolyPaths(directory.Path);
@@ -75,7 +75,7 @@ public class ShellPreferenceStoreTests
         store.SaveRail(RailState.Shown);
 
         var toml = File.ReadAllText(paths.ConfigFile);
-        Assert.DoesNotContain("hidden_rail", toml);
+        Assert.Contains("hidden_rail = false", toml);
         Assert.Contains("shell_width = 90", toml);
     }
 }

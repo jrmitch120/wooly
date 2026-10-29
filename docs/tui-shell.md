@@ -2561,8 +2561,8 @@ business but the reader's, so it is a setting in the same TOML file everything e
 ```toml
 [preferences]
 hashtag = "dotnet"
-hide_drawn_caption = true
 bell = false
+hide_drawn_caption = true
 shell_width = 70
 hidden_rail = true
 scrollbar = "line"
@@ -2575,15 +2575,14 @@ third (#399): `true` (the default, and what an absent key means) rings the termi
 the shell yet.
 
 `shell_width` is a fourth (#415): the **Shell width** a launch opens at, a whole number from 50 to 100 (above, "Shell
-width"). One written out of range is clamped to the nearer end rather than refused; 100 is what an absent key means, so
-it is never written, and widening back to it takes the line away. Unlike the others it has keys, `-` and `+`/`=`, and
-each step they take saves it — which rewrites the whole file, as `D` on the profiles screen does, so comments written in
-it by hand do not survive.
+width"). One written out of range is clamped to the nearer end rather than refused; 100 is what an absent key means, and
+widening back to it writes 100. Unlike the others it has keys, `-` and `+`/`=`, and each step they take saves it — which
+rewrites the whole file, as `D` on the profiles screen does, so comments written in it by hand do not survive.
 
-`hidden_rail` is a fifth (#442, #445): `true` opens a launch on the **hidden rail** (above, "Hidden rail"). `false`
-(the default, and what an absent key means) opens on the shown rail, so it is never written, and showing the rail
-again takes the line away. Anything but `true` or `false` is refused against the file, as a `shell_width` that is not a
-whole number is. Like `shell_width` it has a key, `\`, and each toggle saves it, rewriting the whole file the same way.
+`hidden_rail` is a fifth (#442, #445): `true` opens a launch on the **hidden rail** (above, "Hidden rail"). `false` (the
+default, and what an absent key means) opens on the shown rail, and showing the rail again writes `false`. Anything but
+`true` or `false` is refused against the file, as a `shell_width` that is not a whole number is. Like `shell_width` it
+has a key, `\`, and each toggle saves it, rewriting the whole file the same way.
 
 `scrollbar` is a sixth (#501, #505): how the content panel's **Scrollbar** (above) draws its thumb, or that there is
 none, one of five strings:
@@ -2597,12 +2596,20 @@ none, one of five strings:
 | `"none"` | — | no scrollbar: from the next launch the right edge is drawn as it was before, `│` the whole way down in `panel-border-active`, and answers no button, on every screen |
 
 Only the thumb's glyph differs: the track, the colours, the thumb's length and place, where the bar answers the pointer
-and the thumb's drag are the same in every style. `"block"` is never written; any other, once set, is kept through
-every save of the others, as `bell` is. Anything else — `true` and `false` among it — is refused against the file. Like
-`bell` it is read at launch, the same for every profile, and has no key in the shell.
+and the thumb's drag are the same in every style. Whichever is set is kept through every save of the others, as `bell`
+is. Anything else — `true` and `false` among it — is refused against the file. Like `bell` it is read at launch, the
+same for every profile, and has no key in the shell.
 
 With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
 rather than being a rail entry that swallows a keypress.
+
+Every save writes each preference that has a default, at its current value, the default included, and in the order of
+the example above, so a file nobody has tuned still lists every setting there is to change (#506): `bell = true`,
+`hide_drawn_caption = false`, `shell_width = 100`, `hidden_rail = false` and `scrollbar = "block"`. They are real keys
+rather than commented-out lines, because a save rewrites the whole file and a comment would not survive it. A file
+without them gains them on its next save and means what it meant, since an absent key still reads as its default — a
+`[preferences]` written by hand can leave any of them out. `hashtag`, `default_visibility` and `default_language` have
+no default to write (absent is none, or the server's own, and TOML has no null), so they are written only once set.
 
 ## Roles
 
