@@ -493,6 +493,13 @@ nothing; following a hashtag on Mastodon is a different thing, which feeds Home.
 _Avoid_: hashtag group, tag group (group is a **Rail group** or a **Notification group**), saved search, followed tags
 (Mastodon's own, a different thing)
 
+**Run** (of a **Tag set**):
+Up to four of a **Tag set**'s tags, next to each other in the order written, which the instance is asked for together:
+a set of one to four tags is one run, of five to eight two, of nine to twelve three, and the set's timeline is its
+runs' posts interleaved newest first. Said of a tag set only; the things under one heading on a screen are a
+**Section**, however loosely prose calls those a run.
+_Avoid_: batch, chunk, group (a **Rail group** or a **Notification group**), page (what one ask of a run answers with)
+
 **Hidden rail**:
 The rail put out of sight by the reader, so the content has the whole width of the shell. Its other state is the
 **shown rail**. Which one is a fact about how the reader likes the screen, so it is one for every profile and outlasts

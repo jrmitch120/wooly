@@ -223,7 +223,7 @@ shell_width = 100             # 50 to 100, a percentage of the terminal
 hidden_rail = false
 scrollbar = "block"           # block, line, left-half, right-half or none
 
-# Each tag set is a place on the TUI rail's Hashtags group: up to four tags, read as one timeline.
+# Each tag set is a place on the TUI rail's Hashtags group: up to twelve tags, read as one timeline.
 [[tag_sets]]
 name = "dotnet"
 tags = ["dotnet", "csharp", "fsharp"]
