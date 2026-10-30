@@ -43,12 +43,12 @@ executable that answers `0.1.0`.
 
 What a reader moving from one release to the next has to know, newest first.
 
-### Tag sets replace `hashtag` (#511)
+### Tag sets replace `hashtag` (#511, #512)
 
 The TUI's rail no longer keeps one place for the single tag `hashtag` named under `[preferences]`. In its place are
-**tag sets**: each a name for up to four hashtags, read as one timeline of the posts carrying any of them, and each its
-own entry in a new **Hashtags** group on the rail, between Timelines and Explore. They are written in the config file
-after `[preferences]`:
+**tag sets**: each a name for up to twelve hashtags, read as one timeline of the posts carrying any of them, and each
+its own entry in a new **Hashtags** group on the rail, between Timelines and Explore. They are written in the config
+file after `[preferences]`:
 
 ```toml
 [[tag_sets]]

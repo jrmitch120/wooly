@@ -7,8 +7,9 @@ namespace Wooly.Tests.Integration;
 
 /// <summary>
 ///     Reads a <b>Tag set</b> against the live instance (ADR-0033, #511): what a real Mastodon answers the raw tag
-///     timeline with <c>any[]</c> is the union of the set's tags — all four of a full set's, in one ask — and not the
-///     posts carrying only the path tag, nor any carrying a tag the set does not hold. The tags are this run's own, so
+///     timeline with <c>any[]</c> is the union of the set's tags — all four of a run's, in one ask, and a larger set's runs
+///     merged into one (#512) — and not the posts carrying only the path tag, nor any carrying a tag the set does not
+///     hold. The tags are this run's own, so
 ///     nothing else on the instance carries them.
 /// </summary>
 [Trait("Category", "Integration")]
@@ -16,7 +17,20 @@ namespace Wooly.Tests.Integration;
 public class TagSetReadIntegrationTests
 {
     [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
-    public async Task Read_HoldsThePostsCarryingEachOfTheSetsFourTags_AndNoOthers()
+    public Task Read_HoldsThePostsCarryingEachOfTheSetsFourTags_AndNoOthers() => ReadsTheUnionOf(tagCount: 4);
+
+    /// <summary>
+    ///     Nine tags is three runs — four, four and one — each its own ask, merged here (#512): every tag's post is
+    ///     found, and the post carrying a tag from the first run and one from the last is found by both and held once.
+    /// </summary>
+    [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
+    public Task Read_HoldsThePostsCarryingEachOfANineTagSetsTags_AndNoOthers() => ReadsTheUnionOf(tagCount: 9);
+
+    /// <summary>
+    ///     A post for each of a set of <paramref name="tagCount" /> tags, one carrying its second and its last, and one
+    ///     carrying a tag outside it: the set read back holds exactly the first lot, each once, newest first.
+    /// </summary>
+    private static async Task ReadsTheUnionOf(int tagCount)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var services = LiveInstance.NewServices();
@@ -26,7 +40,7 @@ public class TagSetReadIntegrationTests
 
         // Letters only after the run's mark, so that no tag is all digits, which Mastodon does not read as a tag.
         var run = $"ws{Guid.NewGuid():N}"[..14];
-        string[] tags = [$"{run}a", $"{run}b", $"{run}c", $"{run}d"];
+        string[] tags = [.. Enumerable.Range(0, tagCount).Select(index => $"{run}{(char)('a' + index)}")];
         var outside = $"{run}z";
         var set = TagSet.Of("integration", tags);
 
@@ -40,7 +54,7 @@ public class TagSetReadIntegrationTests
             }
 
             // One post carrying two of the set's tags, which the union holds once.
-            var both = await Publish(author, profile, $"wooly tag set test #{tags[1]} #{tags[3]}", cancellationToken);
+            var both = await Publish(author, profile, $"wooly tag set test #{tags[1]} #{tags[^1]}", cancellationToken);
             published.Add(both);
 
             // And one carrying a tag the set does not hold, which it never shows.

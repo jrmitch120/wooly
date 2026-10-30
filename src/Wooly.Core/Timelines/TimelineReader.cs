@@ -21,8 +21,9 @@ namespace Wooly.Core.Timelines;
 ///     </para>
 ///     <para>
 ///         A <b>Tag set</b> is the one timeline read around Mastonet (<see cref="RawMastodonCall" />), whose tag
-///         timeline takes one tag and no <c>any[]</c> (ADR-0033), over the same <see cref="HttpClient" /> and through
-///         the same paging loop as the rest.
+///         timeline takes one tag and no <c>any[]</c> (ADR-0033), over the same <see cref="HttpClient" />: four tags
+///         to an ask, the asks merged newest first (<see cref="MergedReading" />). There one run failing fails the
+///         read, a rate limit included, and nothing of the runs that answered is kept.
 ///     </para>
 /// </summary>
 public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpClientFactory httpClientFactory)
@@ -58,12 +59,20 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
     {
         if (timeline.Set is { } set)
         {
-            return await PagedReading.Collect(
+            // Four tags to an ask, in the order written, and the asks merged here (ADR-0033). A set of four or fewer
+            // is one run, and so one ask.
+            var runs = set.Tags
+                .Chunk(TagSet.TagsPerAsk)
+                .Select(run => (Func<ArrayOptions, Task<Page<Status>>>)(options =>
+                    RunPage(profile, run, options, cancellationToken)))
+                .ToList();
+
+            return await MergedReading.Collect(
                 limit,
                 PageSize,
-                options => SetPage(profile, set, options, cancellationToken),
+                runs,
                 status => PostWire.ToPost(status, profile),
-                status => status.Id,
+                post => post.Id,
                 cancellationToken,
                 from: from);
         }
@@ -90,14 +99,14 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
     }
 
     /// <summary>
-    ///     One page of <paramref name="set" />'s timeline in one ask: its first tag in the path, and the rest as
-    ///     <c>any[]</c>, which the instance unions with it (ADR-0033). A set holds no more tags than one ask reads
-    ///     (<see cref="TagSet.MostTags" />), so none is dropped. Every tag is one word, which is what makes the first
+    ///     One page of one run of a set's tags in one ask: its first tag in the path, and the rest as <c>any[]</c>,
+    ///     which the instance unions with it (ADR-0033). A run holds no more tags than one ask reads
+    ///     (<see cref="TagSet.TagsPerAsk" />), so none is dropped. Every tag is one word, which is what makes the first
     ///     safe to put in a path.
     /// </summary>
-    private async Task<Page<Status>> SetPage(
+    private async Task<Page<Status>> RunPage(
         ActiveProfile profile,
-        TagSet set,
+        IReadOnlyList<string> run,
         ArrayOptions options,
         CancellationToken cancellationToken)
     {
@@ -110,13 +119,13 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
 
         // The brackets unescaped, as RawMastodonCall sends id[]: an escaped name is a parameter Mastodon does not
         // answer to.
-        query.AddRange(set.Tags.Skip(1).Select(tag => $"any[]={Uri.EscapeDataString(tag)}"));
+        query.AddRange(run.Skip(1).Select(tag => $"any[]={Uri.EscapeDataString(tag)}"));
 
         using var response = await RawMastodonCall.Sent(
             httpClientFactory,
             profile,
             HttpMethod.Get,
-            $"api/v1/timelines/tag/{Uri.EscapeDataString(set.Tags[0])}?{string.Join("&", query)}",
+            $"api/v1/timelines/tag/{Uri.EscapeDataString(run[0])}?{string.Join("&", query)}",
             content: null,
             cancellationToken);
 

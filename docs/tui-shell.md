@@ -232,7 +232,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 
 | Screen | Reached by | Ticket |
 |---|---|---|
-| Feed — home, local, federated, each **Tag set** on the rail, its breadcrumb the set's name | A rail destination | #28, sets #511 |
+| Feed — home, local, federated, each **Tag set** on the rail, its breadcrumb the set's name | A rail destination | #28, sets #511, past four tags #512 |
 | Hashtag — a tag walked to, not one of the rail's sets | A search result, `⏎` on a `#hashtag` typed into search, or `⏎` on a picked hashtag reference | #29, reference #65, direct #305 |
 | Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item, or on its address typed into search | #28, ancestors #72, direct #306 |
 | Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `⏎` on a handle or profile address typed into search, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229, direct #306 |
@@ -2562,7 +2562,7 @@ token — is resolved through `IProfileRegistry` exactly as a command's scope re
 on adding a profile ("What first run settled", above).
 
 Nine of the rail's destinations are the same nine for everybody. The rest are the reader's own: one for each **Tag
-set**, a name given to between one and four hashtags and read as one timeline of the public posts carrying any of them
+set**, a name given to between one and twelve hashtags and read as one timeline of the public posts carrying any of them
 (ADR-0033). Which tags are nobody's business but the reader's, so the sets are written in the same TOML file everything
 else lives in (ADR-0003), as an ordered `[[tag_sets]]` array beside the `[preferences]`:
 
@@ -2589,17 +2589,25 @@ group at all, and no entry standing for a tag nobody has named. Arriving at a se
 to its timeline, its breadcrumb the set's name. It is the feed screen every timeline is — held for the same minute,
 `g` reads it again, it reads on near its foot and says "that's everything" when whole — and carries no unread count.
 A set of up to four tags is one ask of the instance, `/api/v1/timelines/tag/<first>?any[]=<second>&…`, newest first:
-its first tag in the path and the rest as `any[]`, which Mastodon unions with it. The sets are the same for every
-profile, each read against whichever instance is acted as, and nothing in the CLI reads one: `timeline tag` still reads
-one tag. A hashtag walked to from a post or a search opens as it always has, and is kept nowhere.
+its first tag in the path and the rest as `any[]`, which Mastodon unions with it. Mastodon reads no more than four tags
+of an ask and drops the rest without saying so, so a larger set costs one ask for every four tags — its tags cut into
+runs of four in the order written, five to eight tags two asks, nine to twelve three, never one per tag — and the runs'
+answers are interleaved here newest first, a post more than one run found shown once. Each run reads on from its own
+place, and reading on asks again only of the runs whose posts the merged list has used up; the set is whole, and says
+"that's everything", only when every run is. One run failing fails the read — arrival, read on or `g` alike — with the
+error any failed read shows, and nothing the other runs answered is kept or drawn: a merged list missing a run would
+look whole while missing posts from its middle. A run the rate limit refuses is the same, said as any read the limit
+stopped is, with nothing kept; waiting it out and reading on asks every run of that read again. The sets are the same
+for every profile, each read against whichever instance is acted as, and nothing in the CLI reads one: `timeline tag`
+still reads one tag. A hashtag walked to from a post or a search opens as it always has, and is kept nowhere.
 
 The file's rules for a set: a tag may be written `#dotnet` or `dotnet`, and is kept bare; a tag written twice in one set,
 in any case, counts once. The whole file is refused, as a `shell_width` that is not a whole number is, with a message
 naming what is wrong, for a set with no `name`, a name another set has, no `tags`, a tag that is not one word, or more
-than four tags — the most one ask reads, since Mastodon drops any past four without saying so. Sets have no key in the
-shell; they change when the file does, so the rail is fixed for a session. Every save of another preference — `-`/`+`,
-`\`, the profiles screen — writes them back exactly, in order, straight after `[preferences]`; with no sets, it writes
-no `[[tag_sets]]` at all.
+than twelve tags — three asks, so the dearest set's cost is known before it is written. Sets have no key in the shell;
+they change when the file does, so the rail is fixed for a session. Every save of another preference — `-`/`+`, `\`,
+the profiles screen — writes them back exactly, in order, straight after `[preferences]`; with no sets, it writes no
+`[[tag_sets]]` at all.
 
 The single `hashtag` preference the rail kept one place for is gone. A `hashtag = "…"` left in `[preferences]` is not
 refused and does nothing — it is not made into a set — and the next save, which rewrites the whole file, drops it; to

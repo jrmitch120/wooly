@@ -13,11 +13,17 @@ namespace Wooly.Core.Timelines;
 public sealed record TagSet
 {
     /// <summary>
-    ///     The most tags a set holds: what Mastodon's tag timeline reads in one ask (<c>TagFeed::LIMIT_PER_MODE</c>),
-    ///     the path tag and <c>any[]</c> together. The instance drops any past it without saying so, so the cap is this
-    ///     client's to keep.
+    ///     The most tags a set holds: three asks' worth of <see cref="TagsPerAsk" />, so the dearest set's cost is
+    ///     known before it is written (ADR-0033).
     /// </summary>
-    public const int MostTags = 4;
+    public const int MostTags = 12;
+
+    /// <summary>
+    ///     The most tags Mastodon's tag timeline reads in one ask (<c>TagFeed::LIMIT_PER_MODE</c>), the path tag and
+    ///     <c>any[]</c> together. The instance drops any past it without saying so, so a set of more is this client's
+    ///     to cut into runs of this many, each its own ask.
+    /// </summary>
+    public const int TagsPerAsk = 4;
 
     private TagSet(string name, IReadOnlyList<string> tags)
     {

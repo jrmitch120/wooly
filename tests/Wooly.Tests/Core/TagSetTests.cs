@@ -52,18 +52,19 @@ public class TagSetTests
         Assert.Throws<ArgumentException>(() => TagSet.Of("cats", ["cats", "big cats"]));
     }
 
+    /// <summary>Twelve tags is three asks of the instance at most, which is where the set stops (ADR-0033).</summary>
     [Fact]
-    public void Of_TakesFourTags_AndRefusesAFifth()
+    public void Of_TakesTwelveTags_AndRefusesAThirteenth()
     {
-        Assert.Equal(4, TagSet.Of("pets", ["cats", "dogs", "rabbits", "ferrets"]).Tags.Count);
-        Assert.Throws<ArgumentException>(() => TagSet.Of("pets", ["cats", "dogs", "rabbits", "ferrets", "mice"]));
+        Assert.Equal(12, TagSet.Of("many", Tags(12)).Tags.Count);
+        Assert.Throws<ArgumentException>(() => TagSet.Of("many", Tags(13)));
     }
 
     /// <summary>A repeat is dropped before the tags are counted, so writing one twice costs nothing.</summary>
     [Fact]
     public void Of_CountsTheTagsAfterTheRepeatsAreDropped()
     {
-        Assert.Equal(4, TagSet.Of("pets", ["cats", "dogs", "rabbits", "ferrets", "#cats"]).Tags.Count);
+        Assert.Equal(12, TagSet.Of("many", [.. Tags(12), "#t1"]).Tags.Count);
     }
 
     [Fact]
@@ -71,4 +72,6 @@ public class TagSetTests
     {
         Assert.Equal("the dotnet tag set", Timeline.Of(TagSet.Of("dotnet", ["dotnet"])).Description);
     }
+
+    private static string[] Tags(int count) => [.. Enumerable.Range(1, count).Select(n => $"t{n}")];
 }

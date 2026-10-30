@@ -68,6 +68,236 @@ public class TagSetReadTests
             Assert.Single(network.Requests).RequestUri?.OriginalString);
     }
 
+    /// <summary>
+    ///     Past four tags the instance would drop the rest without a word, so a set is cut into runs of four in the
+    ///     order written, each its own ask (ADR-0033).
+    /// </summary>
+    [Fact]
+    public async Task Read_AsksOnceForEveryFourTags_EachRunsFirstInThePathAndTheRestAsAny()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page()));
+
+        await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("many", Tags(12))), 20, Token);
+
+        Assert.Equal(
+            [
+                "https://mastodon.social/api/v1/timelines/tag/t1?limit=20&any[]=t2&any[]=t3&any[]=t4",
+                "https://mastodon.social/api/v1/timelines/tag/t5?limit=20&any[]=t6&any[]=t7&any[]=t8",
+                "https://mastodon.social/api/v1/timelines/tag/t9?limit=20&any[]=t10&any[]=t11&any[]=t12",
+            ],
+            Asked(network));
+    }
+
+    /// <summary>One ask for every four tags, a short last run included, and never one per tag.</summary>
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(4, 1)]
+    [InlineData(5, 2)]
+    [InlineData(8, 2)]
+    [InlineData(9, 3)]
+    [InlineData(12, 3)]
+    public async Task Read_SendsOneAskForEveryFourTags(int tags, int asks)
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page()));
+
+        await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("many", Tags(tags))), 20, Token);
+
+        Assert.Equal(asks, network.Requests.Count);
+    }
+
+    /// <summary>
+    ///     The runs interleaved newest first by id, read as the number it is — <c>1200</c> ahead of <c>999</c> — and a
+    ///     post that carries tags from both runs shown once.
+    /// </summary>
+    [Fact]
+    public async Task Read_MergesTheRunsNewestFirst_APostBothRunsFoundOnce()
+    {
+        var network = new ScriptedHttpMessageHandler(ByRun(
+            ("t1", [PageResponse(Page(PostJson("1200"), PostJson("300"), PostJson("200")))]),
+            ("t5", [PageResponse(Page(PostJson("999"), PostJson("200"), PostJson("50")))])));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("many", Tags(5))), 20, Token);
+
+        Assert.Equal(["1200", "999", "300", "200", "50"], fetch.Items.Select(post => post.Id));
+        Assert.True(fetch.IsWhole);
+    }
+
+    /// <summary>
+    ///     What a run fetched and the merge did not hand out is kept for the read on, so the read on asks only of the
+    ///     run that has nothing left — and the set is whole only once both runs are.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_AsksOnlyTheRunsWhosePostsAreUsedUp_AndIsWholeOnlyWhenEveryRunIs()
+    {
+        var network = new ScriptedHttpMessageHandler(ByRun(
+            ("t1", [
+                PageResponse(Page(PostJson("300"), PostJson("200"), PostJson("100")), nextMaxId: "100"),
+                PageResponse(Page(PostJson("90"))),
+            ]),
+            ("t5", [
+                PageResponse(Page(PostJson("250"), PostJson("50")), nextMaxId: "50"),
+                PageResponse(Page()),
+            ])));
+        var reader = NewReader(network);
+        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+
+        var first = await reader.Read(Profile, set, 3, Token);
+        var second = await reader.ReadOn(Profile, set, first.Onward!, 3, Token);
+        var askedBySecond = network.Requests.Skip(2).Select(request => request.RequestUri?.OriginalString).ToList();
+        var third = await reader.ReadOn(Profile, set, second.Onward!, 3, Token);
+
+        Assert.Equal(["300", "250", "200"], first.Items.Select(post => post.Id));
+        Assert.False(first.IsWhole);
+        Assert.Equal(["100", "90", "50"], second.Items.Select(post => post.Id));
+        Assert.Equal(
+            ["https://mastodon.social/api/v1/timelines/tag/t1?limit=2&max_id=100&any[]=t2&any[]=t3&any[]=t4"],
+            askedBySecond);
+
+        // The first run is whole now, the second not yet: it named a page behind its 50.
+        Assert.False(second.IsWhole);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/timelines/tag/t5?limit=3&max_id=50",
+            Assert.Single(network.Requests.Skip(3)).RequestUri?.OriginalString);
+        Assert.Empty(third.Items);
+        Assert.True(third.IsWhole);
+    }
+
+    /// <summary>A post handed out by one read is not handed out again when the other run reaches it on a read on.</summary>
+    [Fact]
+    public async Task ReadOn_LeavesOutAPostAnEarlierReadHandedOutFromTheOtherRun()
+    {
+        var network = new ScriptedHttpMessageHandler(ByRun(
+            ("t1", [PageResponse(Page(PostJson("300"), PostJson("200")))]),
+            ("t5", [
+                PageResponse(Page(PostJson("250")), nextMaxId: "250"),
+                PageResponse(Page(PostJson("200"), PostJson("150")), nextMaxId: "150"),
+                PageResponse(Page()),
+            ])));
+        var reader = NewReader(network);
+        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+
+        var first = await reader.Read(Profile, set, 3, Token);
+        var onward = await reader.ReadOn(Profile, set, first.Onward!, 3, Token);
+
+        Assert.Equal(["300", "250", "200"], first.Items.Select(post => post.Id));
+        Assert.Equal(["150"], onward.Items.Select(post => post.Id));
+        Assert.True(onward.IsWhole);
+    }
+
+    /// <summary>
+    ///     A merged list with a run missing would look whole while missing posts from its middle, so one run refused is
+    ///     the whole read refused, and the posts the other run answered with go nowhere (ADR-0033).
+    /// </summary>
+    [Fact]
+    public async Task Read_FailsWhole_WhenOneRunIsRefused()
+    {
+        var network = new ScriptedHttpMessageHandler(ByRun(
+            ("t1", [PageResponse(Page(PostJson("300")))]),
+            ("t5", [ScriptedHttpMessageHandler.Status(HttpStatusCode.InternalServerError)])));
+
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("many", Tags(5))), 20, Token));
+    }
+
+    /// <summary>A refresh is a read from the top again, and fails whole the same way however well the last one went.</summary>
+    [Fact]
+    public async Task Read_AgainFailsWhole_WhenOneRunIsRefusedThisTime()
+    {
+        var network = new ScriptedHttpMessageHandler(ByRun(
+            ("t1", [PageResponse(Page(PostJson("300")))]),
+            ("t5", [
+                PageResponse(Page(PostJson("250"))),
+                ScriptedHttpMessageHandler.Status(HttpStatusCode.InternalServerError),
+            ])));
+        var reader = NewReader(network);
+        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+
+        var first = await reader.Read(Profile, set, 20, Token);
+
+        Assert.Equal(["300", "250"], first.Items.Select(post => post.Id));
+        await Assert.ThrowsAsync<HttpRequestException>(() => reader.Read(Profile, set, 20, Token));
+    }
+
+    [Fact]
+    public async Task ReadOn_FailsWhole_WhenARunItAsksIsRefused()
+    {
+        var network = new ScriptedHttpMessageHandler(ByRun(
+            ("t1", [PageResponse(Page(PostJson("300"), PostJson("200")), nextMaxId: "200")]),
+            ("t5", [
+                PageResponse(Page(PostJson("250")), nextMaxId: "250"),
+                ScriptedHttpMessageHandler.Status(HttpStatusCode.InternalServerError),
+            ])));
+        var reader = NewReader(network);
+        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+
+        var first = await reader.Read(Profile, set, 2, Token);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => reader.ReadOn(Profile, set, first.Onward!, 20, Token));
+    }
+
+    /// <summary>
+    ///     A run the rate limit refuses is a run that did not answer, so nothing of the other is kept either. It is said
+    ///     as every limited read is, though — stopped by the limit rather than thrown (ADR-0006) — and goes on from
+    ///     where it started, so reading on once the limit is waited out asks both runs from the top again.
+    /// </summary>
+    [Fact]
+    public async Task Read_KeepsNothing_WhenTheRateLimitRefusesOneRun_AndReadsOnFromTheTop()
+    {
+        var network = new ScriptedHttpMessageHandler(ByRun(
+            ("t1", [PageResponse(Page(PostJson("300")))]),
+            ("t5", [RateLimited, PageResponse(Page(PostJson("250")))])));
+        var reader = NewReader(network);
+        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+
+        var fetch = await reader.Read(Profile, set, 20, Token);
+        var again = await reader.ReadOn(Profile, set, fetch.Onward!, 20, Token);
+
+        Assert.Empty(fetch.Items);
+        Assert.IsType<RateLimitedException>(fetch.StoppedBy);
+        Assert.Equal(
+            [
+                "https://mastodon.social/api/v1/timelines/tag/t1?limit=20&any[]=t2&any[]=t3&any[]=t4",
+                "https://mastodon.social/api/v1/timelines/tag/t5?limit=20",
+            ],
+            network.Requests.Skip(2).Select(request => request.RequestUri?.OriginalString).Order(StringComparer.Ordinal));
+        Assert.Equal(["300", "250"], again.Items.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     And on a read on, where it keeps nothing the read on fetched, and reads on again from where the read on it
+    ///     stopped started: the same runs asked the same thing.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_KeepsNothing_WhenTheRateLimitRefusesARun_AndReadsOnFromWhereItStarted()
+    {
+        var network = new ScriptedHttpMessageHandler(ByRun(
+            ("t1", [
+                PageResponse(Page(PostJson("300"), PostJson("200")), nextMaxId: "200"),
+                PageResponse(Page(PostJson("190"))),
+            ]),
+            ("t5", [
+                PageResponse(Page(PostJson("250")), nextMaxId: "250"),
+                RateLimited,
+                PageResponse(Page(PostJson("240"))),
+            ])));
+        var reader = NewReader(network);
+        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+
+        var first = await reader.Read(Profile, set, 2, Token);
+        var stopped = await reader.ReadOn(Profile, set, first.Onward!, 20, Token);
+        var again = await reader.ReadOn(Profile, set, stopped.Onward!, 20, Token);
+
+        Assert.Equal(["300", "250"], first.Items.Select(post => post.Id));
+        Assert.Empty(stopped.Items);
+        Assert.IsType<RateLimitedException>(stopped.StoppedBy);
+        Assert.Equal(["240", "200", "190"], again.Items.Select(post => post.Id));
+        Assert.All(
+            network.Requests.Skip(2).Take(2),
+            request => Assert.Equal(
+                "https://mastodon.social/api/v1/timelines/tag/t5?limit=20&max_id=250",
+                request.RequestUri?.OriginalString));
+    }
+
     /// <summary>Newest first, as the instance answered, and paged on as every timeline is.</summary>
     [Fact]
     public async Task ReadOn_AsksForThePageTheLastReadNamedNext_KeepingTheSetsTags()
@@ -128,6 +358,47 @@ public class TagSetReadTests
     }
 
     private static string Page(params string[] posts) => $"[{string.Join(",", posts)}]";
+
+    /// <summary>
+    ///     Answers each of a set's runs by the tag its ask puts in the path, rather than by when it is asked, since the
+    ///     runs are asked at once: each run's answers in turn, its last repeating once they run out.
+    /// </summary>
+    private static Func<HttpRequestMessage, HttpResponseMessage> ByRun(
+        params (string First, Func<HttpRequestMessage, HttpResponseMessage>[] Answers)[] runs)
+    {
+        var asked = runs.ToDictionary(run => run.First, _ => 0);
+        var counting = new Lock();
+
+        return request =>
+        {
+            var first = request.RequestUri!.AbsolutePath.Split('/')[^1];
+            var answers = runs.Single(run => run.First == first).Answers;
+            int turn;
+
+            lock (counting)
+            {
+                turn = asked[first]++;
+            }
+
+            return answers[Math.Min(turn, answers.Length - 1)](request);
+        };
+    }
+
+    /// <summary>A step answering as an instance does a profile that has spent its quota.</summary>
+    private static HttpResponseMessage RateLimited(HttpRequestMessage request) =>
+        new(HttpStatusCode.TooManyRequests)
+        {
+            Content = new StringContent("""{"error":"Too many requests"}""", Encoding.UTF8, "application/json"),
+        };
+
+    private static string[] Tags(int count) => [.. Enumerable.Range(1, count).Select(n => $"t{n}")];
+
+    /// <summary>
+    ///     What was asked of the instance, in no particular order: a set's runs are asked at once, so the order they
+    ///     arrive in is not the reader's to promise.
+    /// </summary>
+    private static List<string?> Asked(ScriptedHttpMessageHandler network) =>
+        [.. network.Requests.Select(request => request.RequestUri?.OriginalString).Order(StringComparer.Ordinal)];
 
     private static Func<HttpRequestMessage, HttpResponseMessage> PageResponse(string json, string? nextMaxId = null) =>
         _ =>

@@ -54,6 +54,22 @@ public class TomlConfigStoreTagSetTests : IDisposable
             NewStore().Load().Preferences.TagSets);
     }
 
+    /// <summary>
+    ///     More tags than one ask reads is a set too, read four to an ask (#512): every count up to twelve is taken as
+    ///     written.
+    /// </summary>
+    [Theory]
+    [InlineData(5)]
+    [InlineData(12)]
+    public void Load_TakesASetOfMoreThanFourTags_UpToTwelve(int count)
+    {
+        var tags = Enumerable.Range(1, count).Select(n => $"t{n}").ToList();
+        WriteConfigFile(
+            $"[[tag_sets]]\nname = \"many\"\ntags = [{string.Join(", ", tags.Select(tag => $"\"{tag}\""))}]\n");
+
+        Assert.Equal(tags, Assert.Single(NewStore().Load().Preferences.TagSets).Tags);
+    }
+
     [Fact]
     public void Load_MakesEachTagBare_AndDropsARepeat()
     {
@@ -78,7 +94,9 @@ public class TomlConfigStoreTagSetTests : IDisposable
     [InlineData("name = \"cats\"", "no tags")]
     [InlineData("name = \"cats\"\ntags = [\"big cats\"]", "big cats")]
     [InlineData("name = \"cats\"\ntags = [\"cats/../../accounts\"]", "cats/../../accounts")]
-    [InlineData("name = \"pets\"\ntags = [\"cats\", \"dogs\", \"rabbits\", \"ferrets\", \"mice\"]", "at most 4")]
+    [InlineData(
+        "name = \"many\"\ntags = [\"t1\", \"t2\", \"t3\", \"t4\", \"t5\", \"t6\", \"t7\", \"t8\", \"t9\", \"t10\", \"t11\", \"t12\", \"t13\"]",
+        "has 13 tags, and a set holds at most 12")]
     [InlineData("name = 7\ntags = [\"cats\"]", "'name' must be text")]
     [InlineData("name = \"cats\"\ntags = \"cats\"", "'tags' must be a list")]
     [InlineData("name = \"cats\"\ntags = [7]", "'tags' must be a list")]
