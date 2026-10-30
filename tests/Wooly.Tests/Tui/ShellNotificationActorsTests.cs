@@ -16,7 +16,7 @@ namespace Wooly.Tests.Tui;
 public class ShellNotificationActorsTests
 {
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 6;
+    private const int ToNotifications = 5;
 
     /// <summary>The height of the content region the reading-on tests say the page is, in rows.</summary>
     private const int Screenful = 20;

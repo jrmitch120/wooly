@@ -13,7 +13,7 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellChangeTests
 {
-    private const int ToNotifications = 6;
+    private const int ToNotifications = 5;
 
     private static readonly Post Mine = APost.With(id: "110", account: "jeff@mastodon.social");
 

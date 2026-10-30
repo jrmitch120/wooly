@@ -250,9 +250,9 @@ public sealed class SearchScreen : Screen
     ///     Opens whatever the search turned up and the reader picked out: an account, a hashtag's timeline, or a post.
     /// </summary>
     /// <remarks>
-    ///     A hashtag opens as a screen on the stack rather than as the rail's own hashtag destination. Which tag the
-    ///     rail keeps a place for is a setting the reader wrote down (<c>docs/tui-shell.md</c>), and a search result
-    ///     is not them changing their mind about it.
+    ///     A hashtag opens as a screen on the stack rather than as a place on the rail. Which tags the rail keeps
+    ///     places for are the tag sets the reader wrote down (<c>docs/tui-shell.md</c>), and a search result is not
+    ///     them changing their mind about them.
     /// </remarks>
     private Task OpenResult(Reach reach)
     {

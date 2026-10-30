@@ -7,7 +7,7 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     The rail as rows: the four rail groups, each a panel titled with its name and holding its destinations with
+///     The rail as rows: the rail groups, each a panel titled with its name and holding its destinations with
 ///     their unread counts, and an <c>API</c> panel at the foot holding the budget as a gauge — with the instance above
 ///     it where there are profiles to tell apart. Twenty columns, frames included, full height less the status row
 ///     (<c>docs/tui-shell.md</c>, ADR-0021).
@@ -292,6 +292,7 @@ public static class RailLines
     private static string Title(RailGroup group) => group switch
     {
         RailGroup.Timelines => "Timelines",
+        RailGroup.Hashtags => "Hashtags",
         RailGroup.Explore => "Explore",
         RailGroup.Inbox => "Inbox",
         RailGroup.You => "You",

@@ -23,7 +23,7 @@ public sealed class Rail
 
     private IDisposable? _settling;
 
-    /// <param name="destinations">The ten, in the order they are drawn.</param>
+    /// <param name="destinations">The destinations, in the order they are drawn.</param>
     /// <param name="host">What the wait is scheduled through.</param>
     /// <param name="settle">
     ///     How long the tabbing has to stop for before the selection follows the cursor. Long enough that a deliberate
@@ -50,7 +50,7 @@ public sealed class Rail
     /// <summary>How long the tabbing has to stop for before the selection follows the cursor.</summary>
     public TimeSpan Settle { get; }
 
-    /// <summary>The ten, in the order they are drawn.</summary>
+    /// <summary>The destinations, in the order they are drawn.</summary>
     public IReadOnlyList<Destination> Destinations => _destinations;
 
     /// <summary>Where the tabbing has got to, drawn as <c>▶</c>.</summary>
@@ -137,7 +137,7 @@ public sealed class Rail
     /// <summary>
     ///     Puts the rail back as it is when the shell opens, over <paramref name="destinations" />: the cursor and the
     ///     selection on the first, every count gone, and whatever the tabbing left waiting abandoned. What a switch of
-    ///     profile does to it — the ten are the same places, but their labels and counts were somebody else's (#243).
+    ///     profile does to it — the places are the same, but their labels and counts were somebody else's (#243).
     /// </summary>
     /// <remarks>Nothing is selected, since the shell opens onto the first destination itself.</remarks>
     public void Restart(IReadOnlyList<Destination> destinations)

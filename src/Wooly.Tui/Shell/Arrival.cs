@@ -173,16 +173,6 @@ public sealed class Arrival(
 
                 return Task.CompletedTask;
 
-            // A rail entry for a hashtag nobody has named has nothing to ask about, so what stands here is the line
-            // that would name one rather than an empty timeline.
-            case { Kind: DestinationKind.Hashtag, Timeline: null }:
-                Arrives?.Invoke(new NoticeScreen(
-                    "Hashtag",
-                    "No hashtag is set for the rail.",
-                    """Put hashtag = "cats" under [preferences] in your config file to keep one here."""));
-
-                return Task.CompletedTask;
-
             // The profile's own account, which is one account rather than a list of anything — standing on an empty
             // screen under the destination's own name until it arrives, as every arrival does.
             case { Kind: DestinationKind.Profile }:

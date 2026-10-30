@@ -12,7 +12,7 @@ namespace Wooly.Tests.Tui;
 public class ShellRequestTests
 {
     /// <summary>Where the rail's follow-requests destination is, counting from Home.</summary>
-    private const int ToRequests = 8;
+    private const int ToRequests = 7;
 
     [Fact]
     public async Task Step_ListsWhoIsWaitingToBeLetIn()

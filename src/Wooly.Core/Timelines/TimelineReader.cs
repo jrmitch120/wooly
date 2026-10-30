@@ -1,6 +1,8 @@
+using System.Net.Http.Json;
 using Mastonet;
 using Mastonet.Entities;
 using Wooly.Core.Accounts;
+using Wooly.Core.Http;
 using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
@@ -17,8 +19,14 @@ namespace Wooly.Core.Timelines;
 ///         carries the limit alongside it so the caller can tell a timeline cut short from one with nothing on it.
 ///         Nothing waits here — ADR-0006 leaves that choice to whichever front end is reading.
 ///     </para>
+///     <para>
+///         A <b>Tag set</b> is the one timeline read around Mastonet (<see cref="RawMastodonCall" />), whose tag
+///         timeline takes one tag and no <c>any[]</c> (ADR-0033), over the same <see cref="HttpClient" /> and through
+///         the same paging loop as the rest.
+///     </para>
 /// </summary>
-public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITimelineReader
+public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpClientFactory httpClientFactory)
+    : ITimelineReader
 {
     /// <summary>The most posts Mastodon serves from a timeline in one call, so the most there is any point asking for.</summary>
     private const int PageSize = 40;
@@ -48,6 +56,18 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
         int limit,
         CancellationToken cancellationToken)
     {
+        if (timeline.Set is { } set)
+        {
+            return await PagedReading.Collect(
+                limit,
+                PageSize,
+                options => SetPage(profile, set, options, cancellationToken),
+                status => PostWire.ToPost(status, profile),
+                status => status.Id,
+                cancellationToken,
+                from: from);
+        }
+
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
 
         // Once, before the first page rather than on each one: an address becomes an id by asking the instance
@@ -69,6 +89,44 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
             from: from);
     }
 
+    /// <summary>
+    ///     One page of <paramref name="set" />'s timeline in one ask: its first tag in the path, and the rest as
+    ///     <c>any[]</c>, which the instance unions with it (ADR-0033). A set holds no more tags than one ask reads
+    ///     (<see cref="TagSet.MostTags" />), so none is dropped. Every tag is one word, which is what makes the first
+    ///     safe to put in a path.
+    /// </summary>
+    private async Task<Page<Status>> SetPage(
+        ActiveProfile profile,
+        TagSet set,
+        ArrayOptions options,
+        CancellationToken cancellationToken)
+    {
+        List<string> query = [$"limit={options.Limit}"];
+
+        if (options.MaxId is { } maxId)
+        {
+            query.Add($"max_id={Uri.EscapeDataString(maxId)}");
+        }
+
+        // The brackets unescaped, as RawMastodonCall sends id[]: an escaped name is a parameter Mastodon does not
+        // answer to.
+        query.AddRange(set.Tags.Skip(1).Select(tag => $"any[]={Uri.EscapeDataString(tag)}"));
+
+        using var response = await RawMastodonCall.Sent(
+            httpClientFactory,
+            profile,
+            HttpMethod.Get,
+            $"api/v1/timelines/tag/{Uri.EscapeDataString(set.Tags[0])}?{string.Join("&", query)}",
+            content: null,
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+
+        var posts = await response.Content.ReadFromJsonAsync<List<Status>>(cancellationToken) ?? [];
+
+        return new Page<Status>(posts, LinkHeader.NextMaxId(response));
+    }
+
     private static Task<MastodonList<Status>> Page(
         IMastodonClient client,
         Timeline timeline,
@@ -80,6 +138,9 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory) : ITime
             TimelineScope.Local => client.GetPublicTimeline(options, local: true),
             TimelineScope.Federated => client.GetPublicTimeline(options),
             TimelineScope.Tag => client.GetTagTimeline(timeline.Hashtag!, options),
+
+            // Read raw, above, before a client is made: never here.
+            TimelineScope.TagSet => throw new InvalidOperationException("A tag set is read around Mastonet."),
 
             // Boosts left in and replies left out, which is what an account's own page shows on the web and what
             // somebody who pressed 'a' on a post is asking to see: what this account says and passes on, rather than

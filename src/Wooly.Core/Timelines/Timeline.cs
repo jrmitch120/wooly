@@ -9,11 +9,12 @@ namespace Wooly.Core.Timelines;
 /// </summary>
 public sealed record Timeline
 {
-    private Timeline(TimelineScope scope, string? hashtag = null, NamedAccount? account = null)
+    private Timeline(TimelineScope scope, string? hashtag = null, NamedAccount? account = null, TagSet? set = null)
     {
         Scope = scope;
         Hashtag = hashtag;
         Account = account;
+        Set = set;
     }
 
     /// <summary>Which of them this is.</summary>
@@ -34,6 +35,12 @@ public sealed record Timeline
     ///     amendment). Which of the two it carries is the adapter's business, not this value's.
     /// </summary>
     public NamedAccount? Account { get; }
+
+    /// <summary>
+    ///     The <b>Tag set</b> being read, or <see langword="null" /> for every other timeline. Never empty and never
+    ///     past the cap, because <see cref="TagSet.Of" /> is the only way to build one.
+    /// </summary>
+    public TagSet? Set { get; }
 
     /// <summary>The posts of the accounts this profile follows.</summary>
     public static Timeline Home { get; } = new(TimelineScope.Home);
@@ -59,6 +66,9 @@ public sealed record Timeline
 
         return new Timeline(TimelineScope.Tag, Timelines.Hashtag.Bare(hashtag));
     }
+
+    /// <summary>The public posts carrying any of <paramref name="set" />'s tags, newest first, each once.</summary>
+    public static Timeline Of(TagSet set) => new(TimelineScope.TagSet, set: set);
 
     /// <summary>The posts of the account <paramref name="account" /> names.</summary>
     /// <param name="account">
@@ -90,6 +100,7 @@ public sealed record Timeline
         TimelineScope.Local => "your instance's local timeline",
         TimelineScope.Federated => "the federated timeline",
         TimelineScope.Tag => $"the #{Hashtag} timeline",
+        TimelineScope.TagSet => $"the {Set!.Name} tag set",
         TimelineScope.Account => $"the posts of @{Account}",
         TimelineScope.Pinned => $"the pinned posts of @{Account}",
         TimelineScope.WithReplies => $"the posts and replies of @{Account}",

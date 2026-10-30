@@ -16,10 +16,10 @@ public class InboxBellTests
     private static readonly TimeSpan Minute = TimeSpan.FromSeconds(60);
 
     /// <summary>Where the rail's direct messages destination is, counting from Home.</summary>
-    private const int ToMessages = 7;
+    private const int ToMessages = 6;
 
     /// <summary>Where the rail's follow requests destination is, counting from Home.</summary>
-    private const int ToRequests = 8;
+    private const int ToRequests = 7;
 
     [Fact]
     public async Task APollRaisingTheNotificationsBadge_RingsOnce()

@@ -71,7 +71,7 @@ public sealed class Shell
     private readonly IShellHost _host;
     private readonly TimeProvider _clock;
     private readonly ShellTiming _timing;
-    private readonly string? _hashtag;
+    private readonly IReadOnlyList<TagSet> _tagSets;
 
     /// <summary>
     ///     Who this session is acting as, and everything that asks as them or holds what was read as them — which
@@ -147,7 +147,7 @@ public sealed class Shell
     ///     Who to act as — or, with nobody, what to open onto instead: adding a profile, as the only screen (#247).
     /// </param>
     /// <param name="preferences">
-    ///     The config file's preferences: the hashtag the rail keeps a place for, what compose starts on, whether a
+    ///     The config file's preferences: the tag sets the rail keeps places for, what compose starts on, whether a
     ///     rising Inbox badge rings the bell, whether the content panel draws a scrollbar, and the shell width and the
     ///     rail the launch opens at. None where the file sets none.
     /// </param>
@@ -176,7 +176,7 @@ public sealed class Shell
         _browser = browser;
         _clock = clock;
         _timing = timing;
-        _hashtag = preferences?.Hashtag;
+        _tagSets = preferences?.TagSets ?? [];
         StatusRow = new StatusRow(host.After, timing.WidthSaidFor, () => Changed?.Invoke());
         Stack = new Stacked(this);
         _drafting = new Tui.Drafting.Drafting(
@@ -192,7 +192,7 @@ public sealed class Shell
         RailState = preferences?.HiddenRail is true ? RailState.Hidden : RailState.Shown;
         ScrollbarStyle = preferences?.Scrollbar ?? ScrollbarStyle.Block;
 
-        Rail = new Rail(Destinations(opening.Profile, _hashtag), host, timing.Settle);
+        Rail = new Rail(Destinations(opening.Profile, _tagSets), host, timing.Settle);
         _badges = new InboxBadges(
             ports,
             Rail,
@@ -244,7 +244,7 @@ public sealed class Shell
     /// </summary>
     public event Action? Grew;
 
-    /// <summary>The rail: the ten destinations, the cursor, and the selection.</summary>
+    /// <summary>The rail: the destinations, the cursor, and the selection.</summary>
     public Rail Rail { get; }
 
     /// <summary>The screen on top of the stack, which is what the content region is showing.</summary>
@@ -934,8 +934,8 @@ public sealed class Shell
         switch (reference.Role)
         {
             case Role.Hashtag:
-                // The same screen and the same breadcrumb a search result for a tag opens, and the rail's own hashtag
-                // destination left alone — that is a setting the reader wrote down, not something a keypress changes.
+                // The same screen and the same breadcrumb a search result for a tag opens, and the rail's tag sets left
+                // alone — those are what the reader wrote down, not something a keypress changes.
                 return Actor.Arrival.Open(new Subject.Tag(reference.Text.TrimStart('#')));
 
             case Role.Mention:
@@ -1671,7 +1671,7 @@ public sealed class Shell
         _instance = RailInstance();
         _quotaBeforeSwitch = _ports.RateLimit.For(next);
 
-        Rail.Restart(Destinations(next, _hashtag));
+        Rail.Restart(Destinations(next, _tagSets));
         Reset(new FeedScreen(Rail.Showing, []));
 
         _ = Open();
@@ -1761,16 +1761,19 @@ public sealed class Shell
     private static AddProfileScreen SigningIn(ProfileSummary? again, string? why) =>
         again is null ? new AddProfileScreen(alone: true) : AddProfileScreen.Again(again, why, alone: true);
 
-    /// <summary>The ten, in the order the rail draws them: its groups' order (ADR-0021).</summary>
-    private static IReadOnlyList<Destination> Destinations(ActiveProfile? profile, string? hashtag) =>
+    /// <summary>
+    ///     The nine everybody has and one for each of the reader's tag sets, in the order the rail draws them: its
+    ///     groups' order (ADR-0021, ADR-0033), the sets in the order the file wrote them.
+    /// </summary>
+    private static IReadOnlyList<Destination> Destinations(ActiveProfile? profile, IReadOnlyList<TagSet> tagSets) =>
     [
         new(DestinationKind.Home, "Home", Timeline.Home),
         new(DestinationKind.Local, "Local", Timeline.Local),
         new(DestinationKind.Federated, "Federated", Timeline.Federated),
-        new(
-            DestinationKind.Hashtag,
-            hashtag is null ? "Hashtag" : $"#{hashtag}",
-            hashtag is null ? null : Timeline.Tag(hashtag)),
+
+        // Called by the set's name whole: clipped where the rail draws it, so that two long names sharing a start
+        // stay two destinations (#510).
+        .. tagSets.Select(set => new Destination(DestinationKind.TagSet, set.Name, Timeline.Of(set))),
 
         // Discover, the only entry the rail has ever grown by (ADR-0019), leads Explore: the tools you go looking with,
         // ahead of the Inbox that comes to you (ADR-0021).

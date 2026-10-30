@@ -126,7 +126,7 @@ public abstract class StackContract : IDisposable
     private protected abstract Task<Rig> Built();
 
     /// <summary>A screen that is about nothing, called <paramref name="crumb" />.</summary>
-    private static FeedScreen Screen(string crumb) => new(new Destination(DestinationKind.Hashtag, crumb), []);
+    private static FeedScreen Screen(string crumb) => new(crumb, []);
 
     /// <summary>A compose opened through drafting, with <paramref name="file" /> dropped on it and going up.</summary>
     private ComposeScreen Composing(Rig rig, string file)

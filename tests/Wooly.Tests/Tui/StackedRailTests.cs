@@ -1,5 +1,6 @@
 using Terminal.Gui.Input;
 using Wooly.Core.Http;
+using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -28,8 +29,8 @@ public class StackedRailTests
     }
 
     /// <summary>
-    ///     At 80×24 the rail has 23 rows, one more than framing every group needs: each group is a panel, and the API
-    ///     panel sits on the row above the status row.
+    ///     At 80×24 with no tag sets the rail has 23 rows, two more than framing every group needs: each group is a
+    ///     panel, and the API panel sits on the row above the status row.
     /// </summary>
     [Fact]
     public async Task AtEightyByTwentyFourEveryGroupIsFramed()
@@ -40,12 +41,44 @@ public class StackedRailTests
 
         Assert.Equal("╭ Timelines ───────╮", rail[0]);
         Assert.Equal("│▶ Home            │", rail[1]);
-        Assert.Equal("╭ Explore ─────────╮", rail[6]);
-        Assert.Equal("╭ Inbox ───────────╮", rail[10]);
-        Assert.Equal("╭ You ─────────────╮", rail[15]);
+        Assert.Equal("╭ Explore ─────────╮", rail[5]);
+        Assert.Equal("╭ Inbox ───────────╮", rail[9]);
+        Assert.Equal("╭ You ─────────────╮", rail[14]);
         Assert.Equal("╭ API ─────────────╮", rail[20]);
         // The toggle's mark just inside the corner, the shell's bottom-left (#445).
         Assert.Equal("╰«─────────────────╯", rail[22]);
+        Assert.DoesNotContain(rail, row => row.Contains("Hashtags", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     A tag set takes its group's three rows and one of its own, so at 80×25 a rail with one set is framed, the
+    ///     Hashtags panel between Timelines and Explore.
+    /// </summary>
+    [Fact]
+    public async Task AtEightyByTwentyFiveWithOneTagSetEveryGroupIsFramed()
+    {
+        using var drawn = await Draw(80, 25, Themes.Plain, new AShell { TagSets = [TagSet.Of("dotnet", ["dotnet"])] });
+
+        var rail = drawn.Rail();
+
+        Assert.Equal("╭ Timelines ───────╮", rail[0]);
+        Assert.Equal("╭ Hashtags ────────╮", rail[5]);
+        Assert.Equal("│  dotnet          │", rail[6]);
+        Assert.Equal("╭ Explore ─────────╮", rail[8]);
+        Assert.Equal("╭ API ─────────────╮", rail[21]);
+    }
+
+    /// <summary>And at 80×24 the one set makes the rail compact, which ADR-0033 accepts.</summary>
+    [Fact]
+    public async Task AtEightyByTwentyFourOneTagSetMakesTheRailCompact()
+    {
+        using var drawn = await Draw(80, 24, Themes.Plain, new AShell { TagSets = [TagSet.Of("dotnet", ["dotnet"])] });
+
+        var rail = drawn.Rail();
+
+        Assert.Equal("Hashtags", rail[4].TrimEnd());
+        Assert.Equal("  dotnet", rail[5].TrimEnd());
+        Assert.DoesNotContain(rail, row => row.Contains('╭', StringComparison.Ordinal));
     }
 
     /// <summary>On a terminal too short to frame them, the groups are headings rather than panels.</summary>
@@ -100,8 +133,8 @@ public class StackedRailTests
 
         Assert.Equal(0, drawn.Shell.Rail.Current);
         Assert.Equal(Themes.Dark.For(Role.PanelBorder), drawn.Cell(0, 0));
-        Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(6, 0));
-        Assert.Equal(Themes.Dark.For(Role.RailCursor), drawn.Cell(7, 1));
+        Assert.Equal(Themes.Dark.For(Role.PanelBorderActive), drawn.Cell(5, 0));
+        Assert.Equal(Themes.Dark.For(Role.RailCursor), drawn.Cell(6, 1));
     }
 
     /// <summary>
@@ -113,7 +146,8 @@ public class StackedRailTests
     [InlineData(false)]
     public async Task SixQuickTabsAreOneSelectionAndOneFetch(bool colour)
     {
-        var built = new AShell();
+        // With a tag set, so that six tabs from Home are Notifications.
+        var built = new AShell { TagSets = [TagSet.Of("dotnet", ["dotnet"])] };
 
         using var drawn = await Draw(80, 24, colour ? Themes.Dark : Themes.Plain, built);
 

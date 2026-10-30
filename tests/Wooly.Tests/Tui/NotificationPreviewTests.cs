@@ -15,7 +15,7 @@ namespace Wooly.Tests.Tui;
 public class NotificationPreviewTests
 {
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 6;
+    private const int ToNotifications = 5;
 
     /// <summary>Long enough to wrap past two rows at any width these tests draw at.</summary>
     private const string Wordy =

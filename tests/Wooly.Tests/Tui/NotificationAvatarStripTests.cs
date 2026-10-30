@@ -17,7 +17,7 @@ namespace Wooly.Tests.Tui;
 public class NotificationAvatarStripTests
 {
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 6;
+    private const int ToNotifications = 5;
 
     /// <summary>
     ///     The strip stands between the names line and the post, and wants each actor's face in the order the instance

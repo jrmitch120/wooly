@@ -129,7 +129,7 @@ public class ShellSearchTests
 
         Assert.Equal("cats", shell.Timelines.Reads[^1].Timeline.Hashtag);
         Assert.Equal("Search cats › #cats", opened.Breadcrumb);
-        Assert.Equal("Hashtag", opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Hashtag).Label);
+        Assert.DoesNotContain(opened.Rail.Destinations, place => place.Kind == DestinationKind.TagSet);
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ public class ShellSearchTests
         Assert.Equal("cats", shell.Timelines.Reads[^1].Timeline.Hashtag);
         Assert.IsType<FeedScreen>(opened.Screen);
         Assert.Equal("Search › #cats", opened.Breadcrumb);
-        Assert.Equal("Hashtag", opened.Rail.Destinations.First(place => place.Kind == DestinationKind.Hashtag).Label);
+        Assert.DoesNotContain(opened.Rail.Destinations, place => place.Kind == DestinationKind.TagSet);
     }
 
     /// <summary>

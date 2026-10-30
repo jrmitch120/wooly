@@ -663,16 +663,17 @@ public class TimelineCommandTests : IDisposable
     }
 
     /// <summary>
-    ///     Every timeline a profile can read is reachable from this branch and written under a name no other shares. The
-    ///     last two scopes added were neither, at first: the writer threw on both, so every <c>--json</c> account read
-    ///     would have crashed (#185). A scope added without a way here fails this rather than a user's script.
+    ///     Every timeline a profile can read is reachable from this branch and written under a name no other shares.
+    ///     The last two scopes added were neither, at first: the writer threw on both, so every <c>--json</c> account
+    ///     read would have crashed (#185). A scope added without a way here fails this rather than a user's script. A
+    ///     tag set is the one left out: it is the TUI's alone, and no command reads one (ADR-0033).
     /// </summary>
     [Fact]
     public void Timeline_WritesEveryTimelineAProfileCanReadUnderANameOfItsOwn()
     {
         AddProfile();
 
-        var names = Enum.GetValues<TimelineScope>().Select(scope =>
+        var names = Enum.GetValues<TimelineScope>().Where(scope => scope != TimelineScope.TagSet).Select(scope =>
         {
             var run = Run([.. CommandFor(scope), "--json"]);
 

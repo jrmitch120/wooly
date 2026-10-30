@@ -2,7 +2,9 @@ using Wooly.Core.Timelines;
 
 namespace Wooly.Tui.Shell;
 
-/// <summary>Which of the rail's ten places this is.</summary>
+/// <summary>
+///     Which of the rail's places this is: one of the nine everybody has, or one of the reader's tag sets.
+/// </summary>
 public enum DestinationKind
 {
     /// <summary>The posts of the accounts this profile follows.</summary>
@@ -14,8 +16,11 @@ public enum DestinationKind
     /// <summary>The public posts reaching this instance from everywhere it federates with.</summary>
     Federated,
 
-    /// <summary>The public posts carrying the tag the reader keeps a place for.</summary>
-    Hashtag,
+    /// <summary>
+    ///     The public posts carrying any of one of the reader's <b>Tag set</b>s' tags (ADR-0033): one destination per
+    ///     set, so the one kind the rail can hold any number of, or none.
+    /// </summary>
+    TagSet,
 
     /// <summary>Who the instance offers this profile to follow, in sections by why it is offering them.</summary>
     Discover,
@@ -37,13 +42,19 @@ public enum DestinationKind
 }
 
 /// <summary>
-///     Which of the four rail groups a destination is drawn in, by what it is for (GLOSSARY.md, ADR-0021). The rail's
-///     order is the groups' order, which is this one.
+///     Which of the five rail groups a destination is drawn in, by what it is for (GLOSSARY.md, ADR-0021, ADR-0033).
+///     The rail's order is the groups' order, which is this one.
 /// </summary>
 public enum RailGroup
 {
-    /// <summary>What you read: Home, Local, Federated and Hashtag.</summary>
+    /// <summary>What you read: Home, Local and Federated.</summary>
     Timelines,
+
+    /// <summary>
+    ///     The reader's tag sets, in the order they wrote them, never carrying an unread count — and not drawn at all
+    ///     where there are none, a group being the run of its destinations.
+    /// </summary>
+    Hashtags,
 
     /// <summary>What you go looking with: Discover and Search, neither of which ever carries an unread count.</summary>
     Explore,
@@ -62,9 +73,11 @@ public enum RailGroup
 ///     many unread things are waiting there.
 /// </summary>
 /// <remarks>
-///     Four of the ten open onto a timeline, one onto an account, and the other five onto a list of their own. Nine of
-///     them were listed here from the start, before four of them had a screen — deliberately, because the rail's shape
-///     is what #28 settled, and a rail that grows four entries later is a different rail.
+///     Three of the nine everybody has open onto a timeline, one onto an account, and the other five onto a list of
+///     their own; every tag set opens onto a timeline too. The fixed ones were listed here from the start, before four
+///     of them had a screen — deliberately, because the rail's shape is what #28 settled, and a rail that grows four
+///     entries later is a different rail. The reader's tag sets are the rule broken on purpose (ADR-0033): what is on
+///     the rail is partly theirs to write, and changes only when the config file does.
 ///     <para>
 ///         <see cref="DestinationKind.Discover" /> is the one entry the rail has ever grown by, and it was argued for
 ///         on those terms rather than added to the list (ADR-0014's amendment, ADR-0019): what earned it is that the
@@ -72,7 +85,7 @@ public enum RailGroup
 ///         an eleventh entry here (#171).
 ///     </para>
 /// </remarks>
-/// <param name="Kind">Which of the ten this is.</param>
+/// <param name="Kind">Which of the rail's kinds this is.</param>
 /// <param name="Label">What it is called on the rail.</param>
 /// <param name="Timeline">
 ///     The timeline arriving here reads, or <see langword="null" /> for a destination that reads something else or
@@ -104,8 +117,8 @@ public sealed record Destination(DestinationKind Kind, string Label, Timeline? T
     /// <summary>The rail group this is drawn in, which follows from what it is and nothing else.</summary>
     public RailGroup Group => Kind switch
     {
-        DestinationKind.Home or DestinationKind.Local or DestinationKind.Federated or DestinationKind.Hashtag =>
-            RailGroup.Timelines,
+        DestinationKind.Home or DestinationKind.Local or DestinationKind.Federated => RailGroup.Timelines,
+        DestinationKind.TagSet => RailGroup.Hashtags,
         DestinationKind.Discover or DestinationKind.Search => RailGroup.Explore,
         DestinationKind.Notifications or DestinationKind.Messages or DestinationKind.Requests => RailGroup.Inbox,
         DestinationKind.Profile => RailGroup.You,

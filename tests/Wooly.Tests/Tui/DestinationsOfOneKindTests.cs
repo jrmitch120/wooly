@@ -9,16 +9,18 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     Two destinations of one kind on the rail, each told apart by being itself rather than by its kind (#510): what
-///     the rail goes to, what the cache holds and which reads are in flight are each its own. Two hashtag destinations
-///     stand in for what will be two tag sets (#509).
+///     the rail goes to, what the cache holds and which reads are in flight are each its own — two tag sets, the one
+///     kind the rail holds more than one of (#511).
 /// </summary>
 public class DestinationsOfOneKindTests
 {
     private static readonly Destination Home = new(DestinationKind.Home, "Home", Timeline.Home);
 
-    private static readonly Destination Cats = new(DestinationKind.Hashtag, "#cats", Timeline.Tag("cats"));
+    private static readonly Destination Cats =
+        new(DestinationKind.TagSet, "cats", Timeline.Of(TagSet.Of("cats", ["cats", "kittens"])));
 
-    private static readonly Destination Dogs = new(DestinationKind.Hashtag, "#dogs", Timeline.Tag("dogs"));
+    private static readonly Destination Dogs =
+        new(DestinationKind.TagSet, "dogs", Timeline.Of(TagSet.Of("dogs", ["dogs", "puppies"])));
 
     /// <summary>Going to the second of two of a kind lands on it, and not on the first.</summary>
     [Fact]
@@ -32,7 +34,7 @@ public class DestinationsOfOneKindTests
 
         Assert.Equal(2, rail.Cursor);
         Assert.Equal(2, rail.Current);
-        Assert.Equal("#dogs", Assert.Single(selected).Label);
+        Assert.Equal("dogs", Assert.Single(selected).Label);
     }
 
     /// <summary>A destination is the same destination whatever its badge says, so going to it finds it anyway.</summary>
@@ -72,7 +74,7 @@ public class DestinationsOfOneKindTests
         arriving.At(Cats);
         arriving.At(Dogs);
 
-        Assert.Equal(["cats", "dogs"], arriving.Fakes.Timelines.Reads.Select(read => read.Timeline.Hashtag));
+        Assert.Equal(["cats", "dogs"], arriving.Fakes.Timelines.Reads.Select(read => read.Timeline.Set?.Name));
         Assert.Equal("dogs-post", Assert.Single(arriving.Showing.Posts).Id);
 
         arriving.At(Cats);
@@ -92,7 +94,7 @@ public class DestinationsOfOneKindTests
         arriving.Again(Dogs);
         arriving.At(Cats);
 
-        Assert.Equal(["cats", "dogs", "dogs"], arriving.Fakes.Timelines.Reads.Select(read => read.Timeline.Hashtag));
+        Assert.Equal(["cats", "dogs", "dogs"], arriving.Fakes.Timelines.Reads.Select(read => read.Timeline.Set?.Name));
     }
 
     /// <summary>A list read in flight is said to be the destination's it is reading, not its kind's.</summary>
@@ -108,8 +110,8 @@ public class DestinationsOfOneKindTests
         arriving.At(Cats);
         arriving.At(Dogs);
 
-        Assert.Equal(["#cats", "#dogs"], reading.Select(destination => destination.Label));
-        Assert.Equal(["#cats", "#dogs"], read.Select(destination => destination.Label));
+        Assert.Equal(["cats", "dogs"], reading.Select(destination => destination.Label));
+        Assert.Equal(["cats", "dogs"], read.Select(destination => destination.Label));
     }
 
     /// <summary>
@@ -138,7 +140,7 @@ public class DestinationsOfOneKindTests
         public Arriving()
         {
             Fakes.Timelines = FakeTimelineReader.Answering(timeline =>
-                Fetch<Post>.Complete([APost.With(id: $"{timeline.Hashtag}-post")]));
+                Fetch<Post>.Complete([APost.With(id: $"{timeline.Set?.Name}-post")]));
 
             var rail = new Rail([Home, Cats, Dogs], Fakes.Host, TimeSpan.Zero);
             var enquiry = new Enquiry(

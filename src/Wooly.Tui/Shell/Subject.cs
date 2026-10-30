@@ -91,8 +91,8 @@ public abstract record Subject
     internal virtual Screen? Placeholder(Move move, ActiveProfile profile) => null;
 
     /// <summary>
-    ///     One of the rail's destinations that reads a list: the four timelines, notifications, direct messages,
-    ///     follow requests and Discover.
+    ///     One of the rail's destinations that reads a list: the timelines and tag sets, notifications, direct
+    ///     messages, follow requests and Discover.
     /// </summary>
     /// <remarks>
     ///     Told apart by the rail's own entry, which is what it is read and drawn with — the timeline a hashtag
@@ -169,8 +169,8 @@ public abstract record Subject
         {
             var entry = Entry;
 
-            // The four timeline destinations are one read with a different timeline in it, and which timeline that is
-            // the entry already says — so there is one arm here rather than four saying the same thing about a
+            // The timeline destinations and the tag sets are one read with a different timeline in it, and which that
+            // is the entry already says — so there is one arm here rather than four saying the same thing about a
             // different scope.
             if (entry.Timeline is { } timeline)
             {
@@ -739,9 +739,8 @@ public abstract record Subject
     }
 
     /// <summary>
-    ///     A hashtag's timeline walked to from a search or a reference, as a screen on the stack — the rail's own
-    ///     hashtag destination left alone, that being a setting the reader wrote down rather than something a keypress
-    ///     changes.
+    ///     A hashtag's timeline walked to from a search or a reference, as a screen on the stack and kept nowhere — the
+    ///     rail's tag sets left alone, those being what the reader wrote down rather than something a keypress changes.
     /// </summary>
     /// <param name="Hashtag">Which tag, as it was named.</param>
     public sealed record Tag(string Hashtag) : Subject
@@ -760,16 +759,14 @@ public abstract record Subject
             var tag = Timeline.Tag(Hashtag);
             var posts = await ask.Of(token => ports.Timelines.Read(profile, tag, Arrival.PostsWanted, token));
 
-            // A destination of its own rather than the rail's, so that the breadcrumb says which tag this is without
-            // the rail's own hashtag entry changing under a reader who did not ask it to.
-            var showing = new Entry(DestinationKind.Hashtag, $"#{Hashtag}", tag);
-
+            // No destination of the rail's: the breadcrumb says which tag this is, and nothing on the rail changes
+            // under a reader who did not ask it to.
             return new Found.Drawn(() => new FeedScreen(
-                showing,
+                $"#{Hashtag}",
                 posts.Items,
                 Arrival.Emptiness(posts.Items.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy))
             {
-                // Read on as the rail's own hashtag is, being the same timeline walked to another way (#464).
+                // Read on as the rail's own timelines are, being a timeline walked to another way (#464).
                 ReadingOn = new ReadingOn(posts.Onward),
             });
         }
@@ -867,8 +864,8 @@ public abstract record Subject
         });
 
     /// <summary>
-    ///     How <paramref name="timeline" /> reads on: the rail's four timelines, a hashtag walked to and an account's
-    ///     posts alike, whichever screen is showing it (#464).
+    ///     How <paramref name="timeline" /> reads on: the rail's timelines and tag sets, a hashtag walked to and an
+    ///     account's posts alike, whichever screen is showing it (#464).
     /// </summary>
     private static OnwardRead<Post> TimelineReadsOn(Timeline timeline) =>
         new((ports, profile, from, token) =>
