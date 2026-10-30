@@ -168,7 +168,7 @@ public class RailLinesTests
 
     /// <summary>A tag set's destination, called <paramref name="name" />.</summary>
     private static Destination Set(string name) =>
-        new(DestinationKind.TagSet, name, Timeline.Of(TagSet.Of(name, ["cats"])));
+        new(DestinationKind.TagSet, name, Timeline.AnyOf(TagSet.Of(name, ["cats"])));
 
     /// <summary>
     ///     Framed, the rail is the five groups top to bottom, each titled with its name and holding its destinations in
@@ -545,7 +545,7 @@ public class RailLinesTests
     public void Of_PadsARailEntryToTheRailsColumnsWhateverItsLabelIsWrittenIn(string label, bool coloured)
     {
         var rail = new Rail(
-            [new Destination(DestinationKind.TagSet, label, Timeline.Of(TagSet.Of(label, ["cats"])))],
+            [new Destination(DestinationKind.TagSet, label, Timeline.AnyOf(TagSet.Of(label, ["cats"])))],
             new FakeShellHost(),
             TimeSpan.FromMilliseconds(250));
 

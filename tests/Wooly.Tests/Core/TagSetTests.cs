@@ -28,8 +28,8 @@ public class TagSetTests
         Assert.NotEqual(TagSet.Of("dotnet", ["dotnet", "csharp"]), TagSet.Of("dotnet", ["csharp", "dotnet"]));
         Assert.NotEqual(TagSet.Of("dotnet", ["dotnet"]), TagSet.Of("csharp", ["dotnet"]));
         Assert.Equal(
-            Timeline.Of(TagSet.Of("dotnet", ["dotnet", "csharp"])),
-            Timeline.Of(TagSet.Of("dotnet", ["dotnet", "csharp"])));
+            Timeline.AnyOf(TagSet.Of("dotnet", ["dotnet", "csharp"])),
+            Timeline.AnyOf(TagSet.Of("dotnet", ["dotnet", "csharp"])));
     }
 
     [Theory]
@@ -70,7 +70,7 @@ public class TagSetTests
     [Fact]
     public void ATimelineOfASet_IsDescribedByTheSetsName()
     {
-        Assert.Equal("the dotnet tag set", Timeline.Of(TagSet.Of("dotnet", ["dotnet"])).Description);
+        Assert.Equal("the dotnet tag set", Timeline.AnyOf(TagSet.Of("dotnet", ["dotnet"])).Description);
     }
 
     private static string[] Tags(int count) => [.. Enumerable.Range(1, count).Select(n => $"t{n}")];

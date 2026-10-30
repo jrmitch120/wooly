@@ -34,7 +34,7 @@ public class TagSetReadTests
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
         var dotnet = TagSet.Of("dotnet", ["dotnet", "csharp", "fsharp"]);
 
-        var fetch = await NewReader(network).Read(Profile, Timeline.Of(dotnet), 20, Token);
+        var fetch = await NewReader(network).Read(Profile, Timeline.AnyOf(dotnet), 20, Token);
 
         var request = Assert.Single(network.Requests);
         Assert.Equal(
@@ -49,7 +49,7 @@ public class TagSetReadTests
     {
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
 
-        await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("cats", ["cats"])), 20, Token);
+        await NewReader(network).Read(Profile, Timeline.AnyOf(TagSet.Of("cats", ["cats"])), 20, Token);
 
         Assert.Equal(
             "https://mastodon.social/api/v1/timelines/tag/cats?limit=20",
@@ -62,7 +62,7 @@ public class TagSetReadTests
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
         var set = TagSet.Of("pets", ["cats", "dogs", "rabbits", "ferrets"]);
 
-        await NewReader(network).Read(Profile, Timeline.Of(set), 20, Token);
+        await NewReader(network).Read(Profile, Timeline.AnyOf(set), 20, Token);
 
         Assert.Equal(
             "https://mastodon.social/api/v1/timelines/tag/cats?limit=20&any[]=dogs&any[]=rabbits&any[]=ferrets",
@@ -78,7 +78,7 @@ public class TagSetReadTests
     {
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page()));
 
-        await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("many", Tags(12))), 20, Token);
+        await NewReader(network).Read(Profile, Timeline.AnyOf(TagSet.Of("many", Tags(12))), 20, Token);
 
         Assert.Equal(
             [
@@ -101,7 +101,7 @@ public class TagSetReadTests
     {
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page()));
 
-        await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("many", Tags(tags))), 20, Token);
+        await NewReader(network).Read(Profile, Timeline.AnyOf(TagSet.Of("many", Tags(tags))), 20, Token);
 
         Assert.Equal(asks, network.Requests.Count);
     }
@@ -117,7 +117,7 @@ public class TagSetReadTests
             ("t1", [PageResponse(Page(PostJson("1200"), PostJson("300"), PostJson("200")))]),
             ("t5", [PageResponse(Page(PostJson("999"), PostJson("200"), PostJson("50")))])));
 
-        var fetch = await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("many", Tags(5))), 20, Token);
+        var fetch = await NewReader(network).Read(Profile, Timeline.AnyOf(TagSet.Of("many", Tags(5))), 20, Token);
 
         Assert.Equal(["1200", "999", "300", "200", "50"], fetch.Items.Select(post => post.Id));
         Assert.True(fetch.IsWhole);
@@ -140,7 +140,7 @@ public class TagSetReadTests
                 PageResponse(Page()),
             ])));
         var reader = NewReader(network);
-        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+        var set = Timeline.AnyOf(TagSet.Of("many", Tags(5)));
 
         var first = await reader.Read(Profile, set, 3, Token);
         var second = await reader.ReadOn(Profile, set, first.Onward!, 3, Token);
@@ -176,7 +176,7 @@ public class TagSetReadTests
                 ("t1", [PageResponse(Page(PostJson("300"), PostJson("200")), nextMaxId: "200")]),
                 ("t5", [PageResponse(Page(PostJson("250")), nextMaxId: secondRunNext)])));
 
-            return (await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("many", Tags(5))), 2, Token)).Onward!;
+            return (await NewReader(network).Read(Profile, Timeline.AnyOf(TagSet.Of("many", Tags(5))), 2, Token)).Onward!;
         }
 
         var one = await OnwardOf("250");
@@ -198,10 +198,10 @@ public class TagSetReadTests
         var network = new ScriptedHttpMessageHandler(
             PageResponse(Page(PostJson("200"), PostJson("199")), nextMaxId: "199"));
         var reader = NewReader(network);
-        var one = await reader.Read(Profile, Timeline.Of(TagSet.Of("cats", ["cats"])), 2, Token);
+        var one = await reader.Read(Profile, Timeline.AnyOf(TagSet.Of("cats", ["cats"])), 2, Token);
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            reader.ReadOn(Profile, Timeline.Of(TagSet.Of("many", Tags(5))), one.Onward!, 20, Token));
+            reader.ReadOn(Profile, Timeline.AnyOf(TagSet.Of("many", Tags(5))), one.Onward!, 20, Token));
     }
 
     /// <summary>A post handed out by one read is not handed out again when the other run reaches it on a read on.</summary>
@@ -216,7 +216,7 @@ public class TagSetReadTests
                 PageResponse(Page()),
             ])));
         var reader = NewReader(network);
-        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+        var set = Timeline.AnyOf(TagSet.Of("many", Tags(5)));
 
         var first = await reader.Read(Profile, set, 3, Token);
         var onward = await reader.ReadOn(Profile, set, first.Onward!, 3, Token);
@@ -238,7 +238,7 @@ public class TagSetReadTests
             ("t5", [ScriptedHttpMessageHandler.Status(HttpStatusCode.InternalServerError)])));
 
         await Assert.ThrowsAsync<HttpRequestException>(() =>
-            NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("many", Tags(5))), 20, Token));
+            NewReader(network).Read(Profile, Timeline.AnyOf(TagSet.Of("many", Tags(5))), 20, Token));
     }
 
     /// <summary>A refresh is a read from the top again, and fails whole the same way however well the last one went.</summary>
@@ -252,7 +252,7 @@ public class TagSetReadTests
                 ScriptedHttpMessageHandler.Status(HttpStatusCode.InternalServerError),
             ])));
         var reader = NewReader(network);
-        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+        var set = Timeline.AnyOf(TagSet.Of("many", Tags(5)));
 
         var first = await reader.Read(Profile, set, 20, Token);
 
@@ -270,7 +270,7 @@ public class TagSetReadTests
                 ScriptedHttpMessageHandler.Status(HttpStatusCode.InternalServerError),
             ])));
         var reader = NewReader(network);
-        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+        var set = Timeline.AnyOf(TagSet.Of("many", Tags(5)));
 
         var first = await reader.Read(Profile, set, 2, Token);
 
@@ -290,7 +290,7 @@ public class TagSetReadTests
             ("t1", [PageResponse(Page(PostJson("300")))]),
             ("t5", [RateLimited, PageResponse(Page(PostJson("250")))])));
         var reader = NewReader(network);
-        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+        var set = Timeline.AnyOf(TagSet.Of("many", Tags(5)));
 
         var fetch = await reader.Read(Profile, set, 20, Token);
         var again = await reader.ReadOn(Profile, set, fetch.Onward!, 20, Token);
@@ -324,7 +324,7 @@ public class TagSetReadTests
                 PageResponse(Page(PostJson("240"))),
             ])));
         var reader = NewReader(network);
-        var set = Timeline.Of(TagSet.Of("many", Tags(5)));
+        var set = Timeline.AnyOf(TagSet.Of("many", Tags(5)));
 
         var first = await reader.Read(Profile, set, 2, Token);
         var stopped = await reader.ReadOn(Profile, set, first.Onward!, 20, Token);
@@ -349,7 +349,7 @@ public class TagSetReadTests
             PageResponse(Page(PostJson("200"), PostJson("199")), nextMaxId: "199"),
             PageResponse(Page(PostJson("150"))));
         var reader = NewReader(network);
-        var set = Timeline.Of(TagSet.Of("dotnet", ["dotnet", "csharp"]));
+        var set = Timeline.AnyOf(TagSet.Of("dotnet", ["dotnet", "csharp"]));
 
         var first = await reader.Read(Profile, set, 2, Token);
         var onward = await reader.ReadOn(Profile, set, first.Onward!, 2, Token);
@@ -370,7 +370,7 @@ public class TagSetReadTests
             ScriptedHttpMessageHandler.Status(HttpStatusCode.InternalServerError));
 
         await Assert.ThrowsAsync<HttpRequestException>(() =>
-            NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("cats", ["cats"])), 20, Token));
+            NewReader(network).Read(Profile, Timeline.AnyOf(TagSet.Of("cats", ["cats"])), 20, Token));
     }
 
     /// <summary>
@@ -382,7 +382,7 @@ public class TagSetReadTests
     {
         var network = new ScriptedHttpMessageHandler(RateLimited);
 
-        var fetch = await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("cats", ["cats"])), 20, Token);
+        var fetch = await NewReader(network).Read(Profile, Timeline.AnyOf(TagSet.Of("cats", ["cats"])), 20, Token);
 
         Assert.Empty(fetch.Items);
         Assert.IsType<RateLimitedException>(fetch.StoppedBy);
@@ -400,7 +400,7 @@ public class TagSetReadTests
             RateLimited,
             PageResponse(Page(PostJson("150"))));
         var reader = NewReader(network);
-        var set = Timeline.Of(TagSet.Of("dotnet", ["dotnet", "csharp"]));
+        var set = Timeline.AnyOf(TagSet.Of("dotnet", ["dotnet", "csharp"]));
 
         var fetch = await reader.Read(Profile, set, 60, Token);
         var onward = await reader.ReadOn(Profile, set, fetch.Onward!, 20, Token);

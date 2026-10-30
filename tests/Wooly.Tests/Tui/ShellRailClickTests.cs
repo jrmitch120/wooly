@@ -347,7 +347,7 @@ public class ShellRailClickTests
         drawn.Redraw();
 
         Assert.Equal(name, drawn.Shell.Rail.Showing.Label);
-        Assert.Equal(Timeline.Of(sets.Single(set => set.Name == name)), drawn.Built.Timelines.Reads[^1].Timeline);
+        Assert.Equal(Timeline.AnyOf(sets.Single(set => set.Name == name)), drawn.Built.Timelines.Reads[^1].Timeline);
         Assert.Equal(name, drawn.Shell.Breadcrumb);
     }
 

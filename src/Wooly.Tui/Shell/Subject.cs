@@ -95,7 +95,7 @@ public abstract record Subject
     ///     messages, follow requests and Discover.
     /// </summary>
     /// <remarks>
-    ///     Told apart by the rail's own entry, which is what it is read and drawn with — the timeline a hashtag
+    ///     Told apart by the rail's own entry, which is what it is read and drawn with — the timeline a tag set's
     ///     destination reads, the label its crumb says — and which is the same destination whatever its badge says
     ///     (<see cref="Shell.Destination.Equals(Shell.Destination?)" />): so the cache is keyed by the destination itself
     ///     rather than its kind, two of one kind are held apart, and a change made anywhere can forget a destination by
@@ -253,8 +253,8 @@ public abstract record Subject
                         Recounts: InboxCount.OffListReadOn)),
 
                 // Said out loud rather than quietly doing nothing: a destination that reads no list — the profile's
-                // own account, the prompt, the hashtag nobody has named — arrives some other way, and landing here is
-                // a destination nobody said what to do with.
+                // own account, the prompt — arrives some other way, and landing here is a destination nobody said what
+                // to do with.
                 _ => throw new ArgumentOutOfRangeException(
                     nameof(entry),
                     entry.Kind,

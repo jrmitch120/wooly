@@ -68,7 +68,7 @@ public class TagSetReadIntegrationTests
             // timeline's is: a live instance is allowed to be a moment behind what it has just been told.
             for (var attempt = 0; attempt < 10; attempt++)
             {
-                posts = (await reader.Read(profile, Timeline.Of(set), limit: 40, cancellationToken)).Items;
+                posts = (await reader.Read(profile, Timeline.AnyOf(set), limit: 40, cancellationToken)).Items;
 
                 if (wanted.IsSubsetOf(posts.Select(post => post.Id)))
                 {

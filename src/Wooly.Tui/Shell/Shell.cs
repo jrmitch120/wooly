@@ -1773,7 +1773,7 @@ public sealed class Shell
 
         // Called by the set's name whole: clipped where the rail draws it, so that two long names sharing a start
         // stay two destinations (#510).
-        .. tagSets.Select(set => new Destination(DestinationKind.TagSet, set.Name, Timeline.Of(set))),
+        .. tagSets.Select(set => new Destination(DestinationKind.TagSet, set.Name, Timeline.AnyOf(set))),
 
         // Discover, the only entry the rail has ever grown by (ADR-0019), leads Explore: the tools you go looking with,
         // ahead of the Inbox that comes to you (ADR-0021).

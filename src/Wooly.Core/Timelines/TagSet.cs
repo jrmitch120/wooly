@@ -59,29 +59,30 @@ public sealed record TagSet
     /// <summary>
     ///     What is wrong with a set written as <paramref name="name" /> and <paramref name="tags" />, or <see
     ///     langword="null" /> where it is a set — said once here so that the config file refusing one and the domain
-    ///     refusing one that got past it cannot say different things about it.
+    ///     refusing one that got past it cannot say different things about it. Begun lower-case, as the config store's
+    ///     own messages are, since the store says it after "Could not read {path}: ".
     /// </summary>
     public static string? Rejection(string? name, IReadOnlyList<string> tags)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            return "A tag set needs a name.";
+            return "a tag set needs a name.";
         }
 
         if (tags.Count == 0)
         {
-            return $"The tag set '{name}' has no tags.";
+            return $"the tag set '{name}' has no tags.";
         }
 
         if (tags.FirstOrDefault(tag => !Hashtag.IsWellFormed(tag)) is { } malformed)
         {
-            return $"In the tag set '{name}': {Hashtag.Rejection(malformed)}";
+            return $"in the tag set '{name}': {Hashtag.Rejection(malformed)}";
         }
 
         var count = Bare(tags).Count;
 
         return count > MostTags
-            ? $"The tag set '{name}' has {count} tags, and a set holds at most {MostTags}."
+            ? $"the tag set '{name}' has {count} tags, and a set holds at most {MostTags}."
             : null;
     }
 

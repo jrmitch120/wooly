@@ -327,7 +327,7 @@ public class RailFetchTests
         opened.Step(steps);
         shell.Host.Settle();
 
-        Assert.Equal(Timeline.Of(SetsWritten.Single(set => set.Name == name)), shell.Timelines.Reads[^1].Timeline);
+        Assert.Equal(Timeline.AnyOf(SetsWritten.Single(set => set.Name == name)), shell.Timelines.Reads[^1].Timeline);
         Assert.IsType<FeedScreen>(opened.Screen);
         Assert.Equal(name, opened.Breadcrumb);
     }
@@ -363,7 +363,7 @@ public class RailFetchTests
         shell.Host.Settle();
 
         Assert.Equal(afterBoth + 1, shell.Timelines.Reads.Count);
-        Assert.Equal(Timeline.Of(SetsWritten[0]), shell.Timelines.Reads[^1].Timeline);
+        Assert.Equal(Timeline.AnyOf(SetsWritten[0]), shell.Timelines.Reads[^1].Timeline);
     }
 
     /// <summary>

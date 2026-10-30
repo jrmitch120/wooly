@@ -68,7 +68,7 @@ public sealed record Timeline
     }
 
     /// <summary>The public posts carrying any of <paramref name="set" />'s tags, newest first, each once.</summary>
-    public static Timeline Of(TagSet set) => new(TimelineScope.TagSet, set: set);
+    public static Timeline AnyOf(TagSet set) => new(TimelineScope.TagSet, set: set);
 
     /// <summary>The posts of the account <paramref name="account" /> names.</summary>
     /// <param name="account">
