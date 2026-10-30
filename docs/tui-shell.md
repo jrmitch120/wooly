@@ -2597,17 +2597,18 @@ place, and reading on asks again only of the runs whose posts the merged list ha
 "that's everything", only when every run is. One run failing fails the read — arrival, read on or `g` alike — with the
 error any failed read shows, and nothing the other runs answered is kept or drawn: a merged list missing a run would
 look whole while missing posts from its middle. A run the rate limit refuses is the same, said as any read the limit
-stopped is, with nothing kept; waiting it out and reading on asks every run of that read again. The sets are the same
+stopped is, with nothing kept; waiting it out and reading on asks every run of that read again. A set of one run has no
+middle to miss, so a rate limit part way through it keeps what arrived, as it does on Home. The sets are the same
 for every profile, each read against whichever instance is acted as, and nothing in the CLI reads one: `timeline tag`
 still reads one tag. A hashtag walked to from a post or a search opens as it always has, and is kept nowhere.
 
-The file's rules for a set: a tag may be written `#dotnet` or `dotnet`, and is kept bare; a tag written twice in one set,
-in any case, counts once. The whole file is refused, as a `shell_width` that is not a whole number is, with a message
-naming what is wrong, for a set with no `name`, a name another set has, no `tags`, a tag that is not one word, or more
-than twelve tags — three asks, so the dearest set's cost is known before it is written. Sets have no key in the shell;
-they change when the file does, so the rail is fixed for a session. Every save of another preference — `-`/`+`, `\`,
-the profiles screen — writes them back exactly, in order, straight after `[preferences]`; with no sets, it writes no
-`[[tag_sets]]` at all.
+The file's rules for a set: a tag may be written `#dotnet` or `dotnet`, and is kept bare; a tag written twice in one
+set, in any case, counts once. The whole file is refused, as a `shell_width` that is not a whole number is, with a
+message naming what is wrong, for a set with no `name`, a name another set has whatever its case, no `tags`, a tag that
+is not one word, or more than twelve tags — three asks, so the dearest set's cost is known before it is written. Sets
+have no key in the shell; they change when the file does, so the rail is fixed for a session. Every save of another
+preference — `-`/`+`, `\`, the profiles screen — writes them back exactly, in order, straight after `[preferences]`;
+with no sets, it writes no `[[tag_sets]]` at all.
 
 The single `hashtag` preference the rail kept one place for is gone. A `hashtag = "…"` left in `[preferences]` is not
 refused and does nothing — it is not made into a set — and the next save, which rewrites the whole file, drops it; to

@@ -236,12 +236,13 @@ public class TagSetReadTests
     }
 
     /// <summary>
-    ///     A run the rate limit refuses is a run that did not answer, so nothing of the other is kept either. It is said
+    ///     In a set of several runs, a run the rate limit refuses is a run that did not answer, so nothing of the other
+    ///     is kept either, where a set of one run keeps what arrived (ADR-0033's amendment of ADR-0007). It is said
     ///     as every limited read is, though — stopped by the limit rather than thrown (ADR-0006) — and goes on from
     ///     where it started, so reading on once the limit is waited out asks both runs from the top again.
     /// </summary>
     [Fact]
-    public async Task Read_KeepsNothing_WhenTheRateLimitRefusesOneRun_AndReadsOnFromTheTop()
+    public async Task Read_KeepsNothing_WhenTheRateLimitRefusesOneOfSeveralRuns_AndReadsOnFromTheTop()
     {
         var network = new ScriptedHttpMessageHandler(ByRun(
             ("t1", [PageResponse(Page(PostJson("300")))]),
@@ -268,7 +269,7 @@ public class TagSetReadTests
     ///     stopped started: the same runs asked the same thing.
     /// </summary>
     [Fact]
-    public async Task ReadOn_KeepsNothing_WhenTheRateLimitRefusesARun_AndReadsOnFromWhereItStarted()
+    public async Task ReadOn_KeepsNothing_WhenTheRateLimitRefusesOneOfSeveralRuns_AndReadsOnFromWhereItStarted()
     {
         var network = new ScriptedHttpMessageHandler(ByRun(
             ("t1", [
@@ -330,19 +331,44 @@ public class TagSetReadTests
             NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("cats", ["cats"])), 20, Token));
     }
 
+    /// <summary>
+    ///     A set of one run is one list read a page at a time, as Home is, so a rate limit on its first page stops it with
+    ///     nothing in hand, said as the limit rather than as an empty timeline (ADR-0007).
+    /// </summary>
     [Fact]
-    public async Task Read_StopsShortOnARateLimit_AsEveryTimelineDoes()
+    public async Task Read_StopsShortOnARateLimitOnTheFirstPage_WhenTheSetIsOneRun()
     {
-        var network = new ScriptedHttpMessageHandler(_ =>
-            new HttpResponseMessage(HttpStatusCode.TooManyRequests)
-            {
-                Content = new StringContent("""{"error":"Too many requests"}""", Encoding.UTF8, "application/json"),
-            });
+        var network = new ScriptedHttpMessageHandler(RateLimited);
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("cats", ["cats"])), 20, Token);
 
         Assert.Empty(fetch.Items);
         Assert.IsType<RateLimitedException>(fetch.StoppedBy);
+    }
+
+    /// <summary>
+    ///     And part way, it keeps what arrived, exactly as Home and the one hashtag before sets did: one run has no
+    ///     middle for a missing run to leave a hole in (ADR-0007, ADR-0033). It reads on from the page the limit refused.
+    /// </summary>
+    [Fact]
+    public async Task Read_KeepsWhatArrived_WhenTheRateLimitStopsASetOfOneRunPartWay()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(Page(PostJson("200"), PostJson("199")), nextMaxId: "199"),
+            RateLimited,
+            PageResponse(Page(PostJson("150"))));
+        var reader = NewReader(network);
+        var set = Timeline.Of(TagSet.Of("dotnet", ["dotnet", "csharp"]));
+
+        var fetch = await reader.Read(Profile, set, 60, Token);
+        var onward = await reader.ReadOn(Profile, set, fetch.Onward!, 20, Token);
+
+        Assert.Equal(["200", "199"], fetch.Items.Select(post => post.Id));
+        Assert.IsType<RateLimitedException>(fetch.StoppedBy);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/timelines/tag/dotnet?limit=20&max_id=199&any[]=csharp",
+            network.Requests[2].RequestUri?.OriginalString);
+        Assert.Equal("150", Assert.Single(onward.Items).Id);
     }
 
     /// <summary>

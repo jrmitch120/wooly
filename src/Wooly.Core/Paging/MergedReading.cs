@@ -19,7 +19,8 @@ namespace Wooly.Core.Paging;
 ///         missing looks whole while missing posts from its middle. A run the instance's rate limit refuses is no
 ///         different, except in how it is said — as a fetch the limit stopped (ADR-0006, ADR-0007), holding nothing and
 ///         reading on from where this read started, so that waiting it out and reading on asks again exactly what this
-///         asked.
+///         asked. That is ADR-0033's amendment of ADR-0007, and why a list of one run is not read here but by
+///         <see cref="PagedReading" />, which keeps what arrived.
 ///     </para>
 /// </summary>
 internal static class MergedReading

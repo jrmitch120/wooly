@@ -33,6 +33,12 @@ cap is this client's to enforce wherever a set is read.
 read does and keeps nothing of the runs that did answer. A merged list with one run missing looks whole while missing
 posts from its middle, and a read-on from it could not say where to go on from.
 
+**This amends ADR-0007 for a rate limit.** ADR-0007 made a rate limit part way through a partial result, not a lost
+one. For a set of several runs it is lost: a run the limit refuses is a run that did not answer, so the read keeps
+nothing, said as a read the limit stopped rather than as an error (ADR-0006), and reads on from where it started. A set
+of one run — four tags or fewer — is one list paged as Home is, with no middle for a missing run to leave a hole in, so
+it keeps ADR-0007's rule: what arrived before the limit is kept, and the read goes on from the page the limit refused.
+
 ## Considered options
 
 - **One ask, four tags at most.** Cheapest and simplest, and refused because four is too few for the sets readers

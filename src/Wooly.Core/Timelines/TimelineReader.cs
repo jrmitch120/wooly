@@ -22,8 +22,9 @@ namespace Wooly.Core.Timelines;
 ///     <para>
 ///         A <b>Tag set</b> is the one timeline read around Mastonet (<see cref="RawMastodonCall" />), whose tag
 ///         timeline takes one tag and no <c>any[]</c> (ADR-0033), over the same <see cref="HttpClient" />: four tags
-///         to an ask, the asks merged newest first (<see cref="MergedReading" />). There one run failing fails the
-///         read, a rate limit included, and nothing of the runs that answered is kept.
+///         to an ask, the asks merged newest first (<see cref="MergedReading" />). A set of one run is read as any
+///         other timeline is, a rate limit included; in a set of several, one run failing fails the read, a rate
+///         limit included, and nothing of the runs that answered is kept (ADR-0033's amendment of ADR-0007).
 ///     </para>
 /// </summary>
 public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpClientFactory httpClientFactory)
@@ -59,13 +60,26 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
     {
         if (timeline.Set is { } set)
         {
-            // Four tags to an ask, in the order written, and the asks merged here (ADR-0033). A set of four or fewer
-            // is one run, and so one ask.
+            // Four tags to an ask, in the order written, and the asks merged here (ADR-0033).
             var runs = set.Tags
                 .Chunk(TagSet.TagsPerAsk)
                 .Select(run => (Func<ArrayOptions, Task<Page<Status>>>)(options =>
                     RunPage(profile, run, options, cancellationToken)))
                 .ToList();
+
+            // A set of four or fewer is one run, and so one ask: one list paged as Home is, which keeps what arrived
+            // when a rate limit stops it part way. It has no middle for a missing run to leave a hole in.
+            if (runs is [var only])
+            {
+                return await PagedReading.Collect(
+                    limit,
+                    PageSize,
+                    only,
+                    status => PostWire.ToPost(status, profile),
+                    status => status.Id,
+                    cancellationToken,
+                    from: from);
+            }
 
             return await MergedReading.Collect(
                 limit,
