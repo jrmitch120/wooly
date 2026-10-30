@@ -16,7 +16,7 @@ namespace Wooly.Tests.Tui;
 public class ScreenRevealTests
 {
     /// <summary>The screens that hold no posts at all, which used to say so by overriding the question away.</summary>
-    public static TheoryData<string> Postless => ["messages", "requests", "compose", "notice", "help"];
+    public static TheoryData<string> Postless => ["messages", "requests", "compose", "help"];
 
     /// <summary>A warning asked past is shown, and the key that asked counts as used.</summary>
     [Fact]
@@ -74,8 +74,7 @@ public class ScreenRevealTests
             "messages" => new DirectMessagesScreen([AConversation.With(id: "1")]),
             "requests" => new FollowRequestsScreen([AnAccount.With(id: "1")]),
             "compose" => new ComposeScreen(ComposeFor.Post),
-            "notice" => new NoticeScreen("nowhere", "Nothing to read here."),
-            _ => new HelpScreen(new NoticeScreen("nowhere", "Nothing to read here.")),
+            _ => new HelpScreen(new SearchScreen()),
         };
 
         Assert.False(screen.Reveal());

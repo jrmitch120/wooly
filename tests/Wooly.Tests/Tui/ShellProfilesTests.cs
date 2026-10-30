@@ -83,7 +83,6 @@ public class ShellProfilesTests
             new FollowRequestsScreen([]),
             new SearchScreen(),
             new HelpScreen(new SearchScreen()),
-            new NoticeScreen("Hashtag", "No hashtag set."),
             new ProfilesScreen([], "personal", []),
             new ComposeScreen(ComposeFor.Post),
         ];
