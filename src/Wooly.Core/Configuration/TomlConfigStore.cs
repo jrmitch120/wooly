@@ -331,8 +331,8 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     /// <summary>
     ///     The reader's tag sets, in file order. Each is held to a set's rules (<see cref="TagSet.Rejection" />) —
     ///     every tag one word, as the <c>timeline tag</c> command holds a typed one to, because a tag goes into a
-    ///     request path — and the whole file refused for one that breaks them, or for a name two sets share, which
-    ///     would put two entries on the rail nobody could tell apart. A tag written with its <c>#</c> or twice is
+    ///     request path — and the whole file refused for one that breaks them, or for a name two sets share whatever its
+    ///     case, which would put two entries on the rail nobody could tell apart. A tag written with its <c>#</c> or twice is
     ///     folded rather than refused, since there is no doubt what was meant.
     /// </summary>
     private IReadOnlyList<TagSet> ReadTagSets(TomlTable root)
@@ -361,7 +361,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
                 throw new ConfigurationException(paths.ConfigFile, problem);
             }
 
-            if (sets.Any(set => set.Name == name))
+            if (sets.Any(set => string.Equals(set.Name, name, StringComparison.OrdinalIgnoreCase)))
             {
                 throw new ConfigurationException(
                     paths.ConfigFile,

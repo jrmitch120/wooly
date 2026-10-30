@@ -130,6 +130,30 @@ public class TomlConfigStoreTagSetTests : IDisposable
         Assert.Contains("more than one", exception.Message);
     }
 
+    /// <summary>
+    ///     Names told apart by their case alone are one name, as two tags are: <c>Cats</c> and <c>cats</c> side by side
+    ///     on the rail are two entries a reader could not tell apart at a glance.
+    /// </summary>
+    [Fact]
+    public void Load_RefusesTwoSetsWhoseNamesDifferOnlyInCase()
+    {
+        WriteConfigFile(
+            """
+            [[tag_sets]]
+            name = "Cats"
+            tags = ["cats"]
+
+            [[tag_sets]]
+            name = "cats"
+            tags = ["kittens"]
+            """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("'cats'", exception.Message);
+        Assert.Contains("more than one", exception.Message);
+    }
+
     [Fact]
     public void Load_RefusesTagSetsWrittenAsATable()
     {
