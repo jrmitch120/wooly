@@ -48,11 +48,12 @@ internal static class MergedReading
         CancellationToken cancellationToken,
         Onward? from = null)
     {
-        var placed = from?.Runs is { } held && held.Count == runs.Count;
-        var states = placed
-            ? from!.Runs!.Select(run => new Run<TItem>(run.MaxId, run.IsWhole, run.Held.Cast<TItem>())).ToList()
+        var readingOn = ReadsOnFrom(from, runs.Count);
+        var states = readingOn
+            ? from!.Runs!.Select(run => new Run<TItem>(run.MaxId, run.IsWhole, run.Held.Select(held => (TItem)held.Item)))
+                .ToList()
             : runs.Select(_ => new Run<TItem>(maxId: null, isWhole: false, [])).ToList();
-        var handedOut = placed ? from!.HandedOut : null;
+        var handedOut = readingOn ? from!.HandedOut : null;
         var items = new List<TItem>();
 
         while (items.Count < limit)
@@ -104,11 +105,8 @@ internal static class MergedReading
                         state.Held.Enqueue(item);
                     }
 
-                    // The end of the run as PagedReading reads the end of a list: nothing came back, or the instance
-                    // named no next page and the page had room to spare.
-                    state.MaxId = read.Count == 0
-                        ? null
-                        : page.NextPageMaxId ?? (read.Count < wanted ? null : idOf(read[^1]));
+                    // The end of the run is the end of a list, said where PagedReading says it.
+                    state.MaxId = PagedReading.NextPage(read, page.NextPageMaxId, wanted, idOf);
                     state.IsWhole = state.MaxId is null;
                 }
 
@@ -141,8 +139,36 @@ internal static class MergedReading
         return Fetch<TItem>.GoesOn(
             items,
             new Onward(
-                [.. states.Select(state => new RunOnward(state.MaxId, state.IsWhole, [.. state.Held.Cast<object>()]))],
+                [
+                    .. states.Select(state => new RunOnward(
+                        state.MaxId,
+                        state.IsWhole,
+                        [.. state.Held.Select(item => new HeldItem(idOf(item), item!))]))
+                ],
                 handedOut));
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="from" /> is a place in these same runs to read on from, rather than the top of them.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    ///     It is a place in another list — one read as one, or as another number of runs. Reading from the top instead
+    ///     would hand a caller again what it already holds, and it can only have come from a caller handing back
+    ///     another list's place, which is a defect rather than anything a reader did.
+    /// </exception>
+    private static bool ReadsOnFrom(Onward? from, int runs)
+    {
+        if (from is null || from == Onward.FromTheTop)
+        {
+            return false;
+        }
+
+        if (from.Runs?.Count != runs)
+        {
+            throw new ArgumentException("Where to read on from is a place in another list, not in these runs.", nameof(from));
+        }
+
+        return true;
     }
 
     /// <summary>

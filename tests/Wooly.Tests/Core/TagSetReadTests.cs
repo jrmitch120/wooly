@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core;
 using Wooly.Core.Errors;
+using Wooly.Core.Paging;
 using Wooly.Core.Profiles;
 using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
@@ -160,6 +161,47 @@ public class TagSetReadTests
             Assert.Single(network.Requests.Skip(3)).RequestUri?.OriginalString);
         Assert.Empty(third.Items);
         Assert.True(third.IsWhole);
+    }
+
+    /// <summary>
+    ///     Where a set of several runs reads on from is compared by value, as every <c>Onward</c> is (ADR-0007's
+    ///     amendment): the same answers give the same place, and a run paged to somewhere else gives another.
+    /// </summary>
+    [Fact]
+    public async Task Read_GivesTheSamePlaceToReadOnFrom_ForTheSameAnswers()
+    {
+        async Task<Onward> OnwardOf(string secondRunNext)
+        {
+            var network = new ScriptedHttpMessageHandler(ByRun(
+                ("t1", [PageResponse(Page(PostJson("300"), PostJson("200")), nextMaxId: "200")]),
+                ("t5", [PageResponse(Page(PostJson("250")), nextMaxId: secondRunNext)])));
+
+            return (await NewReader(network).Read(Profile, Timeline.Of(TagSet.Of("many", Tags(5))), 2, Token)).Onward!;
+        }
+
+        var one = await OnwardOf("250");
+        var other = await OnwardOf("250");
+        var elsewhere = await OnwardOf("240");
+
+        Assert.Equal(one, other);
+        Assert.Equal(one.GetHashCode(), other.GetHashCode());
+        Assert.NotEqual(one, elsewhere);
+    }
+
+    /// <summary>
+    ///     A place in another list is not one to read a set of several runs on from, and reading from the top instead
+    ///     would hand the reader again what their screen already holds: it is refused, as the defect it is.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_RefusesAPlaceFromAnotherList()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(Page(PostJson("200"), PostJson("199")), nextMaxId: "199"));
+        var reader = NewReader(network);
+        var one = await reader.Read(Profile, Timeline.Of(TagSet.Of("cats", ["cats"])), 2, Token);
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            reader.ReadOn(Profile, Timeline.Of(TagSet.Of("many", Tags(5))), one.Onward!, 20, Token));
     }
 
     /// <summary>A post handed out by one read is not handed out again when the other run reaches it on a read on.</summary>
