@@ -464,23 +464,34 @@ what a caller can do with it.
 _Avoid_: page, result, batch
 
 **Destination**:
-One of the places the TUI's rail can send you — a timeline, notifications, direct messages, follow requests, search,
-discover, the profile's own account. A destination is what carries an unread count and what costs a fetch to arrive at,
-which is why choosing one is a decision of its own (ADR-0014). There are ten, the tenth being **Discover**, and it is
-the only entry the rail has ever grown by: it was paid for once, by a screen built in sections so that a second kind of
-suggestion is a heading on it rather than an eleventh entry (ADR-0019). Distinct from a **screen**: a destination is
+One of the places the TUI's rail can send you — a timeline, a **Tag set**, notifications, direct messages, follow
+requests, search, discover, the profile's own account. A destination is what carries an unread count and what costs a
+fetch to arrive at, which is why choosing one is a decision of its own (ADR-0014). Nine are the same for everybody, the
+ninth being **Discover**, the only fixed entry the rail has ever grown by: it was paid for once, by a screen built in
+sections so that a second kind of suggestion is a heading on it rather than another entry (ADR-0019). The rest are the
+reader's, one for each **Tag set**, as many as they have written and none if they have written none. Distinct from a **screen**: a destination is
 the entry on the rail, a screen is what the content region is showing, and drilling from a post into an account changes
 the screen without changing the destination. Every destination belongs to one **Rail group**.
 _Avoid_: tab, section, page
 
 **Rail group**:
-One of the four titled panels the rail's destinations are drawn in, by what they are for: **Timelines** (Home, Local,
-Federated, Hashtag), what you read; **Explore** (Discover, Search), what you go looking with, never carrying an unread
-count; **Inbox** (Notifications, Direct messages, Follow requests), what comes to you, where every unread count lives;
+One of the five titled panels the rail's destinations are drawn in, by what they are for: **Timelines** (Home, Local,
+Federated), what you read; **Hashtags**, the reader's **Tag set**s in the order they wrote them, never carrying an
+unread count and not drawn at all when there are none; **Explore** (Discover, Search), what you go looking with, never
+carrying an unread count; **Inbox** (Notifications, Direct messages, Follow requests), what comes to you, where every unread count lives;
 and **You**, the profile's own account (ADR-0021). The rail's order is the groups' order. Distinct from a **Section**,
 which is a headed run on a screen: `[`/`]` walk sections, `` ` ``/`~` walk rail groups. "Inbox" here names the group,
 not only the notifications that the code's `INotificationInbox` reads.
 _Avoid_: section, box, panel (a rail group is drawn as a panel, but the content is a panel too)
+
+**Tag set**:
+A name the reader gives to between one and twelve hashtags, read as one timeline: the public posts carrying *any* of its
+tags, never only those carrying all of them, each post once however many of the tags it carries. A set of one is still a set, and is the only way the reader keeps a tag to come
+back to — a tag walked to from a post or a search is read and left, not kept. Sets are the reader's, not a profile's:
+the same sets for every profile, each read against whichever instance is acted as. Kept on the instance's side by
+nothing; following a hashtag on Mastodon is a different thing, which feeds Home.
+_Avoid_: hashtag group, tag group (group is a **Rail group** or a **Notification group**), saved search, followed tags
+(Mastodon's own, a different thing)
 
 **Hidden rail**:
 The rail put out of sight by the reader, so the content has the whole width of the shell. Its other state is the
