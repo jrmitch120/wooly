@@ -48,7 +48,7 @@ public class PublicProfileMentionTests
 
         var drawn = await DrawnShell.Of(Wide, Tall, Themes.Plain, built);
 
-        drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+        drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Profile));
         drawn.Settle();
         drawn.Press(new Key('E'));
         drawn.Settle();

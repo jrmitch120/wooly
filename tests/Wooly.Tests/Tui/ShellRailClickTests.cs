@@ -111,7 +111,7 @@ public class ShellRailClickTests
         if (height == Scrolled)
         {
             // Down the rail far enough that it has scrolled, so the rows no longer start at the first destination.
-            drawn.Shell.Rail.GoTo(DestinationKind.Messages);
+            drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Messages));
             drawn.Built.Host.Drain();
             drawn.Redraw();
 

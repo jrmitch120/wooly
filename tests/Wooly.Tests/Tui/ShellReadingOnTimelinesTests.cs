@@ -27,7 +27,7 @@ public class ShellReadingOnTimelinesTests
         var built = Timelines(posts: 100);
         var opened = await built.Opened();
 
-        opened.Rail.GoTo(kind);
+        opened.Rail.GoTo(opened.Rail.Of(kind));
         built.Host.Drain();
         opened.Viewed(under: 0, screenful: Screenful);
         built.Host.Drain();
@@ -47,7 +47,7 @@ public class ShellReadingOnTimelinesTests
         var built = Timelines(posts: 50);
         var opened = await built.Opened();
 
-        opened.Rail.GoTo(kind);
+        opened.Rail.GoTo(opened.Rail.Of(kind));
         built.Host.Drain();
         opened.Viewed(under: 0, screenful: Screenful);
         built.Host.Drain();

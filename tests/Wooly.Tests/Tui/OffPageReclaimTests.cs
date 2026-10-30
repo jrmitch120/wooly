@@ -481,7 +481,7 @@ public class OffPageReclaimTests
 
         var drawn = await DrawnShell.Of(80, Short, Themes.Plain, built);
 
-        drawn.Shell.Rail.GoTo(DestinationKind.Notifications);
+        drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Notifications));
         built.Host.Drain();
         drawn.Redraw();
 

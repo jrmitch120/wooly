@@ -70,7 +70,7 @@ public class ComposeEditorSidewaysTests
             PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(bio: Written, account: Me)),
         });
 
-        drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+        drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Profile));
         drawn.Settle();
         drawn.Press(new Key('E'));
         drawn.Settle();

@@ -74,7 +74,7 @@ public class PublicProfilePicturesTests : IDisposable
         built.LaunchedFrom = _files.Path;
         var shell = await built.Opened();
 
-        shell.Rail.GoTo(DestinationKind.Profile);
+        shell.Rail.GoTo(shell.Rail.Of(DestinationKind.Profile));
         built.Host.Settle();
 
         var held = Wanted(Assert.IsType<AccountScreen>(shell.Screen), new FakePictures(), Me.AvatarUrl!);
@@ -196,7 +196,7 @@ public class PublicProfilePicturesTests : IDisposable
 
         var drawn = await DrawnShell.Of(80, 30, Themes.Plain, built);
 
-        drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+        drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Profile));
         drawn.Settle();
         drawn.Press(new Key('E'));
         drawn.Settle();
@@ -219,7 +219,7 @@ public class PublicProfilePicturesTests : IDisposable
 
         var shell = await built.Opened();
 
-        shell.Rail.GoTo(DestinationKind.Profile);
+        shell.Rail.GoTo(shell.Rail.Of(DestinationKind.Profile));
         built.Host.Settle();
         shell.Press(ShellKey.CapitalE);
         built.Host.Drain();

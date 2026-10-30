@@ -81,19 +81,19 @@ internal static class ContentClicks
                 break;
 
             case "notifications":
-                drawn.Shell.Rail.GoTo(DestinationKind.Notifications);
+                drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Notifications));
                 break;
 
             case "messages":
-                drawn.Shell.Rail.GoTo(DestinationKind.Messages);
+                drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Messages));
                 break;
 
             case "requests":
-                drawn.Shell.Rail.GoTo(DestinationKind.Requests);
+                drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Requests));
                 break;
 
             case "discover":
-                drawn.Shell.Rail.GoTo(DestinationKind.Discover);
+                drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Discover));
                 break;
 
             case "follows":

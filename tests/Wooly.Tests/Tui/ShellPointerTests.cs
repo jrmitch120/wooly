@@ -242,7 +242,7 @@ public class ShellPointerTests
         // has a scroll to keep.
         using var drawn = await Four(height: 12);
 
-        drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+        drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Profile));
         drawn.Built.Host.Drain();
         drawn.Redraw();
         drawn.Press(Key.CursorDown);
@@ -287,7 +287,7 @@ public class ShellPointerTests
     {
         using var drawn = await Four(width: 36, height: 8);
 
-        drawn.Shell.Rail.GoTo(DestinationKind.Hashtag);
+        drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Hashtag));
         drawn.Built.Host.Drain();
         drawn.Redraw();
 

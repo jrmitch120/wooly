@@ -89,6 +89,18 @@ public sealed record Destination(DestinationKind Kind, string Label, Timeline? T
     /// </summary>
     public bool Full { get; init; }
 
+    /// <summary>
+    ///     Whether <paramref name="other" /> is the same place: the same kind, called the same, reading the same
+    ///     timeline. What its badge says is not part of it — a count moving changes the entry and not which destination
+    ///     it is — so the rail's cursor, the cache and the reads in flight are keyed on the destination itself, and two
+    ///     of one kind stand on the rail apart (#510).
+    /// </summary>
+    public bool Equals(Destination? other) =>
+        other is not null && other.Kind == Kind && other.Label == Label && Equals(other.Timeline, Timeline);
+
+    /// <inheritdoc />
+    public override int GetHashCode() => HashCode.Combine(Kind, Label, Timeline);
+
     /// <summary>The rail group this is drawn in, which follows from what it is and nothing else.</summary>
     public RailGroup Group => Kind switch
     {

@@ -201,7 +201,7 @@ public sealed class Shell
             timing,
             ringing: preferences?.Bell ?? true,
             Landed,
-            showing: kind => Rail.Showing.Kind == kind && _acting?.Lists.Reading(kind) == false);
+            showing: kind => Rail.Showing.Kind == kind && _acting?.Lists.Reading(Rail.Showing) == false);
 
         Begin(opening.Profile);
 
@@ -543,7 +543,7 @@ public sealed class Shell
         {
             var shown = Rail.Current == at;
 
-            Rail.GoTo(Rail.Destinations[at].Kind);
+            Rail.GoTo(Rail.Destinations[at]);
 
             if (shown)
             {
@@ -1063,7 +1063,7 @@ public sealed class Shell
                 return;
             }
 
-            Rail.GoTo(DestinationKind.Search);
+            Rail.GoTo(Rail.Of(DestinationKind.Search));
         });
 
     /// <summary>
@@ -1598,7 +1598,7 @@ public sealed class Shell
             _ports,
             enquiry,
             cache,
-            showing: () => Rail.Showing.Kind,
+            Rail,
             _badges.SessionMarkers);
 
         arrival.Arrives += Reset;
@@ -1619,13 +1619,14 @@ public sealed class Shell
         lists ??= new ListReads();
 
         arrival.ListReading += lists.Began;
-        arrival.ListRead += kind => Apply(() =>
+        arrival.ListRead += destination => Apply(() =>
         {
             // Read again for what a re-read held back while this list was read found: it may have arrived after the
-            // list was read, and so be on no screen (story 11).
-            if (lists.Ended(kind) && !enquiry.Abandoned.IsCancellationRequested)
+            // list was read, and so be on no screen (story 11). Only ever an Inbox destination's, which is one of its
+            // kind, since only a count is held back.
+            if (lists.Ended(destination) && !enquiry.Abandoned.IsCancellationRequested)
             {
-                _ = _badges.Reread(profile, enquiry.Abandoned, [kind]);
+                _ = _badges.Reread(profile, enquiry.Abandoned, [destination.Kind]);
             }
         });
 
@@ -2017,13 +2018,16 @@ public sealed class Shell
     /// <inheritdoc cref="InboxBadges.Landing" />
     private string? Landed(Found.Badge badge, InboxList found, bool rose)
     {
-        var put = Rail.Showing.Kind == badge.Kind && _acting?.Lists.HoldsBack(badge.Kind) == false
+        // A badge is an Inbox destination's, and each of those is the one of its kind.
+        var badged = Rail.Of(badge.Kind);
+
+        var put = Rail.Showing == badged && _acting?.Lists.HoldsBack(badged) == false
             ? Screen.PutOnTop(found)
             : 0;
 
         if (rose || put > 0)
         {
-            _acting?.Cache.Forget(new Subject.Destination(badge.Kind));
+            _acting?.Cache.Forget(new Subject.Destination(badged));
         }
 
         if (put == 0)

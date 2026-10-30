@@ -204,7 +204,7 @@ public class ShellChangeTests
         shell.Host.Settle();
 
         opened.Press(ShellKey.D);
-        opened.Rail.GoTo(DestinationKind.Home);
+        opened.Rail.GoTo(opened.Rail.Of(DestinationKind.Home));
         shell.Host.Drain();
 
         Assert.IsType<FeedScreen>(opened.Screen);

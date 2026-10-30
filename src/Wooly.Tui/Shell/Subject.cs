@@ -95,19 +95,19 @@ public abstract record Subject
     ///     follow requests and Discover.
     /// </summary>
     /// <remarks>
-    ///     Told apart by <see cref="Kind" /> alone. The rail's own entry is what it is read and drawn with — the
-    ///     timeline a hashtag destination reads, the label its crumb says — and is carried where the rail is arriving,
-    ///     but a badge moving changes the entry and not which destination it is; so the cache is keyed by the one and
-    ///     a change made anywhere can forget a destination by naming its kind (#233).
+    ///     Told apart by the rail's own entry, which is what it is read and drawn with — the timeline a hashtag
+    ///     destination reads, the label its crumb says — and which is the same destination whatever its badge says
+    ///     (<see cref="Shell.Destination.Equals(Shell.Destination?)" />): so the cache is keyed by the destination itself
+    ///     rather than its kind, two of one kind are held apart, and a change made anywhere can forget a destination by
+    ///     naming it (#233, #510).
     /// </remarks>
     public sealed record Destination : Subject
     {
-        private readonly Entry? _entry;
-
         private readonly SessionMarkers? _sessionMarkers;
 
-        /// <summary>The destination <paramref name="kind" /> names, which is enough to forget what it held.</summary>
-        public Destination(DestinationKind kind) => Kind = kind;
+        /// <summary>The destination <paramref name="entry" /> is, which is enough to forget what it held.</summary>
+        /// <param name="entry">The rail's own entry.</param>
+        public Destination(Entry entry) => Entry = entry;
 
         /// <summary>The rail's own entry, which is what is read and drawn.</summary>
         /// <param name="entry">The rail's own entry.</param>
@@ -116,31 +116,24 @@ public abstract record Subject
         ///     Notifications counts against as the badge did (story 8).
         /// </param>
         public Destination(Entry entry, SessionMarkers sessionMarkers)
-            : this(entry.Kind)
-        {
-            _entry = entry;
+            : this(entry) =>
             _sessionMarkers = sessionMarkers;
-        }
 
-        /// <summary>Which of the rail's ten it is.</summary>
-        public DestinationKind Kind { get; }
+        /// <summary>The rail's entry this is, which is what tells two destinations apart.</summary>
+        public Entry Entry { get; }
 
         /// <inheritdoc />
         public override bool Cached => true;
 
-        /// <summary>The rail's entry, which only a subject the rail arrived at carries.</summary>
-        private Entry Entry => _entry ?? throw new InvalidOperationException(
-            $"The {Kind} destination is read from the rail's own entry, which this subject was not given.");
-
         /// <summary>The session markers, which only a subject the rail arrived at carries.</summary>
         private SessionMarkers SessionMarkers => _sessionMarkers ?? throw new InvalidOperationException(
-            $"The {Kind} destination is counted with the session's markers, which this subject was not given.");
+            $"The {Entry.Kind} destination is counted with the session's markers, which this subject was not given.");
 
         /// <inheritdoc />
-        public bool Equals(Destination? other) => other is not null && other.Kind == Kind;
+        public bool Equals(Destination? other) => other is not null && other.Entry == Entry;
 
         /// <inheritdoc />
-        public override int GetHashCode() => Kind.GetHashCode();
+        public override int GetHashCode() => Entry.GetHashCode();
 
         /// <inheritdoc />
         internal override Task<Found> Read(

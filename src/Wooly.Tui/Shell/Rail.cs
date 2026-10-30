@@ -100,13 +100,14 @@ public sealed class Rail
     }
 
     /// <summary>
-    ///     Puts the cursor and the selection on <paramref name="kind" /> at once, with no settle and no wait, for the
-    ///     places a destination is arrived at other than by tabbing to it — opening the shell, walking back out of a
-    ///     drill that started somewhere else, and a click on the rail (#288).
+    ///     Puts the cursor and the selection on <paramref name="destination" /> at once, with no settle and no wait, for
+    ///     the places a destination is arrived at other than by tabbing to it — opening the shell, walking back out of a
+    ///     drill that started somewhere else, and a click on the rail (#288). The destination itself, whatever its
+    ///     badge says, and never another of its kind (#510).
     /// </summary>
-    public void GoTo(DestinationKind kind)
+    public void GoTo(Destination destination)
     {
-        var index = IndexOf(kind);
+        var index = IndexOf(destination);
 
         _settling?.Dispose();
         _settling = null;
@@ -123,12 +124,12 @@ public sealed class Rail
     }
 
     /// <summary>
-    ///     Replaces a destination with itself carrying a different unread count, or a different tag. The rail is drawn
-    ///     from these, so this is how a count that arrived after the shell opened reaches the screen.
+    ///     Replaces a destination with itself carrying a different unread count. The rail is drawn from these, so this
+    ///     is how a count that arrived after the shell opened reaches the screen.
     /// </summary>
     public void Update(Destination destination)
     {
-        _destinations[IndexOf(destination.Kind)] = destination;
+        _destinations[IndexOf(destination)] = destination;
 
         Changed?.Invoke();
     }
@@ -153,13 +154,32 @@ public sealed class Rail
         Changed?.Invoke();
     }
 
-    private int IndexOf(DestinationKind kind)
+    /// <summary>
+    ///     The destination of <paramref name="kind" />, for a kind the rail holds exactly one of — what a key that means
+    ///     one place wherever it is pressed, or a count that belongs to one place, goes by.
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException">
+    ///     The rail holds none of <paramref name="kind" />, or more than one.
+    /// </exception>
+    public Destination Of(DestinationKind kind)
     {
-        var index = _destinations.FindIndex(destination => destination.Kind == kind);
+        var of = _destinations.Where(destination => destination.Kind == kind).Take(2).ToList();
+
+        return of.Count == 1
+            ? of[0]
+            : throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not one destination on this rail.");
+    }
+
+    private int IndexOf(Destination destination)
+    {
+        var index = _destinations.IndexOf(destination);
 
         return index >= 0
             ? index
-            : throw new ArgumentOutOfRangeException(nameof(kind), kind, "Not a destination on this rail.");
+            : throw new ArgumentOutOfRangeException(
+                nameof(destination),
+                destination,
+                "Not a destination on this rail.");
     }
 
     /// <summary>

@@ -43,7 +43,7 @@ public class ShellDiscoverTests
 
         Assert.Equal(2, opened.Depth);
 
-        opened.Rail.GoTo(DestinationKind.Discover);
+        opened.Rail.GoTo(opened.Rail.Of(DestinationKind.Discover));
         shell.Host.Drain();
 
         Assert.Equal(1, opened.Depth);
@@ -68,7 +68,7 @@ public class ShellDiscoverTests
         var shell = new AShell { Suggestions = FakeFollowSuggestions.OfferingNobody() };
         var opened = await shell.Opened();
 
-        opened.Rail.GoTo(DestinationKind.Discover);
+        opened.Rail.GoTo(opened.Rail.Of(DestinationKind.Discover));
         shell.Host.Drain();
 
         var screen = Assert.IsType<DiscoverScreen>(opened.Screen);
@@ -91,7 +91,7 @@ public class ShellDiscoverTests
 
         var opened = await shell.Opened();
 
-        opened.Rail.GoTo(DestinationKind.Discover);
+        opened.Rail.GoTo(opened.Rail.Of(DestinationKind.Discover));
         shell.Host.Drain();
 
         var screen = Assert.IsType<DiscoverScreen>(opened.Screen);
@@ -360,10 +360,10 @@ public class ShellDiscoverTests
     /// <summary>Walking out to another destination and back, which is what the cache is asked about.</summary>
     private static void LeaveAndComeBack(AShell fakes, Shell opened)
     {
-        opened.Rail.GoTo(DestinationKind.Home);
+        opened.Rail.GoTo(opened.Rail.Of(DestinationKind.Home));
         fakes.Host.Drain();
 
-        opened.Rail.GoTo(DestinationKind.Discover);
+        opened.Rail.GoTo(opened.Rail.Of(DestinationKind.Discover));
         fakes.Host.Drain();
     }
 
@@ -394,7 +394,7 @@ public class ShellDiscoverTests
         var opened = await fakes.Opened();
         fakes.Accounts.ForgetStandings();
 
-        opened.Rail.GoTo(DestinationKind.Discover);
+        opened.Rail.GoTo(opened.Rail.Of(DestinationKind.Discover));
         fakes.Host.Drain();
 
         return (fakes, opened);

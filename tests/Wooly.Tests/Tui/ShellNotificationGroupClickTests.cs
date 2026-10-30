@@ -169,7 +169,7 @@ public class ShellNotificationGroupClickTests
 
         var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built, drawsPictures: true);
 
-        drawn.Shell.Rail.GoTo(DestinationKind.Notifications);
+        drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Notifications));
         built.Host.Drain();
         drawn.Redraw();
 

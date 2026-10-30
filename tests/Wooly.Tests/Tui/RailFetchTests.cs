@@ -388,7 +388,7 @@ public class RailFetchTests
         var shell = new AShell { Hashtag = "dotnet" };
         var opened = await shell.Opened();
 
-        opened.Rail.GoTo(from);
+        opened.Rail.GoTo(opened.Rail.Of(from));
         opened.Step(by);
         shell.Host.Settle();
 
@@ -413,7 +413,7 @@ public class RailFetchTests
         var shell = new AShell { Hashtag = "dotnet" };
         var opened = await shell.Opened();
 
-        opened.Rail.GoTo(from);
+        opened.Rail.GoTo(opened.Rail.Of(from));
         opened.Press(ShellKey.Backtick);
         shell.Host.Settle();
 
@@ -436,7 +436,7 @@ public class RailFetchTests
         var shell = new AShell { Hashtag = "dotnet" };
         var opened = await shell.Opened();
 
-        opened.Rail.GoTo(from);
+        opened.Rail.GoTo(opened.Rail.Of(from));
         opened.Press(ShellKey.Tilde);
         shell.Host.Settle();
 
