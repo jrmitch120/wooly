@@ -43,6 +43,13 @@ public sealed record Drawn(string Id, string Address)
     public bool HeldApart { get; init; }
 
     /// <summary>
+    ///     Whether this is a custom emoji's still picture, which the ways that draw through a box draw from boxes and
+    ///     cuts of their own (ADR-0035): a page holds dozens of them, and in the boxes and cuts sized for a few large
+    ///     pictures they would leave an attachment undrawn and its cuts thrown away.
+    /// </summary>
+    public bool IsCustomEmoji { get; init; }
+
+    /// <summary>
     ///     An attachment on a post, at the smaller copy where the instance offered one: a feed holds dozens of
     ///     pictures, and holding each at full size would cost the memory of a few of them and fetching each somebody's
     ///     data allowance. The original is fetched only for the Picture screen (<see cref="Original" />, ADR-0034) —
@@ -103,6 +110,7 @@ public sealed record Drawn(string Id, string Address)
     public static Drawn CustomEmoji(Core.CustomEmoji emoji) => new($"emoji:{emoji.StaticUrl}", emoji.StaticUrl)
     {
         Largest = (Rendering.CustomEmojiBox.Columns, Rendering.CustomEmojiBox.Rows),
+        IsCustomEmoji = true,
     };
 
     /// <summary>

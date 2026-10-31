@@ -40,7 +40,7 @@ at its box's size in pixels, and a sixel for each cut drawn — the rows of the 
 — keyed by the picture, the box, the cell, the cut and the colours. Scrolling back over a cut is free. 32 cuts are kept,
 the one used longest ago going first. A cut holds its pixels as well as its sixel, a megabyte or so for a photograph
 across a wide page, so the bound is memory; every cut on the page is used again each frame, so it is never the one
-let go of.
+let go of. Custom emoji's cuts are kept apart from these, in room of their own (ADR-0035).
 
 **A box is framed to the part of it on the page.** `PaintedView` frames a straddling box to the rows still on it and
 asks for that cut, so the driver is handed exactly what it draws and never cuts anything itself.

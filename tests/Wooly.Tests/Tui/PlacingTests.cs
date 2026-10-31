@@ -268,6 +268,19 @@ public class PlacingTests
     }
 
     /// <summary>
+    ///     The custom emoji's pool is built with the rest, before anything is drawn — never grown from inside a draw,
+    ///     however many emoji a page turns out to hold (ADR-0035).
+    /// </summary>
+    [Fact]
+    public void EveryBoxCustomEmojiAreDrawnThroughIsBuiltBeforeAnythingIsDrawn()
+    {
+        var frame = new AFrame(new FakePictures());
+
+        Assert.Equal(Placing.MostBoxes + Placing.MostEmojiBoxes, frame.Boxes.Count);
+        Assert.Empty(frame.Log);
+    }
+
+    /// <summary>
     ///     More pictures than boxes: every box draws one, the one left over is not drawn, and no two share a box.
     /// </summary>
     [Fact]

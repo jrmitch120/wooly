@@ -139,11 +139,10 @@ public static class CustomEmojiBox
     ///     line was laid out for.
     /// </summary>
     /// <remarks>
-    ///     Through Kitty's placeholders a box is the Stand-in's shade until the picture lands and the picture after,
-    ///     set at the column it stands at and wanted after anything else the line wants, so a name's emoji come after
-    ///     its avatar. On the ways that draw through a box, sixel and Kitty's, it is the shade alone, wanting nothing,
-    ///     until custom emoji have boxes of their own there (#527): in the box pool attachments and avatars draw from,
-    ///     a page of them would leave an attachment undrawn.
+    ///     A box is the Stand-in's shade until the picture lands and the picture after, set at the column it stands at
+    ///     and wanted after anything else the line wants, so a name's emoji come after its avatar — alike on every way
+    ///     that draws. On the ways that draw through a box, sixel and Kitty's, it is drawn from boxes and cuts of
+    ///     custom emoji's own, and painted as its shade again where none is left for it (<see cref="Placing" />, #527).
     /// </remarks>
     public static Line Boxed(Line line, Drawing drawing)
     {
@@ -163,14 +162,6 @@ public static class CustomEmojiBox
             {
                 spans.Add(span);
                 column += span.Width;
-
-                continue;
-            }
-
-            if (drawing.Raster?.Way is not PictureWay.Placeholders)
-            {
-                spans.Add(StandIn.Row(Columns) with { Emoji = emoji });
-                column += Columns;
 
                 continue;
             }

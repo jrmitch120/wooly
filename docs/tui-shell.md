@@ -1024,8 +1024,11 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   columns or its shortcode's letters is the Raster's alone: on any terminal that draws, the two columns are held from
   the first frame, shaded as a Stand-in until its still picture lands and for good where it is refused or never comes,
   so nothing rewraps. Through Kitty's placeholders it is then two placeholder cells, its picture fetched and decoded
-  once for every post that uses it, keyed by its static address, and sent to the terminal once per box size; through a
-  box, sixel and Kitty's, it stays its shaded room until custom emoji have boxes and cuts of their own (#527). Where
+  once for every post that uses it, keyed by its static address, and sent to the terminal once per box size. Through a
+  box, sixel and Kitty's, it is drawn from a pool of boxes of its own (`Placing.MostEmojiBoxes`, 64), built before
+  anything is drawn as the other 24 are, and on sixel cut into a cache of its own (`SixelPictures.MostEmojiHeld`, 128
+  cuts), so a page of them never leaves an attachment or an avatar undrawn nor throws away the cuts a photograph was
+  encoded ahead for; one that finds no box left is painted as its shaded room again, and nothing moves (#527). Where
   nothing draws, the shortcode is written as the instance wrote it, in `muted`, so it reads as a picture that was meant.
   A `:word:` the post does not list — a time like `10:30:45`, an emoji since deleted — is the words someone wrote, in
   `body`, and so is one written inside an address or a tag. An animated custom emoji is drawn at its still. A custom
