@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Accounts;
 
 namespace Wooly.Tests.Fakes;
@@ -21,11 +22,13 @@ internal static class AnAccount
         DateOnly? joined = null,
         bool isLocked = false,
         bool isBot = false,
-        string? avatarUrl = null) => new()
+        string? avatarUrl = null,
+        IReadOnlyList<CustomEmoji>? customEmoji = null) => new()
     {
         Id = id,
         Address = address,
         Author = author,
+        CustomEmoji = customEmoji ?? [],
         Followers = followers,
         Following = following,
         Posts = posts,

@@ -27,11 +27,13 @@ internal static class APost
         PostPoll? poll = null,
         LinkPreview? linkPreview = null,
         bool isMine = false,
-        IReadOnlyList<CustomEmoji>? customEmoji = null) => new()
+        IReadOnlyList<CustomEmoji>? customEmoji = null,
+        IReadOnlyList<CustomEmoji>? authorCustomEmoji = null) => new()
     {
         Id = id,
         Account = account,
         Author = author,
+        AuthorCustomEmoji = authorCustomEmoji ?? [],
         PostedAt = new DateTimeOffset(2026, 7, 29, 12, 0, 0, TimeSpan.Zero),
         Content = content,
         ContentWarning = contentWarning,

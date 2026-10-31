@@ -340,7 +340,7 @@ public sealed class NotificationsScreen(
             else
             {
                 // The faces stand indented under the names line, as the post does under them (#454).
-                rows.Add(NotificationGroupLines.Names(group, unread, room, drawing.Now));
+                rows.Add(NotificationGroupLines.Names(group, unread, drawing.In(room)));
                 rows.AddRange(AvatarStrip.Of(group, drawing, inner).Select(line => line.After(new Span("  ", Role.Body))));
             }
 

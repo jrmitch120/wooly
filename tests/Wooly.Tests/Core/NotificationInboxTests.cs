@@ -42,6 +42,28 @@ public class NotificationInboxTests
     }
 
     /// <summary>
+    ///     The actor comes with the custom emoji its name uses, the account's own list, so that the name draws them
+    ///     (ADR-0035).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReadsTheCustomEmojiTheActorsNameUses()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(NotificationJson(
+                "34",
+                displayName: "Alice :verified:",
+                emojis: WireEmojis.Json(("verified", "https://files.hachyderm.io/emoji/verified.png"))))));
+
+        var fetch = await NewInbox(network).Read(Profile, 20, TestContext.Current.CancellationToken);
+
+        var actor = Assert.Single(fetch.Items).Actor;
+        Assert.Equal("Alice :verified:", actor.Author);
+        Assert.Equal(
+            [new CustomEmoji("verified", "https://files.hachyderm.io/emoji/verified-static.png")],
+            actor.CustomEmoji);
+    }
+
+    /// <summary>
     ///     The actor is kept as an account rather than an address and a name (GLOSSARY.md): its id is what opens it
     ///     without a search, and its avatar is what a notification group draws its faces from (#451).
     /// </summary>
@@ -527,7 +549,9 @@ public class NotificationInboxTests
         string id,
         string type = "mention",
         string account = "alice@hachyderm.io",
-        string? post = null) =>
+        string? post = null,
+        string? displayName = null,
+        string emojis = "[]") =>
         $$"""
           {
             "id": "{{id}}",
@@ -537,7 +561,8 @@ public class NotificationInboxTests
               "id": "2",
               "username": "{{account.Split('@')[0]}}",
               "acct": "{{account}}",
-              "display_name": "{{char.ToUpperInvariant(account[0]) + account.Split('@')[0][1..]}}",
+              "display_name": "{{displayName ?? char.ToUpperInvariant(account[0]) + account.Split('@')[0][1..]}}",
+              "emojis": {{emojis}},
               "avatar": "https://hachyderm.io/avatars/{{account.Split('@')[0]}}.png"
             },
             "status": {{post ?? (type == "follow" || type == "follow_request" ? "null" : PostJson("110"))}}

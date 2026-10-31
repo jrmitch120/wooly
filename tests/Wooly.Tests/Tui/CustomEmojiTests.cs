@@ -346,12 +346,12 @@ public class CustomEmojiTests
             raster: raster);
 
     /// <summary>What <paramref name="columns" /> cells of a row hold from <paramref name="column" /> on.</summary>
-    private static string Text(DrawnShell drawn, int row, int column, int columns) =>
+    internal static string Text(DrawnShell drawn, int row, int column, int columns) =>
         string.Concat(Enumerable.Range(column, columns)
                                 .Select(at => drawn.Application.Driver!.Contents![row, at].Grapheme));
 
     /// <summary>Every row as drawn, each placeholder cell read as the shade it took the place of.</summary>
-    private static string[] Seen(DrawnShell drawn)
+    internal static string[] Seen(DrawnShell drawn)
     {
         var contents = drawn.Application.Driver!.Contents!;
 
@@ -366,7 +366,7 @@ public class CustomEmojiTests
     }
 
     /// <summary>Every placeholder cell on screen, with where it is and the image id its colour carries.</summary>
-    private static List<PlaceholderCell> Placeholders(DrawnShell drawn)
+    internal static List<PlaceholderCell> Placeholders(DrawnShell drawn)
     {
         var contents = drawn.Application.Driver!.Contents!;
         var cells = new List<PlaceholderCell>();
@@ -391,12 +391,12 @@ public class CustomEmojiTests
         return cells;
     }
 
-    private const string Placeholder = "\U0010EEEE";
+    internal const string Placeholder = "\U0010EEEE";
 
-    private sealed record PlaceholderCell(int Row, int Column, string Grapheme, int Id);
+    internal sealed record PlaceholderCell(int Row, int Column, string Grapheme, int Id);
 
     /// <summary>The foreground <paramref name="text" /> is drawn in on a row, the same in each cell.</summary>
-    private static Terminal.Gui.Drawing.Color Foreground(DrawnShell drawn, int row, string text)
+    internal static Terminal.Gui.Drawing.Color Foreground(DrawnShell drawn, int row, string text)
     {
         var column = drawn.Rows()[row].IndexOf(text, RailLines.Width, StringComparison.Ordinal);
 

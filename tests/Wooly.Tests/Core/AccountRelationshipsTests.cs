@@ -127,6 +127,35 @@ public class AccountRelationshipsTests
     }
 
     /// <summary>
+    ///     The custom emoji an account lists, which its name, bio and fields draw from: the shortcodes stay in the
+    ///     name as written, and the list says which of them are pictures (ADR-0035).
+    /// </summary>
+    [Fact]
+    public async Task Show_ReadsTheCustomEmojiTheAccountLists()
+    {
+        var network = Answering(
+            Accounts(AccountJson(
+                "alice@hachyderm.io",
+                id: "42",
+                displayName: "Alice :verified: :US_AZ:",
+                emojis: WireEmojis.Json(
+                    ("verified", "https://files.hachyderm.io/emoji/verified.png"),
+                    ("US_AZ", "https://files.hachyderm.io/emoji/US_AZ.gif")))),
+            Accounts(Relationship("42")));
+
+        var account = await Relationships(network)
+            .Show(Profile, AccountAddress.Parse("alice@hachyderm.io"), TestContext.Current.CancellationToken);
+
+        Assert.Equal("Alice :verified: :US_AZ:", account.Author);
+        Assert.Equal(
+            [
+                new CustomEmoji("verified", "https://files.hachyderm.io/emoji/verified-static.png"),
+                new CustomEmoji("US_AZ", "https://files.hachyderm.io/emoji/US_AZ-static.png"),
+            ],
+            account.CustomEmoji);
+    }
+
+    /// <summary>
     ///     An account that filled none of it in. Empty is empty rather than absent on all of these: Mastodon sends
     ///     every one of them on every account entity it serves, so there is no state in which the question went
     ///     unasked — which is what tells them apart from a <see cref="AccountStanding" />.
@@ -652,6 +681,28 @@ public class AccountRelationshipsTests
     }
 
     /// <summary>
+    ///     An account in common is read as any other is, the custom emoji its name uses with it — read raw off the
+    ///     endpoint Mastonet has no call for, through the same account mapping (ADR-0035).
+    /// </summary>
+    [Fact]
+    public async Task FamiliarFollowers_ReadsTheCustomEmojiEachAccountInCommonLists()
+    {
+        var network = Answering(FamiliarJson(
+            "42",
+            AccountJson(
+                "jon@hachyderm.io",
+                id: "7",
+                displayName: "Jon :verified:",
+                emojis: WireEmojis.Json(("verified", "https://files.hachyderm.io/emoji/verified.png")))));
+
+        var common = await Relationships(network).FamiliarFollowers(Profile, "42", TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            [new CustomEmoji("verified", "https://files.hachyderm.io/emoji/verified-static.png")],
+            Assert.Single(common!).CustomEmoji);
+    }
+
+    /// <summary>
     ///     Nobody in common is an answer. It is the empty list rather than nothing, because nothing is reserved for the
     ///     question never having been put — ADR-0012's absent-versus-empty distinction, one level further out.
     /// </summary>
@@ -792,13 +843,16 @@ public class AccountRelationshipsTests
         string avatar = "https://hachyderm.io/avatars/default.png",
         bool locked = false,
         bool bot = false,
-        string[]? fields = null) =>
+        string[]? fields = null,
+        string displayName = "Alice",
+        string emojis = "[]") =>
         $$"""
           {
             "id": "{{id}}",
             "username": "{{account.Split('@')[0]}}",
             "acct": "{{account}}",
-            "display_name": "Alice",
+            "display_name": "{{displayName}}",
+            "emojis": {{emojis}},
             "url": "https://{{(account.Contains('@') ? account.Split('@')[1] : "mastodon.social")}}/@{{account.Split('@')[0]}}",
             "note": "{{note.Replace("\"", "\\\"")}}",
             "avatar": "{{avatar}}",

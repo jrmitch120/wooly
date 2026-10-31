@@ -15,6 +15,13 @@ public sealed record Post
     /// <summary>The name that account chose to be shown as, which is not unique and may be anything at all.</summary>
     public required string Author { get; init; }
 
+    /// <summary>
+    ///     The custom emoji <see cref="Author" /> uses, as the instance listed them on the account, and empty where it
+    ///     uses none: the account's list rather than <see cref="CustomEmoji" />, which is the post's words' own
+    ///     (ADR-0035). The shortcodes stay in <see cref="Author" /> as written.
+    /// </summary>
+    public IReadOnlyList<CustomEmoji> AuthorCustomEmoji { get; init; } = [];
+
     /// <summary>When it was posted, as UTC.</summary>
     public required DateTimeOffset PostedAt { get; init; }
 

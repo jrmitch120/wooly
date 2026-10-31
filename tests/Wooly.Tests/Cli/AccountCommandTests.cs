@@ -563,6 +563,31 @@ public class AccountCommandTests : IDisposable
     ///     One spelling for an account everywhere (ADR-0011) is what puts a bio within reach of a pipe: everything the
     ///     report says is here too, with the standing nested as ADR-0012 requires.
     /// </summary>
+    /// <summary>
+    ///     The CLI draws no pictures, so a name's custom emoji are its shortcodes, written as the account wrote them,
+    ///     in the text and in <c>--json</c>'s <c>author</c> alike — and the JSON gets no map of them (ADR-0035).
+    /// </summary>
+    [Fact]
+    public void Account_KeepsTheNamesCustomEmojiAsTheirShortcodes()
+    {
+        AddProfile();
+        _relationships = FakeAccountRelationships.Holding(AnAccount.With(
+            author: "Alice :verified: :US_AZ:",
+            customEmoji:
+            [
+                new CustomEmoji("verified", "https://files.hachyderm.io/emoji/verified.png"),
+                new CustomEmoji("US_AZ", "https://files.hachyderm.io/emoji/US_AZ.png"),
+            ]));
+
+        Assert.Contains("Alice :verified: :US_AZ:", Run(["account", "show", "alice@hachyderm.io"]).Output);
+
+        var account = JsonDocument.Parse(Run(["account", "show", "alice@hachyderm.io", "--json"]).Output).RootElement;
+        Assert.Equal("Alice :verified: :US_AZ:", account.GetProperty("author").GetString());
+        Assert.DoesNotContain(
+            account.EnumerateObject(),
+            property => property.Name.Contains("emoji", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Fact]
     public void Account_WritesEverythingItShowsAsMachineReadableJson()
     {

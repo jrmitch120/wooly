@@ -30,6 +30,9 @@ internal static class PostWire
             // accounts bare — and the reader's own account is always one of those.
             IsMine = reader.SignsInAs(account),
             Author = MastodonWire.DisplayName(status.Account),
+
+            // Listed on the account, not the post: the emoji a name uses are the account's (ADR-0035).
+            AuthorCustomEmoji = MastodonWire.CustomEmoji(status.Account.Emojis),
             PostedAt = MastodonWire.AsUtc(status.CreatedAt),
             Content = InstanceHtml.ToPlainText(status.Content),
 

@@ -92,6 +92,48 @@ public static class CustomEmojiBox
     }
 
     /// <summary>
+    ///     A display name on a row of its own making, clipped to <paramref name="room" /> and each custom emoji of
+    ///     <paramref name="listed" /> written in it set as its box (<see cref="Boxed" />): held whole by the clip,
+    ///     so one that does not fit is dropped with the rest of what is cut rather than drawn in half (#524).
+    /// </summary>
+    /// <remarks>
+    ///     A row, not spans, so that what comes after the name is measured from where the boxes leave it — two columns
+    ///     an emoji where the Raster draws, its shortcode's letters where it does not — and added with
+    ///     <see cref="Line.Then" />, which keeps the boxes' places. Its boxes start in its first column: put the row
+    ///     behind anything with <see cref="Line.After" />, which moves them along.
+    /// </remarks>
+    /// <param name="name">The name as the instance wrote it, shortcodes and all.</param>
+    /// <param name="listed">The custom emoji the name's account lists.</param>
+    /// <param name="room">How many columns it has.</param>
+    /// <param name="role">What the rest of it is drawn as.</param>
+    /// <param name="drawing">How the screen draws.</param>
+    public static Line Name(string name, IReadOnlyList<CustomEmoji> listed, int room, Role role, Drawing drawing) =>
+        Name(name, Rendering.Shortcode.In(name, listed), room, role, drawing);
+
+    /// <summary>
+    ///     <paramref name="text" /> on a row of its own making as <see cref="Name(string, IReadOnlyList{CustomEmoji}, int, Role, Drawing)" />
+    ///     makes one, its custom emoji where <paramref name="shortcodes" /> says — for a row naming several accounts,
+    ///     each with a list of its own.
+    /// </summary>
+    /// <param name="text">What is written, shortcodes and all.</param>
+    /// <param name="shortcodes">The custom emoji written in it, left to right.</param>
+    /// <param name="room">How many columns it has.</param>
+    /// <param name="role">What the rest of it is drawn as.</param>
+    /// <param name="drawing">How the screen draws.</param>
+    public static Line Name(string text, IReadOnlyList<Shortcode> shortcodes, int room, Role role, Drawing drawing)
+    {
+        var clipped = TextWrap.Clip(text, room, Held(shortcodes, drawing));
+
+        // What is left of the text in front of the ellipsis, where it was cut: a shortcode cut there, which it is only
+        // where nothing draws, is letters cut short like any other word and no custom emoji.
+        var kept = clipped == text ? text.Length : clipped.Length - 1;
+
+        return Boxed(
+            new Line([.. Written(clipped, role, [.. shortcodes.Where(shortcode => shortcode.End <= kept)])]),
+            drawing);
+    }
+
+    /// <summary>
     ///     <paramref name="line" /> with each custom emoji written on it set as its box where
     ///     <paramref name="drawing" /> draws, and as it was where it does not: the shortcode muted, which is what the
     ///     line was laid out for.

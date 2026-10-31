@@ -202,6 +202,9 @@ public sealed record Line
         };
     }
 
+    /// <summary>This row with <paramref name="spans" /> put after it, everything already on it kept where it is.</summary>
+    public Line Then(params Span[] spans) => Respanned([.. Spans, .. spans]);
+
     /// <summary>
     ///     This row with <paramref name="spans" /> in place of its own, and everything else about it kept — the one place
     ///     a row's marks are carried across, so a mark added to a row cannot be dropped by one of the things that

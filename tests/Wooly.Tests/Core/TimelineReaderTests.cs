@@ -467,7 +467,7 @@ public class TimelineReaderTests
                     PostJson(
                         "110",
                         content: "<p>I write :php: in :US_AZ:</p>",
-                        emojis: EmojisJson(
+                        emojis: WireEmojis.Json(
                             ("php", "https://files.mastodon.social/emoji/php.png"),
                             ("US_AZ", "https://files.mastodon.social/emoji/US_AZ.gif"))))));
 
@@ -517,12 +517,53 @@ public class TimelineReaderTests
                             "99",
                             account: "alice@hachyderm.io",
                             content: "<p>:php:</p>",
-                            emojis: EmojisJson(("php", "https://files.hachyderm.io/emoji/php.png")))))));
+                            emojis: WireEmojis.Json(("php", "https://files.hachyderm.io/emoji/php.png")))))));
 
         var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
 
         var boost = Assert.Single(fetch.Items);
         Assert.Empty(boost.CustomEmoji);
+        Assert.Equal(
+            [new CustomEmoji("php", "https://files.hachyderm.io/emoji/php-static.png")],
+            boost.Boosted?.CustomEmoji);
+    }
+
+    /// <summary>
+    ///     The custom emoji an author's name uses are listed on the account rather than on the post, and a boost carries
+    ///     both — the booster's for the "boosted" line, the boosted author's for their byline — each apart from the
+    ///     emoji the post's words list (ADR-0035).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheCustomEmojiEachAuthorsNameLists()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(
+                Page(
+                    PostJson(
+                        "110",
+                        content: "",
+                        displayName: "Jeff :verified:",
+                        accountEmojis: WireEmojis.Json(("verified", "https://files.mastodon.social/emoji/verified.png")),
+                        boosting: PostJson(
+                            "99",
+                            account: "alice@hachyderm.io",
+                            content: "<p>:php:</p>",
+                            emojis: WireEmojis.Json(("php", "https://files.hachyderm.io/emoji/php.png")),
+                            displayName: "Alice :US_AZ:",
+                            accountEmojis: WireEmojis.Json(("US_AZ", "https://files.hachyderm.io/emoji/US_AZ.gif")))))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var boost = Assert.Single(fetch.Items);
+        Assert.Equal("Jeff :verified:", boost.Author);
+        Assert.Equal(
+            [new CustomEmoji("verified", "https://files.mastodon.social/emoji/verified-static.png")],
+            boost.AuthorCustomEmoji);
+        Assert.Empty(boost.CustomEmoji);
+        Assert.Equal("Alice :US_AZ:", boost.Boosted?.Author);
+        Assert.Equal(
+            [new CustomEmoji("US_AZ", "https://files.hachyderm.io/emoji/US_AZ-static.png")],
+            boost.Boosted?.AuthorCustomEmoji);
         Assert.Equal(
             [new CustomEmoji("php", "https://files.hachyderm.io/emoji/php-static.png")],
             boost.Boosted?.CustomEmoji);
@@ -1399,23 +1440,6 @@ public class TimelineReaderTests
         ]
         """;
 
-    /// <summary>
-    ///     The custom emoji a post lists, as the wire serves them: each picture at an address of its own, and again as
-    ///     a still beside it (<c>-static</c> here), which is the one an animated emoji is drawn at.
-    /// </summary>
-    private static string EmojisJson(params (string Shortcode, string Url)[] emojis) =>
-        "[" + string.Join(
-            ",",
-            emojis.Select(emoji =>
-                $$"""
-                  {
-                    "shortcode": "{{emoji.Shortcode}}",
-                    "url": "{{emoji.Url}}",
-                    "static_url": "{{emoji.Url[..emoji.Url.LastIndexOf('.')]}}-static.png",
-                    "visible_in_picker": true
-                  }
-                  """)) + "]";
-
     /// <param name="marks">
     ///     What the instance said this profile has already done to the post, as the wire spells the three flags — or
     ///     <see langword="null" /> for an instance that sent none of them.
@@ -1434,7 +1458,9 @@ public class TimelineReaderTests
         string? mentions = null,
         bool sensitive = false,
         string? card = null,
-        string? emojis = null) =>
+        string? emojis = null,
+        string? displayName = null,
+        string? accountEmojis = null) =>
         $$"""
           {
             "id": "{{id}}",
@@ -1451,7 +1477,8 @@ public class TimelineReaderTests
               "id": "1",
               "username": "{{account.Split('@')[0]}}",
               "acct": "{{account}}",
-              "display_name": "{{char.ToUpperInvariant(account[0]) + account.Split('@')[0][1..]}}"
+              "display_name": "{{displayName ?? char.ToUpperInvariant(account[0]) + account.Split('@')[0][1..]}}",
+              "emojis": {{accountEmojis ?? "[]"}}
             },
             "content": "{{content}}",
             "spoiler_text": "{{contentWarning}}",

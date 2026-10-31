@@ -1031,6 +1031,15 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   `body`, and so is one written inside an address or a tag. An animated custom emoji is drawn at its still. A custom
   emoji is no **reference**: it is not walked to, a click on it picks the post, and it is never on the Picture screen.
   A warned post's are not sent for until its words are shown. The CLI writes the shortcodes as written, text and JSON.
+- **A display name draws its custom emoji the same way** (#524, ADR-0035): `Jeff :verified: :US_AZ:` shows its pictures
+  in the feed's two-row byline and the post screen's three-row one, the `boosted` and `boosted by` line, a
+  notification's names line, and every Account block — a follow list, follow requests, search results, Discover's
+  suggestions, a post's or a notification's actors, and the account screen's header. The emoji are the ones the account
+  lists, the author's own rather than the post's, and each actor's own on a names line naming two. A name clipped to
+  its room holds each emoji whole and drops one that does not fit with the rest of what is cut. The row is measured as
+  drawn, two columns an emoji, so a byline's audience and age keep their column, and a names line's sentence follows
+  the last name with its age kept at the right. Familiar followers are named by handle on the account screen, so they
+  draw none.
 - **The description stands above the picture**, so it does not move when the pixels land under it. Until they do, the
   box under it holds its Stand-in, the size the picture will be, so nothing moves when the picture replaces it.
 - **Nothing about a picture is ever an error,** but one. A fetch that fails and a file that will not decode both leave

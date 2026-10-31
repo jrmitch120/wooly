@@ -146,7 +146,7 @@ public static class AccountLines
         return
         [
             .. avatar.Across(
-                Line.Of(TextWrap.Clip(account.Author, room), Role.BylineName),
+                CustomEmojiBox.Name(account.Author, account.CustomEmoji, room, Role.BylineName, drawing),
                 Line.Of(TextWrap.Clip($"@{account.Address}", room), Role.BylineHandle),
                 Presence(account, room),
                 Line.Of(TextWrap.Clip(Facts(facts, said, room), room), Role.Muted)),

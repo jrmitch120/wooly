@@ -94,16 +94,14 @@ public static class PostLines
         bool saysHowToAskPast = true)
     {
         var width = drawing.Width;
-        var pictures = drawing.Pictures;
-        var raster = drawing.Raster;
         var show = OnShow.Of(post, reading);
         var shown = show.Shown;
 
         return Parts(
             [
-                .. Boosted(post, $"{post.Author} boosted", width),
+                .. Boosted(post, $"{post.Author} boosted", drawing),
                 .. Answering(shown, width),
-                .. Byline(shown, width, drawing.Now, pictures, raster),
+                .. Byline(shown, drawing),
             ],
             [
                 Body(show, drawing, reading, saysHowToAskPast),
@@ -130,23 +128,21 @@ public static class PostLines
         bool saysWhatItAnswers = true)
     {
         var width = drawing.Width;
-        var pictures = drawing.Pictures;
-        var raster = drawing.Raster;
         var show = OnShow.Of(post, reading);
         var shown = show.Shown;
-        var avatar = Avatar.Byline(shown.Account, shown.AvatarUrl, pictures, raster);
+        var avatar = Avatar.Byline(shown.Account, shown.AvatarUrl, drawing.Pictures, drawing.Raster);
         var room = Math.Max(0, width - avatar.Width);
 
         return Parts(
             [
-                .. Boosted(post, $"boosted by {post.Author}", width),
+                .. Boosted(post, $"boosted by {post.Author}", drawing),
                 .. saysWhatItAnswers ? Answering(shown, width) : [],
 
                 // Three byline rows rather than the feed's two, the third being the moment said exactly rather than as
                 // an age — and stepped in with the other two though the avatar's box has run out below it, because two
                 // rows starting in one column and a third starting in another would read as two things.
                 .. avatar.Across(
-                    Line.Of(TextWrap.Clip(shown.Author, room), Role.BylineName),
+                    CustomEmojiBox.Name(shown.Author, shown.AuthorCustomEmoji, room, Role.BylineName, drawing),
                     Line.Of(TextWrap.Clip($"@{shown.Account}", room), Role.BylineHandle),
                     Line.Of([
                         new Span(Elapsed.Moment(shown.PostedAt), Role.Muted),
@@ -305,14 +301,19 @@ public static class PostLines
     ///     Who boosted this, where somebody did — <paramref name="said" /> because a feed names the booster first and
     ///     a post screen puts them after the fact, and the role turns on whether the booster was the reader.
     /// </summary>
-    private static IEnumerable<Line> Boosted(Post post, string said, int width)
+    /// <remarks>
+    ///     The booster's custom emoji drawn as their byline draws them (#524). Found in the whole of
+    ///     <paramref name="said" />, whose own words have no colon in them to open one, and clipped with it, so that
+    ///     the line is cut where it always was and an emoji at the cut is dropped whole.
+    /// </remarks>
+    private static IEnumerable<Line> Boosted(Post post, string said, Drawing drawing)
     {
         if (post.Boosted is not null)
         {
-            yield return Line.Of([
-                new Span($"{BoostMark(post.Marks.Boosted)} ", post.Marks.Boosted ? Role.BoostMine : Role.Boost),
-                new Span(TextWrap.Clip(said, width - 2), Role.Muted),
-            ]);
+            yield return CustomEmojiBox.Name(said, post.AuthorCustomEmoji, drawing.Width - 2, Role.Muted, drawing)
+                                       .After(new Span(
+                                           $"{BoostMark(post.Marks.Boosted)} ",
+                                           post.Marks.Boosted ? Role.BoostMine : Role.Boost));
         }
     }
 
@@ -371,27 +372,28 @@ public static class PostLines
     ///     the two-row shape wants ahead of the body — and five columns, spent on these rows alone: the body, the
     ///     media and the counts stay full width, because this is a byline with a picture in it rather than an indent.
     /// </remarks>
-    private static IEnumerable<Line> Byline(
-        Post post,
-        int width,
-        DateTimeOffset now,
-        IPictures? pictures,
-        Raster? raster)
+    private static IEnumerable<Line> Byline(Post post, Drawing drawing)
     {
-        var avatar = Avatar.Byline(post.Account, post.AvatarUrl, pictures, raster);
-        var room = Math.Max(0, width - avatar.Width);
+        var avatar = Avatar.Byline(post.Account, post.AvatarUrl, drawing.Pictures, drawing.Raster);
+        var room = Math.Max(0, drawing.Width - avatar.Width);
 
-        var tail = new Span($"{Audience(post.Visibility)} {Elapsed.Since(post.PostedAt, now)}", Role.Audience);
-        var name = new Span(TextWrap.Clip(post.Author, Math.Max(0, room - tail.Width - 1)), Role.BylineName);
+        var tail = new Span($"{Audience(post.Visibility)} {Elapsed.Since(post.PostedAt, drawing.Now)}", Role.Audience);
+
+        // Measured as drawn, its custom emoji two columns each where the Raster draws, so the tail is pushed to the
+        // same column whatever the name holds (#524).
+        var name = CustomEmojiBox.Name(
+            post.Author,
+            post.AuthorCustomEmoji,
+            Math.Max(0, room - tail.Width - 1),
+            Role.BylineName,
+            drawing);
 
         return
         [
             .. avatar.Across(
-                Line.Of([
-                    name,
+                name.Then(
                     new Span(new string(' ', Math.Max(1, room - name.Width - tail.Width)), Role.Body),
-                    tail,
-                ]),
+                    tail),
                 Line.Of(TextWrap.Clip($"@{post.Account}", room), Role.BylineHandle)),
         ];
     }
