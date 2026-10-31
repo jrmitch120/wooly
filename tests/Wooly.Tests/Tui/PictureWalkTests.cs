@@ -340,32 +340,6 @@ public class PictureWalkTests
     }
 
     /// <summary>
-    ///     A picture is walked to by keys alone until mouse support comes: a click beside its box, where its bracket is
-    ///     drawn, picks the post and walks to nothing, and a double click on the box hands the browser nothing.
-    /// </summary>
-    [Fact]
-    public async Task AClickOnAPicturesBoxOrBesideItWalksToNothingAndOpensNothing()
-    {
-        using var drawn = await Drawn(APost.With(id: "110", media: [APost.APicture("m1", shape: Wide)]));
-
-        drawn.Press(Key.CursorRight);
-
-        var box = Bracketed(drawn)[1].Row;
-
-        drawn.Press(Key.Esc);
-        drawn.Click(Left, box);
-        drawn.Redraw();
-
-        Assert.Empty(Bracketed(drawn));
-
-        drawn.DoubleClick(Left + 10, box);
-        drawn.Settle();
-
-        Assert.Empty(drawn.Built.Browser.Opened);
-        Assert.Empty(Bracketed(drawn));
-    }
-
-    /// <summary>
     ///     The shell on an 80-column terminal, or one <paramref name="width" /> columns wide, drawing pictures in the
     ///     no-colour theme, reading <paramref name="post" /> and one more under it.
     /// </summary>

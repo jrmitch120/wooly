@@ -90,8 +90,8 @@ public class ReservedBoxTests
     }
 
     /// <summary>
-    ///     The Stand-in is a plain shade and nothing written in it, as wide as the box, a blank column in: the caption
-    ///     is said once, on its own row above the box, where it already was (ADR-0025).
+    ///     The Stand-in is a plain shade and nothing written in it, as wide as the box, between the blank columns either
+    ///     side of it: the caption is said once, on its own row above the box, where it already was (ADR-0025).
     /// </summary>
     [Fact]
     public void Feed_ShadesTheStandInWithNoTextInIt()
@@ -102,8 +102,8 @@ public class ReservedBoxTests
 
         Assert.All(StandIn(lines), line =>
         {
-            Assert.Equal($" {new string('░', 61)}", line.Text);
-            Assert.Equal(Role.StandIn, line.Spans[^1].Role);
+            Assert.Equal($" {new string('░', 61)} ", line.Text);
+            Assert.Equal(Role.StandIn, Assert.Single(line.Spans, span => span.Text.Contains('░')).Role);
         });
 
         var caption = Assert.Single(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
@@ -112,7 +112,7 @@ public class ReservedBoxTests
 
     /// <summary>
     ///     Where the instance reported no shape the box is 16:9 at full width: 40 × 10 × 9 ÷ (16 × 20) is 11.25, so
-    ///     eleven rows of forty, in a row of forty-two. A guess, but a box rather than a jump (ADR-0025).
+    ///     eleven rows of forty, between the blank columns either side of them in a row of forty-two. A guess, but a box rather than a jump (ADR-0025).
     /// </summary>
     [Fact]
     public void Feed_ReservesASixteenByNineBoxWhereTheInstanceReportedNoShape()
@@ -124,7 +124,7 @@ public class ReservedBoxTests
 
         var shaded = StandIn(lines);
         Assert.Equal(11, shaded.Count);
-        Assert.All(shaded, line => Assert.Equal($" {new string('░', 40)}", line.Text));
+        Assert.All(shaded, line => Assert.Equal($" {new string('░', 40)} ", line.Text));
     }
 
     /// <summary>
@@ -141,7 +141,7 @@ public class ReservedBoxTests
 
         var shaded = StandIn(lines);
         Assert.Equal(Inset.FeedRows, shaded.Count);
-        Assert.All(shaded, line => Assert.Equal($" {new string('░', 57)}", line.Text));
+        Assert.All(shaded, line => Assert.Equal($" {new string('░', 57)} ", line.Text));
     }
 
     /// <summary>
@@ -171,7 +171,8 @@ public class ReservedBoxTests
 
     /// <summary>
     ///     Pixels wider than the shape are fitted to the box's width and centred down it: a 4:1 picture in a 32×16
-    ///     box (a square, at 61 columns, capped) is four rows tall, six rows down, at the box's own first column.
+    ///     box (a square, at 61 columns, capped) is four rows tall, six rows down, at the box's own first column — its row
+    ///     held out past the picture through the column beside the box, where a walked picture's bracket goes.
     /// </summary>
     [Fact]
     public void Feed_CentresAPictureShorterThanItsBoxDownIt()
@@ -191,7 +192,7 @@ public class ReservedBoxTests
         Assert.Equal(waiting.Count, held.Count);
         Assert.Equal(top + 6, carrying);
         Assert.Equal((1, 32, 4), (inset.Column, inset.Columns, inset.Rows));
-        Assert.Equal(Inset.Width(held[carrying].Insets), held[carrying].Width);
+        Assert.Equal(1 + 32 + 1, held[carrying].Width);
     }
 
     /// <summary>
@@ -219,7 +220,7 @@ public class ReservedBoxTests
         }
 
         Assert.Equal(waiting.Count, held.Count);
-        Assert.All(StandIn(waiting), line => Assert.Equal($" {new string('░', 61)}", line.Text));
+        Assert.All(StandIn(waiting), line => Assert.Equal($" {new string('░', 61)} ", line.Text));
 
         var wanting = Assert.Single(waiting, line => line.Wants is not null);
         Assert.Equal("m1", wanting.Wants?.Id);

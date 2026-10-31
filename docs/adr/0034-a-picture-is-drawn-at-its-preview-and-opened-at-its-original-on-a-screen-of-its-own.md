@@ -36,7 +36,14 @@ it (`hide_drawn_caption`), and a label row over every picture was a row each for
 
 This amends ADR-0017, under which `Image` never joined the walk: a drawn still picture now does, and a picture that
 cannot be drawn keeps its `⏵`, description and address as before. A **warned** post's pictures are not walked until it
-is asked past, as nothing on it is. Opening a picture by clicking it waits for mouse support.
+is asked past, as nothing on it is.
+
+**Amendment: a picture is clicked as other references are** (review of #514). Opening a picture by clicking was first
+left to wait for mouse support. The mouse already walks to a reference with a click and opens it with a double click
+(#475, #479), and a picture left out of that was the one reference a reader could see and not click, so it joins: a
+click anywhere on its box, or in the bracket columns beside it, walks to it and brackets it, and a double click there
+opens its Picture screen, in a feed and on the post screen alike. The whole box answers rather than the bracket columns
+alone, because a picture has no text to aim at and the columns are blank until it is walked.
 
 **The brackets settled on are `⎡ ⎢ ⎣` and `⎤ ⎥ ⎦`** (#519), with `▏` and `▕` as the fallback. The tall brackets are
 the ones that read as brackets on a terminal without colour, the corners saying where a box starts and ends where a

@@ -457,12 +457,6 @@ public abstract class Screen
             : null;
 
     /// <summary>
-    ///     The still picture <paramref name="reference" /> was made of, where it is one of the post being read's — or
-    ///     <see langword="null" />.
-    /// </summary>
-    public PostMedia? PictureOf(Reference reference) => Pictured(reference)?.Picture;
-
-    /// <summary>
     ///     The post being read and the still picture of its that <paramref name="reference" /> was made of, or
     ///     <see langword="null" /> where it was made of none — the one place a reference is asked whether it is a
     ///     picture's.

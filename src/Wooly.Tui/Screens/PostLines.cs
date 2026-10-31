@@ -756,24 +756,27 @@ public static class PostLines
         var column = bracketed is null ? 0 : Bracketed;
         var reference = bracketed?.Reference;
 
-        Span Beside(string glyph) => new(glyph, Role.ReferencePicked) { Reference = reference };
+        Span Blanks(int columns) => new(new string(' ', columns), Role.Body) { Reference = reference };
+
+        Span Beside(string glyph, bool walked) =>
+            walked ? new Span(glyph, Role.ReferencePicked) { Reference = reference } : Blanks(column);
 
         for (var row = 0; row < box.Rows; row++)
         {
             var held = box.Cells(row);
             var (opening, closing) = PictureBrackets(row, box.Rows);
 
-            // Walked, the row is held out to the box's right edge, so that the closing bracket is in the column past it
-            // whatever the pixels left blank on this row — blanks the page would have shown there anyway.
+            // Every row is held out to the box's right edge and on through the column past it, so that the closing
+            // bracket has its column whatever the pixels left blank on this row — blanks the page would have shown
+            // there anyway — and every cell of it carries the picture's reference, so that a click anywhere on the box
+            // or beside it walks to the picture and a double click opens it (ADR-0034).
             var cells = bracketed is not { } columns
                 ? Line.Of(held)
-                : columns.Walked
-                    ? Line.Of(
-                        Beside(opening),
-                        held,
-                        new Span(new string(' ', Math.Max(0, box.Columns - held.Width)), Role.Body),
-                        Beside(closing))
-                    : Line.Of(new Span(new string(' ', column), Role.Body) { Reference = reference }, held);
+                : Line.Of(
+                    Beside(opening, columns.Walked),
+                    held with { Reference = reference },
+                    Blanks(Math.Max(0, box.Columns - held.Width)),
+                    Beside(closing, columns.Walked));
             var line = cells with { Insets = box.Insets(row, column) };
 
             yield return row == 0 ? line with { Wants = wants } : line;
@@ -785,11 +788,11 @@ public static class PostLines
     ///     whether or not it is walked (ADR-0034).
     /// </summary>
     /// <param name="Reference">
-    ///     The still picture's reference where the box is one, which every row's bracket column carries — so that the
-    ///     walk enters at it, lets it go and brings it on to the page by whichever of its rows are there, as it does a
-    ///     wrapped link's (<see cref="Span.Reference" />), and so that a picture is walked only where its box is drawn
-    ///     (<see cref="Screen.LaidOut" />) — or <see langword="null" /> for a box nothing walks to, a video's preview.
-    ///     Never on the box's own cells.
+    ///     The still picture's reference where the box is one, which every cell of every row carries, the box's own and
+    ///     its bracket columns alike — so that the walk enters at it, lets it go and brings it on to the page by
+    ///     whichever of its rows are there, as it does a wrapped link's (<see cref="Span.Reference" />), so that a
+    ///     picture is walked only where its box is drawn (<see cref="Screen.LaidOut" />), and so that a click anywhere
+    ///     on it walks to it — or <see langword="null" /> for a box nothing walks to, a video's preview.
     /// </param>
     /// <param name="Walked">
     ///     Whether <paramref name="Reference" /> is the one walked to, which draws the brackets in the two columns
