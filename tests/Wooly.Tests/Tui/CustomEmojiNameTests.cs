@@ -57,6 +57,47 @@ public class CustomEmojiNameTests
     }
 
     /// <summary>
+    ///     On the ways that draw through a box, sixel and Kitty's, a byline's custom emoji are pictures two columns by
+    ///     one right after the name's words, drawn as well as the avatar beside them rather than in place of it.
+    /// </summary>
+    [Theory]
+    [InlineData(PictureWay.Sixel)]
+    [InlineData(PictureWay.Kitty)]
+    public async Task AFeedBylineDrawsTheNamesCustomEmojiThroughABoxBesideTheAvatar(PictureWay way)
+    {
+        using var drawn = await DrawnShell.Of(
+            80,
+            Tall,
+            Themes.Dark,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110", account: "maria@hachyderm.io", author: "Maria Ochoa"),
+                    APost.With(
+                        id: "220",
+                        author: "Jeff :verified:",
+                        avatarUrl: "https://files.mastodon.social/avatars/jeff.png",
+                        authorCustomEmoji: [Verified])),
+            },
+            pictures: new FakePictures().HoldingAvatarOf("jeff@mastodon.social").HoldingCustomEmoji(Verified),
+            drawsPictures: way == PictureWay.Sixel,
+            answersKitty: way == PictureWay.Kitty);
+
+        var row = RowOf(drawn, "Jeff ");
+        var at = drawn.Rows()[row].IndexOf("Jeff ", StringComparison.Ordinal);
+        var pictures = drawn.Application.Driver!.GetOutputBuffer().GetRasterImages()
+                            .Select(image => image.DestinationCells)
+                            .ToList();
+
+        Assert.Contains(
+            new System.Drawing.Rectangle(at + "Jeff ".Length, row, CustomEmojiBox.Columns, CustomEmojiBox.Rows),
+            pictures);
+        Assert.Contains(
+            pictures,
+            cells => cells.Y == row && cells.Size == new System.Drawing.Size(Avatar.BylineColumns, Avatar.BylineRows));
+    }
+
+    /// <summary>
     ///     Where nothing draws, a byline's custom emoji are their shortcodes as written, muted beside the name's words —
     ///     and a <c>:word:</c> the account does not list is part of the name.
     /// </summary>
