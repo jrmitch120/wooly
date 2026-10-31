@@ -122,13 +122,14 @@ public sealed class PictureScreen : Screen
     /// <inheritdoc />
     /// <remarks>
     ///     The box first, as large as the window less the description's rows and the hint row allows, fitted whole at
-    ///     the picture's shape and centred across the width; then the description, wrapped rather than cut, since here
-    ///     it is all there is to read beside the picture; then the hint row. Where nobody said how tall the window is,
-    ///     the box is capped as a post screen's is (<see cref="Inset.WholeRows" />).
+    ///     the picture's shape and centred across the width; then the description, wrapped, since here it is all there
+    ///     is to read beside the picture, but cut at a quarter of the window (<see cref="DescribedRows" />), so that the
+    ///     picture is given its room first; then the hint row. Where nobody said how tall the window is, the box is
+    ///     capped as a post screen's is (<see cref="Inset.WholeRows" />), and the description at a quarter of that.
     /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var described = Described(drawing.Width);
+        var described = Described(drawing.Width, DescribedRows(drawing.Height ?? Inset.WholeRows));
         var room = drawing.Height is { } height ? height - described.Count - 1 : Inset.WholeRows;
         var original = Drawn.Original(Showing, drawing.Width, room);
         var why = drawing.Pictures?.WhyNot(original);
@@ -215,13 +216,31 @@ public sealed class PictureScreen : Screen
         ? "The original is too large to show."
         : "The original could not be fetched.";
 
-    /// <summary>What its author said the picture shows, wrapped to <paramref name="width" />, or that they said nothing.</summary>
-    private List<Line> Described(int width)
+    /// <summary>
+    ///     What its author said the picture shows, or that they said nothing, wrapped to <paramref name="width" /> and
+    ///     cut to <paramref name="mostRows" />, the last row shown ending in <c>…</c> where it is cut.
+    /// </summary>
+    /// <remarks>
+    ///     Shown as written, markup and all: a description is the author's plain text, and one that holds a whole
+    ///     article's HTML — a post bridged from a blog can — is shown as that rather than read as a page.
+    /// </remarks>
+    private List<Line> Described(int width, int mostRows)
     {
         var role = Showing.Description is null ? Role.Muted : Role.Body;
+        var rows = TextWrap.Wrap(Showing.Shows, width);
+        IReadOnlyList<string> shown = rows.Count > mostRows
+            ? [.. rows.Take(mostRows - 1), TextWrap.Clip($"{rows[mostRows - 1]}…", width)]
+            : rows;
 
-        return [.. TextWrap.Wrap(Showing.Shows, width).Select(row => Line.Of(row, role))];
+        return [.. shown.Select(row => Line.Of(row, role))];
     }
+
+    /// <summary>
+    ///     The most rows the description may take of <paramref name="height" />, the content region's: a quarter of
+    ///     it, and never less than one — so that a description however long leaves the picture the rest, the picture
+    ///     being what the screen is for.
+    /// </summary>
+    private static int DescribedRows(int height) => Math.Max(1, height / 4);
 
     /// <summary>
     ///     <paramref name="post" />'s still pictures in the order they are drawn, which is the order they are stepped

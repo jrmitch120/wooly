@@ -46,8 +46,8 @@ public class PictureScreenTests
     }
 
     /// <summary>
-    ///     What its author said the picture shows is drawn beneath it, wrapped onto as many rows as it takes rather than
-    ///     cut, and the hint row under that says <c>esc</c> goes back.
+    ///     What its author said the picture shows is drawn beneath it, wrapped onto the rows a description this short
+    ///     takes rather than cut, and the hint row under that says <c>esc</c> goes back.
     /// </summary>
     [Fact]
     public async Task TheDescriptionIsWrappedBeneathThePictureAndTheHintRowUnderIt()
@@ -93,6 +93,35 @@ public class PictureScreenTests
         Assert.Equal(new System.Drawing.Rectangle(left, top, columns, rows), Box(drawn));
         Assert.Contains("A cartoon sheep", drawn.Rows()[top + rows], StringComparison.Ordinal);
         Assert.Contains("esc back", drawn.Rows()[top + rows + 1], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     A description as long as a whole article — as a post bridged from a blog can carry, HTML and all — never
+    ///     squeezes out the picture: it is cut to a quarter of the 27 rows inside the panel, six, its last row ending in
+    ///     <c>…</c> where it is cut and written as it came, and the picture takes the rest, a square one 20 rows tall.
+    /// </summary>
+    [Fact]
+    public async Task ALongDescriptionIsCutSoThatThePictureKeepsItsRoom()
+    {
+        var article = "<article><h1>On shearing</h1>"
+            + string.Concat(Enumerable.Repeat("<p>The flock came down from the hill at first light, wet.</p>", 60))
+            + "</article>";
+
+        using var drawn = await Opened(APost.With(
+            id: "110",
+            media: [APost.APicture("m1", description: article, shape: new(400, 400))]));
+
+        var rows = drawn.Rows();
+        var box = Box(drawn);
+        var described = rows[box.Bottom..(box.Bottom + 6)]
+            .Select(row => row[ContentLeft..ContentRight].TrimEnd())
+            .ToList();
+
+        Assert.Equal(new System.Drawing.Rectangle(29, 1, 40, 20), box);
+        Assert.StartsWith("<article><h1>On shearing</h1>", described[0].Trim(), StringComparison.Ordinal);
+        Assert.EndsWith("…", described[^1], StringComparison.Ordinal);
+        Assert.DoesNotContain("…", string.Concat(described[..^1]), StringComparison.Ordinal);
+        Assert.Contains("esc back", rows[box.Bottom + 6], StringComparison.Ordinal);
     }
 
     /// <summary>

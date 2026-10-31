@@ -925,7 +925,10 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
 - **`⏎` on a walked picture opens its Picture screen** (#516, ADR-0034), a screen pushed onto the stack and crumbed
   `Picture by @author`: the one picture fitted whole into the window less the rows under it, at its shape and centred
   across, never cropped or stretched out of shape; what its author said it shows (`PostMedia.Shows`, so `a picture,
-  undescribed` where they said nothing) wrapped beneath it rather than cut; and a hint row under that, `esc back`. Its
+  undescribed` where they said nothing) wrapped beneath it, shown as written, markup and all, and cut at a quarter of
+  the content region's rows (one at least), its last row shown ending in `…`, so that a description as long as a whole
+  article — one bridged from a blog can be — never squeezes the picture out, the picture being given its room first
+  (review of #514); and a hint row under that, `esc back`. Its
   box is settled again on every frame from the room the window gives it, so a resize draws the picture to fit the new
   window. It draws the instance's original (#517): its **Stand-in** until the original lands, then the original in the
   same cells, the box settled from the original's shape (`PostMedia.OriginalShape`, the smaller copy's standing in
