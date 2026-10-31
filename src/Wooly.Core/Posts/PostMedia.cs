@@ -52,7 +52,7 @@ public sealed record PostMedia
     /// <summary>
     ///     The shape of the file itself, as the instance reported it: the metadata's <c>original</c> entry, or
     ///     <see langword="null" /> where that does not have both sides. What the TUI's Picture screen settles its box
-    ///     from, so that the smaller copy drawn while the original comes and the original once it has fill the same
+    ///     from, so that the Stand-in drawn while the original comes and the original once it has fill the same
     ///     cells — the smaller copy's <see cref="Shape" /> standing in where this was not said (ADR-0034).
     /// </summary>
     /// <remarks>

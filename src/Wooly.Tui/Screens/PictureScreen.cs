@@ -12,12 +12,12 @@ namespace Wooly.Tui.Screens;
 ///     <b>Picture screen</b>, ADR-0034).
 /// </summary>
 /// <remarks>
-///     Drawn at the instance's original (#517), and at the smaller copy the timeline already holds until the original
-///     lands, stretched to the box (#516), so that something is there the moment it opens; its <b>Stand-in</b> stands
-///     where neither is here. The box is settled from the original's shape, so the two fill the same cells and the
-///     original replaces the smaller copy without anything moving; and afresh on every frame from the room the window
-///     has, so a resize draws the picture to fit the new one. An original that will not come leaves the smaller copy
-///     standing, and the status row saying why.
+///     Drawn at the instance's original (#517), its <b>Stand-in</b> standing in the box until the original lands: not
+///     the smaller copy the timeline already holds, which drawn first and then swapped for the original read as the
+///     picture flashing (review of #514). The box is settled from the original's shape, so the original fills the
+///     Stand-in's cells without anything moving; and afresh on every frame from the room the window has, so a resize
+///     draws the picture to fit the new one. Only an original that will not come — too large, or not fetched or not
+///     read — has the smaller copy drawn in its place, stretched to the box, and the status row saying why.
 ///     <para>
 ///         The original is held apart from the timeline's pictures, and only while a frame of this screen wants it
 ///         (<see cref="Drawn.HeldApart" />): the first frame drawn without it — the screen gone, or another picture
@@ -131,13 +131,18 @@ public sealed class PictureScreen : Screen
         var described = Described(drawing.Width);
         var room = drawing.Height is { } height ? height - described.Count - 1 : Inset.WholeRows;
         var original = Drawn.Original(Showing, drawing.Width, room);
-        var smaller = Drawn.Attached(Showing);
-        var drawn = drawing.Pictures?.Of(original) is null ? smaller : original;
-        var box = PictureBox.Shaped(drawn, Showing.OriginalShape ?? Showing.Shape, Showing.Blurhash, drawing, room);
+        var why = drawing.Pictures?.WhyNot(original);
+        Drawn? fallback = why is null ? null : Drawn.Attached(Showing);
+        var box = PictureBox.Shaped(
+            fallback ?? original,
+            Showing.OriginalShape ?? Showing.Shape,
+            Showing.Blurhash,
+            drawing,
+            room);
 
-        Tell(original, drawing.Pictures?.WhyNot(original));
+        Tell(original, why);
 
-        return [.. box is null ? [] : Boxed(box, original, smaller, drawing.Width), .. described, Hint];
+        return [.. box is null ? [] : Boxed(box, original, fallback, drawing.Width), .. described, Hint];
     }
 
     /// <summary>Whether the post has more than the one picture, and so anything for <c>←</c> and <c>→</c> to reach.</summary>
@@ -158,10 +163,14 @@ public sealed class PictureScreen : Screen
 
     /// <summary>
     ///     <paramref name="box" />'s rows, centred in <paramref name="width" /> — its top row saying it waits for
-    ///     <paramref name="original" />, there being no caption above it to say so, and for <paramref name="smaller" />
-    ///     beside it, which stands in until the original lands and is the one drawn where it never does.
+    ///     <paramref name="original" />, there being no caption above it to say so, and for <paramref name="fallback" />
+    ///     beside it where there is one: the smaller copy, drawn only where the original will not come.
     /// </summary>
-    private static IEnumerable<Line> Boxed(PictureBox box, Drawn original, Drawn smaller, int width)
+    /// <remarks>
+    ///     The original is still wanted while the smaller copy stands in for it, so that what was learnt of it stays
+    ///     held and it is not sent for again on the next frame.
+    /// </remarks>
+    private static IEnumerable<Line> Boxed(PictureBox box, Drawn original, Drawn? fallback, int width)
     {
         var column = Math.Max(0, (width - box.Columns) / 2);
         var before = new Span(new string(' ', column), Role.Body);
@@ -170,7 +179,9 @@ public sealed class PictureScreen : Screen
         {
             var line = Line.Of(before, box.Cells(row)) with { Insets = box.Insets(row, column) };
 
-            yield return row == 0 ? line with { Wants = original, AlsoWants = [smaller] } : line;
+            yield return row == 0
+                ? line with { Wants = original, AlsoWants = fallback is null ? [] : [fallback] }
+                : line;
         }
     }
 
@@ -199,7 +210,7 @@ public sealed class PictureScreen : Screen
         }
     }
 
-    /// <summary>Why the smaller copy is still what is drawn, in words.</summary>
+    /// <summary>Why the smaller copy is drawn in the original's place, in words.</summary>
     private static string Said(Unshowable why) => why is Unshowable.TooLarge
         ? "The original is too large to show."
         : "The original could not be fetched.";

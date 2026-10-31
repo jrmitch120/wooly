@@ -8,52 +8,57 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The Picture screen draws the instance's original rather than the smaller copy: the smaller copy at once, the
-///     original in the same cells once it lands, and the smaller copy left standing with a word on the status row where
-///     the original will not come (#517, ADR-0034). Read back off the whole shell drawn headless in the no-colour theme,
-///     its cells pinned at 10×20.
+///     The Picture screen draws the instance's original rather than the smaller copy: its <b>Stand-in</b> until the
+///     original lands, the original then in the same cells, and the smaller copy only where the original will not
+///     come, with a word on the status row (#517, ADR-0034). Read back off the whole shell drawn headless in the
+///     no-colour theme, its cells pinned at 10×20.
 /// </summary>
 public class PictureOriginalTests
 {
     /// <summary>
-    ///     A picture opened is sent for at its original, on screen, beside the smaller copy it is drawn at until the
-    ///     original lands — so that the smaller copy, already held for the timeline, stays held while it stands in.
+    ///     A picture opened is sent for at its original, on screen, and the screen does not want the smaller copy
+    ///     beside it: drawing that and then swapping the original in reads as the picture flashing.
     /// </summary>
     [Fact]
-    public async Task ThePictureScreenSendsForTheOriginalBesideTheSmallerCopy()
+    public async Task ThePictureScreenSendsForTheOriginalAlone()
     {
         var pictures = new FakePictures().Holding("m1", 400, 300);
 
         using var drawn = await Opened(APost.APicture("m1", shape: new(400, 300)), pictures);
 
         Assert.Contains(Wanted(pictures), wanted => wanted.Drawn.Id == Original("m1").Id && wanted.OnScreen);
-        Assert.Contains(Wanted(pictures), wanted => wanted.Drawn.Id == "m1" && wanted.OnScreen);
+        Assert.DoesNotContain(Wanted(pictures), wanted => wanted.Drawn.Id == "m1");
     }
 
     /// <summary>
-    ///     The smaller copy is drawn until the original lands, and the original then in its place: in the same box,
-    ///     with nothing outside it changed (story 12).
+    ///     The Stand-in is drawn until the original lands, though the smaller copy is already held for the timeline,
+    ///     and the original then in its place: in the same box, with the description under it where it was.
     /// </summary>
     [Fact]
-    public async Task TheOriginalReplacesTheSmallerCopyWithoutAnythingMoving()
+    public async Task TheStandInIsDrawnUntilTheOriginalLandsInTheSameCells()
     {
         var pictures = new FakePictures().Holding("m1", 400, 300);
 
         using var drawn = await Opened(
-            APost.APicture("m1", shape: new(400, 300), originalShape: new(2000, 1500)),
+            APost.APicture(
+                "m1",
+                shape: new(400, 300),
+                blurhash: StandInBlurTests.AHash,
+                originalShape: new(2000, 1500)),
             pictures);
 
         var box = Box(drawn);
-        var rows = drawn.Rows();
+        var described = drawn.Rows()[box.Bottom];
 
-        Assert.Equal("m1", Showing(drawn).PictureId);
+        Assert.Equal(Drawn.Blur(Original("m1")).Id, Showing(drawn).PictureId);
+        Assert.Contains("A cartoon sheep", described, StringComparison.Ordinal);
 
         pictures.Holding(Original("m1").Id, 1000, 750);
         drawn.Redraw();
 
         Assert.Equal(Original("m1").Id, Showing(drawn).PictureId);
         Assert.Equal(box, Box(drawn));
-        Assert.Equal(rows, drawn.Rows());
+        Assert.Equal(described, drawn.Rows()[box.Bottom]);
     }
 
     /// <summary>
@@ -67,25 +72,28 @@ public class PictureOriginalTests
     {
         using var drawn = await Opened(
             APost.APicture("m1", shape: new(4000, 400), originalShape: new(1000, 1000)),
-            new FakePictures().Holding("m1", 400, 400));
+            new FakePictures().HoldingOriginal("m1", 1000, 1000));
 
         Assert.Equal(new System.Drawing.Rectangle(24, 1, 50, 25), Box(drawn));
     }
 
     /// <summary>
-    ///     An original too large to fetch, or one that could not be fetched or read, leaves the smaller copy drawn and
-    ///     the status row saying why (stories 18 and 19).
+    ///     An original too large to fetch, or one that could not be fetched or read, has the smaller copy drawn in its
+    ///     place, the screen wanting it now, and the status row saying why (stories 18 and 19).
     /// </summary>
     [Theory]
     [InlineData(Unshowable.TooLarge, "The original is too large to show.")]
     [InlineData(Unshowable.Failed, "The original could not be fetched.")]
-    public async Task AnOriginalThatWillNotComeLeavesTheSmallerCopyAndSaysWhy(Unshowable why, string said)
+    public async Task AnOriginalThatWillNotComeFallsBackToTheSmallerCopyAndSaysWhy(Unshowable why, string said)
     {
         var pictures = new FakePictures().Holding("m1", 400, 300).Refusing(Original("m1").Id, why);
 
-        using var drawn = await Opened(APost.APicture("m1", shape: new(400, 300)), pictures);
+        using var drawn = await Opened(
+            APost.APicture("m1", shape: new(400, 300), blurhash: StandInBlurTests.AHash),
+            pictures);
 
         Assert.Equal("m1", Showing(drawn).PictureId);
+        Assert.Contains(Wanted(pictures), wanted => wanted.Drawn.Id == "m1" && wanted.OnScreen);
         Assert.Contains(said, drawn.Rows()[^1], StringComparison.Ordinal);
     }
 

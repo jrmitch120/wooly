@@ -146,30 +146,29 @@ public class PictureScreenTests
     }
 
     /// <summary>
-    ///     A picture whose smaller copy is not held — let go of, or never fetched — shows its <b>Stand-in</b> in the box
-    ///     until it arrives, and then the picture in the same cells.
+    ///     A picture whose original is not here yet shows its <b>Stand-in</b> in the box until it arrives, and then the
+    ///     picture in the same cells.
     /// </summary>
     [Fact]
     public async Task APictureNotHeldShowsItsStandInAndThenThePictureInTheSameBox()
     {
         var pictures = new FakePictures();
+        var picture = APost.APicture("m1", shape: new(400, 400), blurhash: StandInBlurTests.AHash);
 
-        using var drawn = await Opened(
-            APost.With(
-                id: "110",
-                media: [APost.APicture("m1", shape: new(400, 400), blurhash: StandInBlurTests.AHash)]),
-            pictures);
+        using var drawn = await Opened(APost.With(id: "110", media: [picture]), pictures);
 
         var standing = Box(drawn);
 
         Assert.Equal(
-            Drawn.Blur(new Drawn("m1", "")).Id,
+            Drawn.Blur(Drawn.Original(picture, 0, 0)).Id,
             Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible).PictureId);
 
-        pictures.Holding("m1", 400, 400);
+        pictures.HoldingOriginal("m1", 400, 400);
         drawn.Redraw();
 
-        Assert.Equal("m1", Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible).PictureId);
+        Assert.Equal(
+            Drawn.Original(picture, 0, 0).Id,
+            Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible).PictureId);
         Assert.Equal(standing, Box(drawn));
     }
 
@@ -254,11 +253,13 @@ public class PictureScreenTests
     private static System.Drawing.Rectangle Box(DrawnShell drawn) =>
         Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible).FrameToScreen();
 
-    /// <summary>Every picture on <paramref name="post" /> here, at the shape the instance reported for it.</summary>
+    /// <summary>
+    ///     Every picture on <paramref name="post" /> here, its smaller copy and its original alike, at the shape the
+    ///     instance reported for it.
+    /// </summary>
     private static FakePictures Holding(Post post) => post.Media.Aggregate(
         new FakePictures(),
-        (pictures, media) => pictures.Holding(
-            media.Id,
-            media.Shape?.Width ?? 1600,
-            media.Shape?.Height ?? 900));
+        (pictures, media) => pictures
+            .Holding(media.Id, media.Shape?.Width ?? 1600, media.Shape?.Height ?? 900)
+            .HoldingOriginal(media.Id, media.Shape?.Width ?? 1600, media.Shape?.Height ?? 900));
 }

@@ -15,10 +15,10 @@ than seventy. Scrolling back would be a decode or a fetch far more often, for a 
 **The original is one key away instead, on a Picture screen.** A drawn still picture joins the walk: `←`/`→` reach it
 after the post's text references, in the order the pictures are drawn, and `⏎` opens it over the whole window at its
 original, its description and a hint row beneath it, `←`/`→` stepping through the post's other pictures and `esc` going
-back. The preview, already held, is drawn there at once and the original replaces it when it lands, in a box settled
-from the original's shape so that nothing moves. One picture is held only while it is looked at, so the screen may read
-a download past the 8 MB `Pictures.MostBytes` allows the timeline — up to 32 MB, decoded straight to the window's size —
-and an original past even that leaves the preview standing with a word on the status row.
+back. The preview, already held, is drawn there at once and the original replaces it when it lands (amended below), in
+a box settled from the original's shape so that nothing moves. One picture is held only while it is looked at, so the
+screen may read a download past the 8 MB `Pictures.MostBytes` allows the timeline — up to 32 MB, decoded straight to the
+window's size — and an original past even that leaves the preview standing with a word on the status row.
 
 **It opens inside the terminal, not in the reader's browser,** although that was the cheaper way and is how a video
 opens (ADR-0017). A video cannot be played here; a picture can, and sending the reader out of the TUI to read a
@@ -44,3 +44,12 @@ Unicode's East Asian widths where the block elements `▏` and `▕` are ambiguo
 for CJK. They were settled on without being looked at: the check the ticket asked for, drawing them beside a box in
 Ghostty and macOS Terminal, is still to be done by eye, and if they draw badly there — broken between rows, or off the
 cell's centre — the fallback replaces them.
+
+## Amendment: the Stand-in waits for the original, not the preview (review of #514)
+
+The decision above drew the preview on the Picture screen at once and the original over it when it landed. Tried, the
+swap read as the picture flashing rather than sharpening: two pictures in turn, the first already a little wrong. The
+screen now draws the picture's **Stand-in** until the original lands, and the original then in the same cells, as a
+feed draws a picture arriving. The preview is drawn there only as the fallback, where the original is refused as too
+large or cannot be fetched or decoded, with the status row's word as before; and only then does the screen want it, so
+that opening a picture never draws one copy only to replace it. This supersedes spec #514's user stories 11 and 12.

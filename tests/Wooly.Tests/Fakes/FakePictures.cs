@@ -37,6 +37,13 @@ internal sealed class FakePictures : IPictures
     public FakePictures Holding(string mediaId, int width, int height) => Held(mediaId, width, height);
 
     /// <summary>
+    ///     Says that the original of the attachment <paramref name="mediaId" /> has arrived, as the Picture screen sends
+    ///     for it, at the given size in pixels.
+    /// </summary>
+    public FakePictures HoldingOriginal(string mediaId, int width, int height) =>
+        Held(Drawn.Original(APost.APicture(mediaId), 0, 0).Id, width, height);
+
+    /// <summary>
     ///     Says that the picture the instance chose for <paramref name="link" /> has arrived, at the given size in
     ///     pixels — or holds nothing at all where it chose none, which is a preview with no picture coming.
     /// </summary>

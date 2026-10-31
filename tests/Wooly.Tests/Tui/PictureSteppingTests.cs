@@ -39,7 +39,7 @@ public class PictureSteppingTests
 
         drawn.Press(Key.CursorRight);
 
-        Assert.Equal("m2", Showing(drawn));
+        Assert.Equal(Original("m2"), Showing(drawn));
         Assert.Contains(drawn.Rows(), row => row.Contains("The second sheep", StringComparison.Ordinal));
         Assert.DoesNotContain(drawn.Rows(), row => row.Contains("The first sheep", StringComparison.Ordinal));
         Assert.Contains(drawn.Rows(), row => row.Contains("esc back · ←→ picture 2 of 3", StringComparison.Ordinal));
@@ -57,13 +57,13 @@ public class PictureSteppingTests
         drawn.Press(Key.CursorRight);
         drawn.Press(Key.CursorLeft);
 
-        Assert.Equal("m2", Showing(drawn));
+        Assert.Equal(Original("m2"), Showing(drawn));
         Assert.Contains(drawn.Rows(), row => row.Contains("The second sheep", StringComparison.Ordinal));
         Assert.Contains(drawn.Rows(), row => row.Contains("esc back · ←→ picture 2 of 3", StringComparison.Ordinal));
 
         drawn.Press(Key.CursorLeft);
 
-        Assert.Equal("m1", Showing(drawn));
+        Assert.Equal(Original("m1"), Showing(drawn));
         Assert.Contains(drawn.Rows(), row => row.Contains("The first sheep", StringComparison.Ordinal));
         Assert.Contains(drawn.Rows(), row => row.Contains("esc back · ←→ picture 1 of 3", StringComparison.Ordinal));
     }
@@ -82,7 +82,7 @@ public class PictureSteppingTests
         drawn.Press(Key.CursorLeft);
 
         Assert.Equal(first, drawn.Rows());
-        Assert.Equal("m1", Showing(drawn));
+        Assert.Equal(Original("m1"), Showing(drawn));
 
         drawn.Press(Key.CursorRight);
         drawn.Press(Key.CursorRight);
@@ -94,7 +94,7 @@ public class PictureSteppingTests
         drawn.Press(Key.CursorRight);
 
         Assert.Equal(last, drawn.Rows());
-        Assert.Equal("m3", Showing(drawn));
+        Assert.Equal(Original("m3"), Showing(drawn));
     }
 
     /// <summary>
@@ -148,11 +148,11 @@ public class PictureSteppingTests
         drawn.Press(Key.Enter);
         drawn.Settle();
 
-        Assert.Equal("m2", Showing(drawn));
+        Assert.Equal(Original("m2"), Showing(drawn));
 
         drawn.Press(Key.CursorLeft);
 
-        Assert.Equal("m1", Showing(drawn));
+        Assert.Equal(Original("m1"), Showing(drawn));
 
         drawn.Press(Key.Esc);
 
@@ -164,7 +164,8 @@ public class PictureSteppingTests
 
     /// <summary>
     ///     The shell on an 80×30 terminal drawing sixel at 10×20 cells in the no-colour theme, reading
-    ///     <paramref name="post" /> and one more under it, with every picture on it here.
+    ///     <paramref name="post" /> and one more under it, with every picture on it here, its smaller copy and its
+    ///     original alike.
     /// </summary>
     private static Task<DrawnShell> Reading(Post post) =>
         DrawnShell.Of(
@@ -174,7 +175,9 @@ public class PictureSteppingTests
             new AShell { Timelines = FakeTimelineReader.Holding(post, APost.With(id: "220")) },
             pictures: post.Media.Aggregate(
                 new FakePictures(),
-                (pictures, media) => pictures.Holding(media.Id, media.Shape!.Value.Width, media.Shape.Value.Height)),
+                (pictures, media) => pictures
+                    .Holding(media.Id, media.Shape!.Value.Width, media.Shape.Value.Height)
+                    .HoldingOriginal(media.Id, media.Shape.Value.Width, media.Shape.Value.Height)),
             drawsPictures: true,
             raster: ARaster.Sixel());
 
@@ -189,6 +192,9 @@ public class PictureSteppingTests
 
         return drawn;
     }
+
+    /// <summary>The id the original of the attachment <paramref name="id" /> names is drawn under.</summary>
+    private static string Original(string id) => Drawn.Original(APost.APicture(id), 0, 0).Id;
 
     /// <summary>Which picture the Picture screen's box is drawing.</summary>
     private static string? Showing(DrawnShell drawn) =>
