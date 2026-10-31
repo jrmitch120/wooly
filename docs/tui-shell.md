@@ -941,6 +941,10 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
 - **A picture is drawn at the full width of the column it is in, at its own proportions**, capped at 16 rows in a feed
   item and 32 on the post screen. Width-driven rather than height-driven — that is the difference between an inline
   picture and a postage stamp.
+- **An attachment's box gives up a column either side** (#519, ADR-0034). A still picture's box and a video's or an
+  animation's preview are drawn a column in from each edge of the content region, walked or not: those columns are
+  where a walked picture's brackets go, so walking to one moves nothing, and a video's box lines up with a picture's on
+  the same post. A link preview's picture and every fixed box keep the width they had.
 - **Fixed boxes are cropped to fill; shaped boxes fit** (#438). Every drawn picture has a **picture box**
   (`PictureBox`), settled before its pixels arrive and holding its Stand-in until they do. A shaped box — a post's
   picture, a link preview's — is the shape the instance reported, 16:9 where it reported none, and the picture is fitted

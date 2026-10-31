@@ -27,8 +27,12 @@ public class StandInBlurTests
     /// <summary>800×200 at 61 columns of 10×20-pixel cells: eight rows, as in <c>ReservedBoxTests</c>.</summary>
     private static readonly PictureShape Wide = new(800, 200);
 
-    /// <summary>The rows at 61 columns, now, over <paramref name="pictures" />, with blurs to decode.</summary>
-    private static Drawing ADrawing(IPictures pictures) => new(61, Now, pictures, ARaster.Sixel(), Blurs: new Blurs());
+    /// <summary>
+    ///     The rows an attachment's box is 61 columns across in, a column wider either side for a walked picture's
+    ///     brackets (ADR-0034) — or <paramref name="width" /> columns — now, over <paramref name="pictures" />, with
+    ///     blurs to decode.
+    /// </summary>
+    private static Drawing ADrawing(IPictures pictures, int width = 61 + 2) => new(width, Now, pictures, ARaster.Sixel(), Blurs: new Blurs());
 
     private static List<Line> StandIn(IEnumerable<Line> lines) =>
         [.. lines.Where(line => line.Has(Role.StandIn))];
@@ -49,7 +53,7 @@ public class StandInBlurTests
 
         var blur = Assert.Single(lines.SelectMany(line => line.Insets));
         Assert.Same(shaded[0], Assert.Single(lines, line => line.Insets.Count > 0));
-        Assert.Equal((0, 61, 8), (blur.Column, blur.Columns, blur.Rows));
+        Assert.Equal((1, 61, 8), (blur.Column, blur.Columns, blur.Rows));
         Assert.NotNull(blur.Blur);
         Assert.NotEqual("m1", blur.Drawn.Id);
     }
@@ -67,9 +71,9 @@ public class StandInBlurTests
 
         var lines = PostLines.Feed(
             post,
-            new Drawing(61, Now, new FakePictures(), ARaster.Sixel(), Blurs: blurs),
+            new Drawing(61 + 2, Now, new FakePictures(), ARaster.Sixel(), Blurs: blurs),
             default);
-        var unblurred = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var unblurred = PostLines.Feed(post, new Drawing(61 + 2, Now, new FakePictures(), ARaster.Sixel()), default);
 
         Assert.Same(blurs.Of(AHash), Assert.Single(lines.SelectMany(line => line.Insets)).Blur);
         Assert.Empty(unblurred.SelectMany(line => line.Insets));
@@ -144,10 +148,10 @@ public class StandInBlurTests
         var link = APost.ALinkPreview(shape: Wide, blurhash: AHash);
         var post = APost.With(linkPreview: link);
 
-        var waiting = PostLines.Feed(post, ADrawing(new FakePictures()), default);
+        var waiting = PostLines.Feed(post, ADrawing(new FakePictures(), width: 61), default);
         var held = PostLines.Feed(
             post,
-            ADrawing(new FakePictures().HoldingLinkPreview(link, 800, 200)),
+            ADrawing(new FakePictures().HoldingLinkPreview(link, 800, 200), width: 61),
             default);
 
         var blur = Assert.Single(waiting.SelectMany(line => line.Insets));

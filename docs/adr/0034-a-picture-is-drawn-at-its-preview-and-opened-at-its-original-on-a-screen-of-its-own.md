@@ -35,5 +35,12 @@ it (`hide_drawn_caption`), and a label row over every picture was a row each for
 
 This amends ADR-0017, under which `Image` never joined the walk: a drawn still picture now does, and a picture that
 cannot be drawn keeps its `⏵`, description and address as before. A **warned** post's pictures are not walked until it
-is asked past, as nothing on it is. The tall brackets need checking in the fonts readers use; `▏` and `▕` are the
-fallback if they draw badly. Opening a picture by clicking it waits for mouse support.
+is asked past, as nothing on it is. Opening a picture by clicking it waits for mouse support.
+
+**The brackets settled on are `⎡ ⎢ ⎣` and `⎤ ⎥ ⎦`** (#519), with `▏` and `▕` as the fallback. The tall brackets are
+the ones that read as brackets on a terminal without colour, the corners saying where a box starts and ends where a
+pair of thin bars says only that something stands beside it; and they are one column wide everywhere, being neutral in
+Unicode's East Asian widths where the block elements `▏` and `▕` are ambiguous and are drawn two wide by a terminal set
+for CJK. They were settled on without being looked at: the check the ticket asked for, drawing them beside a box in
+Ghostty and macOS Terminal, is still to be done by eye, and if they draw badly there — broken between rows, or off the
+cell's centre — the fallback replaces them.

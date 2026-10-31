@@ -27,6 +27,12 @@ public class ReservedBoxTests
     /// </summary>
     private static readonly PictureShape Wide = new(800, 200);
 
+    /// <summary>
+    ///     The row an attachment's 61-column box is drawn in: the box gives up a column either side of it, for a walked
+    ///     picture's brackets (ADR-0034).
+    /// </summary>
+    private const int AttachmentRow = 61 + 2;
+
     /// <summary>The rows of the Stand-in: shaded and nothing else.</summary>
     private static List<Line> StandIn(IEnumerable<Line> lines) =>
         [.. lines.Where(line => line.Has(Role.StandIn))];
@@ -41,10 +47,10 @@ public class ReservedBoxTests
     {
         var post = APost.With(media: [APost.APicture(shape: Wide)]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var waiting = PostLines.Feed(post, new Drawing(AttachmentRow, Now, new FakePictures(), ARaster.Sixel()), default);
         var held = PostLines.Feed(
             post,
-            new Drawing(61, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel()),
+            new Drawing(AttachmentRow, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel()),
             default);
 
         Assert.Equal(8, StandIn(waiting).Count);
@@ -76,7 +82,7 @@ public class ReservedBoxTests
         var pictures = new FakePictures();
         var post = APost.With(media: [APost.APicture(shape: Wide)]);
 
-        var lines = PostLines.Feed(post, new Drawing(61, Now, pictures, ARaster.Sixel()), default);
+        var lines = PostLines.Feed(post, new Drawing(AttachmentRow, Now, pictures, ARaster.Sixel()), default);
 
         Assert.Equal(8, StandIn(lines).Count);
         Assert.Empty(lines.SelectMany(line => line.Insets));
@@ -84,20 +90,20 @@ public class ReservedBoxTests
     }
 
     /// <summary>
-    ///     The Stand-in is a plain shade and nothing written in it, as wide as the box: the caption is said once, on
-    ///     its own row above the box, where it already was (ADR-0025).
+    ///     The Stand-in is a plain shade and nothing written in it, as wide as the box, a blank column in: the caption
+    ///     is said once, on its own row above the box, where it already was (ADR-0025).
     /// </summary>
     [Fact]
     public void Feed_ShadesTheStandInWithNoTextInIt()
     {
         var post = APost.With(media: [APost.APicture(shape: Wide, description: "A cartoon sheep")]);
 
-        var lines = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var lines = PostLines.Feed(post, new Drawing(AttachmentRow, Now, new FakePictures(), ARaster.Sixel()), default);
 
         Assert.All(StandIn(lines), line =>
         {
-            Assert.Equal(new string('░', 61), line.Text);
-            Assert.Equal(Role.StandIn, line.Role);
+            Assert.Equal($" {new string('░', 61)}", line.Text);
+            Assert.Equal(Role.StandIn, line.Spans[^1].Role);
         });
 
         var caption = Assert.Single(lines, line => line.Text.Contains("A cartoon sheep", StringComparison.Ordinal));
@@ -106,19 +112,19 @@ public class ReservedBoxTests
 
     /// <summary>
     ///     Where the instance reported no shape the box is 16:9 at full width: 40 × 10 × 9 ÷ (16 × 20) is 11.25, so
-    ///     eleven rows of forty. A guess, but a box rather than a jump (ADR-0025).
+    ///     eleven rows of forty, in a row of forty-two. A guess, but a box rather than a jump (ADR-0025).
     /// </summary>
     [Fact]
     public void Feed_ReservesASixteenByNineBoxWhereTheInstanceReportedNoShape()
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(shape: null)]),
-            new Drawing(40, Now, new FakePictures(), ARaster.Sixel()),
+            new Drawing(40 + 2, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         var shaded = StandIn(lines);
         Assert.Equal(11, shaded.Count);
-        Assert.All(shaded, line => Assert.Equal(40, line.Width));
+        Assert.All(shaded, line => Assert.Equal($" {new string('░', 40)}", line.Text));
     }
 
     /// <summary>
@@ -130,27 +136,27 @@ public class ReservedBoxTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(shape: null)]),
-            new Drawing(61, Now, new FakePictures(), ARaster.Sixel()),
+            new Drawing(AttachmentRow, Now, new FakePictures(), ARaster.Sixel()),
             default);
 
         var shaded = StandIn(lines);
         Assert.Equal(Inset.FeedRows, shaded.Count);
-        Assert.All(shaded, line => Assert.Equal(57, line.Width));
+        Assert.All(shaded, line => Assert.Equal($" {new string('░', 57)}", line.Text));
     }
 
     /// <summary>
     ///     Pixels squarer than the shape they were reserved at are fitted to the box's height and centred across it:
-    ///     a square in a 61×8 box is 16 wide (8 rows of 20 pixels over cells 10 wide), 22 columns in.
+    ///     a square in a 61×8 box is 16 wide (8 rows of 20 pixels over cells 10 wide), 22 columns into the box.
     /// </summary>
     [Fact]
     public void Feed_CentresAPictureNarrowerThanItsBoxAcrossIt()
     {
         var post = APost.With(media: [APost.APicture(shape: Wide)]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var waiting = PostLines.Feed(post, new Drawing(AttachmentRow, Now, new FakePictures(), ARaster.Sixel()), default);
         var held = PostLines.Feed(
             post,
-            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 400), ARaster.Sixel()),
+            new Drawing(AttachmentRow, Now, new FakePictures().Holding("m1", 400, 400), ARaster.Sixel()),
             default);
 
         var top = waiting.ToList().FindIndex(line => line.Has(Role.StandIn));
@@ -159,23 +165,23 @@ public class ReservedBoxTests
 
         Assert.Equal(waiting.Count, held.Count);
         Assert.Equal(top, carrying);
-        Assert.Equal((22, 16, 8), (inset.Column, inset.Columns, inset.Rows));
+        Assert.Equal((23, 16, 8), (inset.Column, inset.Columns, inset.Rows));
         Assert.Empty(StandIn(held));
     }
 
     /// <summary>
     ///     Pixels wider than the shape are fitted to the box's width and centred down it: a 4:1 picture in a 32×16
-    ///     box (a square, at 61 columns, capped) is four rows tall, six rows down.
+    ///     box (a square, at 61 columns, capped) is four rows tall, six rows down, at the box's own first column.
     /// </summary>
     [Fact]
     public void Feed_CentresAPictureShorterThanItsBoxDownIt()
     {
         var post = APost.With(media: [APost.APicture(shape: new PictureShape(400, 400))]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var waiting = PostLines.Feed(post, new Drawing(AttachmentRow, Now, new FakePictures(), ARaster.Sixel()), default);
         var held = PostLines.Feed(
             post,
-            new Drawing(61, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel()),
+            new Drawing(AttachmentRow, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel()),
             default);
 
         var top = waiting.ToList().FindIndex(line => line.Has(Role.StandIn));
@@ -184,7 +190,7 @@ public class ReservedBoxTests
 
         Assert.Equal(waiting.Count, held.Count);
         Assert.Equal(top + 6, carrying);
-        Assert.Equal((0, 32, 4), (inset.Column, inset.Columns, inset.Rows));
+        Assert.Equal((1, 32, 4), (inset.Column, inset.Columns, inset.Rows));
         Assert.Equal(Inset.Width(held[carrying].Insets), held[carrying].Width);
     }
 
@@ -200,11 +206,11 @@ public class ReservedBoxTests
 
         var waiting = PostLines.Feed(
             post,
-            new Drawing(61, Now, new FakePictures(), ARaster.Sixel(), HideDrawnCaption: true),
+            new Drawing(AttachmentRow, Now, new FakePictures(), ARaster.Sixel(), HideDrawnCaption: true),
             default);
         var held = PostLines.Feed(
             post,
-            new Drawing(61, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel(), HideDrawnCaption: true),
+            new Drawing(AttachmentRow, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel(), HideDrawnCaption: true),
             default);
 
         foreach (var lines in new[] { waiting, held })
@@ -213,7 +219,7 @@ public class ReservedBoxTests
         }
 
         Assert.Equal(waiting.Count, held.Count);
-        Assert.All(StandIn(waiting), line => Assert.Equal(new string('░', 61), line.Text));
+        Assert.All(StandIn(waiting), line => Assert.Equal($" {new string('░', 61)}", line.Text));
 
         var wanting = Assert.Single(waiting, line => line.Wants is not null);
         Assert.Equal("m1", wanting.Wants?.Id);
@@ -226,10 +232,10 @@ public class ReservedBoxTests
     {
         var post = APost.With(media: [APost.Attached(MediaKind.Video, shape: Wide)]);
 
-        var waiting = PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel()), default);
+        var waiting = PostLines.Feed(post, new Drawing(AttachmentRow, Now, new FakePictures(), ARaster.Sixel()), default);
         var held = PostLines.Feed(
             post,
-            new Drawing(61, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel()),
+            new Drawing(AttachmentRow, Now, new FakePictures().Holding("m1", 800, 200), ARaster.Sixel()),
             default);
 
         Assert.Equal(8, StandIn(waiting).Count);
@@ -250,14 +256,14 @@ public class ReservedBoxTests
         var post = APost.With(sensitive: true, media: [APost.APicture(shape: Wide)]);
         var pictures = new FakePictures();
 
-        var hidden = PostLines.Feed(post, new Drawing(61, Now, pictures, ARaster.Sixel()), default);
+        var hidden = PostLines.Feed(post, new Drawing(AttachmentRow, Now, pictures, ARaster.Sixel()), default);
 
         Assert.Empty(StandIn(hidden));
         Assert.Empty(pictures.Asked);
 
         var revealed = PostLines.Feed(
             post,
-            new Drawing(61, Now, pictures, ARaster.Sixel()),
+            new Drawing(AttachmentRow, Now, pictures, ARaster.Sixel()),
             new Reading(Revealed: true));
 
         Assert.Equal(8, StandIn(revealed).Count);

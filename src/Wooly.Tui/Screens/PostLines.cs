@@ -53,6 +53,14 @@ public static class PostLines
     private const string AskPastIt = "x  show it";
 
     /// <summary>
+    ///     How many columns an attachment's box gives up on each side, walked or not: the columns a walked picture's
+    ///     tall brackets are drawn in, given up by every attachment's box so that walking to one moves nothing and a
+    ///     video's preview lines up with a picture's beside it (ADR-0034, #519). A link preview's picture is never
+    ///     walked to as a picture, and keeps the whole width.
+    /// </summary>
+    private const int Bracketed = 1;
+
+    /// <summary>
     ///     One post as a feed shows it: what it boosts and what it answers, a two-row byline with the author's avatar
     ///     beside it, the text, what is attached, and the three counts behind a blank of their own.
     /// </summary>
@@ -550,7 +558,7 @@ public static class PostLines
             var drawn = Drawn.Attached(attached);
             var described = Described(attached, MediaMark, width) with { Wants = drawn };
 
-            if (PictureBox.Shaped(drawn, attached.Shape, attached.Blurhash, drawing, mostRows) is not { } box)
+            if (AttachmentBox(drawn, attached, drawing, mostRows) is not { } box)
             {
                 yield return [described];
 
@@ -562,10 +570,22 @@ public static class PostLines
             // reader, which is what the box was reserved to stop (ADR-0025). The box's own top row carries the Wants
             // then, there being no caption to carry it.
             yield return drawing.HideDrawnCaption
-                ? [.. Reserved(box, drawn)]
-                : [described, .. Reserved(box)];
+                ? [.. Reserved(box, drawn, Bracketed)]
+                : [described, .. Reserved(box, column: Bracketed)];
         }
     }
+
+    /// <summary>
+    ///     The box an attachment's picture or preview is drawn in: shaped as a link preview's is, but in the width less
+    ///     the <see cref="Bracketed" /> column either side, which it gives up whether or not it is walked (ADR-0034).
+    /// </summary>
+    private static PictureBox? AttachmentBox(Drawn drawn, PostMedia attached, Drawing drawing, int mostRows) =>
+        PictureBox.Shaped(
+            drawn,
+            attached.Shape,
+            attached.Blurhash,
+            drawing.In(Math.Max(0, drawing.Width - (2 * Bracketed))),
+            mostRows);
 
     /// <summary>
     ///     A picture that is not being drawn: what it shows, and where to get it. Unaffected by ADR-0017 — <c>Image</c>
@@ -622,12 +642,12 @@ public static class PostLines
         // The description goes behind the preference from the first frame rather than when the preview lands, for the
         // reason a picture's caption does: the box is already there, and the setting should not depend on how quick
         // the network was (ADR-0025).
-        return PictureBox.Shaped(drawn, attached.Shape, attached.Blurhash, drawing, mostRows) is not { } box
+        return AttachmentBox(drawn, attached, drawing, mostRows) is not { } box
             ? [Label(saysWhatItShows: true) with { Wants = drawn }]
             :
             [
                 Label(saysWhatItShows: !drawing.HideDrawnCaption) with { Wants = drawn },
-                .. Reserved(box),
+                .. Reserved(box, column: Bracketed),
             ];
     }
 
@@ -713,7 +733,8 @@ public static class PostLines
     ///     </para>
     ///     <para>
     ///         What each row holds and what is set into it is the <see cref="PictureBox" />'s, shaped from what the
-    ///         instance reported; this lays the box across the full width and says what its top row waits for.
+    ///         instance reported; this lays the box across the row, <paramref name="column" /> columns in, and says what
+    ///         its top row waits for.
     ///     </para>
     /// </remarks>
     /// <param name="box">The box the shape settled.</param>
@@ -721,11 +742,18 @@ public static class PostLines
     ///     What the box's top row says it is waiting for, where no caption above it is there to say so — or
     ///     <see langword="null" /> where one is.
     /// </param>
-    private static IEnumerable<Line> Reserved(PictureBox box, Drawn? wants = null)
+    /// <param name="column">
+    ///     How far in from the row's left the box starts: <see cref="Bracketed" /> for an attachment's, held blank
+    ///     on every row, and none for a link preview's.
+    /// </param>
+    private static IEnumerable<Line> Reserved(PictureBox box, Drawn? wants = null, int column = 0)
     {
         for (var row = 0; row < box.Rows; row++)
         {
-            var line = Line.Of(box.Cells(row)) with { Insets = box.Insets(row, column: 0) };
+            var cells = column > 0
+                ? Line.Of(new Span(new string(' ', column), Role.Body), box.Cells(row))
+                : Line.Of(box.Cells(row));
+            var line = cells with { Insets = box.Insets(row, column) };
 
             yield return row == 0 ? line with { Wants = wants } : line;
         }

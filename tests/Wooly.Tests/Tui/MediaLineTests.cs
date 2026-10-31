@@ -32,7 +32,8 @@ public class MediaLineTests
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
 
         Assert.Equal("m1", inset.Drawn.Id);
-        Assert.Equal(0, inset.Column);
+        // A column in, given up either side for a walked picture's brackets (ADR-0034).
+        Assert.Equal(1, inset.Column);
         Assert.True(inset.Columns > 0);
         Assert.True(inset.Rows > 0);
     }
@@ -44,7 +45,8 @@ public class MediaLineTests
     /// </summary>
     [Theory]
 
-    // 610 pixels across at 10 per cell; a 2:1 picture is 305 down, which is 15 rows of 20 pixels.
+    // 610 pixels across at 10 per cell, a row of 63 less the column given up either side; a 2:1 picture is 305
+    // down, which is 15 rows of 20 pixels.
     [InlineData(400, 200, 61, 15)]
 
     // The same width, a square picture: 31 rows, which is past the cap — so the cap fixes the height and the width
@@ -58,7 +60,7 @@ public class MediaLineTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.APicture(shape: new PictureShape(pictureWidth, pictureHeight))]),
-            new Drawing(61, Now, new FakePictures().Holding("m1", pictureWidth, pictureHeight), ARaster.Sixel()),
+            new Drawing(61 + 2, Now, new FakePictures().Holding("m1", pictureWidth, pictureHeight), ARaster.Sixel()),
             default);
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));

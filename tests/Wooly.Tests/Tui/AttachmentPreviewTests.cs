@@ -28,15 +28,16 @@ public class AttachmentPreviewTests
     {
         var lines = PostLines.Feed(
             APost.With(media: [APost.Attached(kind, shape: new PictureShape(400, 200))]),
-            new Drawing(61, Now, new FakePictures().Holding("m1", 400, 200), ARaster.Sixel()),
+            new Drawing(61 + 2, Now, new FakePictures().Holding("m1", 400, 200), ARaster.Sixel()),
             default);
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
 
         Assert.Equal("m1", inset.Drawn.Id);
-        Assert.Equal(0, inset.Column);
+        Assert.Equal(1, inset.Column);
 
-        // The same arithmetic a picture of these proportions gets: 61 columns of 10 pixels, 2:1, is 15 rows of 20.
+        // The same arithmetic a picture of these proportions gets: 61 columns of 10 pixels — a row of 63 less a column
+        // either side — at 2:1 is 15 rows of 20.
         Assert.Equal(61, inset.Columns);
         Assert.Equal(15, inset.Rows);
     }
@@ -229,13 +230,13 @@ public class AttachmentPreviewTests
 
         var lines = PostLines.Whole(
             post,
-            new Drawing(61, Now, pictures, ARaster.Sixel()),
+            new Drawing(61 + 2, Now, pictures, ARaster.Sixel()),
             new Reading(Reference: reference));
 
         var inset = Assert.Single(lines.SelectMany(line => line.Insets));
 
-        // The post screen's own cap, which is roomier than a feed item's — a square preview at 61 columns of 10 pixels
-        // is 31 rows of 20, under the 32 the post screen allows and over the 16 a feed does.
+        // The post screen's own cap, which is roomier than a feed item's — a square preview 61 columns of 10 pixels
+        // across is 31 rows of 20, under the 32 the post screen allows and over the 16 a feed does.
         Assert.Equal(31, inset.Rows);
 
         Assert.Contains(lines, line => line.Text.Contains("⏵ ‹Video› Sheep, at length", StringComparison.Ordinal));
