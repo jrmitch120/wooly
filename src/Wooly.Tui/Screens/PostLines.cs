@@ -756,10 +756,11 @@ public static class PostLines
         var column = bracketed is null ? 0 : Bracketed;
         var reference = bracketed?.Reference;
 
-        Span Blanks(int columns) => new(new string(' ', columns), Role.Body) { Reference = reference };
+        // Blank columns carrying the picture's reference, so that a click on them walks to it.
+        Span Referring(int columns) => PictureBox.Blanks(columns, Role.Body) with { Reference = reference };
 
         Span Beside(string glyph, bool walked) =>
-            walked ? new Span(glyph, Role.ReferencePicked) { Reference = reference } : Blanks(column);
+            walked ? new Span(glyph, Role.ReferencePicked) { Reference = reference } : Referring(column);
 
         for (var row = 0; row < box.Rows; row++)
         {
@@ -775,7 +776,7 @@ public static class PostLines
                 : Line.Of(
                     Beside(opening, columns.Walked),
                     held with { Reference = reference },
-                    Blanks(Math.Max(0, box.Columns - held.Width)),
+                    Referring(box.Columns - held.Width),
                     Beside(closing, columns.Walked));
             var line = cells with { Insets = box.Insets(row, column) };
 

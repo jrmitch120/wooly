@@ -112,7 +112,8 @@ public class ReservedBoxTests
 
     /// <summary>
     ///     Where the instance reported no shape the box is 16:9 at full width: 40 × 10 × 9 ÷ (16 × 20) is 11.25, so
-    ///     eleven rows of forty, between the blank columns either side of them in a row of forty-two. A guess, but a box rather than a jump (ADR-0025).
+    ///     eleven rows of forty, between the blank columns either side of them in a row of forty-two. A guess, but a box
+    ///     rather than a jump (ADR-0025).
     /// </summary>
     [Fact]
     public void Feed_ReservesASixteenByNineBoxWhereTheInstanceReportedNoShape()

@@ -174,11 +174,11 @@ _Avoid_: thumbnail (only the smallest of them), frame, slot
 One still picture on a post, over the whole window at the original the instance holds rather than the smaller copy a
 **drawn** picture is fetched at, with its description beneath it — what `⏎` opens a walked picture onto, and where a
 screenshot of small text is read (ADR-0034). Its box is left empty until the original lands — blank, with no
-**Stand-in** — and never holds the smaller copy, which is drawn there only where the original is refused, too large or
-not fetched or not decoded. It holds the originals
-of all the post's pictures while it is open, not only the one shown, so that stepping to another with `←`/`→`, or back,
-finds it already here. The only place the original is ever fetched to be shown, except where the instance gave no
-smaller copy and the timeline draws the original too.
+**Stand-in** — and holds the smaller copy only where the original is refused, too large or not fetched or not decoded,
+when a row of the screen's own under the description, kept for it whether or not anything is said there, says why. It
+holds the originals of all the post's pictures while it is open, not only the one shown, so that stepping to another
+with `←`/`→`, or back, finds it already here. The only place the original is ever fetched to be shown, except where the
+instance gave no smaller copy and the timeline draws the original too.
 _Avoid_: viewer (reserved for the account doing the viewing), lightbox, zoom, full view
 
 **Stand-in**:

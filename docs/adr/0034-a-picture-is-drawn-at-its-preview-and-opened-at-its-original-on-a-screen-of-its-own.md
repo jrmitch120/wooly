@@ -41,22 +41,28 @@ shape (`PostMedia.OriginalShape`, the smaller copy's standing in where the insta
 centred, and settled again on every frame from the room the window gives it. The box is left empty until the original
 lands — blank cells in the page's own colour, with no blur, no shade and no text — taking the cells the original will
 fill, so that nothing moves when it does. The smaller copy is drawn there, stretched to the box, only where the original
-is refused: too large, or not fetched or not decoded. The status row then says `The original is too large to show.` or
-`The original could not be fetched.`, once, and only of the picture shown; and only then does the screen want the
-smaller copy at all.
+is refused: too large, or not fetched or not decoded; and only then does the screen want the smaller copy at all.
 
 Beneath the picture is what its author said it shows, or `a picture, undescribed`, centred row by row and cut at a
 quarter of the screen's rows (one at least), its last row ending in `…`, so that a description as long as an article
-cannot leave the picture no room. Nothing is drawn under that: the status row lists the keys, `esc back` and, where the
-post has several pictures, `←→ picture`, which step through them in the order they are drawn, stopping at either end.
-The crumb counts them, `Picture 2 of 4 by @author`, and a post with one picture has `Picture by @author`.
+cannot leave the picture no room. Under that is one row kept for saying why the original will not come, centred as the
+description is: `The original is too large to show.` or `The original could not be fetched.`, said of the picture shown
+for as long as it is shown, and blank otherwise. It is kept whether anything is said there or not, so that nothing moves
+when it is. Nothing is drawn under it: the status row lists the keys, `esc back` and, where the post has several
+pictures, `←→ picture`, which step through them in the order they are drawn, stopping at either end, and it goes on
+listing them whatever the screen says of an original. The crumb counts them, `Picture 2 of 4 by @author`, and a post
+with one picture has `Picture by @author`.
 
 **The screen holds the originals of all the post's pictures while it is open.** The one shown is sent for first, and the
-rest once it has landed or been refused, so that they do not share the line with the picture being looked at. Each is
-held until the screen goes, so a step to a picture whose original has landed draws it at once, and a step back finds the
-one left still held. Where pictures are drawn as Kitty placeholders or as sixel, the landed originals not shown are
-encoded ahead, each in the box it is drawn in (`Line.Ahead`), so that a step draws its picture on its own frame rather
-than one encode later.
+rest from the first frame one of them has landed or been refused, so that they do not share the line with the picture
+being looked at. Each landed or refused is held until the screen goes, so a step to a picture whose original has landed
+draws it at once, and a step back finds the one left still held; one stepped off before anything has landed is let go,
+its download called off, so that it does not hold up the one stepped to. What the screen wants, and what it says of an
+original, are read off what the cache holds as of the frame, the screen keeping nothing of its own between frames but
+which picture is shown. Where pictures are drawn as Kitty placeholders or as sixel, the landed originals not shown are
+encoded ahead, each in the box it is drawn in and on the row that box would set it on (`Line.Ahead`), so that a step
+draws its picture on its own frame rather than one encode later; one encoded ahead for a window since resized is dropped
+rather than held, never having been sent.
 
 The cost is memory, held for as long as the screen is open: up to four originals, four being the most attachments
 Mastodon carries on a post. Each is decoded straight to the window, about 9 MB of pixels for a window 2000 by 1200
@@ -92,6 +98,11 @@ second time beside it.
   there was nothing left for it to buy.
 - **A hint row under the description**, saying `esc back` and `←→ picture 2 of 4`. It said again what the status row
   already lists, on a screen whose every row is better spent on the picture; the count went to the crumb.
+- **Say why an original will not come on the status row,** as a notice. Tried, it put the keys out of sight: the status
+  row shows a notice in place of the keys, and with no hint row `esc` was then shown nowhere. A notice beside the keys
+  was the other way, and was turned down as a change to the status row of every screen for the sake of one, where a row
+  of the Picture screen's own costs only that screen a row. Saying it there also keeps the screen from writing to the
+  status row while it is being laid out, so what a frame draws follows from what the cache holds alone.
 
 ## Consequences
 

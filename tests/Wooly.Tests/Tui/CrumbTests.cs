@@ -168,13 +168,12 @@ public class CrumbTests
                 return new PostScreen(post, new PostThread([], []));
 
             case "picture":
-                return new PictureScreen(post, APost.APicture(), _ => { });
+                return new PictureScreen(post, APost.APicture());
 
             case "pictures":
                 return new PictureScreen(
                     post with { Media = [APost.APicture("m1"), APost.APicture("m2"), APost.APicture("m3")] },
-                    APost.APicture("m2"),
-                    _ => { });
+                    APost.APicture("m2"));
 
             case "conversation":
                 return new ConversationScreen(AConversation.Thread(

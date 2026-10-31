@@ -928,40 +928,45 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   preview's picture and avatars are never walked to as pictures.
 - **`⏎` on a walked picture opens its Picture screen** (#516, ADR-0034), a screen pushed onto the stack and crumbed
   `Picture by @author` (`Picture 2 of 4 by @author` where the post has several): the one picture fitted whole into the
-  window less the description's rows, at its shape and centred across, never cropped or stretched out of shape; what its
-  author said it shows (`PostMedia.Shows`, so `a picture, undescribed` where they said nothing) wrapped and centred
-  beneath it, row by row, shown as written, markup and all, and cut at a quarter of the content region's rows (one at
-  least), its last row shown ending in `…`, so that a description as long as a whole article — one bridged from a blog
-  can be — never squeezes the picture out, the picture being given its room first (review of #514). Nothing under that:
-  a hint row there saying `esc back` again was taken out, the status row already listing the keys, and its row given to
-  the picture (review of #514). Its box is settled again on every frame from the room the window gives it, so a resize
-  draws the picture to fit the new window. It draws the instance's original (#517): an empty box until the original
-  lands — blank cells in the page's colour, with no **Stand-in**'s blur or shade, which felt off on a screen of one
-  picture (review of #514) — then the original in the same cells, the box settled from the original's shape (`PostMedia.OriginalShape`, the
-  smaller copy's standing in where the instance said none) so that nothing moves. Not the smaller copy the timeline
-  already holds, though it is there at once: drawn first and swapped for the original, it read as the picture flashing
-  (review of #514). The smaller copy is drawn, stretched to the box, only where the original will not come, and is
-  wanted by the screen only then. The original is a `Drawn` of its own (`Drawn.Original`), held apart from the
-  timeline's pictures: it counts against neither budget and lets none of them go to make room, may read up to 32 MB
-  (`Pictures.MostBytesHeldApart`) where an inline picture stays at 8 MB, is decoded no larger than the window, and is
-  let go the first frame that does not want it — so once the screen goes, while the smaller copy stays held for the
-  timeline. `esc` goes back at its first press, to the screen it was opened from with the same
-  pick and nothing walked, opening it having let the picture go as opening a link does (review of #514); on the post
-  screen as in a feed.
+  window less the description's rows and one more, at its shape and centred across, never cropped or stretched out of
+  shape; what its author said it shows (`PostMedia.Shows`, so `a picture, undescribed` where they said nothing) wrapped
+  and centred beneath it, row by row, shown as written, markup and all, and cut at a quarter of the content region's
+  rows (one at least), its last row shown ending in `…`, so that a description as long as a whole article — one bridged
+  from a blog can be — never squeezes the picture out, the picture being given its room first (review of #514). Under
+  that, the one more row: kept for saying why the original will not come, centred, and blank where it is coming or here,
+  so that nothing moves when it is said. Nothing under that: a hint row there saying `esc back` again was taken out, the
+  status row already listing the keys, and its row given to the picture (review of #514). Its box is settled again on
+  every frame from the room the window gives it, so a resize draws the picture to fit the new window. It draws the
+  instance's original (#517): an empty box until the original lands — blank cells in the page's colour, with no
+  **Stand-in**'s blur or shade, which felt off on a screen of one picture (review of #514) — then the original in the
+  same cells, the box settled from the original's shape (`PostMedia.OriginalShape`, the smaller copy's standing in where
+  the instance said none) so that nothing moves. Not the smaller copy the timeline already holds, though it is there at
+  once: drawn first and swapped for the original, it read as the picture flashing (review of #514). The smaller copy is
+  drawn, stretched to the box, only where the original will not come, and is wanted by the screen only then. The
+  original is a `Drawn` of its own (`Drawn.Original`), held apart from the timeline's pictures: it counts against
+  neither budget and lets none of them go to make room, may read up to 32 MB (`Pictures.MostBytesHeldApart`) where an
+  inline picture stays at 8 MB, is decoded no larger than the window, and is let go the first frame that does not want
+  it — so once the screen goes, while the smaller copy stays held for the timeline, its download called off where it is
+  still on its way. `esc` goes back at its first press, to the screen it was opened from with the same pick and nothing
+  walked, opening it having let the picture go as opening a link does (review of #514); on the post screen as in a
+  feed.
 - **`←`/`→` on the Picture screen step along the post's still pictures** (#518), in the order they are drawn, a video or
   the like on the same post passed over, each drawn as any picture is there with its own description, and stopping at
   either end rather than coming round, as the walk does. The crumb counts them where there are several,
   `Picture 2 of 4 by @author`, and the status row offers `←→`; neither says anything of them where there is one. The
   steps are the screen's own verbs (`Verb.NextPicture`, `Verb.PreviousPicture`) rather than a walk of its references, so
   the first `esc` still goes back, to nothing walked underneath whichever was stepped to; the screen steps from the
-  picture it was opened on, which it holds itself rather than reading off a walk underneath. The screen sends for the originals of all the post's pictures, not only the one shown: that one first, and the
-  rest once it has landed or been refused. It holds every one of them apart until it goes, so a step no longer lets go
-  of the picture it leaves (review of #514). A step to a picture whose original has landed draws it at once, with no
-  empty box first, and a step back finds the one left still there. A step to one still on its way shows its empty box,
-  or the smaller copy where its original was refused, and the status row's word is only ever about the picture shown. Where
+  picture it was opened on, which it holds itself rather than reading off a walk underneath. The screen sends for the
+  originals of all the post's pictures, not only the one shown: that one first, and the rest from the first frame one of
+  them has landed or been refused. It holds every one landed or refused apart until it goes, so a step no longer lets go
+  of the picture it leaves (review of #514); one stepped off before anything has landed is let go, its download called
+  off. A step to a picture whose original has landed draws it at once, with no empty box first, and a step back finds
+  the one left still there. A step to one still on its way shows its empty box, or the smaller copy where its original
+  was refused, and what is said of an original under the description is only ever about the picture shown. Where
   pictures are drawn as Kitty placeholders or as sixel, the landed ones not shown are encoded ahead in the boxes they
-  are drawn in (`Line.Ahead`), so the step draws its picture on its own frame. The cost is up to four originals held at
-  the window's size while the screen is open (ADR-0034).
+  are drawn in and on the rows those boxes set them on (`Line.Ahead`), so the step draws its picture on its own frame;
+  one encoded ahead for a window since resized is dropped, never having been sent. The cost is up to four originals
+  held at the window's size while the screen is open (ADR-0034).
 - **A warned post's attachments are drawn only once the reader has asked for them.** A spoiler text, the instance's own
   sensitive flag, or both, and `x` shows them along with whatever else the post is hiding (#113). Until it is pressed
   there is no box, no label, no description and no address — and no `Wants`, so nothing is fetched and nothing is
@@ -1017,8 +1022,9 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
 - **Nothing about a picture is ever an error,** but one. A fetch that fails and a file that will not decode both leave
   the description standing on its own, which is what a terminal that cannot draw shows anyway. The exception is the
   Picture screen's original (#517): one larger than 32 MB, or one that cannot be fetched or decoded, has the smaller
-  copy drawn in its place and the status row saying `The original is too large to show.` or `The original could not be fetched.`,
-  said once, by the first frame that learns it, and gone with the screen.
+  copy drawn in its place and `The original is too large to show.` or `The original could not be fetched.` said on a
+  row of the screen's own under the description, kept for it whether or not anything is said there, so that nothing
+  moves; never on the status row, which goes on listing the keys (review of #514).
 - **A drawn picture's caption can hide, behind a preference that defaults off.** `hide_drawn_caption` (below) hides
   `Described` only once a picture is *actually drawn* — the same branch that emits `Box(inset)`. A terminal that
   cannot draw at all and one that can but hasn't gotten this picture yet are treated identically, so there is no

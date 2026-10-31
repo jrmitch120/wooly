@@ -448,13 +448,9 @@ public abstract class Screen
     ///     (ADR-0034, #516). Asked before the reference is let go, as opening lets go of every reference (#474, review
     ///     of #514): the screen it answers holds the picture it opens on itself, so nothing need stay walked for it.
     /// </summary>
-    /// <param name="saying">
-    ///     How the Picture screen puts a word on the status row, or takes it off: the row is the shell's, which is what
-    ///     opens it.
-    /// </param>
-    public PictureScreen? OpenWalkedPicture(Action<string?> saying) =>
+    public PictureScreen? OpenWalkedPicture() =>
         Reference is { } walked && Pictured(walked) is var (post, picture)
-            ? new PictureScreen(post, picture, saying)
+            ? new PictureScreen(post, picture)
             : null;
 
     /// <summary>

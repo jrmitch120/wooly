@@ -93,13 +93,13 @@ public class PictureScreenTests
     }
 
     /// <summary>
-    ///     The picture is as large as the window less the description's row allows, fitted whole at its own proportions
-    ///     and centred across: a square one at 10×20 cells is twice as many columns as rows, as tall as the 27 rows
-    ///     inside the panel less that one, and a wide one the panel's 57 columns across. Never cropped, never stretched
-    ///     out of shape.
+    ///     The picture is as large as the window less the description's row and the row kept for why an original will
+    ///     not come allow, fitted whole at its own proportions and centred across: a square one at 10×20 cells is twice
+    ///     as many columns as rows, as tall as the 27 rows inside the panel less those two, and a wide one the panel's
+    ///     57 columns across. Never cropped, never stretched out of shape.
     /// </summary>
     [Theory]
-    [InlineData(400, 400, 23, 1, 52, 26)]
+    [InlineData(400, 400, 24, 1, 50, 25)]
     [InlineData(4000, 400, 21, 1, 57, 3)]
     public async Task ThePictureIsFittedWholeIntoTheWindowLessTheDescriptionsRows(
         int wide,
@@ -118,7 +118,8 @@ public class PictureScreenTests
     /// <summary>
     ///     A description as long as a whole article — as a post bridged from a blog can carry, HTML and all — never
     ///     squeezes out the picture: it is cut to a quarter of the 27 rows inside the panel, six, its last row ending in
-    ///     <c>…</c> where it is cut and written as it came, and the picture takes the rest, a square one 21 rows tall.
+    ///     <c>…</c> where it is cut and written as it came, and the picture takes the rest but the row kept for why, a
+    ///     square one 20 rows tall.
     /// </summary>
     [Fact]
     public async Task ALongDescriptionIsCutSoThatThePictureKeepsItsRoom()
@@ -137,7 +138,7 @@ public class PictureScreenTests
             .Select(row => row[ContentLeft..ContentRight].TrimEnd())
             .ToList();
 
-        Assert.Equal(new System.Drawing.Rectangle(28, 1, 42, 21), box);
+        Assert.Equal(new System.Drawing.Rectangle(29, 1, 40, 20), box);
         Assert.StartsWith("<article><h1>On shearing</h1>", described[0].Trim(), StringComparison.Ordinal);
         Assert.EndsWith("…", described[^1], StringComparison.Ordinal);
         Assert.DoesNotContain("…", string.Concat(described[..^1]), StringComparison.Ordinal);
@@ -184,7 +185,7 @@ public class PictureScreenTests
 
     /// <summary>
     ///     A window resized while the screen is open draws the picture again to fit the new one: at 120×40 a square
-    ///     picture is the 37 rows inside the panel less one tall and twice that across, centred in the 97 columns.
+    ///     picture is the 37 rows inside the panel less two tall and twice that across, centred in the 97 columns.
     /// </summary>
     [Fact]
     public async Task AResizeRedrawsThePictureToFitTheNewWindow()
@@ -193,8 +194,8 @@ public class PictureScreenTests
 
         drawn.Resize(120, 40);
 
-        Assert.Equal(new System.Drawing.Rectangle(33, 1, 72, 36), Box(drawn));
-        Assert.Contains("A cartoon sheep", drawn.Rows()[37], StringComparison.Ordinal);
+        Assert.Equal(new System.Drawing.Rectangle(34, 1, 70, 35), Box(drawn));
+        Assert.Contains("A cartoon sheep", drawn.Rows()[36], StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -219,7 +220,7 @@ public class PictureScreenTests
 
         var box = Box(drawn);
 
-        Assert.Equal(new System.Drawing.Rectangle(23, 1, 52, 26), box);
+        Assert.Equal(new System.Drawing.Rectangle(24, 1, 50, 25), box);
         Assert.All(
             waiting[box.Top..box.Bottom],
             row => Assert.Equal(new string(' ', ContentRight - ContentLeft), row[ContentLeft..ContentRight]));

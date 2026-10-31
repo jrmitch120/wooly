@@ -416,7 +416,7 @@ public class KeymapTests
     [InlineData("→", Verb.NextPicture)]
     [InlineData("←", Verb.PreviousPicture)]
     public void APictureScreensArrowsStepAlongThePostsPictures(string key, Verb verb) =>
-        Assert.Equal(verb, Means(key, new PictureScreen(APost.With(), APost.APicture(), _ => { })));
+        Assert.Equal(verb, Means(key, new PictureScreen(APost.With(), APost.APicture())));
 
     /// <summary>
     ///     The attachments screen's arrows walk its rows as the file browser's walk its entries (story 58), and so

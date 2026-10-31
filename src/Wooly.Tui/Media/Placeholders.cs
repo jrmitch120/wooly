@@ -34,6 +34,12 @@ public sealed class Placeholders(
     private readonly Dictionary<Sized, Image> _images = [];
     private readonly List<int> _forgetting = [];
 
+    /// <summary>
+    ///     Every image asked for, to send or to prepare, since the last <see cref="LetGoOfSizesNotAsked" />: what a
+    ///     frame wants, which is what that keeps.
+    /// </summary>
+    private readonly HashSet<Sized> _asked = [];
+
     // Unique to this run, and well clear of whatever an earlier one counted up to: a placeholder is drawn with the
     // first placement the terminal holds for its id, so an id an earlier run left behind is a picture drawn in the
     // wrong box (ADR-0022). Kept under 0xF00000 so a long run still fits in the 24 bits of colour an id is drawn in.
@@ -119,6 +125,41 @@ public sealed class Placeholders(
         }
     }
 
+    /// <summary>
+    ///     Drops every image encoded, or being encoded, and never sent, of a picture asked for since the last time at
+    ///     another size and not at its own — its box resized, the window with it — and starts counting what is asked
+    ///     afresh. Once a frame, after everything it sends and prepares. On the UI thread.
+    /// </summary>
+    /// <remarks>
+    ///     A picture encoded ahead of a keypress at a size the window no longer has — the Picture screen's next picture,
+    ///     the window resized under it — would otherwise be held, PNG and all, until the cache let go of the picture
+    ///     (review of #514): nothing would ever send it, so nothing would ever ask for it again. One sent is the
+    ///     terminal's, and is left to be forgotten with the rest of the picture (<see cref="Drop" />); one whose
+    ///     picture was asked for at no size this frame is the cache's to let go of, being only scrolled off for now.
+    /// </remarks>
+    public void LetGoOfSizesNotAsked()
+    {
+        lock (_gate)
+        {
+            var askedFor = _asked.Select(sized => sized.Drawn).ToHashSet();
+
+            foreach (var sized in _images.Keys
+                         .Where(sized => askedFor.Contains(sized.Drawn) && !_asked.Contains(sized))
+                         .ToList())
+            {
+                var image = _images[sized];
+
+                if (!image.Sent)
+                {
+                    _images.Remove(sized);
+                    image.Dropped = true;
+                }
+            }
+
+            _asked.Clear();
+        }
+    }
+
     /// <summary>Tells the terminal about everything dropped since the last frame. On the UI thread.</summary>
     public void Flush()
     {
@@ -173,6 +214,8 @@ public sealed class Placeholders(
 
         lock (_gate)
         {
+            _asked.Add(sized);
+
             if (_images.TryGetValue(sized, out var known))
             {
                 return known;

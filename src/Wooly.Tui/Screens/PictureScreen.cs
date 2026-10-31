@@ -18,13 +18,21 @@ namespace Wooly.Tui.Screens;
 ///     picture flashing (review of #514). The box is settled from the original's shape, so the original fills the
 ///     empty box's cells without anything moving; and afresh on every frame from the room the window has, so a resize
 ///     draws the picture to fit the new one. Only an original that will not come — too large, or not fetched or not
-///     read — has the smaller copy drawn in its place, stretched to the box, and the status row saying why.
+///     read — has the smaller copy drawn in its place, stretched to the box, and why said on a row of the screen's own
+///     under the description, kept for it whether anything is said there or not so that nothing moves when it is.
+///     <para>
+///         Laid out from the drawing alone, every frame, with nothing kept from one frame to the next but which
+///         picture is showing: what the screen wants of the cache, and what it says of an original that will not come,
+///         are read off what the cache holds as of the frame (review of #514).
+///     </para>
 ///     <para>
 ///         The original is held apart from the timeline's pictures, and only while a frame of this screen wants it
-///         (<see cref="Drawn.HeldApart" />). It wants the originals of all the post's pictures, not only the one
-///         shown — that one first, the rest once it has landed — and goes on wanting each until the screen goes, so
-///         that a step to one already landed, or back to one stepped off, draws it at once rather than an empty box
-///         (review of #514). The first frame drawn without them, the screen gone, lets every one of them go.
+///         (<see cref="Drawn.HeldApart" />). It wants the one shown first, and the originals of all the post's other
+///         pictures from the first frame one of them has landed or will not come — the one shown, that being the only
+///         one sent for until then — so that the picture being looked at is not kept waiting on the ones that are not;
+///         and from then until the screen goes, the one landed being held for as long as it is wanted, so that a step
+///         to one already landed, or back to one stepped off, draws it at once rather than an empty box. The first
+///         frame drawn without them, the screen gone, lets every one of them go.
 ///     </para>
 ///     <para>
 ///         Nothing on it is walked, and nothing is picked: the first press of <c>esc</c> goes back, to the screen
@@ -46,11 +54,14 @@ public sealed class PictureScreen : Screen
     /// <summary>The keys that step, and what they are said to do on the status row.</summary>
     private static readonly KeyHint Step = new("←→", "picture");
 
+    /// <summary>
+    ///     How many rows under the description are kept for saying why an original will not come, whether anything is
+    ///     said there or not.
+    /// </summary>
+    private const int WhyRows = 1;
+
     /// <summary>The post the picture is on, which may be a boost.</summary>
     private readonly Post _post;
-
-    /// <summary>How this screen puts a word on the status row, or takes its word off it.</summary>
-    private readonly Action<string?> _saying;
 
     /// <summary>
     ///     What <c>←</c> and <c>→</c> step through: the post's pictures, or just the one opened where it is not among
@@ -61,26 +72,14 @@ public sealed class PictureScreen : Screen
     /// <summary>Which of <see cref="_pictures" /> is showing, the one opened until a step.</summary>
     private int _showing;
 
-    /// <summary>
-    ///     Which of <see cref="_pictures" /> this screen has sent for the originals of, each wanted by every frame from
-    ///     then until the screen goes: the one opened, the rest once its original has landed or will not come, and any
-    ///     stepped to before then.
-    /// </summary>
-    private readonly SortedSet<int> _sentFor = [];
-
     /// <summary>A Picture screen opened on <paramref name="picture" />.</summary>
     /// <param name="post">The post the picture is on, which may be a boost: its author is who the crumb names.</param>
     /// <param name="picture">The picture opened, which is the one shown until <c>←</c> or <c>→</c> steps off it.</param>
-    /// <param name="saying">
-    ///     How this screen puts a word on the status row, or takes its word off it: why the original it draws would
-    ///     not come. Given it by the shell that pushes it, which is the one that owns the row.
-    /// </param>
-    public PictureScreen(Post post, PostMedia picture, Action<string?> saying)
+    public PictureScreen(Post post, PostMedia picture)
     {
         var on = PicturesOn(post);
 
         _post = post;
-        _saying = saying;
         _pictures = on.Contains(picture) ? on : [picture];
         _showing = _pictures.IndexOf(picture);
     }
@@ -91,12 +90,6 @@ public sealed class PictureScreen : Screen
     /// </summary>
     public PostMedia Showing => _pictures[_showing];
 
-    /// <summary>
-    ///     The original this screen last said something about, and what it said: why that original would not come, or
-    ///     nothing where it was coming or here. What keeps a refusal said once rather than on every frame.
-    /// </summary>
-    private (string Id, Unshowable? Why)? _told;
-
     /// <inheritdoc />
     /// <remarks>
     ///     Counting the pictures where the post has several — <c>Picture 2 of 4 by @author</c>, which of how many is
@@ -104,8 +97,8 @@ public sealed class PictureScreen : Screen
     ///     the one, there being nothing to count.
     /// </remarks>
     public override string Crumb => Several
-        ? $"Picture {_showing + 1} of {_pictures.Count} by @{(_post.Boosted ?? _post).Account}"
-        : $"Picture by @{(_post.Boosted ?? _post).Account}";
+        ? $"Picture {_showing + 1} of {_pictures.Count} by {Author}"
+        : $"Picture by {Author}";
 
     /// <inheritdoc />
     protected override IReadOnlyList<KeyHint> OwnKeys => Several ? [Back, Step] : [Back];
@@ -138,64 +131,61 @@ public sealed class PictureScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     The box first, as large as the window less the description's rows allows, fitted whole at the picture's
-    ///     shape and centred across the width; then the description, wrapped and centred under it, since here it is all
-    ///     there is to read beside the picture, but cut at a quarter of the window (<see cref="DescribedRows" />), so
-    ///     that the picture is given its room first. Nothing under that: the status row says the keys, and the crumb
-    ///     which picture of how many this is. Where nobody said how tall the window is, the box is capped as a post
-    ///     screen's is (<see cref="Inset.WholeRows" />), and the description at a quarter of that.
+    ///     The box first, as large as the window less the description's rows and the row kept for why allow, fitted
+    ///     whole at the picture's shape and centred across the width; then the description, wrapped and centred under
+    ///     it, since here it is all there is to read beside the picture, but cut at a quarter of the window
+    ///     (<see cref="DescribedRows" />), so that the picture is given its room first; then why the original will not
+    ///     come, where it will not, centred as the description is. Nothing under that: the status row says the keys,
+    ///     and the crumb which picture of how many this is. Where nobody said how tall the window is, the box is capped
+    ///     as a post screen's is (<see cref="Inset.WholeRows" />), and the description at a quarter of that.
     /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
-        var showing = Laid(Showing, drawing);
+        var laid = _pictures.Select(picture => Laid(picture, drawing)).ToList();
+        var showing = laid[_showing];
 
-        Tell(showing.Original, showing.Why);
+        // The rest only once one of them has come — which until then can only be the one showing — and from then on.
+        List<Layout> others = laid.Any(picture => picture.Come)
+            ? [.. laid.Where((_, at) => at != _showing)]
+            : [];
 
         return
         [
-            .. showing.Box is { } box ? Boxed(box, showing, Others(showing, drawing), drawing.Width) : [],
+            .. showing.Box is { } box ? Boxed(box, showing, others, drawing.Width) : [],
             .. showing.Described,
+            showing.Why is { } why ? Centred(Said(why), Role.Error, drawing.Width) : Line.Blank,
         ];
     }
 
+    /// <summary>Who the crumb names, the author of the post the picture is on rather than whoever boosted it.</summary>
+    private string Author => $"@{(_post.Boosted ?? _post).Account}";
+
     /// <summary>
     ///     How <paramref name="picture" /> is laid out on this screen in <paramref name="drawing" />: its description,
-    ///     and above it its original, sized to the room the description leaves, why that will not come where it will
-    ///     not, the smaller copy drawn in its place then, and the box, empty until what it draws has landed.
+    ///     and above it its original, sized to the room the description and the row kept for why leave, why that will
+    ///     not come where it will not, the smaller copy drawn in its place then, and the box, empty until what it draws
+    ///     has landed.
     /// </summary>
     private static Layout Laid(PostMedia picture, Drawing drawing)
     {
         var described = Described(picture, drawing);
-        var room = drawing.Height is { } height ? height - described.Count : Inset.WholeRows;
+        var room = drawing.Height is { } height ? height - described.Count - WhyRows : Inset.WholeRows;
         var original = Drawn.Original(picture, drawing.Width, room);
         var why = drawing.Pictures?.WhyNot(original);
         Drawn? fallback = why is null ? null : Drawn.Attached(picture);
-        var box = PictureBox.ShapedBlank(
+        var box = PictureBox.ShapedBlankUntilItLands(
             fallback ?? original,
             picture.OriginalShape ?? picture.Shape,
             drawing,
             room);
 
-        return new Layout(original, why, fallback, box, described);
-    }
-
-    /// <summary>
-    ///     The post's other pictures whose originals this screen has sent for, in the order they are stepped through,
-    ///     each laid out as it is drawn once stepped to — so that a step to one already landed draws it at once rather
-    ///     than an empty box, and a step back to one finds it still held. Sent for once the original of
-    ///     <paramref name="showing" /> has landed or will not come, so that the picture being looked at is not kept
-    ///     waiting on the ones that are not, and wanted from then until the screen goes.
-    /// </summary>
-    private List<Layout> Others(Layout showing, Drawing drawing)
-    {
-        _sentFor.Add(_showing);
-
-        if (showing.Why is not null || drawing.Pictures?.Of(showing.Original) is not null)
-        {
-            _sentFor.UnionWith(Enumerable.Range(0, _pictures.Count));
-        }
-
-        return [.. _sentFor.Where(at => at != _showing).Select(at => Laid(_pictures[at], drawing))];
+        return new Layout(
+            original,
+            why,
+            fallback,
+            box,
+            described,
+            Come: why is not null || drawing.Pictures?.Of(original) is not null);
     }
 
     /// <summary>Whether the post has more than the one picture, and so anything for <c>←</c> and <c>→</c> to reach.</summary>
@@ -205,8 +195,8 @@ public sealed class PictureScreen : Screen
     ///     <paramref name="box" />'s rows, centred in <paramref name="width" /> — its top row saying it waits for the
     ///     original of <paramref name="showing" />, there being no caption above it to say so, then for the smaller copy
     ///     where that is drawn, which is only where the original will not come, and for the originals of
-    ///     <paramref name="others" />; and carrying, ahead, the boxes those of them that have landed are drawn in once
-    ///     stepped to.
+    ///     <paramref name="others" />; and carrying, ahead, the pictures those of them that have landed are drawn in
+    ///     once stepped to.
     /// </summary>
     /// <remarks>
     ///     The original is still wanted while the smaller copy stands in for it, so that what was learnt of it stays
@@ -214,7 +204,7 @@ public sealed class PictureScreen : Screen
     /// </remarks>
     private static IEnumerable<Line> Boxed(PictureBox box, Layout showing, List<Layout> others, int width)
     {
-        var column = Centred(box, width);
+        var column = Indent(box.Columns, width);
         var before = new Span(new string(' ', column), Role.Body);
 
         for (var row = 0; row < box.Rows; row++)
@@ -230,59 +220,48 @@ public sealed class PictureScreen : Screen
                         .. showing.Fallback is { } fallback ? [fallback] : Array.Empty<Drawn>(),
                         .. others.Select(other => other.Original),
                     ],
-                    Ahead = [.. others.SelectMany(other => Set(other.Box, width))],
+                    Ahead = [.. others.SelectMany(other => PicturesSetIn(other.Box, width))],
                 }
                 : line;
         }
     }
 
     /// <summary>
-    ///     The picture set into <paramref name="box" /> where the box is centred in <paramref name="width" />, or
-    ///     nothing where there is no box or it is empty, what it draws not having landed.
+    ///     The picture <paramref name="box" /> sets into it where the box is centred in <paramref name="width" /> and
+    ///     starts on the row carrying it, with how far under that row it is set — or nothing where there is no box or it
+    ///     is empty, what it draws not having landed.
     /// </summary>
-    private static IEnumerable<Inset> Set(PictureBox? box, int width) =>
+    private static IEnumerable<InsetAhead> PicturesSetIn(PictureBox? box, int width) =>
         box is null
             ? []
-            : Enumerable.Range(0, box.Rows).SelectMany(row => box.Insets(row, Centred(box, width)));
+            : Enumerable.Range(0, box.Rows)
+                        .SelectMany(row => box.Insets(row, Indent(box.Columns, width))
+                                              .Select(inset => new InsetAhead(inset, Below: row)));
 
-    /// <summary>The column <paramref name="box" /> starts at, centred across <paramref name="width" />.</summary>
-    private static int Centred(PictureBox box, int width) => Math.Max(0, (width - box.Columns) / 2);
+    /// <summary>
+    ///     How far in something <paramref name="columns" /> wide starts where it is centred across
+    ///     <paramref name="width" />: the box, and each row written under it.
+    /// </summary>
+    private static int Indent(int columns, int width) => Math.Max(0, (width - columns) / 2);
+
+    /// <summary>
+    ///     <paramref name="text" /> in <paramref name="role" />, centred across <paramref name="width" />.
+    /// </summary>
+    private static Line Centred(string text, Role role, int width) =>
+        Line.Of(new Span(new string(' ', Indent(Glyphs.Columns(text), width)), Role.Body), new Span(text, role));
 
     /// <summary>
     ///     One picture as this screen lays it out: its original, why that will not come where it will not, the smaller
-    ///     copy drawn in its place then, the box, and the description under it.
+    ///     copy drawn in its place then, the box, the description under it, and whether its original has come — landed,
+    ///     or will not come — which is what starts the post's other originals being sent for.
     /// </summary>
     private readonly record struct Layout(
         Drawn Original,
         Unshowable? Why,
         Drawn? Fallback,
         PictureBox? Box,
-        List<Line> Described);
-
-    /// <summary>
-    ///     Says on the status row why <paramref name="original" /> will not come, the first frame that learns it — or,
-    ///     where it is coming after all and this screen had said otherwise of the one before it, takes that word off.
-    /// </summary>
-    private void Tell(Drawn original, Unshowable? why)
-    {
-        if (_told == (original.Id, why))
-        {
-            return;
-        }
-
-        var hadSaid = _told?.Why is not null;
-
-        _told = (original.Id, why);
-
-        if (why is { } refused)
-        {
-            _saying(Said(refused));
-        }
-        else if (hadSaid)
-        {
-            _saying(null);
-        }
-    }
+        List<Line> Described,
+        bool Come);
 
     /// <summary>Why the smaller copy is drawn in the original's place, in words.</summary>
     private static string Said(Unshowable why) => why is Unshowable.TooLarge
@@ -308,9 +287,7 @@ public sealed class PictureScreen : Screen
             ? [.. rows.Take(mostRows - 1), TextWrap.Clip($"{rows[mostRows - 1]}…", width)]
             : rows;
 
-        return [.. shown.Select(row => Line.Of(
-            new Span(new string(' ', Math.Max(0, (width - Glyphs.Columns(row)) / 2)), Role.Body),
-            new Span(row, role)))];
+        return [.. shown.Select(row => Centred(row, role, width))];
     }
 
     /// <summary>
