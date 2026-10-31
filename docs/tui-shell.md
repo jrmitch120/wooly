@@ -935,8 +935,9 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   can be — never squeezes the picture out, the picture being given its room first (review of #514). Nothing under that:
   a hint row there saying `esc back` again was taken out, the status row already listing the keys, and its row given to
   the picture (review of #514). Its box is settled again on every frame from the room the window gives it, so a resize
-  draws the picture to fit the new window. It draws the instance's original (#517): its **Stand-in** until the original
-  lands, then the original in the same cells, the box settled from the original's shape (`PostMedia.OriginalShape`, the
+  draws the picture to fit the new window. It draws the instance's original (#517): an empty box until the original
+  lands — blank cells in the page's colour, with no **Stand-in**'s blur or shade, which felt off on a screen of one
+  picture (review of #514) — then the original in the same cells, the box settled from the original's shape (`PostMedia.OriginalShape`, the
   smaller copy's standing in where the instance said none) so that nothing moves. Not the smaller copy the timeline
   already holds, though it is there at once: drawn first and swapped for the original, it read as the picture flashing
   (review of #514). The smaller copy is drawn, stretched to the box, only where the original will not come, and is
@@ -956,8 +957,8 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   picture it was opened on, which it holds itself rather than reading off a walk underneath. The screen sends for the originals of all the post's pictures, not only the one shown: that one first, and the
   rest once it has landed or been refused. It holds every one of them apart until it goes, so a step no longer lets go
   of the picture it leaves (review of #514). A step to a picture whose original has landed draws it at once, with no
-  Stand-in, and a step back finds the one left still there. A step to one still on its way shows its Stand-in, or the
-  smaller copy where its original was refused, and the status row's word is only ever about the picture shown. Where
+  empty box first, and a step back finds the one left still there. A step to one still on its way shows its empty box,
+  or the smaller copy where its original was refused, and the status row's word is only ever about the picture shown. Where
   pictures are drawn as Kitty placeholders or as sixel, the landed ones not shown are encoded ahead in the boxes they
   are drawn in (`Line.Ahead`), so the step draws its picture on its own frame. The cost is up to four originals held at
   the window's size while the screen is open (ADR-0034).

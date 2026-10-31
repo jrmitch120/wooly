@@ -12,17 +12,18 @@ namespace Wooly.Tui.Screens;
 ///     <b>Picture screen</b>, ADR-0034).
 /// </summary>
 /// <remarks>
-///     Drawn at the instance's original (#517), its <b>Stand-in</b> standing in the box until the original lands: not
-///     the smaller copy the timeline already holds, which drawn first and then swapped for the original read as the
+///     Drawn at the instance's original (#517), the box left empty until the original lands — blank cells, with no
+///     <b>Stand-in</b>'s shade or blur, a blur on a screen that shows the one picture having felt off — and not the
+///     smaller copy the timeline already holds, which drawn first and then swapped for the original read as the
 ///     picture flashing (review of #514). The box is settled from the original's shape, so the original fills the
-///     Stand-in's cells without anything moving; and afresh on every frame from the room the window has, so a resize
+///     empty box's cells without anything moving; and afresh on every frame from the room the window has, so a resize
 ///     draws the picture to fit the new one. Only an original that will not come — too large, or not fetched or not
 ///     read — has the smaller copy drawn in its place, stretched to the box, and the status row saying why.
 ///     <para>
 ///         The original is held apart from the timeline's pictures, and only while a frame of this screen wants it
 ///         (<see cref="Drawn.HeldApart" />). It wants the originals of all the post's pictures, not only the one
 ///         shown — that one first, the rest once it has landed — and goes on wanting each until the screen goes, so
-///         that a step to one already landed, or back to one stepped off, draws it at once rather than its Stand-in
+///         that a step to one already landed, or back to one stepped off, draws it at once rather than an empty box
 ///         (review of #514). The first frame drawn without them, the screen gone, lets every one of them go.
 ///     </para>
 ///     <para>
@@ -160,33 +161,28 @@ public sealed class PictureScreen : Screen
     /// <summary>
     ///     How <paramref name="picture" /> is laid out on this screen in <paramref name="drawing" />: its description,
     ///     and above it its original, sized to the room the description leaves, why that will not come where it will
-    ///     not, the smaller copy drawn in its place then, and the box — or, for a picture <paramref name="ahead" /> of
-    ///     a step rather than showing, no box until what it would draw has landed, there being no Stand-in to draw
-    ///     ahead.
+    ///     not, the smaller copy drawn in its place then, and the box, empty until what it draws has landed.
     /// </summary>
-    private static Layout Laid(PostMedia picture, Drawing drawing, bool ahead = false)
+    private static Layout Laid(PostMedia picture, Drawing drawing)
     {
         var described = Described(picture, drawing);
         var room = drawing.Height is { } height ? height - described.Count : Inset.WholeRows;
         var original = Drawn.Original(picture, drawing.Width, room);
         var why = drawing.Pictures?.WhyNot(original);
         Drawn? fallback = why is null ? null : Drawn.Attached(picture);
-        var box = ahead && drawing.Pictures?.Of(fallback ?? original) is null
-            ? null
-            : PictureBox.Shaped(
-                fallback ?? original,
-                picture.OriginalShape ?? picture.Shape,
-                picture.Blurhash,
-                drawing,
-                room);
+        var box = PictureBox.ShapedBlank(
+            fallback ?? original,
+            picture.OriginalShape ?? picture.Shape,
+            drawing,
+            room);
 
         return new Layout(original, why, fallback, box, described);
     }
 
     /// <summary>
     ///     The post's other pictures whose originals this screen has sent for, in the order they are stepped through,
-    ///     each laid out as it is drawn once stepped to — so that a step to one already landed draws it at once, with
-    ///     no Stand-in, and a step back to one finds it still held. Sent for once the original of
+    ///     each laid out as it is drawn once stepped to — so that a step to one already landed draws it at once rather
+    ///     than an empty box, and a step back to one finds it still held. Sent for once the original of
     ///     <paramref name="showing" /> has landed or will not come, so that the picture being looked at is not kept
     ///     waiting on the ones that are not, and wanted from then until the screen goes.
     /// </summary>
@@ -199,7 +195,7 @@ public sealed class PictureScreen : Screen
             _sentFor.UnionWith(Enumerable.Range(0, _pictures.Count));
         }
 
-        return [.. _sentFor.Where(at => at != _showing).Select(at => Laid(_pictures[at], drawing, ahead: true))];
+        return [.. _sentFor.Where(at => at != _showing).Select(at => Laid(_pictures[at], drawing))];
     }
 
     /// <summary>Whether the post has more than the one picture, and so anything for <c>←</c> and <c>→</c> to reach.</summary>
@@ -242,14 +238,12 @@ public sealed class PictureScreen : Screen
 
     /// <summary>
     ///     The picture set into <paramref name="box" /> where the box is centred in <paramref name="width" />, or
-    ///     nothing where there is no box or nothing in it but a Stand-in's blur.
+    ///     nothing where there is no box or it is empty, what it draws not having landed.
     /// </summary>
     private static IEnumerable<Inset> Set(PictureBox? box, int width) =>
         box is null
             ? []
-            : Enumerable.Range(0, box.Rows)
-                        .SelectMany(row => box.Insets(row, Centred(box, width)))
-                        .Where(inset => inset.Blur is null);
+            : Enumerable.Range(0, box.Rows).SelectMany(row => box.Insets(row, Centred(box, width)));
 
     /// <summary>The column <paramref name="box" /> starts at, centred across <paramref name="width" />.</summary>
     private static int Centred(PictureBox box, int width) => Math.Max(0, (width - box.Columns) / 2);

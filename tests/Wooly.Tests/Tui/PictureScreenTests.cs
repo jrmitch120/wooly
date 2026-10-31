@@ -198,30 +198,33 @@ public class PictureScreenTests
     }
 
     /// <summary>
-    ///     A picture whose original is not here yet shows its <b>Stand-in</b> in the box until it arrives, and then the
-    ///     picture in the same cells.
+    ///     A picture whose original is not here yet leaves its box empty until it arrives — blank cells, no blur though
+    ///     the instance sent a blurhash, no shade — with the description already on the row under it where it stays; and
+    ///     then the picture fills those cells, nothing having moved (review of #514).
     /// </summary>
     [Fact]
-    public async Task APictureNotHeldShowsItsStandInAndThenThePictureInTheSameBox()
+    public async Task APictureNotHeldLeavesItsBoxBlankAndThenFillsItWithNothingMoving()
     {
         var pictures = new FakePictures();
         var picture = APost.APicture("m1", shape: new(400, 400), blurhash: StandInBlurTests.AHash);
 
         using var drawn = await Opened(APost.With(id: "110", media: [picture]), pictures);
 
-        var standing = Box(drawn);
+        var waiting = drawn.Rows();
 
-        Assert.Equal(
-            Drawn.Blur(Drawn.Original(picture, 0, 0)).Id,
-            Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible).PictureId);
+        Assert.DoesNotContain(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
 
         pictures.HoldingOriginal("m1", 400, 400);
         drawn.Redraw();
 
-        Assert.Equal(
-            Drawn.Original(picture, 0, 0).Id,
-            Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible).PictureId);
-        Assert.Equal(standing, Box(drawn));
+        var box = Box(drawn);
+
+        Assert.Equal(new System.Drawing.Rectangle(23, 1, 52, 26), box);
+        Assert.All(
+            waiting[box.Top..box.Bottom],
+            row => Assert.Equal(new string(' ', ContentRight - ContentLeft), row[ContentLeft..ContentRight]));
+        Assert.Contains("A cartoon sheep", waiting[box.Bottom], StringComparison.Ordinal);
+        Assert.Equal(waiting[box.Bottom], drawn.Rows()[box.Bottom]);
     }
 
     /// <summary>

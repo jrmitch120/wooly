@@ -102,3 +102,13 @@ picture should follow the same rule as every other reference. It is reversed: op
 exactly as opening a link does, and `esc` from the Picture screen comes back to the same post picked and nothing
 walked, with no brackets drawn. The Picture screen keeps for itself which picture it was opened on, and steps from
 there. This supersedes "`esc` going back" above where #516 read it as going back to the picture walked.
+
+## Amendment: the Picture screen's box is empty until the original lands (review of #514)
+
+Tried by the user's choice: the blur that a feed's Stand-in draws felt off on a screen that shows one picture, where it
+is the whole of what is there to look at until the original lands. The Picture screen now leaves the box empty until
+then: blank cells in the page's own colour, with no blur, no shade and no text, though the box still takes the cells
+the original will fill, so the description under it does not move when the original lands. A step to a picture whose
+original has landed still draws it at once, and the smaller copy is still drawn as the fallback where the original is
+refused or fails. A feed's Stand-in is unchanged. This supersedes "the picture's **Stand-in** until the original
+lands" in the amendments above, and their "Stand-in" for a step to a picture still on its way.

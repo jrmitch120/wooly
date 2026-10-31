@@ -173,8 +173,9 @@ _Avoid_: thumbnail (only the smallest of them), frame, slot
 **Picture screen**:
 One still picture on a post, over the whole window at the original the instance holds rather than the smaller copy a
 **drawn** picture is fetched at, with its description beneath it — what `⏎` opens a walked picture onto, and where a
-screenshot of small text is read (ADR-0034). Its **Stand-in** holds the box until the original lands, never the smaller
-copy, which is drawn there only where the original is too large or cannot be fetched or decoded. It holds the originals
+screenshot of small text is read (ADR-0034). Its box is left empty until the original lands — blank, with no
+**Stand-in**, whose blur felt off on a screen of one picture — and never holds the smaller copy, which is drawn there
+only where the original is too large or cannot be fetched or decoded. It holds the originals
 of all the post's pictures while it is open, not only the one shown, so that stepping to another with `←`/`→`, or back,
 finds it already here. The only place the original is ever fetched to be shown, except where the instance gave no
 smaller copy and the timeline draws the original too.
@@ -183,7 +184,8 @@ _Avoid_: viewer (reserved for the account doing the viewing), lightbox, zoom, fu
 **Stand-in**:
 What a **drawn** picture's box shows while the picture itself is not here: the instance's blur of it where one was sent,
 a plain shaded fill otherwise. The same size as the picture it stands in for, so nothing moves when one replaces the
-other. A **warned** post has none until it is asked past, since a blur still shows what a warning hides.
+other. A **warned** post has none until it is asked past, since a blur still shows what a warning hides, and the
+**Picture screen** has none at all, its box left empty until the original lands.
 _Avoid_: placeholder (Kitty's), blur, blurred (a **warned** post's), skeleton
 
 **Drawing**:

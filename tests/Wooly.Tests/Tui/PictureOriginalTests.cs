@@ -8,9 +8,9 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The Picture screen draws the instance's original rather than the smaller copy: its <b>Stand-in</b> until the
-///     original lands, the original then in the same cells, and the smaller copy only where the original will not
-///     come, with a word on the status row (#517, ADR-0034). Read back off the whole shell drawn headless in the
+///     The Picture screen draws the instance's original rather than the smaller copy: an empty box until the original
+///     lands, the original then in the same cells, and the smaller copy only where the original will not come, with a
+///     word on the status row (#517, ADR-0034, review of #514). Read back off the whole shell drawn headless in the
 ///     no-colour theme, its cells pinned at 10×20.
 /// </summary>
 public class PictureOriginalTests
@@ -31,11 +31,12 @@ public class PictureOriginalTests
     }
 
     /// <summary>
-    ///     The Stand-in is drawn until the original lands, though the smaller copy is already held for the timeline,
-    ///     and the original then in its place: in the same box, with the description under it where it was.
+    ///     The box is left blank until the original lands, though the smaller copy is already held for the timeline and
+    ///     the instance sent a blurhash: no smaller copy, no blur, no shade. The original is then drawn in those cells,
+    ///     with the description under it where it was (review of #514).
     /// </summary>
     [Fact]
-    public async Task TheStandInIsDrawnUntilTheOriginalLandsInTheSameCells()
+    public async Task TheBoxIsBlankUntilTheOriginalLandsInTheSameCells()
     {
         var pictures = new FakePictures().Holding("m1", 400, 300);
 
@@ -47,18 +48,21 @@ public class PictureOriginalTests
                 originalShape: new(2000, 1500)),
             pictures);
 
-        var box = Box(drawn);
-        var described = drawn.Rows()[box.Bottom];
+        var waiting = drawn.Rows();
 
-        Assert.Equal(Drawn.Blur(Original("m1")).Id, Showing(drawn).PictureId);
-        Assert.Contains("A cartoon sheep", described, StringComparison.Ordinal);
+        Assert.DoesNotContain(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible);
 
         pictures.Holding(Original("m1").Id, 1000, 750);
         drawn.Redraw();
 
+        var box = Box(drawn);
+
         Assert.Equal(Original("m1").Id, Showing(drawn).PictureId);
-        Assert.Equal(box, Box(drawn));
-        Assert.Equal(described, drawn.Rows()[box.Bottom]);
+        Assert.All(
+            waiting[box.Top..box.Bottom],
+            row => Assert.Equal(new string(' ', box.Width), row[box.Left..box.Right]));
+        Assert.Contains("A cartoon sheep", waiting[box.Bottom], StringComparison.Ordinal);
+        Assert.Equal(waiting[box.Bottom], drawn.Rows()[box.Bottom]);
     }
 
     /// <summary>

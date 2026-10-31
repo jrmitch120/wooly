@@ -173,10 +173,10 @@ public class PictureSteppingTests
 
     /// <summary>
     ///     A step to a picture whose original landed while the one before it was shown draws that original at once,
-    ///     with no Stand-in first: the screen sent for every picture on the post, not only the one showing.
+    ///     with no empty box first: the screen sent for every picture on the post, not only the one showing.
     /// </summary>
     [Fact]
-    public async Task AStepToAPictureWhoseOriginalHasLandedDrawsItWithNoStandIn()
+    public async Task AStepToAPictureWhoseOriginalHasLandedDrawsItAtOnce()
     {
         using var pictures = Served();
         using var drawn = await Opened(TwoBlurredPictures, pictures);
@@ -330,7 +330,10 @@ public class PictureSteppingTests
         return drawn;
     }
 
-    /// <summary>Two pictures, each with a blur for its Stand-in, so that a Stand-in drawn is a box drawn.</summary>
+    /// <summary>
+    ///     Two pictures, each with a blurhash the timeline would draw a Stand-in's blur from, so that a box drawing
+    ///     anything before its original has landed would show here as a picture drawn.
+    /// </summary>
     private static Post TwoBlurredPictures => APost.With(
         id: "110",
         media:
