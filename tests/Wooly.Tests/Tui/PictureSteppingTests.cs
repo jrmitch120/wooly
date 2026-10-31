@@ -255,26 +255,119 @@ public class PictureSteppingTests
     }
 
     /// <summary>
-    ///     Leaving the Picture screen lets go of the original of every picture on the post, the one showing and the
-    ///     one it held for a step alike (the smaller copies staying held is the cache's own to show, in
-    ///     <see cref="PicturesTests" />).
+    ///     A window resized while the Picture screen is open encodes the landed originals not showing again at the size
+    ///     the new window draws them, so that a step after the resize still sends its picture on the frame of the
+    ///     step, at the new size: a square picture 70 columns by 35 rows at 120×40, where it was 50 by 25 at 80×30
+    ///     (story 28).
     /// </summary>
     [Fact]
-    public async Task LeavingThePictureScreenLetsGoOfEveryOriginalItHeld()
+    public async Task AResizeEncodesTheOriginalsCarriedAheadAtTheNewSize()
     {
-        using var pictures = Served();
-        using var drawn = await Opened(TwoBlurredPictures, pictures);
+        var encoding = new List<Action>();
+        var images = new FakeTerminalImages();
+        var post = APost.With(
+            id: "110",
+            media:
+            [
+                APost.APicture("m1", description: "The first sheep", shape: Square),
+                APost.APicture("m2", description: "The second sheep", shape: Square),
+            ]);
 
-        await Until(drawn, () => pictures.Of(Drawn.Original(APost.APicture("m2"), 0, 0)) is not null);
+        using var drawn = await DrawnShell.Of(
+            80,
+            30,
+            Themes.Plain,
+            new AShell { Timelines = FakeTimelineReader.Holding(post, APost.With(id: "220")) },
+            pictures: post.Media.Aggregate(
+                new FakePictures(),
+                (pictures, media) => pictures
+                    .Holding(media.Id, 400, 400)
+                    .HoldingOriginal(media.Id, 400, 400)),
+            kittyImages: images,
+            drawsPlaceholders: true,
+            encoding: encoding.Add,
+            raster: ARaster.Placeholders());
+
+        drawn.Press(Key.CursorRight);
+        drawn.Press(Key.Enter);
+        drawn.Settle();
+        Encode(drawn, encoding);
+
+        Assert.Equal((50, 25), Sent(images.Transmitted[^1]));
+
+        drawn.Resize(120, 40);
+        Encode(drawn, encoding);
+
+        var sent = images.Transmitted.Count;
 
         drawn.Press(Key.CursorRight);
 
-        Assert.NotNull(pictures.Of(Drawn.Original(APost.APicture("m1"), 0, 0)));
+        Assert.Equal(sent + 1, images.Transmitted.Count);
+        Assert.Equal((70, 35), Sent(images.Transmitted[^1]));
+        Assert.Empty(encoding);
+    }
+
+    /// <summary>Square, so that a box's size is easily worked out by hand.</summary>
+    private static readonly PictureShape Square = new(400, 400);
+
+    /// <summary>
+    ///     Every encode <paramref name="encoding" /> is waiting on done, and the frames each asks for drawn, until none
+    ///     is left waiting.
+    /// </summary>
+    private static void Encode(DrawnShell drawn, List<Action> encoding)
+    {
+        while (encoding.Count > 0)
+        {
+            Action[] waiting = [.. encoding];
+
+            encoding.Clear();
+            Array.ForEach(waiting, encode => encode());
+            drawn.Redraw();
+        }
+    }
+
+    /// <summary>How many columns and rows <paramref name="sent" /> was sent for.</summary>
+    private static (int Columns, int Rows) Sent(FakeTerminalImages.Transmission sent) => (sent.Columns, sent.Rows);
+
+    /// <summary>
+    ///     Leaving the Picture screen has a Kitty terminal forget the original of every picture on the post it was
+    ///     sent, the one showing and the one stepped off alike, the screen having held both until it went (that the
+    ///     smaller copies stay held for the feed is the cache's own to show, in <see cref="PicturesTests" />).
+    /// </summary>
+    [Fact]
+    public async Task LeavingThePictureScreenHasTheTerminalForgetEveryOriginalItWasSent()
+    {
+        var images = new FakeTerminalImages();
+
+        using var pictures = Served();
+        using var drawn = await DrawnShell.Of(
+            80,
+            30,
+            Themes.Plain,
+            new AShell { Timelines = FakeTimelineReader.Holding(TwoBlurredPictures, APost.With(id: "220")) },
+            pictures: pictures,
+            kittyImages: images,
+            drawsPlaceholders: true,
+            raster: ARaster.Placeholders());
+
+        drawn.Press(Key.CursorRight);
+
+        var feed = images.Transmitted.Count;
+
+        drawn.Press(Key.Enter);
+        drawn.Settle();
+        await Until(drawn, () => images.Transmitted.Count > feed);
+
+        drawn.Press(Key.CursorRight);
+        await Until(drawn, () => images.Transmitted.Count > feed + 1);
+
+        List<int> originals = [.. images.Transmitted.Skip(feed).Select(sent => sent.Id)];
 
         drawn.Press(Key.Esc);
+        drawn.Redraw();
 
-        Assert.Null(pictures.Of(Drawn.Original(APost.APicture("m1"), 0, 0)));
-        Assert.Null(pictures.Of(Drawn.Original(APost.APicture("m2"), 0, 0)));
+        Assert.Equal(2, originals.Distinct().Count());
+        Assert.All(originals, original => Assert.Contains(original, images.Forgotten));
     }
 
     /// <summary>
@@ -284,19 +377,17 @@ public class PictureSteppingTests
     [Fact]
     public async Task TheOriginalShowingIsSentForBeforeTheOthers()
     {
-        var server = new Gated();
+        var pictures = new FakePictures().Holding("m1", 400, 300).Holding("m2", 400, 300);
 
-        using var pictures = new Pictures(server.Fetch, () => { });
         using var drawn = await Opened(TwoBlurredPictures, pictures);
 
+        Assert.Contains(Wanted(pictures), wanted => wanted.Drawn.Id == Original("m1") && wanted.OnScreen);
+        Assert.DoesNotContain(Wanted(pictures), wanted => wanted.Drawn.Id == Original("m2"));
+
+        pictures.HoldingOriginal("m1", 400, 300);
         drawn.Redraw();
 
-        Assert.Contains(OriginalAddress("m1"), server.Asked);
-        Assert.DoesNotContain(OriginalAddress("m2"), server.Asked);
-
-        server.Answer(OriginalAddress("m1"), APng(400, 300));
-
-        await Until(drawn, () => server.Asked.Contains(OriginalAddress("m2")));
+        Assert.Contains(Wanted(pictures), wanted => wanted.Drawn.Id == Original("m2"));
     }
 
     /// <summary>
@@ -346,7 +437,7 @@ public class PictureSteppingTests
     ///     The shell as <see cref="Reading" /> draws it, its pictures fetched by <paramref name="pictures" /> rather than
     ///     said outright, and the first picture on <paramref name="post" /> walked to and opened.
     /// </summary>
-    private static async Task<DrawnShell> Opened(Post post, Pictures pictures)
+    private static async Task<DrawnShell> Opened(Post post, IPictures pictures)
     {
         var drawn = await DrawnShell.Of(
             80,
@@ -394,62 +485,6 @@ public class PictureSteppingTests
         }
     }
 
-    /// <summary>Where the original of the attachment <paramref name="id" /> names is fetched from.</summary>
-    private static string OriginalAddress(string id) => APost.APicture(id).Url;
-
-    /// <summary>
-    ///     A file server that answers an address only once told to, so that a test can see what was sent for before
-    ///     anything landed.
-    /// </summary>
-    private sealed class Gated
-    {
-        private readonly Lock _gate = new();
-        private readonly Dictionary<string, TaskCompletionSource<Fetched>> _answers = [];
-        private readonly List<string> _asked = [];
-
-        /// <summary>Every address asked for, in the order the fetches started.</summary>
-        public List<string> Asked
-        {
-            get
-            {
-                lock (_gate)
-                {
-                    return [.. _asked];
-                }
-            }
-        }
-
-        public Task<Fetched> Fetch(string address, int most, CancellationToken cancellation)
-        {
-            lock (_gate)
-            {
-                _asked.Add(address);
-
-                return Answering(address).Task;
-            }
-        }
-
-        /// <summary>Lets the fetch of <paramref name="address" /> finish with <paramref name="bytes" />.</summary>
-        public void Answer(string address, byte[] bytes)
-        {
-            lock (_gate)
-            {
-                Answering(address).TrySetResult(Fetched.Of(bytes));
-            }
-        }
-
-        private TaskCompletionSource<Fetched> Answering(string address)
-        {
-            if (!_answers.TryGetValue(address, out var answer))
-            {
-                answer = new TaskCompletionSource<Fetched>(TaskCreationOptions.RunContinuationsAsynchronously);
-                _answers[address] = answer;
-            }
-
-            return answer;
-        }
-    }
-
     /// <summary>A PNG of <paramref name="width" /> by <paramref name="height" />, as a file server sends one.</summary>
     private static byte[] APng(int width, int height)
     {
@@ -460,6 +495,9 @@ public class PictureSteppingTests
 
         return bytes.ToArray();
     }
+
+    /// <summary>What the latest frame wanted of the pictures.</summary>
+    private static IReadOnlyList<WantedPicture> Wanted(FakePictures pictures) => pictures.Frames[^1];
 
     /// <summary>The crumb the Picture screen says it is, the last on the stack.</summary>
     private static string Crumb(DrawnShell drawn) => drawn.Shell.Crumbs[^1];

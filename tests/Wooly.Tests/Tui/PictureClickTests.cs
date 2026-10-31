@@ -66,6 +66,30 @@ public class PictureClickTests
     }
 
     /// <summary>
+    ///     On the post screen, as in a feed, a click on a picture's box walks to it and brackets it, top row and foot
+    ///     alike (story 29).
+    /// </summary>
+    [Fact]
+    public async Task AClickOnAPicturesBoxOnThePostScreenWalksToItAndBracketsIt()
+    {
+        using var drawn = await Drawn(landed: true);
+
+        drawn.Press(Key.Enter);
+        drawn.Settle();
+
+        Assert.IsType<PostScreen>(drawn.Shell.Screen);
+
+        var (top, foot) = Box(drawn);
+
+        drawn.Click((Left + Right) / 2, (top + foot) / 2);
+        drawn.Redraw();
+
+        Assert.Equal(('⎡', '⎤'), Glyphs(drawn, top));
+        Assert.Equal(('⎣', '⎦'), Glyphs(drawn, foot));
+        Assert.Contains(drawn.Rows(), row => row.Contains("Open: ⏎", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     ///     A double click on a picture's box opens it on its Picture screen, in a feed and on the post screen alike, and
     ///     hands the browser nothing; and lets go of the picture its first click walked to, as <c>⏎</c> does, so that
     ///     <c>esc</c> comes back to the post picked and no brackets drawn (#474, review of #514).
