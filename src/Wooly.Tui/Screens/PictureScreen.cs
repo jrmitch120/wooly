@@ -1,6 +1,7 @@
 using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -15,23 +16,68 @@ namespace Wooly.Tui.Screens;
 ///     moment it opens; its <b>Stand-in</b> stands where that copy has been let go, until it is fetched again. The box is
 ///     settled afresh on every frame from the room the window has, so a resize draws the picture to fit the new one.
 ///     <para>
-///         Nothing on it is walked, and nothing is picked: <c>esc</c> is the one key it says, and its first press goes
-///         back, to the screen underneath with its pick and its walked picture as they were — which is why opening the
-///         picture is the one opening that leaves its reference walked (<see cref="Shell.Shell.OpenReference" />).
+///         Nothing on it is walked, and nothing is picked: the first press of <c>esc</c> goes back, to the screen
+///         underneath with its pick and its walked picture as they were — which is why opening the picture is the one
+///         opening that leaves its reference walked (<see cref="Shell.Shell.OpenReference" />).
+///     </para>
+///     <para>
+///         <c>←</c> and <c>→</c> step along the post's other still pictures in the order they are drawn, stopping at
+///         either end (#518): verbs of the screen's own rather than a walk of references, which <c>esc</c> would let go
+///         of before going back, and kept here alone, so that what is walked underneath is the picture it was opened on,
+///         whichever was stepped to.
 ///     </para>
 /// </remarks>
 /// <param name="post">The post the picture is on, which may be a boost: its author is who the crumb names.</param>
-/// <param name="picture">The picture opened.</param>
+/// <param name="picture">The picture opened, which is the one shown until <c>←</c> or <c>→</c> steps off it.</param>
 public sealed class PictureScreen(Post post, PostMedia picture) : Screen
 {
-    /// <summary>The picture this screen draws.</summary>
-    public PostMedia Picture => picture;
+    /// <summary>
+    ///     What <c>←</c> and <c>→</c> step through: the post's pictures, or just the one opened where it is not among
+    ///     them.
+    /// </summary>
+    private readonly List<PostMedia> _pictures = PicturesOn(post) is var on && on.Contains(picture) ? on : [picture];
+
+    /// <summary>Which of <see cref="_pictures" /> is showing, the one opened until a step.</summary>
+    private int _showing = Math.Max(0, PicturesOn(post).IndexOf(picture));
+
+    /// <summary>
+    ///     The picture this screen draws, the one opened or the one stepped to since — what the box, the description
+    ///     and what the box waits for are all read off.
+    /// </summary>
+    public PostMedia Showing => _pictures[_showing];
 
     /// <inheritdoc />
     public override string Crumb => $"Picture by @{(post.Boosted ?? post).Account}";
 
     /// <inheritdoc />
-    protected override IReadOnlyList<KeyHint> OwnKeys => [new("esc", "back")];
+    protected override IReadOnlyList<KeyHint> OwnKeys =>
+        [new("esc", "back"), .. Several ? [new KeyHint("←→", "picture")] : Array.Empty<KeyHint>()];
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     A step past either end changes nothing, as the walk does at its ends: there is no picture after the last for
+    ///     <c>→</c> to come round to.
+    /// </remarks>
+    public override Task Answer(Verb verb, Reach reach)
+    {
+        var to = Math.Clamp(
+            verb switch
+            {
+                Verb.NextPicture => _showing + 1,
+                Verb.PreviousPicture => _showing - 1,
+                _ => _showing,
+            },
+            0,
+            _pictures.Count - 1);
+
+        if (to != _showing)
+        {
+            _showing = to;
+            reach.Changed();
+        }
+
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc />
     /// <remarks>
@@ -44,17 +90,27 @@ public sealed class PictureScreen(Post post, PostMedia picture) : Screen
     {
         var described = Described(drawing.Width);
         var room = drawing.Height is { } height ? height - described.Count - 1 : Inset.WholeRows;
-        var drawn = Drawn.Attached(picture);
-        var box = PictureBox.Shaped(drawn, picture.Shape, picture.Blurhash, drawing, room);
+        var drawn = Drawn.Attached(Showing);
+        var box = PictureBox.Shaped(drawn, Showing.Shape, Showing.Blurhash, drawing, room);
 
         return [.. box is null ? [] : Boxed(box, drawn, drawing.Width), .. described, Hint];
     }
 
+    /// <summary>Whether the post has more than the one picture, and so anything for <c>←</c> and <c>→</c> to reach.</summary>
+    private bool Several => _pictures.Count > 1;
+
     /// <summary>
     ///     The keys this screen answers to, said under the picture as well as on the status row, since the picture is the
-    ///     whole of the screen and the row is easy to miss beneath it.
+    ///     whole of the screen and the row is easy to miss beneath it — and where there are several, which of how many
+    ///     this is.
     /// </summary>
-    private static Line Hint => Line.Of(new Span("esc", Role.Key), new Span(" back", Role.Muted));
+    private Line Hint => Several
+        ? Line.Of(
+            new Span("esc", Role.Key),
+            new Span(" back · ", Role.Muted),
+            new Span("←→", Role.Key),
+            new Span($" picture {_showing + 1} of {_pictures.Count}", Role.Muted))
+        : Line.Of(new Span("esc", Role.Key), new Span(" back", Role.Muted));
 
     /// <summary>
     ///     <paramref name="box" />'s rows, centred in <paramref name="width" /> — its top row saying it waits for
@@ -76,8 +132,16 @@ public sealed class PictureScreen(Post post, PostMedia picture) : Screen
     /// <summary>What its author said the picture shows, wrapped to <paramref name="width" />, or that they said nothing.</summary>
     private List<Line> Described(int width)
     {
-        var role = picture.Description is null ? Role.Muted : Role.Body;
+        var role = Showing.Description is null ? Role.Muted : Role.Body;
 
-        return [.. TextWrap.Wrap(picture.Shows, width).Select(row => Line.Of(row, role))];
+        return [.. TextWrap.Wrap(Showing.Shows, width).Select(row => Line.Of(row, role))];
     }
+
+    /// <summary>
+    ///     <paramref name="post" />'s still pictures in the order they are drawn, which is the order they are stepped
+    ///     through: every one is drawn where this screen could be opened at all, and a video or the like on the same
+    ///     post is passed over, its preview being no picture of its own.
+    /// </summary>
+    private static List<PostMedia> PicturesOn(Post post) =>
+        [.. (post.Boosted ?? post).Media.Where(media => media.Kind is MediaKind.Image)];
 }

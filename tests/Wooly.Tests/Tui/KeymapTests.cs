@@ -409,6 +409,16 @@ public class KeymapTests
         Assert.Equal(verb, Means(key, Browser()));
 
     /// <summary>
+    ///     A Picture screen's arrows step along the post's pictures rather than walk references (#518): a verb of its own,
+    ///     so that nothing on it is walked for the first <c>esc</c> to let go of.
+    /// </summary>
+    [Theory]
+    [InlineData("→", Verb.NextPicture)]
+    [InlineData("←", Verb.PreviousPicture)]
+    public void APictureScreensArrowsStepAlongThePostsPictures(string key, Verb verb) =>
+        Assert.Equal(verb, Means(key, new PictureScreen(APost.With(), APost.APicture())));
+
+    /// <summary>
     ///     The attachments screen's arrows walk its rows as the file browser's walk its entries (story 58), and so
     ///     <c>Home</c> and <c>End</c> take its cursor to the first row and the last, not its page (asked in review of
     ///     #480).

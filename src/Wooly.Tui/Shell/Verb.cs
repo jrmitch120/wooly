@@ -454,4 +454,13 @@ public enum Verb
     ///     copied file that is one, as that picture (#407).
     /// </summary>
     PastePicture,
+
+    /// <summary>
+    ///     <c>→</c> on a Picture screen: the post's next still picture, in the order they are drawn, stopping at the last
+    ///     rather than coming round (#518).
+    /// </summary>
+    NextPicture,
+
+    /// <summary><c>←</c> there, likewise: the post's picture before, stopping at the first (#518).</summary>
+    PreviousPicture,
 }

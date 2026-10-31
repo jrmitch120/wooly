@@ -160,6 +160,11 @@ public static class Keymap
         (ShellKey.Home, AttachmentsScreen) => Verb.FirstEntry,
         (ShellKey.End, AttachmentsScreen) => Verb.LastEntry,
 
+        // The Picture screen's arrows step along the post's pictures rather than walk references, of which it has none
+        // — a verb of its own, so that the first esc goes back rather than letting a walk go (#518).
+        (ShellKey.Right, PictureScreen) => Verb.NextPicture,
+        (ShellKey.Left, PictureScreen) => Verb.PreviousPicture,
+
         // The four that collide. A picked reference is a level of its own inside the screen, so ⏎ means the reference
         // wherever one is picked — ahead of whatever the screen's own ⏎ would have meant (#85).
         (ShellKey.Enter, _) when screen.Reference is not null => Verb.OpenReference,
