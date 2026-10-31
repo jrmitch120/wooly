@@ -24,6 +24,17 @@ public interface IPictures
     Picture? Of(Drawn drawn);
 
     /// <summary>
+    ///     Why <paramref name="drawn" /> could not be had, or <see langword="null" /> where it is here, is on its way,
+    ///     or has not been sent for.
+    /// </summary>
+    /// <remarks>
+    ///     A lookup, as <see cref="Of" /> is. Asked by the Picture screen of the original it sent for, so that the
+    ///     status row can say why the smaller copy is still what it draws (ADR-0034); a picture held apart that fails
+    ///     asks for a redraw, as one landing does, so that the screen is drawn again to ask.
+    /// </remarks>
+    Unshowable? WhyNot(Drawn drawn);
+
+    /// <summary>
     ///     Says which pictures this frame wants: everything on screen or near it, nearest first, with those on screen
     ///     marked. Whatever was wanted before and is not in <paramref name="frame" /> is wanted no more.
     /// </summary>

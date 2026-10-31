@@ -284,6 +284,31 @@ public class PostEngagementCommandTests : IDisposable
         Assert.False(media[1].TryGetProperty("description", out _));
     }
 
+    /// <summary>
+    ///     What the TUI settles a picture's boxes from — the preview's shape, the original's and the blurhash — is not
+    ///     written for a script, as text or as JSON: nothing outside the TUI uses it, and a field added to a script's
+    ///     input is one that script's author never asked for (ADR-0025, ADR-0034).
+    /// </summary>
+    [Fact]
+    public void Show_WritesNothingOfAPicturesShapes()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(media:
+        [
+            APost.APicture(shape: new(644, 357), blurhash: "LEHV6nWB2yk8", originalShape: new(2325, 1290)),
+        ]));
+
+        var media = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output)
+                                .RootElement.GetProperty("media");
+        var text = Run(["post", "show", "110"]).Output;
+
+        Assert.Equal(
+            ["id", "kind", "url", "preview", "description"],
+            media[0].EnumerateObject().Select(property => property.Name));
+        Assert.DoesNotContain("2325", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("644", text, StringComparison.Ordinal);
+    }
+
     /// <summary>A post carrying nothing says so with an empty list, rather than leaving the key out.</summary>
     [Fact]
     public void Show_WritesAnEmptyListForAPostWithNothingAttached()

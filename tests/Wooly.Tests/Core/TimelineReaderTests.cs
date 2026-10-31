@@ -372,6 +372,26 @@ public class TimelineReaderTests
     }
 
     /// <summary>
+    ///     The original's own shape is carried beside the preview's, for the Picture screen to settle its box from
+    ///     before the original arrives (ADR-0034) — and is nothing where <c>original</c> was not said in full, even
+    ///     where <c>small</c> was.
+    /// </summary>
+    [Theory]
+    [InlineData("""{ "original": { "width": 2325, "height": 1290 }, "small": { "width": 644, "height": 357 } }""", 2325, 1290)]
+    [InlineData("""{ "original": { "width": 2325 }, "small": { "width": 644, "height": 357 } }""", null, null)]
+    [InlineData("""{ "small": { "width": 644, "height": 357 } }""", null, null)]
+    [InlineData("null", null, null)]
+    public async Task Read_ReportsTheOriginalsShapeWhereTheInstanceSaidItInFull(string meta, int? wide, int? tall)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", media: MediaJson(meta: meta)))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Equal(PictureShape.Of(wide, tall), Assert.Single(Assert.Single(fetch.Items).Media).OriginalShape);
+    }
+
+    /// <summary>
     ///     No shape where the instance said none in full, rather than a guess made here: the default box is the TUI's
     ///     to choose, and a width with no height is no shape at all.
     /// </summary>

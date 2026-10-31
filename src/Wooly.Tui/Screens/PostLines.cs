@@ -53,6 +53,14 @@ public static class PostLines
     private const string AskPastIt = "x  show it";
 
     /// <summary>
+    ///     How many columns an attachment's box gives up on each side, walked or not: the columns a walked picture's
+    ///     tall brackets are drawn in, given up by every attachment's box so that walking to one moves nothing and a
+    ///     video's preview lines up with a picture's beside it (ADR-0034, #519). A link preview's picture is never
+    ///     walked to as a picture, and keeps the whole width.
+    /// </summary>
+    private const int Bracketed = 1;
+
+    /// <summary>
     ///     One post as a feed shows it: what it boosts and what it answers, a two-row byline with the author's avatar
     ///     beside it, the text, what is attached, and the three counts behind a blank of their own.
     /// </summary>
@@ -522,23 +530,24 @@ public static class PostLines
             yield break;
         }
 
-        // Built once, off the same formula Screen.References walks, so a bracket here and the pick the reader made
-        // can never come to disagree about which attachment it landed on (AttachmentReferences).
-        var references = AttachmentReferences.Of(post);
-        var at = 0;
+        var draws = Drawing.Draws(drawing.Pictures, drawing.Raster, out _);
 
-        foreach (var attached in post.Media)
+        for (var at = 0; at < post.Media.Count; at++)
         {
+            var attached = post.Media[at];
+
+            // Off the same formula Screen.References walks, so a bracket here and the pick the reader made can never
+            // come to disagree about which attachment it landed on (AttachmentReferences).
+            var reference = AttachmentReferences.For(post, at);
+
             if (attached.Opens)
             {
-                yield return Opened(attached, references[at], reading.Reference, drawing, mostRows);
-
-                at++;
+                yield return Opened(attached, reference, reading.Reference, drawing, mostRows);
 
                 continue;
             }
 
-            if (!Drawing.Draws(drawing.Pictures, drawing.Raster, out _))
+            if (!draws || !AttachmentReferences.IsPicture(attached))
             {
                 yield return [.. LinkedImage(attached, width)];
 
@@ -550,7 +559,7 @@ public static class PostLines
             var drawn = Drawn.Attached(attached);
             var described = Described(attached, MediaMark, width) with { Wants = drawn };
 
-            if (PictureBox.Shaped(drawn, attached.Shape, attached.Blurhash, drawing, mostRows) is not { } box)
+            if (AttachmentBox(drawn, attached, drawing, mostRows) is not { } box)
             {
                 yield return [described];
 
@@ -560,16 +569,32 @@ public static class PostLines
             // Hidden from the first frame where the reader asked for it, not from when the picture lands: the box is
             // there either way, so a caption taken down on arrival would be a row going and the post moving under the
             // reader, which is what the box was reserved to stop (ADR-0025). The box's own top row carries the Wants
-            // then, there being no caption to carry it.
+            // then, there being no caption to carry it. Walked to as the picture it is, its box bracketed while it is
+            // (ADR-0034).
+            var beside = new BracketColumns(reference, Walked: reading.Reference == reference);
+
             yield return drawing.HideDrawnCaption
-                ? [.. Reserved(box, drawn)]
-                : [described, .. Reserved(box)];
+                ? [.. Reserved(box, drawn, beside)]
+                : [described, .. Reserved(box, bracketed: beside)];
         }
     }
 
     /// <summary>
-    ///     A picture that is not being drawn: what it shows, and where to get it. Unaffected by ADR-0017 — <c>Image</c>
-    ///     never joins the walk, so this is exactly what the CLI already prints (ADR-0016).
+    ///     The box an attachment's picture or preview is drawn in: shaped as a link preview's is, but in the width less
+    ///     the <see cref="Bracketed" /> column either side, which it gives up whether or not it is walked (ADR-0034).
+    /// </summary>
+    private static PictureBox? AttachmentBox(Drawn drawn, PostMedia attached, Drawing drawing, int mostRows) =>
+        PictureBox.Shaped(
+            drawn,
+            attached.Shape,
+            attached.Blurhash,
+            drawing.In(Math.Max(0, drawing.Width - (2 * Bracketed))),
+            mostRows);
+
+    /// <summary>
+    ///     A picture that is not being drawn: what it shows, and where to get it. Unaffected by ADR-0017 and ADR-0034 —
+    ///     an <c>Image</c> joins the walk only where it is drawn, so this is exactly what the CLI already prints
+    ///     (ADR-0016).
     /// </summary>
     private static IEnumerable<Line> LinkedImage(PostMedia attached, int width)
     {
@@ -622,12 +647,12 @@ public static class PostLines
         // The description goes behind the preference from the first frame rather than when the preview lands, for the
         // reason a picture's caption does: the box is already there, and the setting should not depend on how quick
         // the network was (ADR-0025).
-        return PictureBox.Shaped(drawn, attached.Shape, attached.Blurhash, drawing, mostRows) is not { } box
+        return AttachmentBox(drawn, attached, drawing, mostRows) is not { } box
             ? [Label(saysWhatItShows: true) with { Wants = drawn }]
             :
             [
                 Label(saysWhatItShows: !drawing.HideDrawnCaption) with { Wants = drawn },
-                .. Reserved(box),
+                .. Reserved(box, bracketed: new BracketColumns()),
             ];
     }
 
@@ -713,7 +738,8 @@ public static class PostLines
     ///     </para>
     ///     <para>
     ///         What each row holds and what is set into it is the <see cref="PictureBox" />'s, shaped from what the
-    ///         instance reported; this lays the box across the full width and says what its top row waits for.
+    ///         instance reported; this lays the box across the row, between its bracket columns where it has them, and
+    ///         says what its top row waits for.
     ///     </para>
     /// </remarks>
     /// <param name="box">The box the shape settled.</param>
@@ -721,15 +747,71 @@ public static class PostLines
     ///     What the box's top row says it is waiting for, where no caption above it is there to say so — or
     ///     <see langword="null" /> where one is.
     /// </param>
-    private static IEnumerable<Line> Reserved(PictureBox box, Drawn? wants = null)
+    /// <param name="bracketed">
+    ///     The <see cref="Bracketed" /> column either side of an attachment's box, or <see langword="null" /> for a
+    ///     link preview's, which has none and starts at the row's left.
+    /// </param>
+    private static IEnumerable<Line> Reserved(PictureBox box, Drawn? wants = null, BracketColumns? bracketed = null)
     {
+        var column = bracketed is null ? 0 : Bracketed;
+        var reference = bracketed?.Reference;
+
+        Span Beside(string glyph) => new(glyph, Role.ReferencePicked) { Reference = reference };
+
         for (var row = 0; row < box.Rows; row++)
         {
-            var line = Line.Of(box.Cells(row)) with { Insets = box.Insets(row, column: 0) };
+            var held = box.Cells(row);
+            var (opening, closing) = PictureBrackets(row, box.Rows);
+
+            // Walked, the row is held out to the box's right edge, so that the closing bracket is in the column past it
+            // whatever the pixels left blank on this row — blanks the page would have shown there anyway.
+            var cells = bracketed is not { } columns
+                ? Line.Of(held)
+                : columns.Walked
+                    ? Line.Of(
+                        Beside(opening),
+                        held,
+                        new Span(new string(' ', Math.Max(0, box.Columns - held.Width)), Role.Body),
+                        Beside(closing))
+                    : Line.Of(new Span(new string(' ', column), Role.Body) { Reference = reference }, held);
+            var line = cells with { Insets = box.Insets(row, column) };
 
             yield return row == 0 ? line with { Wants = wants } : line;
         }
     }
+
+    /// <summary>
+    ///     The <see cref="Bracketed" /> column either side of an attachment's box, which every attachment's box gives up
+    ///     whether or not it is walked (ADR-0034).
+    /// </summary>
+    /// <param name="Reference">
+    ///     The still picture's reference where the box is one, which every row's bracket column carries — so that the
+    ///     walk enters at it, lets it go and brings it on to the page by whichever of its rows are there, as it does a
+    ///     wrapped link's (<see cref="Span.Reference" />), and so that a picture is walked only where its box is drawn
+    ///     (<see cref="Screen.LaidOut" />) — or <see langword="null" /> for a box nothing walks to, a video's preview.
+    ///     Never on the box's own cells.
+    /// </param>
+    /// <param name="Walked">
+    ///     Whether <paramref name="Reference" /> is the one walked to, which draws the brackets in the two columns
+    ///     (<see cref="PictureBrackets" />) rather than leaving them blank.
+    /// </param>
+    private readonly record struct BracketColumns(Reference? Reference = null, bool Walked = false);
+
+    /// <summary>
+    ///     The brackets either side of row <paramref name="row" /> of a walked picture's <paramref name="rows" />-row
+    ///     box: <c>⎡</c> and <c>⎤</c> on its top row, <c>⎢</c> and <c>⎥</c> down the middle and <c>⎣</c> and <c>⎦</c>
+    ///     on its bottom row, or <c>[</c> and <c>]</c> on a box one row tall (ADR-0034).
+    /// </summary>
+    /// <remarks>
+    ///     A glyph a row rather than one bracket drawn over the box, so that a box partly scrolled off still shows its
+    ///     brackets on the rows that are on the page. In <see cref="Role.ReferencePicked" />, the role <c>‹ ›</c> are
+    ///     drawn in, and read as brackets without it on a terminal with no colour.
+    /// </remarks>
+    private static (string Opening, string Closing) PictureBrackets(int row, int rows) =>
+        rows == 1 ? ("[", "]")
+        : row == 0 ? ("⎡", "⎤")
+        : row == rows - 1 ? ("⎣", "⎦")
+        : ("⎢", "⎥");
 
     /// <summary>One attachment behind <paramref name="mark" />, saying what its author said it shows.</summary>
     private static Line Described(PostMedia attached, string mark, int width) => Line.Of([

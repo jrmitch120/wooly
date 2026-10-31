@@ -3,6 +3,7 @@ using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
+using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
 
@@ -46,18 +47,32 @@ public class AttachmentReferenceTests
         Assert.Equal("https://files.mastodon.social/m2/original.png", feed.Reference?.Text);
     }
 
-    /// <summary>The second acceptance criterion: an <c>Image</c> attachment never enters the walk.</summary>
-    [Fact]
-    public void References_NeverIncludesAnImageAttachment()
+    /// <summary>
+    ///     The second acceptance criterion, as ADR-0034 amended it: an <c>Image</c> attachment enters the walk where it
+    ///     is drawn, in attachment order beside the others, and stays out of it where it is linked (#515).
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task References_IncludeAnImageAttachmentOnlyWhereItIsDrawn(bool drawsPictures)
     {
         var post = APost.With(
             content: "Hello",
             media: [APost.APicture(id: "m1"), APost.Attached(MediaKind.Video, id: "m2")]);
 
-        var feed = new FeedScreen(new Destination(DestinationKind.Home, "Home"), [post]);
+        using var drawn = await DrawnShell.Of(
+            80,
+            40,
+            Themes.Plain,
+            new AShell { Timelines = FakeTimelineReader.Holding(post) },
+            pictures: new FakePictures(),
+            drawsPictures: drawsPictures);
 
-        Assert.Single(feed.References);
-        Assert.Equal("https://files.mastodon.social/m2/original.png", feed.References[0].Text);
+        string[] expected = drawsPictures
+            ? ["https://files.mastodon.social/m1/original.png", "https://files.mastodon.social/m2/original.png"]
+            : ["https://files.mastodon.social/m2/original.png"];
+
+        Assert.Equal(expected, drawn.Shell.Screen.References.Select(reference => reference.Text));
     }
 
     /// <summary>
@@ -72,7 +87,7 @@ public class AttachmentReferenceTests
     public void Drawn_BracketsTheKindsLabelWithTheDescriptionAlongsideItWhilePicked(MediaKind kind, string label)
     {
         var post = APost.With(content: "Hello", media: [APost.Attached(kind, description: "Sheep, at length")]);
-        var reference = AttachmentReferences.Of(post).Single();
+        var reference = AttachmentReferences.For(post, at: 0);
 
         var unpicked = PostLines.Feed(post, new Drawing(61, Now), default);
         var picked = PostLines.Feed(post, new Drawing(61, Now), new Reading(Reference: reference));

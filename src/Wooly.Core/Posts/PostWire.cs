@@ -189,6 +189,10 @@ internal static class PostWire
         Shape = PictureShape.Of(attachment.Meta?.Small?.Width, attachment.Meta?.Small?.Height)
                 ?? PictureShape.Of(attachment.Meta?.Original?.Width, attachment.Meta?.Original?.Height),
 
+        // The original's own, kept apart from the guess above: the Picture screen draws the original, and its box is
+        // the original's shape where the instance said it.
+        OriginalShape = PictureShape.Of(attachment.Meta?.Original?.Width, attachment.Meta?.Original?.Height),
+
         // Unchecked here: a blurhash that does not decode is the TUI's shaded fill, not a post that failed to read.
         Blurhash = MastodonWire.SaidOrNothing(attachment.BlurHash),
     };

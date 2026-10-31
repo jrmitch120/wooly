@@ -12,7 +12,7 @@ namespace Wooly.Tui.Rendering;
 ///     paths is two places for what may be walked to come apart.
 ///     <para>
 ///         What is <em>walked</em> rather than what is drawn: a reference drawn and deliberately not openable is left
-///         off — a mention in a bio, which has nothing to resolve it against (#179), the way an <c>Image</c>
+///         off — a mention in a bio, which has nothing to resolve it against (#179), the way an undrawn <c>Image</c>
 ///         attachment and a link preview's author name already are.
 ///     </para>
 /// </remarks>

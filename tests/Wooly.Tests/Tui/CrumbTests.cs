@@ -32,6 +32,7 @@ public class CrumbTests
         ("discover", "Discover"),
         ("help", "Keys"),
         ("post", "Post by @ben@hachyderm.io"),
+        ("picture", "Picture by @ben@hachyderm.io"),
         ("conversation", "With @alice@hachyderm.io"),
         ("compose", "Compose"),
         ("describe", "Describe cat.png"),
@@ -164,6 +165,9 @@ public class CrumbTests
 
             case "post":
                 return new PostScreen(post, new PostThread([], []));
+
+            case "picture":
+                return new PictureScreen(post, APost.APicture(), _ => { });
 
             case "conversation":
                 return new ConversationScreen(AConversation.Thread(

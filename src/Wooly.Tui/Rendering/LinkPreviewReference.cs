@@ -29,7 +29,7 @@ public static class LinkPreviewReference
     /// <remarks>
     ///     <see cref="Reference.At" /> is past the end of the text <em>and</em> past every attachment reference, which
     ///     is what sorts it after all of them — asked of <see cref="AttachmentReferences.Past" /> rather than worked
-    ///     out here off <c>Media</c>, so that which attachments earn a reference at all is settled in the one place. A
+    ///     out here off <c>Media</c>, so that what place the attachments take in the walk is settled in the one place. A
     ///     rule written twice is a rule that comes to disagree with itself.
     /// </remarks>
     public static Reference? Of(Post post) => (post.Boosted ?? post).LinkPreview is { } link

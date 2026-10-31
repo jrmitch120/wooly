@@ -78,12 +78,17 @@ internal static class APost
     /// <param name="shape">
     ///     The shape the instance reported for it, or none — which is a box at the TUI's 16:9 default (ADR-0025).
     /// </param>
+    /// <param name="originalShape">
+    ///     The shape the instance reported for the file itself, or none — where the Picture screen's box goes by
+    ///     <paramref name="shape" /> instead (ADR-0034).
+    /// </param>
     public static PostMedia APicture(
         string id = "m1",
         string? description = "A cartoon sheep",
         PictureShape? shape = null,
-        string? blurhash = null) =>
-        Attached(MediaKind.Image, id, description, shape, blurhash);
+        string? blurhash = null,
+        PictureShape? originalShape = null) =>
+        Attached(MediaKind.Image, id, description, shape, blurhash, originalShape);
 
     /// <summary>An attachment of any kind, for a test that is about the kind rather than about a picture.</summary>
     public static PostMedia Attached(
@@ -91,7 +96,8 @@ internal static class APost
         string id = "m1",
         string? description = "A cartoon sheep",
         PictureShape? shape = null,
-        string? blurhash = null) => new()
+        string? blurhash = null,
+        PictureShape? originalShape = null) => new()
     {
         Id = id,
         Kind = kind,
@@ -99,6 +105,7 @@ internal static class APost
         Preview = $"https://files.mastodon.social/{id}/small.png",
         Description = description,
         Shape = shape,
+        OriginalShape = originalShape,
         Blurhash = blurhash,
     };
 

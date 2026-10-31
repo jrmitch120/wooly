@@ -811,12 +811,19 @@ public sealed class Shell
     /// </summary>
     /// <remarks>
     ///     A reference drawn and never walked — a mention in a bio — leaves the thing picked and nothing walked to,
-    ///     which is what a click anywhere else on it does.
+    ///     which is what a click anywhere else on it does. So does a picture's, beside its box: a picture is walked to
+    ///     by keys alone until opening one by clicking comes with mouse support, a click walking to one being half of
+    ///     the double click that would open it (ADR-0034).
     /// </remarks>
     public void PickReference(int at, Reference reference)
     {
         Section(at);
-        Screen.WalkToReference(reference);
+
+        if (Screen.PictureOf(reference) is null)
+        {
+            Screen.WalkToReference(reference);
+        }
+
         Changed?.Invoke();
     }
 
@@ -903,7 +910,8 @@ public sealed class Shell
     ///     Opens whatever the picked reference points at, which is four different things: a hashtag's timeline, the
     ///     account a mention names, an address in the platform's own browser, or a <c>Video</c>/<c>Animation</c>/
     ///     <c>Audio</c>/<c>Unknown</c> attachment's own address and a link preview's alike — in that same browser, the
-    ///     exact way a picked link already reaches it (#85, ADR-0017, ADR-0018).
+    ///     exact way a picked link already reaches it (#85, ADR-0017, ADR-0018). A walked picture is none of the four,
+    ///     and opens on a <b>Picture screen</b> instead (ADR-0034, #516).
     /// </summary>
     /// <remarks>
     ///     Which of the four it is, is the role the reference draws in — one vocabulary rather than two, which is the
@@ -919,6 +927,18 @@ public sealed class Shell
     {
         if (Screen.Reference is not { } reference)
         {
+            return Task.CompletedTask;
+        }
+
+        // A walked picture opens inside the terminal rather than in the browser, on a Picture screen pushed over this
+        // one — and is the one reference left walked as it opens, so that esc comes back to it as it was rather than to
+        // the walk starting over (ADR-0034, #516). Asked ahead of the roles, a picture's address sharing Media with a
+        // video's.
+        // It says on the status row why an original will not come, which only a frame drawing it learns (#517).
+        if (Screen.OpenWalkedPicture(notice => StatusRow.Say(notice, isError: true)) is { } picture)
+        {
+            Push(picture);
+
             return Task.CompletedTask;
         }
 
