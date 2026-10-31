@@ -96,7 +96,8 @@ public sealed record PostMedia
     ///     Everything but a still picture, and separate from <see cref="IsDrawable" /> rather than its opposite: a
     ///     video is both drawn and opened, and its preview being drawn is precisely why it needs a label saying what
     ///     opening it would reach. A picture is the whole of itself once drawn, and where it cannot be drawn it is
-    ///     linked exactly as the CLI links it (ADR-0016), so it never joins the walk.
+    ///     linked exactly as the CLI links it (ADR-0016), so it is never opened outside the terminal: where it is drawn
+    ///     it joins the walk all the same, and is opened inside it at its original (ADR-0034).
     /// </remarks>
     public bool Opens => Kind is not MediaKind.Image;
 

@@ -226,7 +226,7 @@ public class AttachmentPreviewTests
         ]);
         var pictures = new FakePictures().Holding("m1", 400, 400);
 
-        var reference = AttachmentReferences.Of(post).Single();
+        var reference = AttachmentReferences.Of(post, drawsPictures: true).Single();
 
         var lines = PostLines.Whole(
             post,

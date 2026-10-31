@@ -294,7 +294,7 @@ Feed and post:
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `w` | Who favorited it, or who boosted it: the actors screen, one side at a time | On a boost, the post boosted. Opens "Favorited by" where the post's count of favorites is above zero, else "Boosted by" where its boosts are, else says `Nobody has favorited or boosted this.` and opens nothing — settled from the counts before anything is read, and always the list, never a shortcut to one account (#489). On Notifications `w` is who did what the row reports, and on an account screen's header block their follows (below, #490) |
 | `x` | Show what the post is hiding | Its warned text and poll, its sensitive attachments and link preview, or both halves at once (#113, #116, #119). What it showed belongs to the screen it was pressed on (#121, below) |
-| `←` `→` | Walk the references (hashtag, mention, link) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below) |
+| `←` `→` | Walk the references (hashtag, mention, link, attachment, drawn picture) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below), except a walked picture, on which it does nothing until the Picture screen (#516). A walked picture is drawn between `⎡⎢⎣` and `⎤⎥⎦` beside its box (`[` `]` for a box one row tall), and is walked to by keys alone (#515) |
 | `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll is on screen and would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
 | `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. Only where the poll is on screen and would still take a vote — and on a poll already voted in or closed, says which rather than asking |
 
@@ -902,8 +902,17 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   once the preview has actually landed. Pending, or never coming, and the description stands.
 - **A still picture that cannot be drawn is unaffected by #109**, and keeps the shape every attachment had before it: a
   `⏵`, the description, and the address on the rows below — wrapped rather than clipped, since a real address is
-  longer than 61 columns and a link with its end cut off is not a link. `Image` never joins the walk, so there is
-  nothing here for `←`/`→` to reach.
+  longer than 61 columns and a link with its end cut off is not a link. An `Image` joins the walk only where it is
+  drawn (ADR-0034), so there is nothing here for `←`/`→` to reach.
+- **A drawn still picture is walked to** after the post's text references, in attachment order beside the labels
+  (#515). Walked, it is drawn between `⎡⎢⎣` and `⎤⎥⎦` in the column either side of its box that every attachment's box
+  gives up (#519), a glyph on each row so that a box partly scrolled off still shows them, and `[` `]` on a box one row
+  tall — in `ReferencePicked`, the role `‹ ›` use. Only the bracket columns change on walking to it or letting it go.
+  Its every row carries the reference on its bracket columns and not on the box, and a click there picks the post
+  rather than walking to it: a picture is walked to by keys alone until mouse support. Whether pictures are drawn at
+  all is told to the screen by the content region each frame (`Screen.DrawsPictures`), from the same `Drawing.Draws`
+  answer the rows are laid out by. A video's or animation's preview box, a link preview's picture and avatars are
+  never walked to as pictures.
 - **A warned post's attachments are drawn only once the reader has asked for them.** A spoiler text, the instance's own
   sensitive flag, or both, and `x` shows them along with whatever else the post is hiding (#113). Until it is pressed
   there is no box, no label, no description and no address — and no `Wants`, so nothing is fetched and nothing is

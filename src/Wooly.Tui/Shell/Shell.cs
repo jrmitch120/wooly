@@ -811,12 +811,19 @@ public sealed class Shell
     /// </summary>
     /// <remarks>
     ///     A reference drawn and never walked — a mention in a bio — leaves the thing picked and nothing walked to,
-    ///     which is what a click anywhere else on it does.
+    ///     which is what a click anywhere else on it does. So does a picture's, beside its box: a picture is walked to
+    ///     by keys alone until opening one by clicking comes with mouse support, a click walking to one being half of
+    ///     the double click that would open it (ADR-0034).
     /// </remarks>
     public void PickReference(int at, Reference reference)
     {
         Section(at);
-        Screen.WalkToReference(reference);
+
+        if (Screen.PictureOf(reference) is null)
+        {
+            Screen.WalkToReference(reference);
+        }
+
         Changed?.Invoke();
     }
 
@@ -903,7 +910,8 @@ public sealed class Shell
     ///     Opens whatever the picked reference points at, which is four different things: a hashtag's timeline, the
     ///     account a mention names, an address in the platform's own browser, or a <c>Video</c>/<c>Animation</c>/
     ///     <c>Audio</c>/<c>Unknown</c> attachment's own address and a link preview's alike — in that same browser, the
-    ///     exact way a picked link already reaches it (#85, ADR-0017, ADR-0018).
+    ///     exact way a picked link already reaches it (#85, ADR-0017, ADR-0018). A walked picture is none of the four,
+    ///     and opens nothing yet (ADR-0034, #515).
     /// </summary>
     /// <remarks>
     ///     Which of the four it is, is the role the reference draws in — one vocabulary rather than two, which is the
@@ -918,6 +926,14 @@ public sealed class Shell
     public Task OpenReference()
     {
         if (Screen.Reference is not { } reference)
+        {
+            return Task.CompletedTask;
+        }
+
+        // A walked picture opens inside the terminal rather than in the browser, on a Picture screen that is not built
+        // yet (#516): until it is, ⏎ on one does nothing, and leaves it walked, which is how esc is to find it when that
+        // screen is gone again (ADR-0034). Asked ahead of the roles, a picture's address sharing Media with a video's.
+        if (Screen.WalkedPicture is not null)
         {
             return Task.CompletedTask;
         }

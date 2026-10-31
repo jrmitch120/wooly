@@ -403,7 +403,33 @@ public abstract class Screen
     ///     </para>
     /// </remarks>
     protected virtual IReferring? Referring =>
-        Referencing is { } post ? new PostReferences(post, Revealed.Has(post)) : null;
+        Referencing is { } post ? new PostReferences(post, Revealed.Has(post), DrawsPictures) : null;
+
+    /// <summary>
+    ///     Whether the content region this screen is laid out in draws pictures rather than linking them, as of the
+    ///     frame it was last laid out for — which is what settles whether a post's still pictures are walked, since only
+    ///     a drawn one is a <b>Reference</b> (ADR-0034, #515).
+    /// </summary>
+    /// <remarks>
+    ///     Told by the region, from the same <see cref="Drawing.Draws" /> answer it lays the rows out under, rather than
+    ///     remembered off whichever <see cref="Drawing" /> a layout was last handed: the walk is asked between frames —
+    ///     by a key, by the status row — and a layout made with no terminal in the room, as a test's is, says nothing
+    ///     about the terminal the reader has. Off on a screen nobody has drawn, every picture on it linked.
+    /// </remarks>
+    internal bool DrawsPictures { get; set; }
+
+    /// <summary>
+    ///     The still picture the walk has got to, or <see langword="null" /> where what is walked is anything else or
+    ///     nothing is — what <c>⏎</c> keeps inside the terminal rather than handing the browser (ADR-0034).
+    /// </summary>
+    public PostMedia? WalkedPicture => Reference is { } picked ? PictureOf(picked) : null;
+
+    /// <summary>
+    ///     The still picture <paramref name="reference" /> was made of, where it is one of the post being read's — or
+    ///     <see langword="null" />.
+    /// </summary>
+    public PostMedia? PictureOf(Reference reference) =>
+        Referring is PostReferences { Post: var post } ? AttachmentReferences.Picture(post, reference) : null;
 
     /// <summary>
     ///     The references inside it, in the order they are drawn — which is the order they are walked in, and the

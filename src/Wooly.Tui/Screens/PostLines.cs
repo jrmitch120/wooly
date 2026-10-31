@@ -532,7 +532,8 @@ public static class PostLines
 
         // Built once, off the same formula Screen.References walks, so a bracket here and the pick the reader made
         // can never come to disagree about which attachment it landed on (AttachmentReferences).
-        var references = AttachmentReferences.Of(post);
+        var draws = Drawing.Draws(drawing.Pictures, drawing.Raster, out _);
+        var references = AttachmentReferences.Of(post, draws);
         var at = 0;
 
         foreach (var attached in post.Media)
@@ -546,12 +547,17 @@ public static class PostLines
                 continue;
             }
 
-            if (!Drawing.Draws(drawing.Pictures, drawing.Raster, out _))
+            if (!draws)
             {
                 yield return [.. LinkedImage(attached, width)];
 
                 continue;
             }
+
+            // Walked to as the picture it is, its box bracketed while it is (ADR-0034).
+            var reference = references[at];
+
+            at++;
 
             // The description first, so it does not move when the picture lands underneath it — and marked as wanting
             // a picture, which is how the view knows to send for one if this post is near enough to the screen.
@@ -569,9 +575,11 @@ public static class PostLines
             // there either way, so a caption taken down on arrival would be a row going and the post moving under the
             // reader, which is what the box was reserved to stop (ADR-0025). The box's own top row carries the Wants
             // then, there being no caption to carry it.
+            var walked = reading.Reference == reference;
+
             yield return drawing.HideDrawnCaption
-                ? [.. Reserved(box, drawn, Bracketed)]
-                : [described, .. Reserved(box, column: Bracketed)];
+                ? [.. Reserved(box, drawn, Bracketed, reference, walked)]
+                : [described, .. Reserved(box, column: Bracketed, reference: reference, walked: walked)];
         }
     }
 
@@ -588,8 +596,9 @@ public static class PostLines
             mostRows);
 
     /// <summary>
-    ///     A picture that is not being drawn: what it shows, and where to get it. Unaffected by ADR-0017 — <c>Image</c>
-    ///     never joins the walk, so this is exactly what the CLI already prints (ADR-0016).
+    ///     A picture that is not being drawn: what it shows, and where to get it. Unaffected by ADR-0017 and ADR-0034 —
+    ///     an <c>Image</c> joins the walk only where it is drawn, so this is exactly what the CLI already prints
+    ///     (ADR-0016).
     /// </summary>
     private static IEnumerable<Line> LinkedImage(PostMedia attached, int width)
     {
@@ -746,18 +755,62 @@ public static class PostLines
     ///     How far in from the row's left the box starts: <see cref="Bracketed" /> for an attachment's, held blank
     ///     on every row, and none for a link preview's.
     /// </param>
-    private static IEnumerable<Line> Reserved(PictureBox box, Drawn? wants = null, int column = 0)
+    /// <param name="reference">
+    ///     The still picture's reference where the box is one, which every row's bracket column carries — so that the
+    ///     walk enters at it, lets it go and brings it on to the page by whichever of its rows are there, as it does a
+    ///     wrapped link's (<see cref="Span.Reference" />) — or <see langword="null" /> for a box nothing walks to.
+    ///     Never on the box's own cells.
+    /// </param>
+    /// <param name="walked">
+    ///     Whether <paramref name="reference" /> is the one walked to, which draws the brackets in the columns either
+    ///     side of the box (<see cref="PictureBrackets" />).
+    /// </param>
+    private static IEnumerable<Line> Reserved(
+        PictureBox box,
+        Drawn? wants = null,
+        int column = 0,
+        Reference? reference = null,
+        bool walked = false)
     {
+        Span Beside(string glyph) => new(glyph, Role.ReferencePicked) { Reference = reference };
+
         for (var row = 0; row < box.Rows; row++)
         {
-            var cells = column > 0
-                ? Line.Of(new Span(new string(' ', column), Role.Body), box.Cells(row))
-                : Line.Of(box.Cells(row));
+            var held = box.Cells(row);
+            var (opening, closing) = PictureBrackets(row, box.Rows);
+
+            // Walked, the row is held out to the box's right edge, so that the closing bracket is in the column past it
+            // whatever the pixels left blank on this row — blanks the page would have shown there anyway.
+            var cells = column == 0
+                ? Line.Of(held)
+                : walked
+                    ? Line.Of(
+                        Beside(opening),
+                        held,
+                        new Span(new string(' ', Math.Max(0, box.Columns - held.Width)), Role.Body),
+                        Beside(closing))
+                    : Line.Of(new Span(new string(' ', column), Role.Body) { Reference = reference }, held);
             var line = cells with { Insets = box.Insets(row, column) };
 
             yield return row == 0 ? line with { Wants = wants } : line;
         }
     }
+
+    /// <summary>
+    ///     The brackets either side of row <paramref name="row" /> of a walked picture's <paramref name="rows" />-row
+    ///     box: <c>⎡</c> and <c>⎤</c> on its top row, <c>⎢</c> and <c>⎥</c> down the middle and <c>⎣</c> and <c>⎦</c>
+    ///     on its bottom row, or <c>[</c> and <c>]</c> on a box one row tall (ADR-0034).
+    /// </summary>
+    /// <remarks>
+    ///     A glyph a row rather than one bracket drawn over the box, so that a box partly scrolled off still shows its
+    ///     brackets on the rows that are on the page. In <see cref="Role.ReferencePicked" />, the role <c>‹ ›</c> are
+    ///     drawn in, and read as brackets without it on a terminal with no colour.
+    /// </remarks>
+    private static (string Opening, string Closing) PictureBrackets(int row, int rows) =>
+        rows == 1 ? ("[", "]")
+        : row == 0 ? ("⎡", "⎤")
+        : row == rows - 1 ? ("⎣", "⎦")
+        : ("⎢", "⎥");
 
     /// <summary>One attachment behind <paramref name="mark" />, saying what its author said it shows.</summary>
     private static Line Described(PostMedia attached, string mark, int width) => Line.Of([
