@@ -23,8 +23,9 @@ public sealed record PostMedia
 
     /// <summary>
     ///     A smaller copy for showing in place, or <see langword="null" /> where the instance offered none. Preferred
-    ///     over <see cref="Url" /> for anything drawn inline: a terminal renders a few hundred pixels wide at most, and
-    ///     fetching the full-size original to throw most of it away is somebody's data allowance.
+    ///     over <see cref="Url" /> for anything drawn inline: a feed holds dozens of pictures, and fetching each at full
+    ///     size would cost the memory of a few of them and somebody's data allowance. The original is fetched only
+    ///     for the TUI's Picture screen, one picture at a time (ADR-0034).
     /// </summary>
     public string? Preview { get; init; }
 
@@ -46,6 +47,18 @@ public sealed record PostMedia
     ///     field added to a script's input is one that script's author never asked for (ADR-0025's Consequences).
     /// </remarks>
     public PictureShape? Shape { get; init; }
+
+    /// <summary>
+    ///     The shape of the file itself, as the instance reported it: the metadata's <c>original</c> entry, or
+    ///     <see langword="null" /> where that does not have both sides. What the TUI's Picture screen settles its box
+    ///     from, so that the smaller copy drawn while the original comes and the original once it has fill the same
+    ///     cells — the smaller copy's <see cref="Shape" /> standing in where this was not said (ADR-0034).
+    /// </summary>
+    /// <remarks>
+    ///     Neither the CLI's text nor its <c>--json</c> carries this, for the reason <see cref="Shape" /> is kept out of
+    ///     them.
+    /// </remarks>
+    public PictureShape? OriginalShape { get; init; }
 
     /// <summary>
     ///     The instance's blurhash of the picture — a few dozen characters that decode to a blur of its colours and

@@ -936,6 +936,9 @@ public sealed class Shell
         // video's.
         if (Screen.OpenWalkedPicture() is { } picture)
         {
+            // It says on the status row why an original will not come, which only a frame drawing it learns (#517).
+            picture.Saying = notice => StatusRow.Say(notice, isError: true);
+
             Push(picture);
 
             return Task.CompletedTask;

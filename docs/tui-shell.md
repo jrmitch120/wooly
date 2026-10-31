@@ -251,7 +251,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Media — the attachments screen, a row for each thing attached to a compose or a reply | `⏎` on the Media header, or a click on its line, where a short terminal folded the rows into it | story 58 |
 | Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
-| Picture — one still picture on a post over the whole window, fitted whole, its description wrapped beneath it and a hint row under that, crumbed `Picture by @author` | `⏎` on a walked picture, in a feed or on the post screen | #516 (ADR-0034) |
+| Picture — one still picture on a post over the whole window at its original, fitted whole, its description wrapped beneath it and a hint row under that, crumbed `Picture by @author` | `⏎` on a walked picture, in a feed or on the post screen | #516, #517 (ADR-0034) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
 Every screen owes three things: it reads at 57 columns (58 for a screen with widgets of its own — compose, the
@@ -926,9 +926,15 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   across, never cropped or stretched out of shape; what its author said it shows (`PostMedia.Shows`, so `a picture,
   undescribed` where they said nothing) wrapped beneath it rather than cut; and a hint row under that, `esc back`. Its
   box is settled again on every frame from the room the window gives it, so a resize draws the picture to fit the new
-  window. It draws the smaller copy the timeline already holds, stretched to the box, and its **Stand-in** where that
-  copy was let go, until it is fetched again. `esc` goes back at its first press, to the screen it was opened from with
-  the same pick and the same picture walked; on the post screen as in a feed.
+  window. It draws the instance's original (#517): the smaller copy the timeline already holds at once, stretched to
+  the box, and its **Stand-in** where that copy was let go — then the original in the same cells once it lands, the box
+  settled from the original's shape (`PostMedia.OriginalShape`, the smaller copy's standing in where the instance said
+  none) so that nothing moves. The original is a `Drawn` of its own (`Drawn.Original`), held apart from the timeline's
+  pictures: it counts against neither budget and lets none of them go to make room, may read up to 32 MB
+  (`Pictures.MostBytesHeldApart`) where an inline picture stays at 8 MB, is decoded no larger than the window, and is
+  let go the first frame that does not want it — so once the screen goes, while the smaller copy stays held for the
+  timeline. `esc` goes back at its first press, to the screen it was opened from with the same pick and the same
+  picture walked; on the post screen as in a feed.
 - **A warned post's attachments are drawn only once the reader has asked for them.** A spoiler text, the instance's own
   sensitive flag, or both, and `x` shows them along with whatever else the post is hiding (#113). Until it is pressed
   there is no box, no label, no description and no address — and no `Wants`, so nothing is fetched and nothing is
@@ -981,8 +987,11 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   which gives it back the picture's proportions (ADR-0025's amendment for #438).
 - **The description stands above the picture**, so it does not move when the pixels land under it. Until they do, the
   box under it holds its Stand-in, the size the picture will be, so nothing moves when the picture replaces it.
-- **Nothing about a picture is ever an error.** A fetch that fails and a file that will not decode both leave the
-  description standing on its own, which is what a terminal that cannot draw shows anyway.
+- **Nothing about a picture is ever an error,** but one. A fetch that fails and a file that will not decode both leave
+  the description standing on its own, which is what a terminal that cannot draw shows anyway. The exception is the
+  Picture screen's original (#517): one larger than 32 MB, or one that cannot be fetched or decoded, leaves the smaller
+  copy drawn and the status row saying `The original is too large to show.` or `The original could not be fetched.`,
+  said once, by the first frame that learns it, and gone with the screen.
 - **A drawn picture's caption can hide, behind a preference that defaults off.** `hide_drawn_caption` (below) hides
   `Described` only once a picture is *actually drawn* — the same branch that emits `Box(inset)`. A terminal that
   cannot draw at all and one that can but hasn't gotten this picture yet are treated identically, so there is no

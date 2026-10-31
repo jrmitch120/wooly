@@ -31,9 +31,21 @@ public sealed record Drawn(string Id, string Address)
     public (int Columns, int Rows)? Largest { get; init; }
 
     /// <summary>
-    ///     An attachment on a post, at the smaller copy where the instance offered one. A terminal draws a few hundred
-    ///     pixels across at most, and fetching a photograph at full size to throw nine tenths of it away is somebody's
-    ///     data allowance.
+    ///     Whether this is held apart from the timeline's pictures, for as long as a frame wants it and no longer: an
+    ///     attachment's original on the Picture screen (ADR-0034).
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="Pictures" /> counts it against neither of its budgets and lets nothing else go to make room for
+    ///     it, lets go of it the first frame that does not want it, and reads up to
+    ///     <see cref="Pictures.MostBytesHeldApart" /> of it rather than <see cref="Pictures.MostBytes" /> — one picture,
+    ///     held only while it is looked at, can afford what a feed of them could not.
+    /// </remarks>
+    public bool HeldApart { get; init; }
+
+    /// <summary>
+    ///     An attachment on a post, at the smaller copy where the instance offered one: a feed holds dozens of
+    ///     pictures, and holding each at full size would cost the memory of a few of them and fetching each somebody's
+    ///     data allowance. The original is fetched only for the Picture screen (<see cref="Original" />, ADR-0034).
     /// </summary>
     /// <remarks>
     ///     Falling back to the attachment's own file is only ever a still picture's fallback, and the caller is what
@@ -41,6 +53,21 @@ public sealed record Drawn(string Id, string Address)
     ///     preview of, so nothing reaches here that would send for a whole video only to fail to decode it (#110).
     /// </remarks>
     public static Drawn Attached(PostMedia media) => new(media.Id, media.Preview ?? media.Url);
+
+    /// <summary>
+    ///     An attachment's original, as the Picture screen draws it over the window (ADR-0034): named apart from the
+    ///     smaller copy <see cref="Attached" /> names, so that the two are held as two pictures and the smaller copy
+    ///     stays held, for the timeline, after the original is let go; held apart (<see cref="HeldApart" />); and
+    ///     decoded no larger than the window it is drawn in.
+    /// </summary>
+    /// <param name="media">The attachment, as the post carries it.</param>
+    /// <param name="columns">How many columns the Picture screen has for it.</param>
+    /// <param name="rows">How many rows the Picture screen has for it, less its description's and its hint row.</param>
+    public static Drawn Original(PostMedia media, int columns, int rows) => new($"original:{media.Id}", media.Url)
+    {
+        Largest = (columns, rows),
+        HeldApart = true,
+    };
 
     /// <summary>
     ///     The picture an instance chose for a link it previewed, or <see langword="null" /> where it chose none —
