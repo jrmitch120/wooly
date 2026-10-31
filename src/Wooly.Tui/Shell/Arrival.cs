@@ -40,7 +40,10 @@ namespace Wooly.Tui.Shell;
 /// <param name="ports">Everything a subject is read through.</param>
 /// <param name="enquiry">What every question is put under.</param>
 /// <param name="cache">What each cached subject last held, which is what makes walking the rail back free.</param>
-/// <param name="showing">Which destination the rail is showing, which a post sent there is on.</param>
+/// <param name="rail">
+///     The rail, for the destination it is showing, which a post sent there is on, and for the destinations a change
+///     makes stale.
+/// </param>
 /// <param name="sessionMarkers">
 ///     Where an account with no read marker counts its notifications from this session, which arriving at
 ///     Notifications counts against (story 8).
@@ -50,7 +53,7 @@ public sealed class Arrival(
     ShellPorts ports,
     Enquiry enquiry,
     SubjectCache cache,
-    Func<DestinationKind> showing,
+    Rail rail,
     SessionMarkers sessionMarkers)
 {
     /// <summary>
@@ -111,13 +114,13 @@ public sealed class Arrival(
     ///     Raised, on the drawing thread, with a destination whose own list is being read — arrived at or refreshed,
     ///     and not read further — as the read is put (<see cref="ListReads" />).
     /// </summary>
-    internal event Action<DestinationKind>? ListReading;
+    internal event Action<Destination>? ListReading;
 
     /// <summary>
     ///     Raised with that destination once its list read is over, landed or not — from whichever thread the read
     ///     finished on, after its answer has been handed to the drawing thread.
     /// </summary>
-    internal event Action<DestinationKind>? ListRead;
+    internal event Action<Destination>? ListRead;
 
     /// <summary>
     ///     What a list that came back with little or nothing on it is told. A rate limit that stopped the read part
@@ -167,16 +170,6 @@ public sealed class Arrival(
             // A prompt, which asks the instance for nothing until something has been typed into it.
             case { Kind: DestinationKind.Search }:
                 Arrives?.Invoke(new SearchScreen());
-
-                return Task.CompletedTask;
-
-            // A rail entry for a hashtag nobody has named has nothing to ask about, so what stands here is the line
-            // that would name one rather than an empty timeline.
-            case { Kind: DestinationKind.Hashtag, Timeline: null }:
-                Arrives?.Invoke(new NoticeScreen(
-                    "Hashtag",
-                    "No hashtag is set for the rail.",
-                    """Put hashtag = "cats" under [preferences] in your config file to keep one here."""));
 
                 return Task.CompletedTask;
 
@@ -310,7 +303,7 @@ public sealed class Arrival(
             // rather than handed back with a last message up to a minute stale (#485).
             case Change.PostSent { Post: var post }:
                 Forget(DestinationKind.Home);
-                Forget(showing());
+                cache.Forget(new Subject.Destination(rail.Showing));
 
                 if (post.Visibility == PostVisibility.Direct)
                 {
@@ -370,7 +363,15 @@ public sealed class Arrival(
 
         Heard?.Invoke(change);
 
-        void Forget(DestinationKind kind) => cache.Forget(new Subject.Destination(kind));
+        // Named by kind, since every kind a change makes stale is one everybody's rail holds one of — and forgotten
+        // as the destination on the rail, which is what the cache holds it by (#510).
+        void Forget(DestinationKind kind)
+        {
+            foreach (var stale in rail.Destinations.Where(destination => destination.Kind == kind))
+            {
+                cache.Forget(new Subject.Destination(stale));
+            }
+        }
     }
 
     /// <summary>The steps, over whatever <paramref name="subject" /> says it is.</summary>
@@ -419,8 +420,7 @@ public sealed class Arrival(
         Action? beneath = null,
         Action? landed = null)
     {
-        DestinationKind? listing =
-            move != Move.Further && subject is Subject.Destination { Kind: var kind } ? kind : null;
+        var listing = move != Move.Further && subject is Subject.Destination { Entry: var entry } ? entry : null;
 
         if (listing is { } reading)
         {

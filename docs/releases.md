@@ -38,3 +38,24 @@ Carrying the runtime is not the same as needing nothing at all. Two things a use
 
 The version a build reports is the tag it was built from, with the leading `v` dropped — `v0.1.0` produces an
 executable that answers `0.1.0`.
+
+## Upgrading
+
+What a reader moving from one release to the next has to know, newest first.
+
+### Tag sets replace `hashtag` (#511, #512)
+
+The TUI's rail no longer keeps one place for the single tag `hashtag` named under `[preferences]`. In its place are
+**tag sets**: each a name for up to twelve hashtags, read as one timeline of the posts carrying any of them, and each
+its own entry in a new **Hashtags** group on the rail, between Timelines and Explore. They are written in the config
+file after `[preferences]`:
+
+```toml
+[[tag_sets]]
+name = "dotnet"
+tags = ["dotnet", "csharp", "fsharp"]
+```
+
+An old `hashtag = "…"` still lets Wooly start: it is ignored, not made into a set, and the next save of any preference
+drops it from the file. To keep that tag on the rail, write it as a set of one. The rules a set is held to are in
+`docs/tui-shell.md` ("Starting it").

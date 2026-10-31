@@ -19,10 +19,10 @@ public class ShellInboxReadingOnTests
     private const int Screenful = 20;
 
     /// <summary>Where the rail's Direct messages destination is, counting from Home.</summary>
-    private const int ToMessages = 7;
+    private const int ToMessages = 6;
 
     /// <summary>Where the rail's Follow requests destination is, counting from Home.</summary>
-    private const int ToRequests = 8;
+    private const int ToRequests = 7;
 
     /// <summary>
     ///     The page within a screenful of the end of the requests: the rest of those waiting are asked for and put under

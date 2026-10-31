@@ -408,6 +408,5 @@ internal sealed class InboxBadges
         _rail.Update(Badged(badge.Kind) with { Unread = badge.Unread, Full = badge.Full && badge.Unread > 0 });
 
     /// <summary>The rail's entry for <paramref name="kind" />, badge and all.</summary>
-    private Destination Badged(DestinationKind kind) =>
-        _rail.Destinations.First(destination => destination.Kind == kind);
+    private Destination Badged(DestinationKind kind) => _rail.Of(kind);
 }

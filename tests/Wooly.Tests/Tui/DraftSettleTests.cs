@@ -57,7 +57,7 @@ public class DraftSettleTests : IDisposable
         };
         var shell = await built.Opened();
 
-        shell.Rail.GoTo(DestinationKind.Profile);
+        shell.Rail.GoTo(shell.Rail.Of(DestinationKind.Profile));
         built.Host.Settle();
 
         shell.Press(ShellKey.Tab);

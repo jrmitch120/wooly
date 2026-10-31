@@ -1,4 +1,5 @@
 using Wooly.Core.Posts;
+using Wooly.Core.Timelines;
 
 namespace Wooly.Core.Configuration;
 
@@ -19,11 +20,11 @@ public sealed record Preferences
     public string? DefaultLanguage { get; init; }
 
     /// <summary>
-    ///     The hashtag the TUI's rail keeps a destination for, without its leading <c>#</c>, or <see langword="null" />
-    ///     where the reader has not named one yet. A setting rather than a fixed tag because the four timelines are the
-    ///     same four for everybody and a tag worth a permanent place on the rail is not.
+    ///     The reader's <b>Tag set</b>s, in the order they wrote them, each a destination on the TUI's rail in its
+    ///     Hashtags group (ADR-0033), or none. The same for every profile. They replace the single <c>hashtag</c> the
+    ///     rail once kept a place for: a subject is seldom one tag.
     /// </summary>
-    public string? Hashtag { get; init; }
+    public IReadOnlyList<TagSet> TagSets { get; init; } = [];
 
     /// <summary>
     ///     Whether a picture's caption, <c>Described</c>, hides once the picture is actually drawn on screen.

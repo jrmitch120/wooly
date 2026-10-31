@@ -30,7 +30,7 @@ public class TomlConfigStoreTests : IDisposable
         WriteConfigFile(
             """
             [preferences]
-            hashtag = "dotnet"
+            default_language = "en"
             """);
 
         Assert.False(NewStore().Load().Preferences.HideDrawnCaption);
@@ -48,7 +48,7 @@ public class TomlConfigStoreTests : IDisposable
 
     /// <summary>
     ///     #506: every preference with a default is written at it, in alphabetical order, so a reader opening a file
-    ///     nobody has tuned sees each setting they can change — and only those: the three with no default stay absent.
+    ///     nobody has tuned sees each setting they can change — and only those: the two with no default stay absent.
     /// </summary>
     [Fact]
     public void Save_WritesEveryPreferenceWithADefaultAtItsDefault()
@@ -69,7 +69,7 @@ public class TomlConfigStoreTests : IDisposable
     }
 
     /// <summary>
-    ///     The three with no default, once set, take their places among the rest in the same alphabetical order.
+    ///     The two with no default, once set, take their places among the rest in the same alphabetical order.
     /// </summary>
     [Fact]
     public void Save_WritesEveryPreferenceInAlphabeticalOrder()
@@ -78,7 +78,7 @@ public class TomlConfigStoreTests : IDisposable
         {
             Preferences = new Preferences
             {
-                DefaultVisibility = PostVisibility.Unlisted, DefaultLanguage = "en", Hashtag = "dotnet",
+                DefaultVisibility = PostVisibility.Unlisted, DefaultLanguage = "en",
             },
         });
 
@@ -88,7 +88,6 @@ public class TomlConfigStoreTests : IDisposable
             bell = true
             default_language = "en"
             default_visibility = "unlisted"
-            hashtag = "dotnet"
             hidden_rail = false
             hide_drawn_caption = false
             scrollbar = "block"
@@ -110,7 +109,7 @@ public class TomlConfigStoreTests : IDisposable
             current_profile = "personal"
 
             [preferences]
-            hashtag = "dotnet"
+            default_language = "en"
             bell = false
 
             [profiles.personal]
@@ -138,8 +137,8 @@ public class TomlConfigStoreTests : IDisposable
     }
 
     /// <summary>
-    ///     The visibility, language and hashtag have no default to write — absent means the server's own, or none, and
-    ///     TOML has no null — so they are written only once set.
+    ///     The visibility and language have no default to write — absent means the server's own, and TOML has no null —
+    ///     so they are written only once set.
     /// </summary>
     [Fact]
     public void Save_LeavesOutThePreferencesWithNoDefaultUntilSet()
@@ -150,7 +149,6 @@ public class TomlConfigStoreTests : IDisposable
 
         Assert.DoesNotContain("default_visibility", toml);
         Assert.DoesNotContain("default_language", toml);
-        Assert.DoesNotContain("hashtag", toml);
     }
 
     /// <summary>#399: the bell is on unless the file says otherwise, with no file and with a file that leaves it out.</summary>
@@ -162,7 +160,7 @@ public class TomlConfigStoreTests : IDisposable
         WriteConfigFile(
             """
             [preferences]
-            hashtag = "dotnet"
+            default_language = "en"
             """);
 
         Assert.True(NewStore().Load().Preferences.Bell);
@@ -223,7 +221,7 @@ public class TomlConfigStoreTests : IDisposable
         WriteConfigFile(
             """
             [preferences]
-            hashtag = "dotnet"
+            default_language = "en"
             """);
 
         Assert.Equal(ScrollbarStyle.Block, NewStore().Load().Preferences.Scrollbar);
@@ -355,7 +353,7 @@ public class TomlConfigStoreTests : IDisposable
         WriteConfigFile(
             """
             [preferences]
-            hashtag = "dotnet"
+            default_language = "en"
             """);
 
         Assert.Equal(100, NewStore().Load().Preferences.ShellWidth);
@@ -389,7 +387,7 @@ public class TomlConfigStoreTests : IDisposable
         {
             Preferences = new Preferences
             {
-                Hashtag = "dotnet", HideDrawnCaption = true, Bell = false, ShellWidth = 70,
+                DefaultLanguage = "en", HideDrawnCaption = true, Bell = false, ShellWidth = 70,
             },
         });
 
@@ -398,7 +396,7 @@ public class TomlConfigStoreTests : IDisposable
         var preferences = store.Load().Preferences;
 
         Assert.Equal(70, preferences.ShellWidth);
-        Assert.Equal("dotnet", preferences.Hashtag);
+        Assert.Equal("en", preferences.DefaultLanguage);
         Assert.True(preferences.HideDrawnCaption);
         Assert.False(preferences.Bell);
     }
@@ -409,13 +407,13 @@ public class TomlConfigStoreTests : IDisposable
     {
         var store = NewStore();
 
-        store.Save(new WoolyConfig { Preferences = new Preferences { Hashtag = "dotnet", ShellWidth = 90 } });
+        store.Save(new WoolyConfig { Preferences = new Preferences { DefaultLanguage = "en", ShellWidth = 90 } });
         store.Save(store.Load() with { Preferences = store.Load().Preferences with { ShellWidth = 100 } });
 
         var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
 
         Assert.Contains("shell_width = 100", toml);
-        Assert.Contains("hashtag = \"dotnet\"", toml);
+        Assert.Contains("default_language = \"en\"", toml);
     }
 
     [Theory]
@@ -447,7 +445,7 @@ public class TomlConfigStoreTests : IDisposable
         WriteConfigFile(
             """
             [preferences]
-            hashtag = "dotnet"
+            default_language = "en"
             """);
 
         Assert.False(NewStore().Load().Preferences.HiddenRail);
@@ -480,13 +478,13 @@ public class TomlConfigStoreTests : IDisposable
 
         Assert.Contains("hidden_rail = false", File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
 
-        store.Save(new WoolyConfig { Preferences = new Preferences { Hashtag = "dotnet", HiddenRail = true } });
+        store.Save(new WoolyConfig { Preferences = new Preferences { DefaultLanguage = "en", HiddenRail = true } });
         store.Save(store.Load() with { Preferences = store.Load().Preferences with { HiddenRail = false } });
 
         var toml = File.ReadAllText(Path.Combine(_directory.Path, "config.toml"));
 
         Assert.Contains("hidden_rail = false", toml);
-        Assert.Contains("hashtag = \"dotnet\"", toml);
+        Assert.Contains("default_language = \"en\"", toml);
     }
 
     /// <summary>

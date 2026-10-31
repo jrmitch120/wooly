@@ -1,6 +1,6 @@
 namespace Wooly.Core.Timelines;
 
-/// <summary>The seven timelines a profile can read, which differ only in what an instance is asked for.</summary>
+/// <summary>The eight timelines a profile can read, which differ only in what an instance is asked for.</summary>
 public enum TimelineScope
 {
     /// <summary>The posts of the accounts this profile follows.</summary>
@@ -14,6 +14,12 @@ public enum TimelineScope
 
     /// <summary>The public posts carrying one hashtag.</summary>
     Tag,
+
+    /// <summary>
+    ///     The public posts carrying any of a <b>Tag set</b>'s tags (ADR-0033) — the reader's own, kept on the TUI's
+    ///     rail, where <see cref="Tag" /> is one tag walked to and left.
+    /// </summary>
+    TagSet,
 
     /// <summary>
     ///     The posts of one account, which is what an account screen shows underneath who they are. A timeline rather

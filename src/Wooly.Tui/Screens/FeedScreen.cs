@@ -11,7 +11,6 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 public sealed class FeedScreen : Screen, IReadsOn<Post>
 {
-    private readonly Destination _destination;
 
     private readonly PostList _posts;
 
@@ -30,15 +29,27 @@ public sealed class FeedScreen : Screen, IReadsOn<Post>
         IReadOnlyList<Post> posts,
         string? notice = null,
         bool refreshes = false)
+        : this(destination.Label, posts, notice, refreshes)
     {
-        _destination = destination;
+    }
+
+    /// <summary>
+    ///     A timeline that is no destination of the rail's, such as a hashtag walked to: called by its crumb.
+    /// </summary>
+    /// <param name="crumb">What the breadcrumb says.</param>
+    /// <param name="posts">The posts on it, newest first.</param>
+    /// <param name="notice">Something the shell has to say about the timeline rather than about a post on it.</param>
+    /// <param name="refreshes">Whether <c>g</c> means anything on it, as above.</param>
+    public FeedScreen(string crumb, IReadOnlyList<Post> posts, string? notice = null, bool refreshes = false)
+    {
+        Crumb = crumb;
         _posts = new PostList(this, posts);
         Notice = notice;
         Refreshes = refreshes;
     }
 
     /// <inheritdoc />
-    public override string Crumb => _destination.Label;
+    public override string Crumb { get; }
 
     /// <inheritdoc />
     public override bool Refreshes { get; }

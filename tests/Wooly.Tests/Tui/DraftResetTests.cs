@@ -100,7 +100,7 @@ public class DraftResetTests : IDisposable
         var built = new AShell();
         var shell = await built.Opened();
 
-        shell.Rail.GoTo(from);
+        shell.Rail.GoTo(shell.Rail.Of(from));
         built.Host.Settle();
         shell.Press(ShellKey.C);
 

@@ -14,7 +14,7 @@ namespace Wooly.Tests.Tui;
 public class ShellNotificationTests
 {
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 6;
+    private const int ToNotifications = 5;
 
     /// <summary>Arriving lists what is waiting and reads it, so the rail's badge clears (#397).</summary>
     [Fact]

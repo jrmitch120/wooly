@@ -122,20 +122,7 @@ internal static class PagedReading
             items.AddRange(read);
             arrived?.Invoke(read);
 
-            // Nothing came back, so asking again cannot do better however much the instance says is left — which
-            // makes the list whole.
-            if (page.Count == 0)
-            {
-                return Fetch<TItem>.Complete(items);
-            }
-
-            // The instance names where the next page starts in a link header, and that is the authority on whether
-            // there is one: a page can come back short of what was asked for and still not be the last, because an
-            // instance drops filtered items from a page after counting them. Only where it names no next page does a
-            // page with room to spare mean the end — and there the oldest thing just read is where a further page
-            // would start, since a page comes back newest first. A caller that gave no fallback has nothing this
-            // endpoint pages by, and takes the missing link header as the end of the list.
-            nextPage = named ?? (page.Count < wanted || idOf is null ? null : idOf(page[^1]));
+            nextPage = NextPage(page, named, wanted, idOf);
 
             // No next page is the end of the list, which is whole.
             if (nextPage is null)
@@ -155,5 +142,34 @@ internal static class PagedReading
         // Stopped at what was asked for, or at what was looked for, with the instance still naming more: what was
         // asked for is in hand, and the list goes on behind it from where the next page starts.
         return Fetch<TItem>.GoesOn(items, new Onward(nextPage));
+    }
+
+    /// <summary>
+    ///     Where the page after <paramref name="page" /> starts, or <see langword="null" /> where the list ends with it:
+    ///     the end condition, said once for every list read a page at a time, a merged read's runs included
+    ///     (<see cref="MergedReading" />).
+    /// </summary>
+    /// <param name="page">The page just read, newest first.</param>
+    /// <param name="named">Where the instance said its next page starts, if it said.</param>
+    /// <param name="wanted">How many the page was asked for.</param>
+    /// <param name="idOf">
+    ///     The fallback cursor for an instance that names no next page, or <see langword="null" /> for none.
+    /// </param>
+    internal static string? NextPage<T>(IReadOnlyList<T> page, string? named, int wanted, Func<T, string>? idOf)
+    {
+        // Nothing came back, so asking again cannot do better however much the instance says is left — which makes
+        // the list whole.
+        if (page.Count == 0)
+        {
+            return null;
+        }
+
+        // The instance names where the next page starts in a link header, and that is the authority on whether there
+        // is one: a page can come back short of what was asked for and still not be the last, because an instance
+        // drops filtered items from a page after counting them. Only where it names no next page does a page with
+        // room to spare mean the end — and there the oldest thing just read is where a further page would start, since
+        // a page comes back newest first. A caller that gave no fallback has nothing this endpoint pages by, and takes
+        // the missing link header as the end of the list.
+        return named ?? (page.Count < wanted || idOf is null ? null : idOf(page[^1]));
     }
 }

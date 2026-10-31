@@ -49,7 +49,6 @@ public class ScreenKeyTests
         "compose",
         "public-profile",
         "describe",
-        "notice",
         "help",
         "profiles",
         "profiles-empty",
@@ -401,9 +400,6 @@ public class ScreenKeyTests
                     new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []),
                     PostLimits.Default,
                     room: 4);
-
-            case "notice":
-                return new NoticeScreen("rate limit", "The instance asked for a moment.");
 
             case "help":
                 return new HelpScreen(Feed([post]));

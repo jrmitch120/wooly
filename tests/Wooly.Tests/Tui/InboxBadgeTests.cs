@@ -14,7 +14,7 @@ namespace Wooly.Tests.Tui;
 public class InboxBadgeTests
 {
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 6;
+    private const int ToNotifications = 5;
 
     /// <summary>
     ///     The badge that always said 40 (#396): an account with more notifications than a screen asks for, every one

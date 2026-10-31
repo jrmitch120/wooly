@@ -149,7 +149,7 @@ public class ShellRefreshTests
         var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "1")) };
         var opened = await shell.Opened();
 
-        opened.Step(6);
+        opened.Step(5);
         shell.Host.Settle();
 
         Assert.Equal(0, Badge(opened, DestinationKind.Notifications));
@@ -173,9 +173,10 @@ public class ShellRefreshTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
+    [InlineData(4)]
     public async Task Refresh_AsksTheTimelineOfWhicheverFeedTheReaderIsOn(int steps)
     {
-        var shell = new AShell { Hashtag = "dotnet" };
+        var shell = new AShell { TagSets = [TagSet.Of("dotnet", ["dotnet", "csharp"]), TagSet.Of("cats", ["cats"])] };
         var opened = await shell.Opened();
 
         opened.Step(steps);
@@ -203,7 +204,7 @@ public class ShellRefreshTests
 
         var opened = await shell.Opened();
 
-        opened.Step(6);
+        opened.Step(5);
         shell.Host.Settle();
 
         var notifications = shell.Notifications.GroupReads.Count;
@@ -495,7 +496,7 @@ public class ShellRefreshTests
 
         var opened = await shell.Opened();
 
-        opened.Step(7);
+        opened.Step(6);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -578,7 +579,6 @@ public class ShellRefreshTests
         { "conversation", false },
         { "search", false },
         { "compose", false },
-        { "notice", false },
         { "help", false },
     };
 
@@ -777,9 +777,7 @@ public class ShellRefreshTests
             [APost.With(id: "110")],
             refreshes: true),
 
-        "hashtag" => new FeedScreen(
-            new Destination(DestinationKind.Hashtag, "#dotnet", Timeline.Tag("dotnet")),
-            [APost.With(id: "110")]),
+        "hashtag" => new FeedScreen("#dotnet", [APost.With(id: "110")]),
 
         "notifications" => new NotificationsScreen([ANotification.Alone(ANotification.With())]),
         "messages" => new DirectMessagesScreen([AConversation.With()]),
@@ -789,7 +787,6 @@ public class ShellRefreshTests
         "conversation" => new ConversationScreen(AConversation.Thread()),
         "search" => Searched(),
         "compose" => new ComposeScreen(ComposeFor.Post),
-        "notice" => new NoticeScreen("Hashtag", "No hashtag is set for the rail."),
         "help" => new HelpScreen(new PostScreen(APost.With(id: "110"), PostThread.Alone)),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "No screen of that kind."),
     };

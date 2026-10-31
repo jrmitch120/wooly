@@ -17,7 +17,10 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 │Home             3││ content                                                  │
 │Local             ││ (feed · post · account · conversation · search)          │
 │Federated         ││                                                          │
-│Hashtag           ││                                                          │
+╰──────────────────╯│                                                          │
+╭ Hashtags ────────╮│                                                          │
+│dotnet            ││                                                          │
+│cats              ││                                                          │
 ╰──────────────────╯│                                                          │
 ╭ Explore ─────────╮│                                                          │
 │Discover          ││                                                          │
@@ -39,7 +42,7 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 
 | Region | Size | Holds |
 |---|---|---|
-| Rail | 20 columns including its frames, full height less the status row; none at all hidden (**Hidden rail**, below) | Four **rail groups**, in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. `«` just inside the foot's bottom-left corner, the toggle's mark (**Hidden rail**, below). On a terminal too short to frame every group the rail steps down (below) |
+| Rail | 20 columns including its frames, full height less the status row; none at all hidden (**Hidden rail**, below) | Up to five **rail groups** — Timelines, Hashtags, Explore, Inbox and You, Hashtags drawn only where the config file writes a **Tag set** (below) — in colour the selected entry on `rail-current` and, while tabbing, the cursor's entry on `rail-cursor`; without colour `▶`/`▷` (ADR-0021), each its own titled panel, the group holding the cursor framed in `panel-border-active`, on the press rather than once the selection follows; each destination with its unread count; at the foot an `API` panel holding, with two or more profiles, the instance acted as (ADR-0020), then the budget as a gauge. `«` just inside the foot's bottom-left corner, the toggle's mark (**Hidden rail**, below). On a terminal too short to frame every group the rail steps down (below) |
 | Content | the rest of the width, all of it with the rail hidden; full height less the status row | A panel titled with the breadcrumb (below), holding exactly one screen. Its rows start on row 1. With the rail hidden, `»` just inside its bottom-left corner, the toggle's mark |
 | Status | 1 row, the shell's full width | The current screen's keys as `Does: key \| Does: key`, as many as fit and `…+N` for the rest — with the rail hidden, `Rail: \` in place of the destination and group hints; or a notice; or a confirmation |
 
@@ -73,14 +76,18 @@ does any screen where `scrollbar = "none"` in the config file's preferences turn
 the pointer on the margin column inside the edge as well, beside the track's rows only, so that no click there picks the
 row beside it (#502, #503; the mouse table, below).
 
-The rail needs 22 rows to frame every group (Timelines 6, Explore 4, Inbox 5, You 3, API 4), and an 80×24 terminal gives
-it 23. Shorter than that, it steps down rather than clipping:
+The rail needs 23 + N rows to frame every group with N tag sets on it (Timelines 5, Hashtags 2 + N, Explore 4, Inbox 5,
+You 3, API 4), and 21 with none, since then there is no Hashtags group at all; an 80×24 terminal gives it 23, so one set
+is enough to make an 80×24 rail compact (ADR-0033). Shorter than that, it steps down rather than clipping:
 
 | Rows for the rail | The rail |
 |---|---|
-| 22 or more | Framed |
-| 15 to 21 | Compact: each group's title as a heading row, no frames, the API panel as one gauge row |
-| fewer than 15 | Compact, and scrolled to keep the cursor's group in view |
+| 23 + N or more (21 with no sets) | Framed |
+| 15 + N to 22 + N (14 to 20 with no sets) | Compact: each group's title as a heading row, no frames, the API panel as one gauge row |
+| fewer than 15 + N (fewer than 14 with no sets) | Compact, and scrolled to keep the cursor's group in view |
+
+The sets are fixed for a session — they change only when the config file does — so which of the three a terminal's
+height draws is too: nothing on the rail moves while you read.
 
 The API panel is counted at its 4 rows whether or not there is an instance to put in it, so whether the rail is framed
 is a fact about the terminal's height and never about how many profiles there are; with one profile, the row it does not
@@ -225,8 +232,8 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 
 | Screen | Reached by | Ticket |
 |---|---|---|
-| Feed — home, local, federated, the rail's own hashtag | A rail destination | #28 |
-| Hashtag — a tag walked to, not the rail's own | A search result, `⏎` on a `#hashtag` typed into search, or `⏎` on a picked hashtag reference | #29, reference #65, direct #305 |
+| Feed — home, local, federated, each **Tag set** on the rail, its breadcrumb the set's name | A rail destination | #28, sets #511, past four tags #512 |
+| Hashtag — a tag walked to, not one of the rail's sets | A search result, `⏎` on a `#hashtag` typed into search, or `⏎` on a picked hashtag reference | #29, reference #65, direct #305 |
 | Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item, or on its address typed into search | #28, ancestors #72, direct #306 |
 | Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `⏎` on a handle or profile address typed into search, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229, direct #306 |
 | Follows — everyone an account follows, or everyone who follows it | `w` on an account, `s` to swap sides | #165 |
@@ -311,7 +318,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Choose avatar / Choose header | the Attach browser's keys, but it lists only pictures, `ctrl-a` shows no other files, one file may be chosen, and `⏎` takes the file chosen, else the one under the cursor, back to the form's row as its picture (#407) · `esc` back to the form unchanged |
 | Attach | type to filter, fuzzily (#376) · `space` choose the file under the cursor, or let it go — up to what the post has room for · `⏎` attach what is chosen, wherever the cursor is, else the file under the cursor, else open the folder under it · `→` open a folder · `←` up a folder · `↑`/`↓` walk the list · `ctrl-a` every file, and again only the accepted types · `backspace`/`delete` only ever the filter, stopping at empty · `esc` clear the filter, then back to the draft unchanged |
 | Media (the attachments screen) | `↑`/`↓` walk the rows · `⏎` describe the row · `del`/`backspace` take it off · `ctrl-z` bring back the last one taken off · `shift-↑`/`shift-↓` move it · `r` retry it where a retry can help · `s` the sensitive toggle · `ctrl-o` the file browser, attaching onto the compose under it · `ctrl-v`/`alt-v` attach from the clipboard onto it · `esc` back to the draft (story 58) |
-| Home, local, federated, hashtag, Discover, Notifications, Messages, Requests, Post, Account, Follows, Actors | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
+| Home, local, federated, each tag set, Discover, Notifications, Messages, Requests, Post, Account, Follows, Actors | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
 
@@ -475,8 +482,8 @@ not answer them differently:
   the next pops the screen (#64). This is the one addition ADR-0014's frame keys have taken since being settled.
 - **A rail destination's screen says `tab` rather than `esc`**, because it is the bottom of the stack and there is
   nothing under it to walk back to.
-- **A hashtag a search found opens as a screen on the stack**, not as the rail's hashtag destination. Which tag the
-  rail keeps a place for is a setting the reader wrote down, and a search result is not them changing their mind.
+- **A hashtag a search found opens as a screen on the stack**, not as a place on the rail. Which tags the rail keeps
+  places for are the tag sets the reader wrote down, and a search result is not them changing their mind.
 - **`⏎` on a direct query opens what it names instead of searching** (#305). A `#` followed by one tag word — the
   rule `timeline tag` takes a tag by, so `#日本語` is as direct as `#cats` — opens that tag's timeline pushed onto
   search, the same screen and breadcrumb (`Search › #cats`) picking a hashtag result gives, and asks the instance
@@ -725,8 +732,8 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
 - **`⏎` does four different things, refusals share one notice** (#85, #109). Which of the four is the role the
   reference draws in, since that vocabulary already tells them apart. A hashtag opens exactly the way a search result
   for one already opens — a `Tag` **Subject** brought up by `Arrival.Open`, which `SearchScreen` reaches through
-  `Reach.Open` — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's own
-  hashtag destination left alone. A mention opens the account screen, resolved off `Post.Mentions` — which the wire
+  `Reach.Open` — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's tag
+  sets left alone. A mention opens the account screen, resolved off `Post.Mentions` — which the wire
   carries down with every post, so no fetch is spent working out who a `@maria` is; a handle written bare is whoever
   the post names by that username, and where two accounts share one the first the post lists wins. Unresolvable, `⏎`
   does nothing and the status row says **"That mention couldn't be resolved."** `c` with a mention picked opens a
@@ -827,7 +834,7 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
 
 - **`g`, screen-local** — not a frame key, no `F5`, no dual binding; this shell has no existing precedent for either,
   and both would cut against internal consistency. The status row shows `g refresh` only on a screen that has one.
-- **Lives on nine destinations**: the four cached feed destinations (home, local, federated, the hashtag), plus
+- **Lives on every destination that reads a list**: the cached feed destinations (home, local, federated, each tag set), plus
   Notifications, Messages, Requests, the post screen, and the account screen. The conversation screen and search
   results are left out — a live thread and a live search are each their own, smaller question, not decided here.
 - **Evicts the screen's cache entry, then re-runs the same read that brought it up** — one path for every screen that
@@ -870,10 +877,9 @@ cache. Streaming stays out of scope (below); a manual refresh is the in-scope an
   same rule `Reach.Swap` and a follow list's fill land by. Every refresh builds a new screen rather than changing the
   one on the stack, which is what starts the scroll offset again: the view notices a screen has been replaced by
   identity.
-- **A hashtag walked to from a search has no refresh**, though it is the same `FeedScreen` the rail's own hashtag
-  destination opens onto. Which of the two a screen is cannot be read off what is in it — a tag the reader named and a
-  tag they walked to are the same destination by value — so it is settled by who built it: an arrival's feed refreshes
-  and a pushed one does not. It is out of scope with the search results it was opened from.
+- **A hashtag walked to from a search has no refresh**, though it is the same `FeedScreen` a tag set on the rail opens
+  onto. Which of the two a screen is is settled by who built it, not by what is in it: an arrival's feed refreshes and a
+  pushed one does not. It is out of scope with the search results it was opened from.
 
 ### What media settled
 
@@ -1175,7 +1181,7 @@ who walked to the bottom had no way to see anything older without leaving the TU
   reached, and a tie forgets Home with everything read on it. The screen showing the post hears the change and patches
   it in place, as it does any post.
 - **Every timeline reads on, and so do an account's posts (#464).** These screens read on, the same way Home does:
-  - Home, Local, Federated and the rail's Hashtag;
+  - Home, Local, Federated and every tag set on the rail;
   - a hashtag walked to from a post or a search, which is the same timeline reached another way;
   - an account's posts, below the pinned run, following whichever run is showing: their posts, or **Posts and
     replies** once `s` has widened it. The pinned run is never read on. It is one page in the account's own order, and
@@ -1931,7 +1937,7 @@ The answer generalised: three screens use it (#166, amended by #171 and #172):
 
 ### What discover settled
 
-The tenth rail destination, and the first the rail has ever grown (ADR-0014's amendment). Its one section today is who
+The ninth of the rail's fixed destinations, and the only one it has ever grown by (ADR-0014's amendment). Its one section today is who
 to follow (#171):
 
 - **It is a destination and not a key on the search screen.** What earns the entry is that the screen is sectioned, so
@@ -2548,25 +2554,65 @@ A meaning too long for the screen's width, the mouse's or any key's, carries on 
 the meaning column, rather than being cut with `…`: at 80 columns with the rail shown that is `tab / shift-tab`'s and
 `` ` `` / `~`'s (#446).
 
-## Starting it, and the one destination that needs configuring
+## Starting it, and the destinations the reader writes
 
 `wooly-tui` takes one option, `--profile <name>`, and it means what it means everywhere else: act as that profile for
 this run, without changing which one is the default (story 9). Everything else about the profile — which instance, which
 token — is resolved through `IProfileRegistry` exactly as a command's scope resolves it. With nobody to act as, it opens
 on adding a profile ("What first run settled", above).
 
-Nine of the ten destinations are the same nine for everybody. The odd one out is a hashtag, and which one is nobody's
-business but the reader's, so it is a setting in the same TOML file everything else lives in (ADR-0003):
+Nine of the rail's destinations are the same nine for everybody. The rest are the reader's own: one for each **Tag
+set**, a name given to between one and twelve hashtags and read as one timeline of the public posts carrying any of them
+(ADR-0033). Which tags are nobody's business but the reader's, so the sets are written in the same TOML file everything
+else lives in (ADR-0003), as an ordered `[[tag_sets]]` array beside the `[preferences]`:
 
 ```toml
 [preferences]
 bell = false
-hashtag = "dotnet"
 hidden_rail = true
 hide_drawn_caption = true
 scrollbar = "line"
 shell_width = 70
+
+[[tag_sets]]
+name = "dotnet"
+tags = ["dotnet", "csharp", "fsharp"]
+
+[[tag_sets]]
+name = "cats"
+tags = ["cats"]
 ```
+
+Each set is a destination in the rail's **Hashtags** group, between Timelines and Explore, in the order the file writes
+them, and labelled with its name, clipped with `…` where it is wider than the rail. With no sets there is no Hashtags
+group at all, and no entry standing for a tag nobody has named. Arriving at a set is arriving anywhere: the stack resets
+to its timeline, its breadcrumb the set's name. It is the feed screen every timeline is — held for the same minute,
+`g` reads it again, it reads on near its foot and says "that's everything" when whole — and carries no unread count.
+A set of up to four tags is one ask of the instance, `/api/v1/timelines/tag/<first>?any[]=<second>&…`, newest first:
+its first tag in the path and the rest as `any[]`, which Mastodon unions with it. Mastodon reads no more than four tags
+of an ask and drops the rest without saying so, so a larger set costs one ask for every four tags — its tags cut into
+runs of four in the order written, five to eight tags two asks, nine to twelve three, never one per tag — and the runs'
+answers are interleaved here newest first, a post more than one run found shown once. Each run reads on from its own
+place, and reading on asks again only of the runs whose posts the merged list has used up; the set is whole, and says
+"that's everything", only when every run is. One run failing fails the read — arrival, read on or `g` alike — with the
+error any failed read shows, and nothing the other runs answered is kept or drawn: a merged list missing a run would
+look whole while missing posts from its middle. A run the rate limit refuses is the same, said as any read the limit
+stopped is, with nothing kept; waiting it out and reading on asks every run of that read again. A set of one run has no
+middle to miss, so a rate limit part way through it keeps what arrived, as it does on Home. The sets are the same
+for every profile, each read against whichever instance is acted as, and nothing in the CLI reads one: `timeline tag`
+still reads one tag. A hashtag walked to from a post or a search opens as it always has, and is kept nowhere.
+
+The file's rules for a set: a tag may be written `#dotnet` or `dotnet`, and is kept bare; a tag written twice in one
+set, in any case, counts once. The whole file is refused, as a `shell_width` that is not a whole number is, with a
+message naming what is wrong, for a set with no `name`, a name another set has whatever its case, no `tags`, a tag that
+is not one word, or more than twelve tags — three asks, so the dearest set's cost is known before it is written. Sets
+have no key in the shell; they change when the file does, so the rail is fixed for a session. Every save of another
+preference — `-`/`+`, `\`, the profiles screen — writes them back exactly, in order, straight after `[preferences]`;
+with no sets, it writes no `[[tag_sets]]` at all.
+
+The single `hashtag` preference the rail kept one place for is gone. A `hashtag = "…"` left in `[preferences]` is not
+refused and does nothing — it is not made into a set — and the next save, which rewrites the whole file, drops it; to
+keep that tag, write a set of one.
 
 `hide_drawn_caption` is another reader-owned preference in this section (#71) — a picture's caption, `false` (the
 default) shows it always, `true` hides it once a picture is actually drawn, per "What media settled" above. `bell` is a
@@ -2600,16 +2646,14 @@ and the thumb's drag are the same in every style. Whichever is set is kept throu
 is. Anything else — `true` and `false` among it — is refused against the file. Like `bell` it is read at launch, the
 same for every profile, and has no key in the shell.
 
-With none set, the destination is still on the rail — it says no tag has been named and asks the instance for nothing,
-rather than being a rail entry that swallows a keypress.
 
 Every save writes each preference that has a default, at its current value, the default included, so a file nobody has
 tuned still lists every setting there is to change (#506): `bell = true`, `hidden_rail = false`,
 `hide_drawn_caption = false`, `scrollbar = "block"` and `shell_width = 100`. They are real keys rather than
 commented-out lines, because a save rewrites the whole file and a comment would not survive it. A file without them
 gains them on its next save and means what it meant, since an absent key still reads as its default — a `[preferences]`
-written by hand can leave any of them out. `hashtag`, `default_visibility` and `default_language` have no default to
-write (absent is none, or the server's own, and TOML has no null), so they are written only once set. Every key is
+written by hand can leave any of them out. `default_visibility` and `default_language` have no default to write (absent
+is the server's own, and TOML has no null), so they are written only once set. Every key is
 written in alphabetical order, as in the example above, whichever order a file written by hand had them in.
 
 ## Roles

@@ -14,54 +14,59 @@ namespace Wooly.Tui.Shell;
 ///         arrived — so it is not dropped: where the last list read of the destination is over, the count is read
 ///         again, and what is new goes on top then. Only ever touched on the drawing thread.
 ///     </para>
+///     <para>
+///         Kept by the destination itself rather than by its kind, so two destinations of one kind each have their own
+///         reads in flight (#510).
+///     </para>
 /// </remarks>
 internal sealed class ListReads
 {
-    private readonly Dictionary<DestinationKind, int> _inFlight = [];
+    private readonly Dictionary<Destination, int> _inFlight = [];
 
-    private readonly HashSet<DestinationKind> _heldBack = [];
+    private readonly HashSet<Destination> _heldBack = [];
 
-    /// <summary>A list read of <paramref name="kind" /> has been put.</summary>
-    public void Began(DestinationKind kind) => _inFlight[kind] = _inFlight.GetValueOrDefault(kind) + 1;
+    /// <summary>A list read of <paramref name="destination" /> has been put.</summary>
+    public void Began(Destination destination) =>
+        _inFlight[destination] = _inFlight.GetValueOrDefault(destination) + 1;
 
     /// <summary>
-    ///     A list read of <paramref name="kind" /> is over, landed or not.
+    ///     A list read of <paramref name="destination" /> is over, landed or not.
     /// </summary>
     /// <returns>Whether a re-read was held back for it, and is now to be made again.</returns>
-    public bool Ended(DestinationKind kind)
+    public bool Ended(Destination destination)
     {
-        var left = _inFlight.GetValueOrDefault(kind) - 1;
+        var left = _inFlight.GetValueOrDefault(destination) - 1;
 
         if (left > 0)
         {
-            _inFlight[kind] = left;
+            _inFlight[destination] = left;
 
             return false;
         }
 
-        _inFlight.Remove(kind);
+        _inFlight.Remove(destination);
 
-        return _heldBack.Remove(kind);
+        return _heldBack.Remove(destination);
     }
 
     /// <summary>
-    ///     Whether a list read of <paramref name="kind" /> is in flight — asked without holding anything back, by a
-    ///     re-read deciding whether to read the list too: one in flight is about to fill the screen itself (#458).
+    ///     Whether a list read of <paramref name="destination" /> is in flight — asked without holding anything back, by
+    ///     a re-read deciding whether to read the list too: one in flight is about to fill the screen itself (#458).
     /// </summary>
-    public bool Reading(DestinationKind kind) => _inFlight.ContainsKey(kind);
+    public bool Reading(Destination destination) => _inFlight.ContainsKey(destination);
 
     /// <summary>
-    ///     Whether what a re-read of <paramref name="kind" /> found is to be kept off the screen, because its own list
-    ///     read is in flight — noted, where it is, so that the count is read again once that read is over.
+    ///     Whether what a re-read of <paramref name="destination" /> found is to be kept off the screen, because its own
+    ///     list read is in flight — noted, where it is, so that the count is read again once that read is over.
     /// </summary>
-    public bool HoldsBack(DestinationKind kind)
+    public bool HoldsBack(Destination destination)
     {
-        if (!Reading(kind))
+        if (!Reading(destination))
         {
             return false;
         }
 
-        _heldBack.Add(kind);
+        _heldBack.Add(destination);
 
         return true;
     }

@@ -147,7 +147,7 @@ public class RailToggleMarkTests
         using var drawn = await DrawnShell.Of(80, Shortest, Theme(coloured));
         var rail = drawn.Shell.Rail;
 
-        rail.GoTo(DestinationKind.Messages);
+        rail.GoTo(rail.Of(DestinationKind.Messages));
         rail.Update(rail.Destinations.Single(place => place.Kind == DestinationKind.Notifications) with
         {
             Unread = 40,
@@ -209,7 +209,7 @@ public class RailToggleMarkTests
                 break;
 
             default:
-                drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+                drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Profile));
                 drawn.Settle();
                 drawn.Press(new Key('E'));
                 drawn.Settle();

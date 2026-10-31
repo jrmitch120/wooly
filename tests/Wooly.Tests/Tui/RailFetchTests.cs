@@ -201,7 +201,7 @@ public class RailFetchTests
         shell.Host.Settle();
 
         // On to search, which is a prompt and asks the instance for nothing at all until something is typed into it.
-        opened.Step(4);
+        opened.Step(3);
         shell.Host.Settle();
 
         Assert.IsType<SearchScreen>(opened.Screen);
@@ -234,23 +234,20 @@ public class RailFetchTests
     }
 
     /// <summary>
-    ///     Ten of them, in the order the contract lists, which is their rail groups' order (ADR-0021), including the
-    ///     four whose screens are #29's and #30's. The shape of the rail is what #28 settled, and a rail that grows four
-    ///     entries later is a different rail — the tenth is the one entry it has ever grown by, and it was argued for on
-    ///     those terms (ADR-0019, #181).
+    ///     The nine everybody has, in the order the contract lists, which is their rail groups' order (ADR-0021). The
+    ///     shape of the rail is what #28 settled, and the ninth is the one fixed entry it has ever grown by, argued for
+    ///     on those terms (ADR-0019, #181) — and with no tag sets written, those nine are all there is (ADR-0033).
     /// </summary>
     [Fact]
-    public async Task Rail_ListsAllTenDestinations()
+    public async Task Rail_ListsTheNineEverybodyHas_WhereThereAreNoTagSets()
     {
-        var shell = new AShell { Hashtag = "dotnet" };
-        var opened = await shell.Opened();
+        var opened = await new AShell().Opened();
 
         Assert.Equal(
             [
                 DestinationKind.Home,
                 DestinationKind.Local,
                 DestinationKind.Federated,
-                DestinationKind.Hashtag,
                 DestinationKind.Discover,
                 DestinationKind.Search,
                 DestinationKind.Notifications,
@@ -259,27 +256,50 @@ public class RailFetchTests
                 DestinationKind.Profile,
             ],
             opened.Rail.Destinations.Select(destination => destination.Kind));
+        Assert.DoesNotContain(RailGroup.Hashtags, opened.Rail.Destinations.Select(destination => destination.Group));
+    }
+
+    /// <summary>
+    ///     Each tag set is a destination of its own, called by its name, in the Hashtags group between Timelines and
+    ///     Explore and in the order the file wrote them (ADR-0033).
+    /// </summary>
+    [Fact]
+    public async Task Rail_ListsEachTagSetBetweenTheTimelinesAndExplore_InTheOrderWritten()
+    {
+        var opened = await Sets().Opened();
+
+        Assert.Equal(
+            [
+                "Home", "Local", "Federated", "zebras", "dotnet", "Discover", "Search", "Notifications",
+                "Direct messages", "Follow requests",
+            ],
+            opened.Rail.Destinations.SkipLast(1).Select(destination => destination.Label));
+        Assert.Equal(
+            [RailGroup.Hashtags, RailGroup.Hashtags],
+            opened.Rail.Destinations.Where(destination => destination.Kind == DestinationKind.TagSet)
+                .Select(destination => destination.Group));
     }
 
     /// <summary>The rail's order is its groups' order: no group is drawn in two places (ADR-0021).</summary>
     [Fact]
     public async Task Rail_DrawsEachGroupTogetherInTheGroupsOrder()
     {
-        var opened = await new AShell().Opened();
+        var opened = await Sets().Opened();
 
         var groups = opened.Rail.Destinations.Select(destination => destination.Group).ToList();
 
         Assert.Equal(groups.Order(), groups);
     }
 
-    /// <summary>Home, local, federated and a hashtag are all reachable, and each reads its own timeline.</summary>
+    /// <summary>Home, local, federated and each tag set are all reachable, and each reads its own timeline.</summary>
     [Theory]
     [InlineData(1, TimelineScope.Local)]
     [InlineData(2, TimelineScope.Federated)]
-    [InlineData(3, TimelineScope.Tag)]
-    public async Task Step_ReachesEachOfTheFourTimelines(int steps, TimelineScope expected)
+    [InlineData(3, TimelineScope.TagSet)]
+    [InlineData(4, TimelineScope.TagSet)]
+    public async Task Step_ReachesEachOfTheTimelines(int steps, TimelineScope expected)
     {
-        var shell = new AShell { Hashtag = "dotnet" };
+        var shell = Sets();
         var opened = await shell.Opened();
 
         opened.Step(steps);
@@ -288,49 +308,90 @@ public class RailFetchTests
         Assert.Equal(expected, shell.Timelines.Reads[^1].Timeline.Scope);
     }
 
-    /// <summary>The tag the reader keeps a place for is the tag that destination reads.</summary>
-    [Fact]
-    public async Task Step_ReadsTheHashtagTheReaderNamed()
+    /// <summary>
+    ///     A set read is the set the reader wrote, whole, and arriving at it resets the stack to its timeline with its
+    ///     name as the breadcrumb, as arriving anywhere does.
+    /// </summary>
+    [Theory]
+    [InlineData(3, "zebras")]
+    [InlineData(4, "dotnet")]
+    public async Task Step_ReadsTheTagSetTheReaderWrote_UnderItsName(int steps, string name)
     {
-        var shell = new AShell { Hashtag = "dotnet" };
+        var shell = Sets();
         var opened = await shell.Opened();
 
-        opened.Step(3);
+        await opened.Enter();
+        shell.Host.Drain();
+        Assert.NotEqual("Home", opened.Breadcrumb);
+
+        opened.Step(steps);
         shell.Host.Settle();
 
-        Assert.Equal("dotnet", shell.Timelines.Reads[^1].Timeline.Hashtag);
-        Assert.Equal("#dotnet", opened.Rail.Destinations[3].Label);
+        Assert.Equal(Timeline.AnyOf(SetsWritten.Single(set => set.Name == name)), shell.Timelines.Reads[^1].Timeline);
+        Assert.IsType<FeedScreen>(opened.Screen);
+        Assert.Equal(name, opened.Breadcrumb);
     }
 
     /// <summary>
-    ///     A destination that swallowed a keypress and drew the last screen again would read as a bug, so the one with
-    ///     no tag set says so instead — and asks the instance for nothing.
+    ///     A set's timeline is held for the same minute every timeline is: walking from one set to the other and back
+    ///     reads each once, and each is held apart from the other (#510).
     /// </summary>
     [Fact]
-    public async Task Step_SaysSoRatherThanFetchingWhereNoHashtagHasBeenNamed()
+    public async Task Step_DrawsARecentlyReadTagSetWithoutAskingForItAgain()
     {
-        var shell = new AShell();
+        var shell = Sets();
         var opened = await shell.Opened();
-        var readsWhenOpened = shell.Timelines.Reads.Count;
+
+        opened.Step(3);
+        shell.Host.Settle();
+        opened.Step(1);
+        shell.Host.Settle();
+
+        var afterBoth = shell.Timelines.Reads.Count;
+
+        opened.Step(-1);
+        shell.Host.Settle();
+        opened.Step(1);
+        shell.Host.Settle();
+
+        Assert.Equal(afterBoth, shell.Timelines.Reads.Count);
+        Assert.Equal("dotnet", opened.Breadcrumb);
+
+        shell.Clock.Advance(shell.Timing.CacheFor + TimeSpan.FromSeconds(1));
+
+        opened.Step(-1);
+        shell.Host.Settle();
+
+        Assert.Equal(afterBoth + 1, shell.Timelines.Reads.Count);
+        Assert.Equal(Timeline.AnyOf(SetsWritten[0]), shell.Timelines.Reads[^1].Timeline);
+    }
+
+    /// <summary>
+    ///     A set's timeline carries no badge, however much is on it: the rail's counts mean only the Inbox.
+    /// </summary>
+    [Fact]
+    public async Task Step_PutsNoCountOnATagSet()
+    {
+        var shell = Sets();
+        shell.Timelines = FakeTimelineReader.Holding(APost.With(id: "110"), APost.With(id: "111"));
+        var opened = await shell.Opened();
 
         opened.Step(3);
         shell.Host.Settle();
 
-        Assert.IsType<NoticeScreen>(opened.Screen);
-        Assert.Equal(readsWhenOpened, shell.Timelines.Reads.Count);
-
-        // And it says where you are in the rail's own words. This is the one screen whose crumb is handed to it at
-        // the call site rather than spelled on the class, so the breadcrumb is where the spelling is asserted (#216).
-        Assert.Equal(opened.Rail.Showing.Label, opened.Breadcrumb);
-        Assert.Equal("Hashtag", opened.Breadcrumb);
+        Assert.All(
+            opened.Rail.Destinations.Where(destination => destination.Kind == DestinationKind.TagSet),
+            destination => Assert.Equal(0, destination.Unread));
     }
 
-    /// <summary>Each destination that lists something of its own arrives at its own screen, not at somebody else's.</summary>
+    /// <summary>
+    ///     Each destination that lists something of its own arrives at its own screen, not at somebody else's.
+    /// </summary>
     [Theory]
-    [InlineData(5, typeof(SearchScreen))]
-    [InlineData(6, typeof(NotificationsScreen))]
-    [InlineData(7, typeof(DirectMessagesScreen))]
-    [InlineData(8, typeof(FollowRequestsScreen))]
+    [InlineData(4, typeof(SearchScreen))]
+    [InlineData(5, typeof(NotificationsScreen))]
+    [InlineData(6, typeof(DirectMessagesScreen))]
+    [InlineData(7, typeof(FollowRequestsScreen))]
     public async Task Step_ArrivesAtTheScreenItsDestinationOpensOnto(int steps, Type screen)
     {
         var shell = new AShell();
@@ -379,20 +440,39 @@ public class RailFetchTests
     ///     the Inbox back up into Explore — wrapping at either end of the rail.
     /// </summary>
     [Theory]
-    [InlineData(DestinationKind.Hashtag, 1, DestinationKind.Discover)]
-    [InlineData(DestinationKind.Notifications, -1, DestinationKind.Search)]
-    [InlineData(DestinationKind.Profile, 1, DestinationKind.Home)]
-    [InlineData(DestinationKind.Home, -1, DestinationKind.Profile)]
-    public async Task Step_WalksTheRailInItsShownOrder(DestinationKind from, int by, DestinationKind to)
+    [InlineData("Federated", 1, "zebras")]
+    [InlineData("zebras", 1, "dotnet")]
+    [InlineData("dotnet", 1, "Discover")]
+    [InlineData("Discover", -1, "dotnet")]
+    [InlineData("Notifications", -1, "Search")]
+    [InlineData("Profile", 1, "Home")]
+    [InlineData("Home", -1, "Profile")]
+    public async Task Step_WalksTheRailInItsShownOrder(string from, int by, string to)
     {
-        var shell = new AShell { Hashtag = "dotnet" };
+        var shell = Sets();
         var opened = await shell.Opened();
 
-        opened.Rail.GoTo(from);
+        opened.Rail.GoTo(Place(opened.Rail, from));
         opened.Step(by);
         shell.Host.Settle();
 
-        Assert.Equal(to, opened.Rail.Showing.Kind);
+        Assert.Equal(Place(opened.Rail, to), opened.Rail.Showing);
+    }
+
+    /// <summary>
+    ///     With no sets, the last timeline steps straight into Explore: there is nothing between them to land on.
+    /// </summary>
+    [Fact]
+    public async Task Step_FromTheLastTimelineLandsOnDiscover_WhereThereAreNoTagSets()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        opened.Rail.GoTo(opened.Rail.Of(DestinationKind.Federated));
+        opened.Step(1);
+        shell.Host.Settle();
+
+        Assert.Equal(DestinationKind.Discover, opened.Rail.Showing.Kind);
     }
 
     /// <summary>
@@ -400,24 +480,38 @@ public class RailFetchTests
     ///     last group's next is the first (ADR-0021).
     /// </summary>
     [Theory]
-    [InlineData(DestinationKind.Home, DestinationKind.Discover)]
-    [InlineData(DestinationKind.Local, DestinationKind.Discover)]
-    [InlineData(DestinationKind.Federated, DestinationKind.Discover)]
-    [InlineData(DestinationKind.Hashtag, DestinationKind.Discover)]
-    [InlineData(DestinationKind.Discover, DestinationKind.Notifications)]
-    [InlineData(DestinationKind.Search, DestinationKind.Notifications)]
-    [InlineData(DestinationKind.Requests, DestinationKind.Profile)]
-    [InlineData(DestinationKind.Profile, DestinationKind.Home)]
-    public async Task Backtick_LandsOnTheFirstDestinationOfTheNextGroup(DestinationKind from, DestinationKind to)
+    [InlineData("Home", "zebras")]
+    [InlineData("Local", "zebras")]
+    [InlineData("Federated", "zebras")]
+    [InlineData("zebras", "Discover")]
+    [InlineData("dotnet", "Discover")]
+    [InlineData("Discover", "Notifications")]
+    [InlineData("Search", "Notifications")]
+    [InlineData("Requests", "Profile")]
+    [InlineData("Profile", "Home")]
+    public async Task Backtick_LandsOnTheFirstDestinationOfTheNextGroup(string from, string to)
     {
-        var shell = new AShell { Hashtag = "dotnet" };
+        var shell = Sets();
         var opened = await shell.Opened();
 
-        opened.Rail.GoTo(from);
+        opened.Rail.GoTo(Place(opened.Rail, from));
         opened.Press(ShellKey.Backtick);
         shell.Host.Settle();
 
-        Assert.Equal(to, opened.Rail.Showing.Kind);
+        Assert.Equal(Place(opened.Rail, to), opened.Rail.Showing);
+    }
+
+    /// <summary>With no sets there is no Hashtags group to land on, and the timelines' next group is Explore.</summary>
+    [Fact]
+    public async Task Backtick_FromTheTimelinesLandsOnDiscover_WhereThereAreNoTagSets()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.Backtick);
+        shell.Host.Settle();
+
+        Assert.Equal(DestinationKind.Discover, opened.Rail.Showing.Kind);
     }
 
     /// <summary>
@@ -425,23 +519,56 @@ public class RailFetchTests
     ///     of it — so from inside a group it goes to the group before, not to the top of its own.
     /// </summary>
     [Theory]
-    [InlineData(DestinationKind.Home, DestinationKind.Profile)]
-    [InlineData(DestinationKind.Federated, DestinationKind.Profile)]
-    [InlineData(DestinationKind.Discover, DestinationKind.Home)]
-    [InlineData(DestinationKind.Search, DestinationKind.Home)]
-    [InlineData(DestinationKind.Messages, DestinationKind.Discover)]
-    [InlineData(DestinationKind.Profile, DestinationKind.Notifications)]
-    public async Task Tilde_LandsOnTheFirstDestinationOfThePreviousGroup(DestinationKind from, DestinationKind to)
+    [InlineData("Home", "Profile")]
+    [InlineData("Federated", "Profile")]
+    [InlineData("zebras", "Home")]
+    [InlineData("dotnet", "Home")]
+    [InlineData("Discover", "zebras")]
+    [InlineData("Search", "zebras")]
+    [InlineData("Messages", "Discover")]
+    [InlineData("Profile", "Notifications")]
+    public async Task Tilde_LandsOnTheFirstDestinationOfThePreviousGroup(string from, string to)
     {
-        var shell = new AShell { Hashtag = "dotnet" };
+        var shell = Sets();
         var opened = await shell.Opened();
 
-        opened.Rail.GoTo(from);
+        opened.Rail.GoTo(Place(opened.Rail, from));
         opened.Press(ShellKey.Tilde);
         shell.Host.Settle();
 
-        Assert.Equal(to, opened.Rail.Showing.Kind);
+        Assert.Equal(Place(opened.Rail, to), opened.Rail.Showing);
     }
+
+    /// <summary>And backwards from Explore with no sets is the timelines.</summary>
+    [Fact]
+    public async Task Tilde_FromExploreLandsOnHome_WhereThereAreNoTagSets()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        opened.Rail.GoTo(opened.Rail.Of(DestinationKind.Discover));
+        opened.Press(ShellKey.Tilde);
+        shell.Host.Settle();
+
+        Assert.Equal(DestinationKind.Home, opened.Rail.Showing.Kind);
+    }
+
+    /// <summary>
+    ///     The two tag sets every test of them here is written with: <c>zebras</c> first, as the file wrote it.
+    /// </summary>
+    private static readonly IReadOnlyList<TagSet> SetsWritten =
+        [TagSet.Of("zebras", ["zebras", "zebra"]), TagSet.Of("dotnet", ["dotnet", "csharp", "fsharp"])];
+
+    /// <summary>A shell whose config file writes <see cref="SetsWritten" />.</summary>
+    private static AShell Sets() => new() { TagSets = SetsWritten };
+
+    /// <summary>
+    ///     The rail's destination <paramref name="name" /> names: a tag set by its name, any other by its kind.
+    /// </summary>
+    private static Destination Place(Rail rail, string name) =>
+        rail.Destinations.Single(destination => destination.Kind == DestinationKind.TagSet
+            ? destination.Label == name
+            : destination.Kind.ToString() == name);
 
     /// <summary>
     ///     A run of group presses is what a run of tabs is: six cursor moves, one wait outstanding, one selection and

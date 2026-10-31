@@ -19,7 +19,7 @@ namespace Wooly.Tests.Tui;
 public class LiveInsertionTests
 {
     /// <summary>Where the rail's notifications destination is, counting from Home; Messages and Requests follow it.</summary>
-    private const int ToNotifications = 6;
+    private const int ToNotifications = 5;
 
     private static readonly TimeSpan Minute = TimeSpan.FromSeconds(60);
 

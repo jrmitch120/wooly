@@ -2,6 +2,7 @@ using Wooly.Core;
 using Wooly.Core.Configuration;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
+using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Drafting;
 using Wooly.Tui.Rendering;
@@ -131,8 +132,10 @@ internal sealed class AShell
         AccessToken = "token-personal",
     };
 
-    /// <summary>The hashtag the rail keeps a place for, or none.</summary>
-    public string? Hashtag { get; set; }
+    /// <summary>
+    ///     The config file's <c>[[tag_sets]]</c>, each a place on the rail's Hashtags group (ADR-0033), or none.
+    /// </summary>
+    public IReadOnlyList<TagSet> TagSets { get; set; } = [];
 
     /// <summary>The config file's <c>default_visibility</c>, which compose's To starts on (#338), or none.</summary>
     public PostVisibility? DefaultVisibility { get; set; }
@@ -160,7 +163,7 @@ internal sealed class AShell
     /// <summary>The config file's preferences, as far as these tests set them.</summary>
     private Preferences Preferences => new()
     {
-        Hashtag = Hashtag,
+        TagSets = TagSets,
         DefaultVisibility = DefaultVisibility,
         DefaultLanguage = DefaultLanguage,
         Bell = Bell,

@@ -12,7 +12,7 @@ namespace Wooly.Tests.Tui;
 public class ShellNotificationGroupDismissTests
 {
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 6;
+    private const int ToNotifications = 5;
 
     /// <summary>
     ///     One dismissal, naming the group rather than any notification in it, takes the group off the screen and every

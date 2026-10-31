@@ -91,23 +91,23 @@ public abstract record Subject
     internal virtual Screen? Placeholder(Move move, ActiveProfile profile) => null;
 
     /// <summary>
-    ///     One of the rail's destinations that reads a list: the four timelines, notifications, direct messages,
-    ///     follow requests and Discover.
+    ///     One of the rail's destinations that reads a list: the timelines and tag sets, notifications, direct
+    ///     messages, follow requests and Discover.
     /// </summary>
     /// <remarks>
-    ///     Told apart by <see cref="Kind" /> alone. The rail's own entry is what it is read and drawn with — the
-    ///     timeline a hashtag destination reads, the label its crumb says — and is carried where the rail is arriving,
-    ///     but a badge moving changes the entry and not which destination it is; so the cache is keyed by the one and
-    ///     a change made anywhere can forget a destination by naming its kind (#233).
+    ///     Told apart by the rail's own entry, which is what it is read and drawn with — the timeline a tag set's
+    ///     destination reads, the label its crumb says — and which is the same destination whatever its badge says
+    ///     (<see cref="Shell.Destination.Equals(Shell.Destination?)" />): so the cache is keyed by the destination itself
+    ///     rather than its kind, two of one kind are held apart, and a change made anywhere can forget a destination by
+    ///     naming it (#233, #510).
     /// </remarks>
     public sealed record Destination : Subject
     {
-        private readonly Entry? _entry;
-
         private readonly SessionMarkers? _sessionMarkers;
 
-        /// <summary>The destination <paramref name="kind" /> names, which is enough to forget what it held.</summary>
-        public Destination(DestinationKind kind) => Kind = kind;
+        /// <summary>The destination <paramref name="entry" /> is, which is enough to forget what it held.</summary>
+        /// <param name="entry">The rail's own entry.</param>
+        public Destination(Entry entry) => Entry = entry;
 
         /// <summary>The rail's own entry, which is what is read and drawn.</summary>
         /// <param name="entry">The rail's own entry.</param>
@@ -116,31 +116,24 @@ public abstract record Subject
         ///     Notifications counts against as the badge did (story 8).
         /// </param>
         public Destination(Entry entry, SessionMarkers sessionMarkers)
-            : this(entry.Kind)
-        {
-            _entry = entry;
+            : this(entry) =>
             _sessionMarkers = sessionMarkers;
-        }
 
-        /// <summary>Which of the rail's ten it is.</summary>
-        public DestinationKind Kind { get; }
+        /// <summary>The rail's entry this is, which is what tells two destinations apart.</summary>
+        public Entry Entry { get; }
 
         /// <inheritdoc />
         public override bool Cached => true;
 
-        /// <summary>The rail's entry, which only a subject the rail arrived at carries.</summary>
-        private Entry Entry => _entry ?? throw new InvalidOperationException(
-            $"The {Kind} destination is read from the rail's own entry, which this subject was not given.");
-
         /// <summary>The session markers, which only a subject the rail arrived at carries.</summary>
         private SessionMarkers SessionMarkers => _sessionMarkers ?? throw new InvalidOperationException(
-            $"The {Kind} destination is counted with the session's markers, which this subject was not given.");
+            $"The {Entry.Kind} destination is counted with the session's markers, which this subject was not given.");
 
         /// <inheritdoc />
-        public bool Equals(Destination? other) => other is not null && other.Kind == Kind;
+        public bool Equals(Destination? other) => other is not null && other.Entry == Entry;
 
         /// <inheritdoc />
-        public override int GetHashCode() => Kind.GetHashCode();
+        public override int GetHashCode() => Entry.GetHashCode();
 
         /// <inheritdoc />
         internal override Task<Found> Read(
@@ -176,8 +169,8 @@ public abstract record Subject
         {
             var entry = Entry;
 
-            // The four timeline destinations are one read with a different timeline in it, and which timeline that is
-            // the entry already says — so there is one arm here rather than four saying the same thing about a
+            // The timeline destinations and the tag sets are one read with a different timeline in it, and which that
+            // is the entry already says — so there is one arm here rather than four saying the same thing about a
             // different scope.
             if (entry.Timeline is { } timeline)
             {
@@ -260,8 +253,8 @@ public abstract record Subject
                         Recounts: InboxCount.OffListReadOn)),
 
                 // Said out loud rather than quietly doing nothing: a destination that reads no list — the profile's
-                // own account, the prompt, the hashtag nobody has named — arrives some other way, and landing here is
-                // a destination nobody said what to do with.
+                // own account, the prompt — arrives some other way, and landing here is a destination nobody said what
+                // to do with.
                 _ => throw new ArgumentOutOfRangeException(
                     nameof(entry),
                     entry.Kind,
@@ -746,9 +739,8 @@ public abstract record Subject
     }
 
     /// <summary>
-    ///     A hashtag's timeline walked to from a search or a reference, as a screen on the stack — the rail's own
-    ///     hashtag destination left alone, that being a setting the reader wrote down rather than something a keypress
-    ///     changes.
+    ///     A hashtag's timeline walked to from a search or a reference, as a screen on the stack and kept nowhere — the
+    ///     rail's tag sets left alone, those being what the reader wrote down rather than something a keypress changes.
     /// </summary>
     /// <param name="Hashtag">Which tag, as it was named.</param>
     public sealed record Tag(string Hashtag) : Subject
@@ -767,16 +759,14 @@ public abstract record Subject
             var tag = Timeline.Tag(Hashtag);
             var posts = await ask.Of(token => ports.Timelines.Read(profile, tag, Arrival.PostsWanted, token));
 
-            // A destination of its own rather than the rail's, so that the breadcrumb says which tag this is without
-            // the rail's own hashtag entry changing under a reader who did not ask it to.
-            var showing = new Entry(DestinationKind.Hashtag, $"#{Hashtag}", tag);
-
+            // No destination of the rail's: the breadcrumb says which tag this is, and nothing on the rail changes
+            // under a reader who did not ask it to.
             return new Found.Drawn(() => new FeedScreen(
-                showing,
+                $"#{Hashtag}",
                 posts.Items,
                 Arrival.Emptiness(posts.Items.Count, Arrival.NothingOn(tag), tag.Description, posts.StoppedBy))
             {
-                // Read on as the rail's own hashtag is, being the same timeline walked to another way (#464).
+                // Read on as the rail's own timelines are, being a timeline walked to another way (#464).
                 ReadingOn = new ReadingOn(posts.Onward),
             });
         }
@@ -874,8 +864,8 @@ public abstract record Subject
         });
 
     /// <summary>
-    ///     How <paramref name="timeline" /> reads on: the rail's four timelines, a hashtag walked to and an account's
-    ///     posts alike, whichever screen is showing it (#464).
+    ///     How <paramref name="timeline" /> reads on: the rail's timelines and tag sets, a hashtag walked to and an
+    ///     account's posts alike, whichever screen is showing it (#464).
     /// </summary>
     private static OnwardRead<Post> TimelineReadsOn(Timeline timeline) =>
         new((ports, profile, from, token) =>

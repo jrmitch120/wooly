@@ -438,7 +438,7 @@ public class ScrollbarTests
 
         using var drawn = await DrawnShell.Of(80, 12, Themes.Dark, built);
 
-        drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+        drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Profile));
         drawn.Settle();
         drawn.Press(new Key('E'));
         drawn.Settle();

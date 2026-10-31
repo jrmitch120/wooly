@@ -10,6 +10,8 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class ScriptedHttpMessageHandler(params Func<HttpRequestMessage, HttpResponseMessage>[] steps) : HttpMessageHandler
 {
+    private readonly Lock _sending = new();
+
     /// <summary>Every request the handler was asked to send, in order.</summary>
     public List<HttpRequestMessage> Requests { get; } = [];
 
@@ -50,10 +52,18 @@ internal sealed class ScriptedHttpMessageHandler(params Func<HttpRequestMessage,
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        Requests.Add(request);
-        Bodies.Add(request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken));
+        var body = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
+        Func<HttpRequestMessage, HttpResponseMessage> step;
 
-        var step = steps[Math.Min(Requests.Count - 1, steps.Length - 1)];
+        // Under a lock, since a reader may send several requests at once (a tag set's runs, #512): each is counted once
+        // and answered by its own step, though which step a concurrent request lands on is then down to the order
+        // they arrive in, so a script for those answers by what is asked rather than by when.
+        lock (_sending)
+        {
+            Requests.Add(request);
+            Bodies.Add(body);
+            step = steps[Math.Min(Requests.Count - 1, steps.Length - 1)];
+        }
 
         return step(request);
     }

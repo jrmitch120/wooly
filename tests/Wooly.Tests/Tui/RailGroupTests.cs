@@ -8,13 +8,13 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class RailGroupTests
 {
-    /// <summary>Each of the ten with the group ADR-0021 puts it in.</summary>
+    /// <summary>Each kind with the group ADR-0021 and ADR-0033 put it in.</summary>
     public static TheoryData<DestinationKind, RailGroup> Groups => new()
     {
         { DestinationKind.Home, RailGroup.Timelines },
         { DestinationKind.Local, RailGroup.Timelines },
         { DestinationKind.Federated, RailGroup.Timelines },
-        { DestinationKind.Hashtag, RailGroup.Timelines },
+        { DestinationKind.TagSet, RailGroup.Hashtags },
         { DestinationKind.Discover, RailGroup.Explore },
         { DestinationKind.Search, RailGroup.Explore },
         { DestinationKind.Notifications, RailGroup.Inbox },
@@ -23,7 +23,7 @@ public class RailGroupTests
         { DestinationKind.Profile, RailGroup.You },
     };
 
-    /// <summary>The four groups hold exactly the destinations ADR-0021 lists.</summary>
+    /// <summary>The five groups hold exactly the destinations ADR-0021 and ADR-0033 list.</summary>
     [Theory]
     [MemberData(nameof(Groups))]
     public void Group_IsTheOneADR0021PutsTheDestinationIn(DestinationKind kind, RailGroup group) =>

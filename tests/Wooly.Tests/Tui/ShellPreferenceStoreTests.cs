@@ -1,5 +1,6 @@
 using Wooly.Core;
 using Wooly.Core.Configuration;
+using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Shell;
 
@@ -23,14 +24,21 @@ public class ShellPreferenceStoreTests
             {
                 ["personal"] = new() { Instance = "mastodon.social", Account = "jeff@mastodon.social" },
             },
-            Preferences = new Preferences { Hashtag = "dotnet", Bell = false, Scrollbar = ScrollbarStyle.RightHalf },
+            Preferences = new Preferences
+            {
+                TagSets = [TagSet.Of("dotnet", ["dotnet", "csharp"]), TagSet.Of("cats", ["cats"])],
+                Bell = false,
+                Scrollbar = ScrollbarStyle.RightHalf,
+            },
         });
 
         new ShellPreferenceStore(config).SaveWidth(ShellWidth.Of(70));
 
         var saved = config.Load();
         Assert.Equal(70, saved.Preferences.ShellWidth);
-        Assert.Equal("dotnet", saved.Preferences.Hashtag);
+        Assert.Equal(
+            [TagSet.Of("dotnet", ["dotnet", "csharp"]), TagSet.Of("cats", ["cats"])],
+            saved.Preferences.TagSets);
         Assert.False(saved.Preferences.Bell);
         Assert.Equal(ScrollbarStyle.RightHalf, saved.Preferences.Scrollbar);
         Assert.Equal("personal", saved.CurrentProfile);

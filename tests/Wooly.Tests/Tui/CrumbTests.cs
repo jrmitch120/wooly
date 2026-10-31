@@ -31,7 +31,6 @@ public class CrumbTests
         ("search-cats", "Search cats"),
         ("discover", "Discover"),
         ("help", "Keys"),
-        ("notice", "Hashtag"),
         ("post", "Post by @ben@hachyderm.io"),
         ("conversation", "With @alice@hachyderm.io"),
         ("compose", "Compose"),
@@ -162,11 +161,6 @@ public class CrumbTests
 
             case "help":
                 return new HelpScreen(new FeedScreen(new Destination(DestinationKind.Home, "Home"), [post]));
-
-            // The one screen whose crumb comes from its call site rather than from itself, so the spelling asserted
-            // here is the one the shell hands it — the rail's own label for the destination that opens it.
-            case "notice":
-                return new NoticeScreen("Hashtag", "No hashtag is set for the rail.");
 
             case "post":
                 return new PostScreen(post, new PostThread([], []));

@@ -14,7 +14,7 @@ namespace Wooly.Tests.Tui;
 public class ReadMarkerArrivalTests
 {
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 6;
+    private const int ToNotifications = 5;
 
     [Fact]
     public async Task Arriving_MovesTheMarkerToTheNewestNotificationAndClearsTheBadge()

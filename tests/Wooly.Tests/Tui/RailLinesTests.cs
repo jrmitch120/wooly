@@ -1,4 +1,5 @@
 using Wooly.Core.Http;
+using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
@@ -16,7 +17,11 @@ public class RailLinesTests
 {
     private static readonly RateLimitQuota Plenty = new(250, 300, null);
 
-    private static (Rail Rail, FakeShellHost Host) TheTen(int unreadNotifications = 0)
+    /// <summary>
+    ///     The nine everybody has with one tag set, <c>dotnet</c>, in the Hashtags group between them — which keeps
+    ///     each destination at the place the rail's old Hashtag entry left it, the set standing where that did.
+    /// </summary>
+    private static (Rail Rail, FakeShellHost Host) TheRail(int unreadNotifications = 0)
     {
         var host = new FakeShellHost();
         var rail = new Rail(
@@ -24,7 +29,7 @@ public class RailLinesTests
                 new Destination(DestinationKind.Home, "Home"),
                 new Destination(DestinationKind.Local, "Local"),
                 new Destination(DestinationKind.Federated, "Federated"),
-                new Destination(DestinationKind.Hashtag, "Hashtag"),
+                Set("dotnet"),
                 new Destination(DestinationKind.Discover, "Discover"),
                 new Destination(DestinationKind.Search, "Search"),
                 new Destination(DestinationKind.Notifications, "Notifications") { Unread = unreadNotifications },
@@ -45,41 +50,135 @@ public class RailLinesTests
         lines.Single(line => line.Text.TrimStart('│', ' ', '▶', '▷').StartsWith(label, StringComparison.Ordinal));
 
     /// <summary>
-    ///     The rail needs 22 rows framed and 15 compact, so the five heights either side of those two lines step down
-    ///     framed, framed, compact, compact and scrolled (docs/tui-shell.md).
+    ///     With one tag set the rail needs 24 rows framed and 16 compact, so the five heights either side of those two
+    ///     lines step down framed, framed, compact, compact and scrolled (docs/tui-shell.md).
     /// </summary>
     [Theory]
-    [InlineData(23, "framed")]
-    [InlineData(22, "framed")]
-    [InlineData(21, "compact")]
-    [InlineData(15, "compact")]
-    [InlineData(12, "scrolled")]
+    [InlineData(25, "framed")]
+    [InlineData(24, "framed")]
+    [InlineData(23, "compact")]
+    [InlineData(16, "compact")]
+    [InlineData(15, "scrolled")]
     public void Of_StepsDownAsTheRailShortens(int height, string expected)
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
-        var drawn = Texts(RailLines.Of(rail, Plenty, height));
-
-        var framed = drawn.Count(text => text.StartsWith('╭'));
-        var labels = new[] { "Home", "Local", "Federated", "Hashtag", "Discover", "Search", "Notifications", "Direct messages", "Follow requests", "@jeff" };
-        var shown = labels.Count(label => drawn.Any(text => text.TrimStart('│', ' ', '▶', '▷').StartsWith(label, StringComparison.Ordinal)));
-
-        var mode = framed == 5 ? "framed" : framed == 0 && shown == 10 ? "compact" : framed == 0 ? "scrolled" : "mixed";
-
-        Assert.Equal(expected, mode);
-        Assert.Equal(height, drawn.Length);
-        Assert.All(RailLines.Of(rail, Plenty, height), line => Assert.Equal(RailLines.Width, line.Width));
+        Assert.Equal(expected, Mode(rail, height));
     }
 
     /// <summary>
-    ///     Framed, the rail is the four groups top to bottom, each titled with its name and holding its destinations in
+    ///     Each set is a row of the rail's, so with <c>N</c> sets the rail needs 23 + N rows framed — Timelines 5,
+    ///     Hashtags 2 + N, Explore 4, Inbox 5, You 3 and the API panel 4 — and 15 + N compact, and scrolls below that
+    ///     (ADR-0033).
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(6)]
+    public void Of_StepsDownAtTheRowsItsTagSetsTake(int sets)
+    {
+        var rail = new Rail(
+            [.. Nine().Take(3), .. Enumerable.Range(1, sets).Select(set => Set($"set{set}")), .. Nine().Skip(3)],
+            new FakeShellHost(),
+            TimeSpan.FromMilliseconds(250));
+
+        Assert.Equal("framed", Mode(rail, 23 + sets));
+        Assert.Equal("compact", Mode(rail, 22 + sets));
+        Assert.Equal("compact", Mode(rail, 15 + sets));
+        Assert.Equal("scrolled", Mode(rail, 14 + sets));
+    }
+
+    /// <summary>
+    ///     With no sets there is no Hashtags group at all — not an empty panel — so the nine need two rows fewer framed
+    ///     than one set does, 21, and 14 compact.
+    /// </summary>
+    [Fact]
+    public void Of_DrawsNoHashtagsGroupWhereThereAreNoSets_AndStepsDownAtTheNinesRows()
+    {
+        var rail = new Rail([.. Nine()], new FakeShellHost(), TimeSpan.FromMilliseconds(250));
+
+        foreach (var height in new[] { 30, 14 })
+        {
+            Assert.DoesNotContain(
+                Texts(RailLines.Of(rail, Plenty, height)),
+                text => text.Contains("Hashtag", StringComparison.Ordinal));
+        }
+
+        Assert.Equal("framed", Mode(rail, 21));
+        Assert.Equal("compact", Mode(rail, 20));
+        Assert.Equal("compact", Mode(rail, 14));
+        Assert.Equal("scrolled", Mode(rail, 13));
+    }
+
+    /// <summary>
+    ///     A set's name too long for the rail is clipped with <c>…</c> to the room its row has, framed and compact, so
+    ///     the rail's width never changes; the name itself is kept whole.
+    /// </summary>
+    [Fact]
+    public void Of_ClipsATagSetsNameToTheRailsWidth()
+    {
+        var rail = new Rail(
+            [.. Nine().Take(3), Set("programming-languages"), .. Nine().Skip(3)],
+            new FakeShellHost(),
+            TimeSpan.FromMilliseconds(250));
+
+        var framed = RailLines.Of(rail, Plenty, 30);
+        var compact = RailLines.Of(rail, Plenty, 16);
+
+        Assert.Equal("│  programming-lan…│", Row(framed, "programming").Text);
+        Assert.Equal("  programming-langu…", Row(compact, "programming").Text);
+        Assert.All(framed.Concat(compact), line => Assert.Equal(RailLines.Width, line.Width));
+        Assert.Equal("programming-languages", rail.Destinations[3].Label);
+    }
+
+    /// <summary>
+    ///     Which way the rail is drawn at <paramref name="height" />: every group framed, every destination listed
+    ///     unframed, or some of them scrolled out of view — every row the rail's width whichever it is.
+    /// </summary>
+    private static string Mode(Rail rail, int height)
+    {
+        var drawn = Texts(RailLines.Of(rail, Plenty, height));
+        var groups = rail.Destinations.Select(destination => destination.Group).Distinct().Count();
+        var framed = drawn.Count(text => text.StartsWith('╭'));
+        var shown = rail.Destinations.Count(destination => drawn.Any(text =>
+            text.TrimStart('│', ' ', '▶', '▷').StartsWith(destination.Label, StringComparison.Ordinal)));
+
+        Assert.Equal(height, drawn.Length);
+        Assert.All(RailLines.Of(rail, Plenty, height), line => Assert.Equal(RailLines.Width, line.Width));
+
+        return framed == groups + 1 ? "framed"
+            : framed == 0 && shown == rail.Destinations.Count ? "compact"
+            : framed == 0 ? "scrolled"
+            : "mixed";
+    }
+
+    /// <summary>The nine destinations everybody has, in the rail's order.</summary>
+    private static Destination[] Nine() =>
+    [
+        new(DestinationKind.Home, "Home"),
+        new(DestinationKind.Local, "Local"),
+        new(DestinationKind.Federated, "Federated"),
+        new(DestinationKind.Discover, "Discover"),
+        new(DestinationKind.Search, "Search"),
+        new(DestinationKind.Notifications, "Notifications"),
+        new(DestinationKind.Messages, "Direct messages"),
+        new(DestinationKind.Requests, "Follow requests"),
+        new(DestinationKind.Profile, "@jeff"),
+    ];
+
+    /// <summary>A tag set's destination, called <paramref name="name" />.</summary>
+    private static Destination Set(string name) =>
+        new(DestinationKind.TagSet, name, Timeline.AnyOf(TagSet.Of(name, ["cats"])));
+
+    /// <summary>
+    ///     Framed, the rail is the five groups top to bottom, each titled with its name and holding its destinations in
     ///     the rail's order, and the API panel held at the foot however tall the terminal is, the toggle's mark just
     ///     inside its bottom-left corner (#445).
     /// </summary>
     [Fact]
     public void Of_FramesEachGroupWithItsNameAndHoldsTheApiPanelAtTheFoot()
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
         var drawn = Texts(RailLines.Of(rail, Plenty, 30));
 
@@ -89,7 +188,9 @@ public class RailLinesTests
                 "│▶ Home            │",
                 "│  Local           │",
                 "│  Federated       │",
-                "│  Hashtag         │",
+                "╰──────────────────╯",
+                "╭ Hashtags ────────╮",
+                "│  dotnet          │",
                 "╰──────────────────╯",
                 "╭ Explore ─────────╮",
                 "│  Discover        │",
@@ -104,11 +205,11 @@ public class RailLinesTests
                 "│  @jeff           │",
                 "╰──────────────────╯",
             ],
-            drawn.Take(18));
+            drawn.Take(20));
 
         Assert.Equal("╭ API ─────────────╮", drawn[^3]);
         Assert.Equal("╰«─────────────────╯", drawn[^1]);
-        Assert.All(drawn[18..^3], text => Assert.Equal(new string(' ', RailLines.Width), text));
+        Assert.All(drawn[20..^3], text => Assert.Equal(new string(' ', RailLines.Width), text));
     }
 
     /// <summary>
@@ -121,12 +222,12 @@ public class RailLinesTests
     [InlineData(false)]
     public void Of_LightsTheGroupHoldingTheCursorAndMovesItWithTheCursor(bool coloured)
     {
-        var (rail, host) = TheTen();
+        var (rail, host) = TheRail();
 
         Role EdgeOf(IReadOnlyList<Line> lines, string group) =>
             lines.Single(line => line.Text.StartsWith($"╭ {group} ", StringComparison.Ordinal)).Spans[0].Role;
 
-        var atRest = RailLines.Of(rail, Plenty, 23, coloured: coloured);
+        var atRest = RailLines.Of(rail, Plenty, 24, coloured: coloured);
 
         Assert.Equal(Role.PanelBorderActive, EdgeOf(atRest, "Timelines"));
         Assert.Equal(Role.PanelBorder, EdgeOf(atRest, "Inbox"));
@@ -134,7 +235,7 @@ public class RailLinesTests
 
         rail.Step(6);
 
-        var tabbing = RailLines.Of(rail, Plenty, 23, coloured: coloured);
+        var tabbing = RailLines.Of(rail, Plenty, 24, coloured: coloured);
 
         Assert.Equal(Role.PanelBorder, EdgeOf(tabbing, "Timelines"));
         Assert.Equal(Role.PanelBorderActive, EdgeOf(tabbing, "Inbox"));
@@ -143,7 +244,7 @@ public class RailLinesTests
 
         host.Settle();
 
-        var settled = RailLines.Of(rail, Plenty, 23, coloured: coloured);
+        var settled = RailLines.Of(rail, Plenty, 24, coloured: coloured);
 
         Assert.Equal(Role.PanelBorder, EdgeOf(settled, "Timelines"));
         Assert.Equal(Role.PanelBorderActive, EdgeOf(settled, "Inbox"));
@@ -154,12 +255,12 @@ public class RailLinesTests
     ///     all, and nothing is on <c>rail-cursor</c>.
     /// </summary>
     [Theory]
-    [InlineData(23)]
+    [InlineData(24)]
     [InlineData(18)]
     [InlineData(12)]
     public void Of_InColour_BandsTheSelectedRowAtRestWithNoMark(int height)
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
         var drawn = RailLines.Of(rail, Plenty, height, coloured: true);
 
@@ -174,11 +275,11 @@ public class RailLinesTests
     ///     <c>rail-current</c> until the settle window closes — still with no mark on either.
     /// </summary>
     [Theory]
-    [InlineData(23)]
+    [InlineData(24)]
     [InlineData(18)]
     public void Of_InColour_BandsTheCursorsRowApartWhileTheSelectionLags(int height)
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
         rail.Step(2);
 
@@ -196,12 +297,12 @@ public class RailLinesTests
     ///     selected row only while the two differ, a blank otherwise — and no row on <c>rail-cursor</c>.
     /// </summary>
     [Theory]
-    [InlineData(23)]
+    [InlineData(24)]
     [InlineData(18)]
     [InlineData(12)]
     public void Of_WithoutColour_MarksTheCursorFilledAndTheLaggingSelectionHollow(int height)
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
         var atRest = RailLines.Of(rail, Plenty, height);
 
@@ -221,13 +322,13 @@ public class RailLinesTests
 
     /// <summary>Each destination keeps its unread count, at the end of its row and in its own role, in every mode.</summary>
     [Theory]
-    [InlineData(23, true)]
-    [InlineData(23, false)]
+    [InlineData(24, true)]
+    [InlineData(24, false)]
     [InlineData(18, true)]
     [InlineData(18, false)]
     public void Of_KeepsEachDestinationsUnreadCount(int height, bool coloured)
     {
-        var (rail, _) = TheTen(unreadNotifications: 4);
+        var (rail, _) = TheRail(unreadNotifications: 4);
 
         var row = Row(RailLines.Of(rail, Plenty, height, coloured: coloured), "Notifications");
 
@@ -240,8 +341,8 @@ public class RailLinesTests
     ///     and a count of nothing is no badge at all (#396).
     /// </summary>
     [Theory]
-    [InlineData(23, true)]
-    [InlineData(23, false)]
+    [InlineData(24, true)]
+    [InlineData(24, false)]
     [InlineData(18, true)]
     [InlineData(18, false)]
     public void Of_DrawsAFullCountAsAtLeastThatMany(int height, bool coloured)
@@ -307,9 +408,9 @@ public class RailLinesTests
     [Fact]
     public void Of_DrawsTheBudgetAsAGaugeWithAPercentage()
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
-        var gauge = RailLines.Of(rail, Plenty, 23)[^2];
+        var gauge = RailLines.Of(rail, Plenty, 24)[^2];
 
         Assert.Equal("│ ██████████░░  83%│", gauge.Text);
         Assert.Contains(gauge.Spans, span => span is { Role: Role.Gauge, Text: "██████████" });
@@ -320,9 +421,9 @@ public class RailLinesTests
     [Fact]
     public void Of_DrawsANearlySpentBudgetInQuotaLow()
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
-        var gauge = RailLines.Of(rail, new RateLimitQuota(15, 300, null), 23)[^2];
+        var gauge = RailLines.Of(rail, new RateLimitQuota(15, 300, null), 24)[^2];
 
         Assert.Equal("│ █░░░░░░░░░░░   5%│", gauge.Text);
         Assert.Contains(gauge.Spans, span => span is { Role: Role.QuotaLow, Text: "█" });
@@ -334,9 +435,9 @@ public class RailLinesTests
     [Fact]
     public void Of_DrawsNoGaugeBeforeAnythingHasAsked()
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
-        var drawn = RailLines.Of(rail, null, 23);
+        var drawn = RailLines.Of(rail, null, 24);
 
         Assert.Equal("│                  │", drawn[^2].Text);
         Assert.DoesNotContain(drawn, line => line.Has(Role.Gauge) || line.Has(Role.GaugeEmpty));
@@ -349,9 +450,9 @@ public class RailLinesTests
     [Fact]
     public void Of_PutsTheInstanceInTheApiPanelAboveTheGauge()
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
-        var drawn = RailLines.Of(rail, Plenty, 23, instance: "social.a-very-long-instance.example");
+        var drawn = RailLines.Of(rail, Plenty, 24, instance: "social.a-very-long-instance.example");
 
         Assert.Equal("╭ API ─────────────╮", drawn[^4].Text);
         Assert.StartsWith("│ social.", drawn[^3].Text, StringComparison.Ordinal);
@@ -367,9 +468,9 @@ public class RailLinesTests
     [Fact]
     public void Of_Compact_HeadsEachGroupAndDrawsTheBudgetAsOneRow()
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
-        var drawn = RailLines.Of(rail, Plenty, 15);
+        var drawn = RailLines.Of(rail, Plenty, 16);
 
         Assert.Equal(
             [
@@ -377,7 +478,8 @@ public class RailLinesTests
                 "▶ Home",
                 "  Local",
                 "  Federated",
-                "  Hashtag",
+                "Hashtags",
+                "  dotnet",
                 "Explore",
                 "  Discover",
                 "  Search",
@@ -398,17 +500,17 @@ public class RailLinesTests
     [Fact]
     public void Of_Compact_KeepsTheInstanceWhereThereIsARowForIt()
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
         var roomy = RailLines.Of(rail, Plenty, 18, instance: "hachyderm.io");
-        var tight = RailLines.Of(rail, Plenty, 15, instance: "hachyderm.io");
+        var tight = RailLines.Of(rail, Plenty, 16, instance: "hachyderm.io");
 
         Assert.Equal(" hachyderm.io", roomy[^2].Text.TrimEnd());
         Assert.DoesNotContain(tight, line => line.Text.Contains("hachyderm", StringComparison.Ordinal));
     }
 
     /// <summary>
-    ///     Below 15 rows the compact rail scrolls to keep the cursor's group in view, its heading included, with the
+    ///     Below 16 rows the compact rail scrolls to keep the cursor's group in view, its heading included, with the
     ///     gauge still held at the foot.
     /// </summary>
     [Theory]
@@ -417,7 +519,7 @@ public class RailLinesTests
     [InlineData(9, "You", "@jeff")]
     public void Of_Scrolled_KeepsTheCursorsGroupInView(int cursor, string group, string label)
     {
-        var (rail, _) = TheTen();
+        var (rail, _) = TheRail();
 
         rail.Step(cursor);
 
@@ -431,8 +533,8 @@ public class RailLinesTests
     }
 
     /// <summary>
-    ///     A rail entry is as many columns wide as the room it has, whatever its label is written in. A hashtag rail
-    ///     entry takes the tag's own name, and one written in a two-column script padded out by its characters would
+    ///     A rail entry is as many columns wide as the room it has, whatever its label is written in. A tag set's rail
+    ///     entry takes the set's own name, and one written in a two-column script padded out by its characters would
     ///     be drawn past the rail's frame and into the content beside it (#207).
     /// </summary>
     [Theory]
@@ -443,7 +545,7 @@ public class RailLinesTests
     public void Of_PadsARailEntryToTheRailsColumnsWhateverItsLabelIsWrittenIn(string label, bool coloured)
     {
         var rail = new Rail(
-            [new Destination(DestinationKind.Hashtag, label)],
+            [new Destination(DestinationKind.TagSet, label, Timeline.AnyOf(TagSet.Of(label, ["cats"])))],
             new FakeShellHost(),
             TimeSpan.FromMilliseconds(250));
 

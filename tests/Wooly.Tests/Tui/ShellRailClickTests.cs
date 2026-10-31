@@ -1,4 +1,5 @@
 using Terminal.Gui.Input;
+using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -111,7 +112,7 @@ public class ShellRailClickTests
         if (height == Scrolled)
         {
             // Down the rail far enough that it has scrolled, so the rows no longer start at the first destination.
-            drawn.Shell.Rail.GoTo(DestinationKind.Messages);
+            drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Profile));
             drawn.Built.Host.Drain();
             drawn.Redraw();
 
@@ -325,6 +326,29 @@ public class ShellRailClickTests
         Assert.Equal(0, drawn.Shell.Rail.Cursor);
         Assert.Equal(0, drawn.Shell.Rail.Current);
         Assert.Equal(requests, drawn.Built.Requests);
+    }
+
+    /// <summary>
+    ///     Every tag set is a destination a click reaches as any other, framed and compact: it lands on the set under
+    ///     the pointer and reads it, under its name (#511).
+    /// </summary>
+    [Theory]
+    [InlineData(26, "zebras")]
+    [InlineData(26, "dotnet")]
+    [InlineData(20, "zebras")]
+    [InlineData(20, "dotnet")]
+    public async Task TheClickLandsOnTheTagSetUnderThePointer(int height, string name)
+    {
+        var sets = new[] { TagSet.Of("zebras", ["zebras"]), TagSet.Of("dotnet", ["dotnet", "csharp"]) };
+        using var drawn = await DrawnShell.Of(80, height, Themes.Plain, new AShell { TagSets = sets });
+
+        drawn.Click(OverRail, RowOf(drawn, name));
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        Assert.Equal(name, drawn.Shell.Rail.Showing.Label);
+        Assert.Equal(Timeline.AnyOf(sets.Single(set => set.Name == name)), drawn.Built.Timelines.Reads[^1].Timeline);
+        Assert.Equal(name, drawn.Shell.Breadcrumb);
     }
 
     /// <summary>The rail row the first entry, title or panel reading <paramref name="text" /> is drawn on.</summary>

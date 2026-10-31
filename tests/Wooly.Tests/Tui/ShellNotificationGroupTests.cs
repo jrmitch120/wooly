@@ -16,7 +16,7 @@ namespace Wooly.Tests.Tui;
 public class ShellNotificationGroupTests
 {
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 6;
+    private const int ToNotifications = 5;
 
     /// <summary>
     ///     A group names two actors and counts everyone else in it by the instance's count, not by how many actors came

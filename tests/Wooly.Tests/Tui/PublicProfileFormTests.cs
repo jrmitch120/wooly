@@ -22,7 +22,7 @@ public class PublicProfileFormTests
     {
         var shell = await built.Opened();
 
-        shell.Rail.GoTo(DestinationKind.Profile);
+        shell.Rail.GoTo(shell.Rail.Of(DestinationKind.Profile));
         built.Host.Settle();
 
         return shell;
@@ -165,7 +165,7 @@ public class PublicProfileFormTests
 
         var asked = built.Timelines.Reads.Count(read => read.Timeline == Wooly.Core.Timelines.Timeline.Home);
 
-        shell.Rail.GoTo(DestinationKind.Home);
+        shell.Rail.GoTo(shell.Rail.Of(DestinationKind.Home));
         built.Host.Settle();
 
         Assert.Equal(asked + 1, built.Timelines.Reads.Count(read => read.Timeline == Wooly.Core.Timelines.Timeline.Home));

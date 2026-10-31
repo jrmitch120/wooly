@@ -3,6 +3,7 @@ using Tomlyn;
 using Tomlyn.Model;
 using Wooly.Core.Errors;
 using Wooly.Core.Posts;
+using Wooly.Core.Timelines;
 
 namespace Wooly.Core.Configuration;
 
@@ -20,8 +21,14 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     private const string DefaultVisibilityKey = "default_visibility";
     private const string DefaultLanguageKey = "default_language";
 
-    /// <summary>The hashtag the TUI's rail keeps a destination for.</summary>
-    private const string HashtagKey = "hashtag";
+    /// <summary>
+    ///     The reader's tag sets (ADR-0033): an array of tables rather than a table keyed by name, because a set's
+    ///     place on the rail is its place in the file, and a table's keys are what a save writes in its own order.
+    /// </summary>
+    private const string TagSetsKey = "tag_sets";
+
+    private const string TagSetNameKey = "name";
+    private const string TagSetTagsKey = "tags";
 
     /// <summary>Whether a drawn picture's caption hides once the picture is actually drawn (#71).</summary>
     private const string HideDrawnCaptionKey = "hide_drawn_caption";
@@ -57,7 +64,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         {
             CurrentProfile = ReadString(root, CurrentProfileKey),
             Profiles = ReadProfiles(root),
-            Preferences = ReadPreferences(root),
+            Preferences = ReadPreferences(root) with { TagSets = ReadTagSets(root) },
             Theme = ReadString(root, ThemeKey),
             Themes = ReadThemes(root),
         };
@@ -83,8 +90,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         // Inserted before the profiles so the writer emits the short, general section above the long, per-profile one.
         // Its keys go in alphabetical order, so a reader looking for one knows where it is. Every preference with a
         // default is written, at its default too, so that a reader opening a file nobody has tuned finds each setting
-        // they can change in it (#506). The language, visibility and hashtag have none — absent is the server's own,
-        // or none, and TOML has no null — so they are written only once set.
+        // they can change in it (#506). The language and visibility have none — absent is the server's own, and TOML
+        // has no null — so they are written only once set. An old 'hashtag' is not carried: the file is rewritten
+        // whole, so the save after it is read is what drops it (ADR-0033).
         var preferences = new TomlTable { [BellKey] = config.Preferences.Bell };
 
         if (config.Preferences.DefaultLanguage is { } language)
@@ -97,17 +105,38 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
             preferences[DefaultVisibilityKey] = PostVisibilityName.Of(visibility);
         }
 
-        if (config.Preferences.Hashtag is { } hashtag)
-        {
-            preferences[HashtagKey] = hashtag;
-        }
-
         preferences[HiddenRailKey] = config.Preferences.HiddenRail;
         preferences[HideDrawnCaptionKey] = config.Preferences.HideDrawnCaption;
         preferences[ScrollbarKey] = ScrollbarStyleName.Of(config.Preferences.Scrollbar);
         preferences[ShellWidthKey] = (long)config.Preferences.ShellWidth;
 
         root[PreferencesKey] = preferences;
+
+        // Written apart and put straight after the preferences, in the order read: the writer puts an array of tables
+        // after every table in the one it is given, which would leave a reader's sets under the longest thing in the
+        // file. No sets is no [[tag_sets]] at all.
+        var sets = new TomlTable();
+
+        if (config.Preferences.TagSets.Count > 0)
+        {
+            var written = new TomlTableArray();
+
+            foreach (var set in config.Preferences.TagSets)
+            {
+                var tags = new TomlArray();
+
+                foreach (var tag in set.Tags)
+                {
+                    tags.Add(tag);
+                }
+
+                written.Add(new TomlTable { [TagSetNameKey] = set.Name, [TagSetTagsKey] = tags });
+            }
+
+            sets[TagSetsKey] = written;
+        }
+
+        var rest = new TomlTable();
 
         if (config.Profiles.Count > 0)
         {
@@ -125,7 +154,7 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
                 profiles[name] = entry;
             }
 
-            root[ProfilesKey] = profiles;
+            rest[ProfilesKey] = profiles;
         }
 
         // Last, because a theme is the longest thing in the file and the shortest way to find anything else is for it
@@ -139,10 +168,12 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
                 themes[name] = Written(theme);
             }
 
-            root[ThemesKey] = themes;
+            rest[ThemesKey] = themes;
         }
 
-        TomlFile.Write(paths.ConfigFile, TomlSerializer.Serialize(root));
+        var parts = new[] { root, sets, rest }.Where(part => part.Count > 0);
+
+        TomlFile.Write(paths.ConfigFile, string.Join("\n", parts.Select(part => TomlSerializer.Serialize(part))));
     }
 
     /// <summary>
@@ -289,7 +320,6 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         {
             DefaultVisibility = ReadVisibility(stored),
             DefaultLanguage = ReadLanguage(stored),
-            Hashtag = ReadHashtag(stored),
             HideDrawnCaption = ReadBool(stored, HideDrawnCaptionKey),
             Bell = ReadBool(stored, BellKey, whenAbsent: true),
             ShellWidth = ReadShellWidth(stored),
@@ -299,19 +329,62 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     }
 
     /// <summary>
-    ///     The tag the rail keeps a place for. Held to the same one-word rule the <c>timeline tag</c> command holds a
-    ///     typed one to, because a tag goes into a request path — see <see cref="Timelines.Hashtag" />.
+    ///     The reader's tag sets, in file order. Each is held to a set's rules (<see cref="TagSet.Rejection" />) —
+    ///     every tag one word, as the <c>timeline tag</c> command holds a typed one to, because a tag goes into a
+    ///     request path — and the whole file refused for one that breaks them, or for a name two sets share whatever its
+    ///     case, which would put two entries on the rail nobody could tell apart. A tag written with its <c>#</c> or twice is
+    ///     folded rather than refused, since there is no doubt what was meant.
     /// </summary>
-    private string? ReadHashtag(TomlTable preferences)
+    private IReadOnlyList<TagSet> ReadTagSets(TomlTable root)
     {
-        if (ReadString(preferences, HashtagKey) is not { } raw)
+        if (!root.TryGetValue(TagSetsKey, out var value))
         {
-            return null;
+            return [];
         }
 
-        return Timelines.Hashtag.IsWellFormed(raw)
-            ? Timelines.Hashtag.Bare(raw)
-            : throw new ConfigurationException(paths.ConfigFile, Timelines.Hashtag.Rejection(raw));
+        if (value is not TomlTableArray written)
+        {
+            throw new ConfigurationException(
+                paths.ConfigFile,
+                $"'{TagSetsKey}' must be a list of sets, each written under its own [[{TagSetsKey}]].");
+        }
+
+        var sets = new List<TagSet>();
+
+        foreach (var entry in written)
+        {
+            var name = ReadString(entry, TagSetNameKey);
+            var tags = ReadTags(entry);
+
+            if (TagSet.Rejection(name, tags) is { } problem)
+            {
+                throw new ConfigurationException(paths.ConfigFile, problem);
+            }
+
+            if (sets.Any(set => string.Equals(set.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new ConfigurationException(
+                    paths.ConfigFile,
+                    $"more than one tag set is called '{name}'. Give each a name of its own.");
+            }
+
+            sets.Add(TagSet.Of(name!, tags));
+        }
+
+        return sets;
+    }
+
+    /// <summary>A set's tags as written, or none where it names none.</summary>
+    private List<string> ReadTags(TomlTable set)
+    {
+        if (!set.TryGetValue(TagSetTagsKey, out var value))
+        {
+            return [];
+        }
+
+        return value is TomlArray tags && tags.All(tag => tag is string)
+            ? [.. tags.Cast<string>()]
+            : throw new ConfigurationException(paths.ConfigFile, $"'{TagSetTagsKey}' must be a list of hashtags.");
     }
 
     private PostVisibility? ReadVisibility(TomlTable preferences)

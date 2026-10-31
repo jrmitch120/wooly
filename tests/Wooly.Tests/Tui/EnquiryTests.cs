@@ -582,10 +582,10 @@ public class EnquiryTests
         public Enquiry It { get; }
 
         /// <summary>The screen in front of the reader, which is what every question here is asked from.</summary>
-        public Screen InFront { get; private set; } = new NoticeScreen("Here", "Where the question was asked.");
+        public Screen InFront { get; private set; } = new SearchScreen();
 
         /// <summary>Puts another screen in front of the reader: any move at all, the rule being one.</summary>
-        public void WalkAway() => InFront = new NoticeScreen("Elsewhere", "Where the reader went.");
+        public void WalkAway() => InFront = new SearchScreen();
 
         /// <summary>The last thing it said, which is what the shell would be drawing.</summary>
         public string? Notice { get; private set; }

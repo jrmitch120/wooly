@@ -242,7 +242,7 @@ public class ShellPointerTests
         // has a scroll to keep.
         using var drawn = await Four(height: 12);
 
-        drawn.Shell.Rail.GoTo(DestinationKind.Profile);
+        drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Profile));
         drawn.Built.Host.Drain();
         drawn.Redraw();
         drawn.Press(Key.CursorDown);
@@ -279,24 +279,6 @@ public class ShellPointerTests
         Assert.Equal(1, drawn.Content.Top);
     }
 
-    /// <summary>
-    ///     And a notice: the rail's hashtag with none named, wrapped narrow enough to be taller than the room it has.
-    /// </summary>
-    [Fact]
-    public async Task TheWheelScrollsANotice()
-    {
-        using var drawn = await Four(width: 36, height: 8);
-
-        drawn.Shell.Rail.GoTo(DestinationKind.Hashtag);
-        drawn.Built.Host.Drain();
-        drawn.Redraw();
-
-        Assert.IsType<NoticeScreen>(drawn.Shell.Screen);
-
-        drawn.Wheel(OverContent, Inside);
-
-        Assert.Equal(1, drawn.Content.Top);
-    }
 
     /// <summary>
     ///     Over the compose editor the wheel is the editor's own, as Terminal.Gui handles it: a long draft scrolls its

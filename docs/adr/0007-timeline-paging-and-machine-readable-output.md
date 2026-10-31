@@ -52,3 +52,9 @@ shifts the offset, so the tail kept repeats posts already shown. Those two scree
 
 What a caller still cannot do is the thing this ADR was guarding against: hold a page, read a cursor, or carry its own
 copy of the end condition. The CLI hands nothing back, and `--limit` reads exactly as it did.
+
+## Amendment: a tag set of several runs keeps nothing on a rate limit (ADR-0033)
+
+A rate limit part way through is still a partial result for every list read as one, a tag set of four tags or fewer
+included. A tag set read as several runs of four, merged (`MergedReading`), keeps nothing when the limit refuses any of
+its runs, since a merged list missing a run looks whole while missing posts from its middle; ADR-0033 records why.

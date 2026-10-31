@@ -178,7 +178,7 @@ public class DraftResetSweepTests : IDisposable
         var built = new AShell { LaunchedFrom = _files.Path };
         var shell = await built.Opened();
 
-        shell.Rail.GoTo(on);
+        shell.Rail.GoTo(shell.Rail.Of(on));
         built.Host.Settle();
 
         shell.Press(ShellKey.C);
@@ -234,7 +234,7 @@ public class DraftResetSweepTests : IDisposable
         };
         var shell = await built.Opened();
 
-        shell.Rail.GoTo(DestinationKind.Profile);
+        shell.Rail.GoTo(shell.Rail.Of(DestinationKind.Profile));
         built.Host.Settle();
         shell.Press(ShellKey.CapitalE);
         built.Host.Drain();

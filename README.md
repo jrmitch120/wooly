@@ -32,8 +32,9 @@ Sign in once and both of them act as the same profile.
 
 **The TUI**
 
-- A rail of destinations (Timelines, Explore, Inbox, You) beside a content panel, with a breadcrumb you walk back out of
-  with `esc`
+- A rail of destinations (Timelines, Hashtags, Explore, Inbox, You) beside a content panel, with a breadcrumb you walk
+  back out of with `esc`
+- Tag sets: a name for a few hashtags, followed on the rail as one timeline of the posts carrying any of them
 - Pictures drawn inline on terminals that speak sixel or the Kitty graphics protocol, and linked with their alt text
   everywhere else. Video and audio open in your own player.
 - Live unread counts on the Inbox, kept up to date by the instance's streaming API, with an optional bell
@@ -214,7 +215,6 @@ The preferences you're most likely to want:
 theme = "dark"                # "dark", "light", or one of your own below
 
 [preferences]
-hashtag = "dotnet"            # the TUI rail's Hashtag destination
 default_visibility = "public" # public, unlisted, followers or direct
 default_language = "en"
 bell = true                   # ring when an Inbox badge rises
@@ -222,6 +222,11 @@ hide_drawn_caption = false    # hide a picture's caption once it's drawn
 shell_width = 100             # 50 to 100, a percentage of the terminal
 hidden_rail = false
 scrollbar = "block"           # block, line, left-half, right-half or none
+
+# Each tag set is a place on the TUI rail's Hashtags group: up to twelve tags, read as one timeline.
+[[tag_sets]]
+name = "dotnet"
+tags = ["dotnet", "csharp", "fsharp"]
 
 # A theme only needs the roles it changes; the rest come from the built-in one.
 [themes.midnight]

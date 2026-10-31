@@ -107,7 +107,7 @@ internal sealed class ADrafting
             Fakes.Ports,
             enquiry,
             new SubjectCache(Fakes.Clock, Fakes.Timing.CacheFor),
-            showing: () => DestinationKind.Home,
+            new Rail([new Destination(DestinationKind.Home, "Home")], Fakes.Host, Fakes.Timing.Settle),
             new SessionMarkers());
 
         _reach = new Reach(
