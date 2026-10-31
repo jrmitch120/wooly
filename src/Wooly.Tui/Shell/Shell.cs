@@ -911,7 +911,7 @@ public sealed class Shell
     ///     account a mention names, an address in the platform's own browser, or a <c>Video</c>/<c>Animation</c>/
     ///     <c>Audio</c>/<c>Unknown</c> attachment's own address and a link preview's alike — in that same browser, the
     ///     exact way a picked link already reaches it (#85, ADR-0017, ADR-0018). A walked picture is none of the four,
-    ///     and opens nothing yet (ADR-0034, #515).
+    ///     and opens on a <b>Picture screen</b> instead (ADR-0034, #516).
     /// </summary>
     /// <remarks>
     ///     Which of the four it is, is the role the reference draws in — one vocabulary rather than two, which is the
@@ -930,11 +930,14 @@ public sealed class Shell
             return Task.CompletedTask;
         }
 
-        // A walked picture opens inside the terminal rather than in the browser, on a Picture screen that is not built
-        // yet (#516): until it is, ⏎ on one does nothing, and leaves it walked, which is how esc is to find it when that
-        // screen is gone again (ADR-0034). Asked ahead of the roles, a picture's address sharing Media with a video's.
-        if (Screen.WalkedPicture is not null)
+        // A walked picture opens inside the terminal rather than in the browser, on a Picture screen pushed over this
+        // one — and is the one reference left walked as it opens, so that esc comes back to it as it was rather than to
+        // the walk starting over (ADR-0034, #516). Asked ahead of the roles, a picture's address sharing Media with a
+        // video's.
+        if (Screen.OpenWalkedPicture() is { } picture)
         {
+            Push(picture);
+
             return Task.CompletedTask;
         }
 

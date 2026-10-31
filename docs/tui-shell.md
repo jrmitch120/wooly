@@ -251,6 +251,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Media — the attachments screen, a row for each thing attached to a compose or a reply | `⏎` on the Media header, or a click on its line, where a short terminal folded the rows into it | story 58 |
 | Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
+| Picture — one still picture on a post over the whole window, fitted whole, its description wrapped beneath it and a hint row under that, crumbed `Picture by @author` | `⏎` on a walked picture, in a feed or on the post screen | #516 (ADR-0034) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
 Every screen owes three things: it reads at 57 columns (58 for a screen with widgets of its own — compose, the
@@ -294,7 +295,7 @@ Feed and post:
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `w` | Who favorited it, or who boosted it: the actors screen, one side at a time | On a boost, the post boosted. Opens "Favorited by" where the post's count of favorites is above zero, else "Boosted by" where its boosts are, else says `Nobody has favorited or boosted this.` and opens nothing — settled from the counts before anything is read, and always the list, never a shortcut to one account (#489). On Notifications `w` is who did what the row reports, and on an account screen's header block their follows (below, #490) |
 | `x` | Show what the post is hiding | Its warned text and poll, its sensitive attachments and link preview, or both halves at once (#113, #116, #119). What it showed belongs to the screen it was pressed on (#121, below) |
-| `←` `→` | Walk the references (hashtag, mention, link, attachment, drawn picture) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below), except a walked picture, on which it does nothing until the Picture screen (#516). A walked picture is drawn between `⎡⎢⎣` and `⎤⎥⎦` beside its box (`[` `]` for a box one row tall), and is walked to by keys alone (#515) |
+| `←` `→` | Walk the references (hashtag, mention, link, attachment, drawn picture) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below), a walked picture on its Picture screen, inside the TUI, and left walked there so that `esc` comes back to it (#516). A walked picture is drawn between `⎡⎢⎣` and `⎤⎥⎦` beside its box (`[` `]` for a box one row tall), and is walked to by keys alone (#515) |
 | `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll is on screen and would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
 | `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. Only where the poll is on screen and would still take a vote — and on a poll already voted in or closed, says which rather than asking |
 
@@ -318,6 +319,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Choose avatar / Choose header | the Attach browser's keys, but it lists only pictures, `ctrl-a` shows no other files, one file may be chosen, and `⏎` takes the file chosen, else the one under the cursor, back to the form's row as its picture (#407) · `esc` back to the form unchanged |
 | Attach | type to filter, fuzzily (#376) · `space` choose the file under the cursor, or let it go — up to what the post has room for · `⏎` attach what is chosen, wherever the cursor is, else the file under the cursor, else open the folder under it · `→` open a folder · `←` up a folder · `↑`/`↓` walk the list · `ctrl-a` every file, and again only the accepted types · `backspace`/`delete` only ever the filter, stopping at empty · `esc` clear the filter, then back to the draft unchanged |
 | Media (the attachments screen) | `↑`/`↓` walk the rows · `⏎` describe the row · `del`/`backspace` take it off · `ctrl-z` bring back the last one taken off · `shift-↑`/`shift-↓` move it · `r` retry it where a retry can help · `s` the sensitive toggle · `ctrl-o` the file browser, attaching onto the compose under it · `ctrl-v`/`alt-v` attach from the clipboard onto it · `esc` back to the draft (story 58) |
+| Picture | `esc` back at its first press, to the screen it was opened from with the same pick and the same picture walked — nothing on the screen is walked or picked for it to let go of first (#516) |
 | Home, local, federated, each tag set, Discover, Notifications, Messages, Requests, Post, Account, Follows, Actors | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -645,11 +647,12 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   such list; a bare `@maria` resolved against the reader's own instance opens whoever *their* server has by that name,
   which is the failure this section already warns about below. Hashtags and addresses need no resolution and walk
   normally, which is what makes a verified link on somebody's profile reachable — the most useful thing on the screen.
-  The precedent for drawn-but-unwalkable is an `Image` attachment and a link preview's author name.
+  The precedent for drawn-but-unwalkable is a video's preview box and a link preview's author name.
 - **Walkable**: hashtag, mention, and address — the three references `BodyText` finds — followed, since #109
   (ADR-0017), by every `Video`, `Animation`, `Audio` or `Unknown` attachment on the post, in attachment order, and
-  since #116 (ADR-0018) by the post's link preview, last of all. **Not walkable**: an `Image` attachment, which is
-  drawn or linked but never opened this way; the name a link preview says wrote the page, which is plain text and
+  since #116 (ADR-0018) by the post's link preview, last of all. **Not walkable**: an `Image` attachment where it is
+  linked rather than drawn — a drawn one is walked after the labels' places, and opens on its Picture screen (#515,
+  #516, ADR-0034); the name a link preview says wrote the page, which is plain text and
   never an address; text still behind a content warning, which has no references until `x` shows it, since the
   brackets marking a pick would be behind the warning too (#83); and every attachment on a **warned** post, along with
   its link preview, for the same reason since #113 — its label is behind the warning with the rest of what is hidden,
@@ -747,12 +750,17 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   An attachment's own address needs no elided-form or scheme check the way body text does — it arrives off the wire
   already well-formed (`PostMedia.Url`) rather than matched by pattern out of prose — so it goes through the exact
   same `Shell.OpenAddress` call a picked link already does, refusal for refusal.
-- **`⏎` lets the reference go, on every outcome** (#474): a hashtag pushed, a mention opened, an address or an
+- **A walked picture is a fifth, and the one that stays inside the TUI** (#516, ADR-0034). `⏎` on it pushes its
+  **Picture screen** rather than handing its address to anything, told apart from a video's address — the two share
+  `Media` — by the attachment its place in the walk names (`Screen.WalkedPicture`). Nothing is fetched to open it.
+- **`⏎` lets the reference go, on every outcome but a picture's** (#474): a hashtag pushed, a mention opened, an address or an
   attachment's or link preview's address handed to the browser, and a refusal alike. `Shell.OpenReference` lets it go
   as part of opening, before the outcome is known, so no outcome is an exception. Walking back out of the hashtag or
   account it opened, the first `esc` goes back rather than being spent on an old bracket; after a link, the next `→`
   starts again at the first reference; and the status row leaves reference mode at once. A refused reference costs one
-  `→` to pick again.
+  `→` to pick again. A walked picture is the exception (#516): it is still walked under its Picture screen, so that
+  `esc` from there comes back to the picture as it was, which is where a reader looking at a post's pictures one by one
+  carries on from.
 - **The launch is decided apart from the act, and outside `ShellPorts`.** This is the first thing in the shell that
   leaves the terminal, so it lives in its own small seam rather than folded into the ports (which are specifically
   "everything the shell reaches an *instance* through" — a browser reaches outside the instance). `BrowserLaunch`
@@ -913,6 +921,14 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   all is told to the screen by the content region each frame (`Screen.DrawsPictures`), from the same `Drawing.Draws`
   answer the rows are laid out by. A video's or animation's preview box, a link preview's picture and avatars are
   never walked to as pictures.
+- **`⏎` on a walked picture opens its Picture screen** (#516, ADR-0034), a screen pushed onto the stack and crumbed
+  `Picture by @author`: the one picture fitted whole into the window less the rows under it, at its shape and centred
+  across, never cropped or stretched out of shape; what its author said it shows (`PostMedia.Shows`, so `a picture,
+  undescribed` where they said nothing) wrapped beneath it rather than cut; and a hint row under that, `esc back`. Its
+  box is settled again on every frame from the room the window gives it, so a resize draws the picture to fit the new
+  window. It draws the smaller copy the timeline already holds, stretched to the box, and its **Stand-in** where that
+  copy was let go, until it is fetched again. `esc` goes back at its first press, to the screen it was opened from with
+  the same pick and the same picture walked; on the post screen as in a feed.
 - **A warned post's attachments are drawn only once the reader has asked for them.** A spoiler text, the instance's own
   sensitive flag, or both, and `x` shows them along with whatever else the post is hiding (#113). Until it is pressed
   there is no box, no label, no description and no address — and no `Wants`, so nothing is fetched and nothing is

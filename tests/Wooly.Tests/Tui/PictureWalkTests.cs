@@ -58,26 +58,6 @@ public class PictureWalkTests
     }
 
     /// <summary>
-    ///     <c>⏎</c> on a walked picture does nothing yet: nothing is handed the browser, nothing is pushed, and the
-    ///     picture stays walked — the Picture screen it is to open comes with #516.
-    /// </summary>
-    [Fact]
-    public async Task EnterOnAWalkedPictureOpensNothingAndLeavesItWalked()
-    {
-        using var drawn = await Drawn(APost.With(id: "110", media: [APost.APicture("m1", shape: Wide)]));
-
-        drawn.Press(Key.CursorRight);
-
-        var before = drawn.Rows();
-
-        drawn.Press(Key.Enter);
-        drawn.Settle();
-
-        Assert.Empty(drawn.Built.Browser.Opened);
-        Assert.Equal(before, drawn.Rows());
-    }
-
-    /// <summary>
     ///     The walk goes down the post's attachments in the order they are drawn, a picture's box and a video's label
     ///     alike — the video's box never bracketed, its label being what is walked to.
     /// </summary>

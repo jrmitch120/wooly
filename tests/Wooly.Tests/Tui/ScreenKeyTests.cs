@@ -50,6 +50,7 @@ public class ScreenKeyTests
         "public-profile",
         "describe",
         "help",
+        "picture",
         "profiles",
         "profiles-empty",
         "add-profile",
@@ -403,6 +404,9 @@ public class ScreenKeyTests
 
             case "help":
                 return new HelpScreen(Feed([post]));
+
+            case "picture":
+                return new PictureScreen(post with { Media = [APost.APicture()] }, APost.APicture());
 
             case "profiles":
                 return new ProfilesScreen([FakeProfileRegistry.Profile("personal", "mastodon.social", null)], "personal", []);

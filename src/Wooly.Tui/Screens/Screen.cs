@@ -425,6 +425,15 @@ public abstract class Screen
     public PostMedia? WalkedPicture => Reference is { } picked ? PictureOf(picked) : null;
 
     /// <summary>
+    ///     The <b>Picture screen</b> the walked still picture opens onto, or <see langword="null" /> where none is
+    ///     walked (ADR-0034, #516).
+    /// </summary>
+    public PictureScreen? OpenWalkedPicture() =>
+        Referring is PostReferences { Post: var post } && WalkedPicture is { } picture
+            ? new PictureScreen(post, picture)
+            : null;
+
+    /// <summary>
     ///     The still picture <paramref name="reference" /> was made of, where it is one of the post being read's — or
     ///     <see langword="null" />.
     /// </summary>

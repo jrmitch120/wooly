@@ -86,9 +86,10 @@ public static class PostKeys
 
     /// <summary>
     ///     What a picked reference answers to: walking the references inside the post, opening the one picked out, and
-    ///     letting it go again (#83). <c>⏎</c> is announced once and means three things — a hashtag's timeline, the
-    ///     account a mention names, or an address in the platform's browser (#85) — because what a reader has to know
-    ///     is that the key opens whatever is bracketed, not which of the three this one is.
+    ///     letting it go again (#83). <c>⏎</c> is announced once and means four things — a hashtag's timeline, the
+    ///     account a mention names, an address in the platform's browser (#85), or a picture on its Picture screen
+    ///     (#516) — because what a reader has to know is that the key opens whatever is bracketed, not which of the four
+    ///     this one is.
     /// </summary>
     private static IReadOnlyList<KeyHint> Walking { get; } =
     [
