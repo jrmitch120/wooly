@@ -9,7 +9,7 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     <c>⏎</c> on a walked picture opens it on a <b>Picture screen</b>: the one picture fitted whole inside the window,
-///     its description beneath it and a hint row under that, and <c>esc</c> back to where it was opened from with the
+///     its description centred beneath it, and <c>esc</c> back to where it was opened from with the
 ///     same picture walked (#516, ADR-0034). Read back off the whole shell drawn headless in the no-colour theme, its
 ///     cells pinned at 10×20 so that a box's size can be worked out by hand.
 /// </summary>
@@ -47,10 +47,11 @@ public class PictureScreenTests
 
     /// <summary>
     ///     What its author said the picture shows is drawn beneath it, wrapped onto the rows a description this short
-    ///     takes rather than cut, and the hint row under that says <c>esc</c> goes back.
+    ///     takes rather than cut, each row centred under the picture, and nothing under it: the status row already says
+    ///     the keys.
     /// </summary>
     [Fact]
-    public async Task TheDescriptionIsWrappedBeneathThePictureAndTheHintRowUnderIt()
+    public async Task TheDescriptionIsWrappedAndCentredBeneathThePictureWithNothingUnderIt()
     {
         const string said = "A cartoon sheep standing in a field of clover, looking at the reader with an expression "
             + "of mild surprise, a fence behind it";
@@ -60,27 +61,44 @@ public class PictureScreenTests
             media: [APost.APicture("m1", description: said, shape: Wide)]));
 
         var rows = drawn.Rows();
-        var first = Array.FindIndex(rows, row => row.Contains("A cartoon sheep standing", StringComparison.Ordinal));
-        var hint = Array.FindIndex(rows, row => row.Contains("esc back", StringComparison.Ordinal));
+        var first = Box(drawn).Bottom;
+        var content = rows[1..^2].Select(row => row[ContentLeft..ContentRight]).ToList();
+        var described = content[(first - 1)..].TakeWhile(row => row.Trim().Length > 0).ToList();
 
-        Assert.True(first > 0, string.Join('\n', rows));
-        Assert.Equal(Box(drawn).Bottom, first);
-        Assert.True(hint > first + 1, string.Join('\n', rows));
-        Assert.Equal(
-            said,
-            string.Join(' ', rows[first..hint].Select(row => row[ContentLeft..ContentRight].Trim())));
+        Assert.True(described.Count > 1, string.Join('\n', rows));
+        Assert.Equal(said, string.Join(' ', described.Select(row => row.Trim())));
+        Assert.All(
+            described,
+            row => Assert.InRange((row.Length - row.TrimStart().Length) - (row.Length - row.TrimEnd().Length), -1, 1));
+        Assert.All(content[(first - 1 + described.Count)..], row => Assert.Equal(string.Empty, row.Trim()));
     }
 
     /// <summary>
-    ///     The picture is as large as the window less the description's row and the hint row allows, fitted whole at its
-    ///     own proportions and centred across: a square one at 10×20 cells is twice as many columns as rows, as tall as
-    ///     the 27 rows inside the panel less those two, and a wide one the panel's 57 columns across. Never cropped, never
-    ///     stretched out of shape.
+    ///     "a picture, undescribed", where its author said nothing, is centred under the picture as a description is:
+    ///     its 22 columns 17 into the 57 the screen draws in.
+    /// </summary>
+    [Fact]
+    public async Task UndescribedIsCentredUnderThePicture()
+    {
+        using var drawn = await Opened(APost.With(
+            id: "110",
+            media: [APost.APicture("m1", description: null, shape: Wide)]));
+
+        Assert.Equal(
+            new string(' ', 17) + "a picture, undescribed",
+            drawn.Rows()[Box(drawn).Bottom][ContentLeft..ContentRight].TrimEnd());
+    }
+
+    /// <summary>
+    ///     The picture is as large as the window less the description's row allows, fitted whole at its own proportions
+    ///     and centred across: a square one at 10×20 cells is twice as many columns as rows, as tall as the 27 rows
+    ///     inside the panel less that one, and a wide one the panel's 57 columns across. Never cropped, never stretched
+    ///     out of shape.
     /// </summary>
     [Theory]
-    [InlineData(400, 400, 24, 1, 50, 25)]
+    [InlineData(400, 400, 23, 1, 52, 26)]
     [InlineData(4000, 400, 21, 1, 57, 3)]
-    public async Task ThePictureIsFittedWholeIntoTheWindowLessTheDescriptionAndHintRows(
+    public async Task ThePictureIsFittedWholeIntoTheWindowLessTheDescriptionsRows(
         int wide,
         int tall,
         int left,
@@ -92,13 +110,12 @@ public class PictureScreenTests
 
         Assert.Equal(new System.Drawing.Rectangle(left, top, columns, rows), Box(drawn));
         Assert.Contains("A cartoon sheep", drawn.Rows()[top + rows], StringComparison.Ordinal);
-        Assert.Contains("esc back", drawn.Rows()[top + rows + 1], StringComparison.Ordinal);
     }
 
     /// <summary>
     ///     A description as long as a whole article — as a post bridged from a blog can carry, HTML and all — never
     ///     squeezes out the picture: it is cut to a quarter of the 27 rows inside the panel, six, its last row ending in
-    ///     <c>…</c> where it is cut and written as it came, and the picture takes the rest, a square one 20 rows tall.
+    ///     <c>…</c> where it is cut and written as it came, and the picture takes the rest, a square one 21 rows tall.
     /// </summary>
     [Fact]
     public async Task ALongDescriptionIsCutSoThatThePictureKeepsItsRoom()
@@ -117,11 +134,10 @@ public class PictureScreenTests
             .Select(row => row[ContentLeft..ContentRight].TrimEnd())
             .ToList();
 
-        Assert.Equal(new System.Drawing.Rectangle(29, 1, 40, 20), box);
+        Assert.Equal(new System.Drawing.Rectangle(28, 1, 42, 21), box);
         Assert.StartsWith("<article><h1>On shearing</h1>", described[0].Trim(), StringComparison.Ordinal);
         Assert.EndsWith("…", described[^1], StringComparison.Ordinal);
         Assert.DoesNotContain("…", string.Concat(described[..^1]), StringComparison.Ordinal);
-        Assert.Contains("esc back", rows[box.Bottom + 6], StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -161,7 +177,7 @@ public class PictureScreenTests
 
     /// <summary>
     ///     A window resized while the screen is open draws the picture again to fit the new one: at 120×40 a square
-    ///     picture is the 37 rows inside the panel less two tall and twice that across, centred in the 97 columns.
+    ///     picture is the 37 rows inside the panel less one tall and twice that across, centred in the 97 columns.
     /// </summary>
     [Fact]
     public async Task AResizeRedrawsThePictureToFitTheNewWindow()
@@ -170,8 +186,8 @@ public class PictureScreenTests
 
         drawn.Resize(120, 40);
 
-        Assert.Equal(new System.Drawing.Rectangle(34, 1, 70, 35), Box(drawn));
-        Assert.Contains("esc back", drawn.Rows()[37], StringComparison.Ordinal);
+        Assert.Equal(new System.Drawing.Rectangle(33, 1, 72, 36), Box(drawn));
+        Assert.Contains("A cartoon sheep", drawn.Rows()[37], StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -229,7 +245,6 @@ public class PictureScreenTests
 
         Assert.IsType<PictureScreen>(drawn.Shell.Screen);
         Assert.Equal("Picture by @maria@fosstodon.org", drawn.Shell.Crumbs[^1]);
-        Assert.Contains(drawn.Rows(), row => row.Contains("esc back", StringComparison.Ordinal));
 
         drawn.Press(Key.Esc);
 

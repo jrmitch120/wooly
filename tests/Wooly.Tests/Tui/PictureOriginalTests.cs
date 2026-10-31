@@ -63,7 +63,7 @@ public class PictureOriginalTests
 
     /// <summary>
     ///     The box is settled from the original's shape where the instance said it, the smaller copy's standing in
-    ///     only where it did not: a square original makes a square box whatever the smaller copy was said to be — 25
+    ///     only where it did not: a square original makes a square box whatever the smaller copy was said to be — 26
     ///     rows tall at 10×20 cells and twice that across, as #516's is — where the wide shape said of the smaller copy
     ///     would have made a box three rows tall.
     /// </summary>
@@ -74,7 +74,7 @@ public class PictureOriginalTests
             APost.APicture("m1", shape: new(4000, 400), originalShape: new(1000, 1000)),
             new FakePictures().HoldingOriginal("m1", 1000, 1000));
 
-        Assert.Equal(new System.Drawing.Rectangle(24, 1, 50, 25), Box(drawn));
+        Assert.Equal(new System.Drawing.Rectangle(23, 1, 52, 26), Box(drawn));
     }
 
     /// <summary>

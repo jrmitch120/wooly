@@ -14,11 +14,12 @@ than seventy. Scrolling back would be a decode or a fetch far more often, for a 
 
 **The original is one key away instead, on a Picture screen.** A drawn still picture joins the walk: `←`/`→` reach it
 after the post's text references, in the order the pictures are drawn, and `⏎` opens it over the whole window at its
-original, its description and a hint row beneath it, `←`/`→` stepping through the post's other pictures and `esc` going
-back. The preview, already held, is drawn there at once and the original replaces it when it lands (amended below), in
-a box settled from the original's shape so that nothing moves. One picture is held only while it is looked at, so the
-screen may read a download past the 8 MB `Pictures.MostBytes` allows the timeline — up to 32 MB, decoded straight to the
-window's size — and an original past even that leaves the preview standing with a word on the status row.
+original, its description and a hint row beneath it (amended below), `←`/`→` stepping through the post's other pictures
+and `esc` going back. The preview, already held, is drawn there at once and the original replaces it when it lands
+(amended below), in a box settled from the original's shape so that nothing moves. One picture is held only while it is
+looked at, so the screen may read a download past the 8 MB `Pictures.MostBytes` allows the timeline — up to 32 MB,
+decoded straight to the window's size — and an original past even that leaves the preview standing with a word on the
+status row.
 
 **It opens inside the terminal, not in the reader's browser,** although that was the cheaper way and is how a video
 opens (ADR-0017). A video cannot be played here; a picture can, and sending the reader out of the TUI to read a
@@ -53,3 +54,12 @@ screen now draws the picture's **Stand-in** until the original lands, and the or
 feed draws a picture arriving. The preview is drawn there only as the fallback, where the original is refused as too
 large or cannot be fetched or decoded, with the status row's word as before; and only then does the screen want it, so
 that opening a picture never draws one copy only to replace it. This supersedes spec #514's user stories 11 and 12.
+
+## Amendment: no hint row; the crumb counts the pictures (review of #514)
+
+The hint row under the description said again what the status row already lists, `esc back` and, where there were
+several pictures, `←→ picture 2 of 4`, on a screen whose every row is better spent on the picture. It is gone, and its
+row goes to the picture. The count it carried moves to the crumb, `Picture 2 of 4 by @author`, which a step updates; a
+post with one picture keeps `Picture by @author`. The description, and `a picture, undescribed`, are centred under the
+picture row by row, and cut at a quarter of the screen's rows with `…`, so that a description as long as an article
+cannot leave the picture no room.

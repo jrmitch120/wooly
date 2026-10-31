@@ -7,8 +7,8 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     One still picture on a post over the whole window, its description beneath it and a hint row under that — what
-///     <c>⏎</c> on a walked picture opens onto, and where a screenshot of small text is read (GLOSSARY.md's
+///     One still picture on a post over the whole window, its description centred beneath it — what <c>⏎</c> on a
+///     walked picture opens onto, and where a screenshot of small text is read (GLOSSARY.md's
 ///     <b>Picture screen</b>, ADR-0034).
 /// </summary>
 /// <remarks>
@@ -37,10 +37,10 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public sealed class PictureScreen : Screen
 {
-    /// <summary>The key that goes back, and what it is said to do, on the status row and the hint row alike.</summary>
+    /// <summary>The key that goes back, and what it is said to do on the status row.</summary>
     private static readonly KeyHint Back = new("esc", "back");
 
-    /// <summary>The keys that step, and what they are said to do, on the status row and the hint row alike.</summary>
+    /// <summary>The keys that step, and what they are said to do on the status row.</summary>
     private static readonly KeyHint Step = new("←→", "picture");
 
     /// <summary>The post the picture is on, which may be a boost.</summary>
@@ -88,7 +88,14 @@ public sealed class PictureScreen : Screen
     private (string Id, Unshowable? Why)? _told;
 
     /// <inheritdoc />
-    public override string Crumb => $"Picture by @{(_post.Boosted ?? _post).Account}";
+    /// <remarks>
+    ///     Counting the pictures where the post has several — <c>Picture 2 of 4 by @author</c>, which of how many is
+    ///     showing — since the status row says the keys that step but not where they have got to; and not where it has
+    ///     the one, there being nothing to count.
+    /// </remarks>
+    public override string Crumb => Several
+        ? $"Picture {_showing + 1} of {_pictures.Count} by @{(_post.Boosted ?? _post).Account}"
+        : $"Picture by @{(_post.Boosted ?? _post).Account}";
 
     /// <inheritdoc />
     protected override IReadOnlyList<KeyHint> OwnKeys => Several ? [Back, Step] : [Back];
@@ -121,16 +128,17 @@ public sealed class PictureScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     The box first, as large as the window less the description's rows and the hint row allows, fitted whole at
-    ///     the picture's shape and centred across the width; then the description, wrapped, since here it is all there
-    ///     is to read beside the picture, but cut at a quarter of the window (<see cref="DescribedRows" />), so that the
-    ///     picture is given its room first; then the hint row. Where nobody said how tall the window is, the box is
-    ///     capped as a post screen's is (<see cref="Inset.WholeRows" />), and the description at a quarter of that.
+    ///     The box first, as large as the window less the description's rows allows, fitted whole at the picture's
+    ///     shape and centred across the width; then the description, wrapped and centred under it, since here it is all
+    ///     there is to read beside the picture, but cut at a quarter of the window (<see cref="DescribedRows" />), so
+    ///     that the picture is given its room first. Nothing under that: the status row says the keys, and the crumb
+    ///     which picture of how many this is. Where nobody said how tall the window is, the box is capped as a post
+    ///     screen's is (<see cref="Inset.WholeRows" />), and the description at a quarter of that.
     /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var described = Described(drawing.Width, DescribedRows(drawing.Height ?? Inset.WholeRows));
-        var room = drawing.Height is { } height ? height - described.Count - 1 : Inset.WholeRows;
+        var room = drawing.Height is { } height ? height - described.Count : Inset.WholeRows;
         var original = Drawn.Original(Showing, drawing.Width, room);
         var why = drawing.Pictures?.WhyNot(original);
         Drawn? fallback = why is null ? null : Drawn.Attached(Showing);
@@ -143,24 +151,11 @@ public sealed class PictureScreen : Screen
 
         Tell(original, why);
 
-        return [.. box is null ? [] : Boxed(box, original, fallback, drawing.Width), .. described, Hint];
+        return [.. box is null ? [] : Boxed(box, original, fallback, drawing.Width), .. described];
     }
 
     /// <summary>Whether the post has more than the one picture, and so anything for <c>←</c> and <c>→</c> to reach.</summary>
     private bool Several => _pictures.Count > 1;
-
-    /// <summary>
-    ///     The keys this screen answers to, said under the picture as well as on the status row, since the picture is the
-    ///     whole of the screen and the row is easy to miss beneath it — and where there are several, which of how many
-    ///     this is.
-    /// </summary>
-    private Line Hint => Several
-        ? Line.Of(
-            new Span(Back.Key, Role.Key),
-            new Span($" {Back.Does} · ", Role.Muted),
-            new Span(Step.Key, Role.Key),
-            new Span($" {Step.Does} {_showing + 1} of {_pictures.Count}", Role.Muted))
-        : Line.Of(new Span(Back.Key, Role.Key), new Span($" {Back.Does}", Role.Muted));
 
     /// <summary>
     ///     <paramref name="box" />'s rows, centred in <paramref name="width" /> — its top row saying it waits for
@@ -217,8 +212,9 @@ public sealed class PictureScreen : Screen
         : "The original could not be fetched.";
 
     /// <summary>
-    ///     What its author said the picture shows, or that they said nothing, wrapped to <paramref name="width" /> and
-    ///     cut to <paramref name="mostRows" />, the last row shown ending in <c>…</c> where it is cut.
+    ///     What its author said the picture shows, or that they said nothing, wrapped to <paramref name="width" />, each
+    ///     row centred in it as the picture above is, and cut to <paramref name="mostRows" />, the last row shown ending
+    ///     in <c>…</c> where it is cut.
     /// </summary>
     /// <remarks>
     ///     Shown as written, markup and all: a description is the author's plain text, and one that holds a whole
@@ -232,7 +228,9 @@ public sealed class PictureScreen : Screen
             ? [.. rows.Take(mostRows - 1), TextWrap.Clip($"{rows[mostRows - 1]}…", width)]
             : rows;
 
-        return [.. shown.Select(row => Line.Of(row, role))];
+        return [.. shown.Select(row => Line.Of(
+            new Span(new string(' ', Math.Max(0, (width - Glyphs.Columns(row)) / 2)), Role.Body),
+            new Span(row, role)))];
     }
 
     /// <summary>

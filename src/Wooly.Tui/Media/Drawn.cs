@@ -63,7 +63,7 @@ public sealed record Drawn(string Id, string Address)
     /// </summary>
     /// <param name="media">The attachment, as the post carries it.</param>
     /// <param name="columns">How many columns the Picture screen has for it.</param>
-    /// <param name="rows">How many rows the Picture screen has for it, less its description's and its hint row.</param>
+    /// <param name="rows">How many rows the Picture screen has for it, less its description's rows.</param>
     public static Drawn Original(PostMedia media, int columns, int rows) => new($"original:{media.Id}", media.Url)
     {
         Largest = (columns, rows),

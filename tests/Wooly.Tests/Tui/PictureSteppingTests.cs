@@ -8,7 +8,7 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     <c>←</c> and <c>→</c> on a <b>Picture screen</b> step to the post's previous and next drawn still picture, in the
-///     order they are drawn, stopping at either end; the hint row says which of how many is showing, and <c>esc</c> comes
+///     order they are drawn, stopping at either end; the crumb says which of how many is showing, and <c>esc</c> comes
 ///     back with the picture it was opened on still walked, whichever was stepped to (#518, ADR-0034). Read back off the
 ///     whole shell drawn headless in the no-colour theme.
 /// </summary>
@@ -30,7 +30,7 @@ public class PictureSteppingTests
 
     /// <summary>
     ///     <c>→</c> draws the post's next picture with its own description, the video between them skipped and not
-    ///     counted, and the hint row says which of the three it is.
+    ///     counted, and the crumb says which of the three it is.
     /// </summary>
     [Fact]
     public async Task RightStepsToTheNextPictureWithItsOwnDescriptionSkippingTheVideo()
@@ -42,7 +42,7 @@ public class PictureSteppingTests
         Assert.Equal(Original("m2"), Showing(drawn));
         Assert.Contains(drawn.Rows(), row => row.Contains("The second sheep", StringComparison.Ordinal));
         Assert.DoesNotContain(drawn.Rows(), row => row.Contains("The first sheep", StringComparison.Ordinal));
-        Assert.Contains(drawn.Rows(), row => row.Contains("esc back · ←→ picture 2 of 3", StringComparison.Ordinal));
+        Assert.Equal("Picture 2 of 3 by @jeff@mastodon.social", Crumb(drawn));
     }
 
     /// <summary>
@@ -59,13 +59,13 @@ public class PictureSteppingTests
 
         Assert.Equal(Original("m2"), Showing(drawn));
         Assert.Contains(drawn.Rows(), row => row.Contains("The second sheep", StringComparison.Ordinal));
-        Assert.Contains(drawn.Rows(), row => row.Contains("esc back · ←→ picture 2 of 3", StringComparison.Ordinal));
+        Assert.Equal("Picture 2 of 3 by @jeff@mastodon.social", Crumb(drawn));
 
         drawn.Press(Key.CursorLeft);
 
         Assert.Equal(Original("m1"), Showing(drawn));
         Assert.Contains(drawn.Rows(), row => row.Contains("The first sheep", StringComparison.Ordinal));
-        Assert.Contains(drawn.Rows(), row => row.Contains("esc back · ←→ picture 1 of 3", StringComparison.Ordinal));
+        Assert.Equal("Picture 1 of 3 by @jeff@mastodon.social", Crumb(drawn));
     }
 
     /// <summary>
@@ -89,7 +89,7 @@ public class PictureSteppingTests
 
         var last = drawn.Rows();
 
-        Assert.Contains(last, row => row.Contains("picture 3 of 3", StringComparison.Ordinal));
+        Assert.Equal("Picture 3 of 3 by @jeff@mastodon.social", Crumb(drawn));
 
         drawn.Press(Key.CursorRight);
 
@@ -98,7 +98,7 @@ public class PictureSteppingTests
     }
 
     /// <summary>
-    ///     A post with one picture has nothing to step to, so neither the hint row nor the status row says the arrows or
+    ///     A post with one picture has nothing to step to, so neither the crumb nor the status row says the arrows or
     ///     counts it — though a video beside it is on the post.
     /// </summary>
     [Fact]
@@ -114,18 +114,24 @@ public class PictureSteppingTests
 
         var rows = drawn.Rows();
 
-        Assert.Contains(rows, row => row.Contains("esc back", StringComparison.Ordinal));
+        Assert.Equal("Picture by @jeff@mastodon.social", Crumb(drawn));
         Assert.DoesNotContain(rows, row => row.Contains('←') || row.Contains('→'));
         Assert.DoesNotContain(rows, row => row.Contains("of 1", StringComparison.Ordinal));
     }
 
-    /// <summary>And a post with several says the arrows on the status row as well as under the picture.</summary>
+    /// <summary>
+    ///     And a post with several says the arrows on the status row, and nowhere in the content region: the row under
+    ///     the picture that said the keys again is gone, its rows given to the picture.
+    /// </summary>
     [Fact]
-    public async Task SeveralPicturesSayTheArrowsOnTheStatusRow()
+    public async Task SeveralPicturesSayTheArrowsOnTheStatusRowAlone()
     {
         using var drawn = await Opened(ThreePicturesAndAVideo);
 
-        Assert.Contains("Picture: ←→", drawn.Rows()[^1], StringComparison.Ordinal);
+        var rows = drawn.Rows();
+
+        Assert.Contains("Picture: ←→", rows[^1], StringComparison.Ordinal);
+        Assert.DoesNotContain(rows[..^1], row => row.Contains('←') || row.Contains("esc back", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -192,6 +198,9 @@ public class PictureSteppingTests
 
         return drawn;
     }
+
+    /// <summary>The crumb the Picture screen says it is, the last on the stack.</summary>
+    private static string Crumb(DrawnShell drawn) => drawn.Shell.Crumbs[^1];
 
     /// <summary>The id the original of the attachment <paramref name="id" /> names is drawn under.</summary>
     private static string Original(string id) => Drawn.Original(APost.APicture(id), 0, 0).Id;

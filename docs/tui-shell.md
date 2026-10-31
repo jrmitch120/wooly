@@ -251,7 +251,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Media — the attachments screen, a row for each thing attached to a compose or a reply | `⏎` on the Media header, or a click on its line, where a short terminal folded the rows into it | story 58 |
 | Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
-| Picture — one still picture on a post over the whole window at its original, fitted whole, its description wrapped beneath it and a hint row under that, crumbed `Picture by @author` | `⏎` on a walked picture, in a feed or on the post screen | #516, #517 (ADR-0034) |
+| Picture — one still picture on a post over the whole window at its original, fitted whole, its description wrapped and centred beneath it, crumbed `Picture by @author`, or `Picture 2 of 4 by @author` where the post has several | `⏎` on a walked picture, in a feed or on the post screen | #516, #517 (ADR-0034) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
 Every screen owes three things: it reads at 57 columns (58 for a screen with widgets of its own — compose, the
@@ -319,7 +319,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Choose avatar / Choose header | the Attach browser's keys, but it lists only pictures, `ctrl-a` shows no other files, one file may be chosen, and `⏎` takes the file chosen, else the one under the cursor, back to the form's row as its picture (#407) · `esc` back to the form unchanged |
 | Attach | type to filter, fuzzily (#376) · `space` choose the file under the cursor, or let it go — up to what the post has room for · `⏎` attach what is chosen, wherever the cursor is, else the file under the cursor, else open the folder under it · `→` open a folder · `←` up a folder · `↑`/`↓` walk the list · `ctrl-a` every file, and again only the accepted types · `backspace`/`delete` only ever the filter, stopping at empty · `esc` clear the filter, then back to the draft unchanged |
 | Media (the attachments screen) | `↑`/`↓` walk the rows · `⏎` describe the row · `del`/`backspace` take it off · `ctrl-z` bring back the last one taken off · `shift-↑`/`shift-↓` move it · `r` retry it where a retry can help · `s` the sensitive toggle · `ctrl-o` the file browser, attaching onto the compose under it · `ctrl-v`/`alt-v` attach from the clipboard onto it · `esc` back to the draft (story 58) |
-| Picture | `←`/`→` step to the post's previous or next still picture, in the order they are drawn and passing over a video or the like on the same post, each drawn as any is with its own description, stopping at either end rather than coming round; the hint row and the status row say them only where the post has several, the hint row counting which this is (`esc back · ←→ picture 2 of 4`) (#518) · `esc` back at its first press, to the screen it was opened from with the same pick and the picture it was opened on still walked, whichever was stepped to — nothing on the screen is walked or picked for it to let go of first, the steps being the screen's own (#516, #518) |
+| Picture | `←`/`→` step to the post's previous or next still picture, in the order they are drawn and passing over a video or the like on the same post, each drawn as any is with its own description, stopping at either end rather than coming round; the status row says them only where the post has several, and the crumb counts which this is (`Picture 2 of 4 by @author`), updating with each step (#518, review of #514) · `esc` back at its first press, to the screen it was opened from with the same pick and the picture it was opened on still walked, whichever was stepped to — nothing on the screen is walked or picked for it to let go of first, the steps being the screen's own (#516, #518) |
 | Home, local, federated, each tag set, Discover, Notifications, Messages, Requests, Post, Account, Follows, Actors | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -923,30 +923,32 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   picture's description alone, and either way the picture is not walked. A video's or animation's preview box, a link
   preview's picture and avatars are never walked to as pictures.
 - **`⏎` on a walked picture opens its Picture screen** (#516, ADR-0034), a screen pushed onto the stack and crumbed
-  `Picture by @author`: the one picture fitted whole into the window less the rows under it, at its shape and centred
-  across, never cropped or stretched out of shape; what its author said it shows (`PostMedia.Shows`, so `a picture,
-  undescribed` where they said nothing) wrapped beneath it, shown as written, markup and all, and cut at a quarter of
-  the content region's rows (one at least), its last row shown ending in `…`, so that a description as long as a whole
-  article — one bridged from a blog can be — never squeezes the picture out, the picture being given its room first
-  (review of #514); and a hint row under that, `esc back`. Its
-  box is settled again on every frame from the room the window gives it, so a resize draws the picture to fit the new
-  window. It draws the instance's original (#517): its **Stand-in** until the original lands, then the original in the
-  same cells, the box settled from the original's shape (`PostMedia.OriginalShape`, the smaller copy's standing in
-  where the instance said none) so that nothing moves. Not the smaller copy the timeline already holds, though it is
-  there at once: drawn first and swapped for the original, it read as the picture flashing (review of #514). The
-  smaller copy is drawn, stretched to the box, only where the original will not come, and is wanted by the screen only
-  then. The original is a `Drawn` of its own (`Drawn.Original`), held apart from the timeline's
-  pictures: it counts against neither budget and lets none of them go to make room, may read up to 32 MB
+  `Picture by @author` (`Picture 2 of 4 by @author` where the post has several): the one picture fitted whole into the
+  window less the description's rows, at its shape and centred across, never cropped or stretched out of shape; what its
+  author said it shows (`PostMedia.Shows`, so `a picture, undescribed` where they said nothing) wrapped and centred
+  beneath it, row by row, shown as written, markup and all, and cut at a quarter of the content region's rows (one at
+  least), its last row shown ending in `…`, so that a description as long as a whole article — one bridged from a blog
+  can be — never squeezes the picture out, the picture being given its room first (review of #514). Nothing under that:
+  a hint row there saying `esc back` again was taken out, the status row already listing the keys, and its row given to
+  the picture (review of #514). Its box is settled again on every frame from the room the window gives it, so a resize
+  draws the picture to fit the new window. It draws the instance's original (#517): its **Stand-in** until the original
+  lands, then the original in the same cells, the box settled from the original's shape (`PostMedia.OriginalShape`, the
+  smaller copy's standing in where the instance said none) so that nothing moves. Not the smaller copy the timeline
+  already holds, though it is there at once: drawn first and swapped for the original, it read as the picture flashing
+  (review of #514). The smaller copy is drawn, stretched to the box, only where the original will not come, and is
+  wanted by the screen only then. The original is a `Drawn` of its own (`Drawn.Original`), held apart from the
+  timeline's pictures: it counts against neither budget and lets none of them go to make room, may read up to 32 MB
   (`Pictures.MostBytesHeldApart`) where an inline picture stays at 8 MB, is decoded no larger than the window, and is
-  let go the first frame that does not want it — so once the screen goes, or steps to another picture, while the
-  smaller copy stays held for the timeline. `esc` goes back at its first press, to the screen it was opened from with
-  the same pick and the same picture walked; on the post screen as in a feed.
-- **`←`/`→` on the Picture screen step along the post's still pictures** (#518), in the order they are drawn, a video
-  or the like on the same post passed over, each drawn as any picture is there with its own description, and stopping
-  at either end rather than coming round, as the walk does. The hint row counts them where there are several, `esc back
-  · ←→ picture 2 of 4`, and says nothing of the arrows where there is one. The steps are the screen's own verbs
-  (`Verb.NextPicture`, `Verb.PreviousPicture`) rather than a walk of its references, so the first `esc` still goes back,
-  and what is walked underneath is the picture it was opened on, whichever was stepped to.
+  let go the first frame that does not want it — so once the screen goes, or steps to another picture, while the smaller
+  copy stays held for the timeline. `esc` goes back at its first press, to the screen it was opened from with the same
+  pick and the same picture walked; on the post screen as in a feed.
+- **`←`/`→` on the Picture screen step along the post's still pictures** (#518), in the order they are drawn, a video or
+  the like on the same post passed over, each drawn as any picture is there with its own description, and stopping at
+  either end rather than coming round, as the walk does. The crumb counts them where there are several,
+  `Picture 2 of 4 by @author`, and the status row offers `←→`; neither says anything of them where there is one. The
+  steps are the screen's own verbs (`Verb.NextPicture`, `Verb.PreviousPicture`) rather than a walk of its references, so
+  the first `esc` still goes back, and what is walked underneath is the picture it was opened on, whichever was stepped
+  to.
 - **A warned post's attachments are drawn only once the reader has asked for them.** A spoiler text, the instance's own
   sensitive flag, or both, and `x` shows them along with whatever else the post is hiding (#113). Until it is pressed
   there is no box, no label, no description and no address — and no `Wants`, so nothing is fetched and nothing is
