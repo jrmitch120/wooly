@@ -921,7 +921,7 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   Every cell of every row carries the reference, the box's own and its bracket columns alike, each row held out to the
   column past the box's right edge whatever the pixels left blank on it: so a click anywhere on the box or beside it
   walks to the picture and brackets it, and a double click there opens its Picture screen, in a feed and on the post
-  screen alike (review of #514, ADR-0034's amendment). Which pictures are in a box is
+  screen alike (review of #514, ADR-0034). Which pictures are in a box is
   read off the rows themselves, written down by the call the content region lays them out through
   (`Screen.LaidOut`): a terminal that cannot draw links every picture, and a region too narrow for a box draws a
   picture's description alone, and either way the picture is not walked. A video's or animation's preview box, a link
