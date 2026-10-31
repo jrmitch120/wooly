@@ -1043,6 +1043,13 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   drawn, two columns an emoji, so a byline's audience and age keep their column, and a names line's sentence follows
   the last name with its age kept at the right. Familiar followers are named by handle on the account screen, so they
   draw none.
+- **So do a content warning, a poll's options, a bio and custom fields** (#526, ADR-0035). A warning draws the emoji the
+  post lists, which the instance keeps for the warning and the words alike, while it hides the words and once they are
+  shown, and in place of the words in a notification's preview; it is one row, clipped with each emoji held whole. A
+  warned post's own words want none of their pictures until `x` shows them. A poll option draws the emoji the poll
+  lists, its own list apart from the post's, after the bar, share and count, which keep the columns they take on an
+  option written without one. An account screen's bio and each custom field draw the emoji the account lists, a field's
+  label as well as its value, the label's shortcode muted with the rest of the label where nothing draws.
 - **The description stands above the picture**, so it does not move when the pixels land under it. Until they do, the
   box under it holds its Stand-in, the size the picture will be, so nothing moves when the picture replaces it.
 - **Nothing about a picture is ever an error,** but one. A fetch that fails and a file that will not decode both leave

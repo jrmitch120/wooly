@@ -485,6 +485,42 @@ public class PostAuthorTests : IDisposable
         Assert.True(poll.Options[1].Picked);
     }
 
+    /// <summary>
+    ///     A poll lists the custom emoji its options use apart from the post's, and each option carries that list, so
+    ///     that an option's shortcodes are drawn off the poll's own (ADR-0035).
+    /// </summary>
+    [Fact]
+    public async Task Publish_ReadsTheCustomEmojiThePollListsOntoEachOption()
+    {
+        var network = Answering(StatusJson(
+            "110",
+            pollJson: $$"""
+                        {
+                          "id": "p1", "expired": false, "multiple": false, "votes_count": 2,
+                          "options": [{"title":":cat: Cats","votes_count":1},{"title":"Dogs","votes_count":1}],
+                          "emojis": {{WireEmojis.Json(("cat", "https://files.example/emoji/cat.gif"))}}
+                        }
+                        """));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Cats or dogs?"), TestContext.Current.CancellationToken);
+
+        Assert.All(
+            post.Poll!.Options,
+            option => Assert.Equal(
+                [new CustomEmoji("cat", "https://files.example/emoji/cat-static.png")],
+                option.CustomEmoji));
+    }
+
+    [Fact]
+    public async Task Publish_ReadsAPollListingNoCustomEmojiAsItsOptionsCarryingNone()
+    {
+        var network = Answering(StatusJson("110", poll: true));
+
+        var post = await NewAuthor(network).Publish(Profile, Draft("Cats or dogs?"), TestContext.Current.CancellationToken);
+
+        Assert.All(post.Poll!.Options, option => Assert.Empty(option.CustomEmoji));
+    }
+
     [Fact]
     public async Task Publish_AttachesAPollWithItsAnswersAndHowLongItStaysOpen()
     {

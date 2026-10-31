@@ -157,6 +157,7 @@ internal static class PostWire
     public static PostPoll ToPoll(Poll poll)
     {
         var picked = poll.OwnVotes.ToHashSet();
+        var listed = MastodonWire.CustomEmoji(poll.Emojis);
 
         return new PostPoll
         {
@@ -166,6 +167,9 @@ internal static class PostWire
                 Text = option.Title,
                 Votes = option.VotesCount,
                 Picked = picked.Contains(index),
+
+                // Listed on the poll, not the post nor the answer (ADR-0035).
+                CustomEmoji = listed,
             }).ToList(),
             Votes = poll.VotesCount,
             Voters = poll.VotersCount,
