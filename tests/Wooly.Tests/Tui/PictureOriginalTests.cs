@@ -109,10 +109,43 @@ public class PictureOriginalTests
     }
 
     /// <summary>
+    ///     A step to the post's next picture sends for that picture's original and wants the one stepped off no more,
+    ///     so that it is let go of then rather than when the screen goes — and takes off the status row what was said of
+    ///     the one stepped off, which is not the one drawn now (#518).
+    /// </summary>
+    [Fact]
+    public async Task SteppingToAnotherPictureWantsItsOriginalInsteadAndTakesBackWhatWasSaid()
+    {
+        var pictures = new FakePictures()
+            .Holding("m1", 400, 300)
+            .Holding("m2", 400, 300)
+            .Refusing(Original("m1").Id, Unshowable.TooLarge);
+
+        using var drawn = await Opened(
+            [APost.APicture("m1", shape: new(400, 300)), APost.APicture("m2", shape: new(400, 300))],
+            pictures);
+
+        Assert.Contains("too large", drawn.Rows()[^1], StringComparison.Ordinal);
+
+        drawn.Press(Key.CursorRight);
+        drawn.Redraw();
+
+        Assert.Contains(Wanted(pictures), wanted => wanted.Drawn.Id == Original("m2").Id && wanted.OnScreen);
+        Assert.DoesNotContain(Wanted(pictures), wanted => wanted.Drawn.Id == Original("m1").Id);
+        Assert.DoesNotContain("too large", drawn.Rows()[^1], StringComparison.Ordinal);
+    }
+
+    /// <summary>
     ///     The shell on an 80×30 terminal drawing sixel at 10×20 cells in the no-colour theme, reading a post with
     ///     <paramref name="picture" /> on it, the picture walked to and opened on its Picture screen.
     /// </summary>
-    private static async Task<DrawnShell> Opened(PostMedia picture, FakePictures pictures)
+    private static Task<DrawnShell> Opened(PostMedia picture, FakePictures pictures) => Opened([picture], pictures);
+
+    /// <summary>
+    ///     The shell as <see cref="Opened(PostMedia, FakePictures)" /> draws it, reading a post with
+    ///     <paramref name="media" /> on it and the first of them opened.
+    /// </summary>
+    private static async Task<DrawnShell> Opened(IReadOnlyList<PostMedia> media, FakePictures pictures)
     {
         var drawn = await DrawnShell.Of(
             80,
@@ -120,7 +153,7 @@ public class PictureOriginalTests
             Themes.Plain,
             new AShell
             {
-                Timelines = FakeTimelineReader.Holding(APost.With(id: "110", media: [picture]), APost.With(id: "220")),
+                Timelines = FakeTimelineReader.Holding(APost.With(id: "110", media: [.. media]), APost.With(id: "220")),
             },
             pictures: pictures,
             drawsPictures: true,
