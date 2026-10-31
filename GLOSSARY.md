@@ -222,6 +222,18 @@ after it on the row moves (ADR-0031). Distinct from the marks that take no room 
 which every terminal counts alike.
 _Avoid_: combining mark (most of those take no room), wide character, complex script
 
+**Custom emoji**:
+A small picture an **instance** defines for itself and its people write as a **shortcode**, in a post's words, its
+warning, a display name, a **bio**, a **custom field**, a poll's options. Every post and account carries the ones it
+uses. Where nothing can be drawn, the shortcode stays as written, set apart so it reads as a picture that was meant.
+Distinct from a Unicode emoji, which is a character every terminal draws as text.
+_Avoid_: emoji (on its own), emote, sticker
+
+**Shortcode**:
+The `:name:` a **custom emoji** is written as — `:php:`, `:US_AZ:` — meaning a picture only on the instance that
+defines it, and nothing more than its own letters to the CLI or anything else that cannot draw.
+_Avoid_: emoji code, tag (a tag is `#name`)
+
 **Boost**:
 Re-sharing another account's post to your own followers. The API calls this a `reblog`. This project always says "boost" in user-facing language and domain code; `reblog` may still appear as the literal API field name at the wire layer.
 _Avoid_: reblog, repost, retweet
