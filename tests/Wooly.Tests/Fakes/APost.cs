@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Posts;
 
 namespace Wooly.Tests.Fakes;
@@ -25,7 +26,8 @@ internal static class APost
         PostReplyTarget? inReplyTo = null,
         PostPoll? poll = null,
         LinkPreview? linkPreview = null,
-        bool isMine = false) => new()
+        bool isMine = false,
+        IReadOnlyList<CustomEmoji>? customEmoji = null) => new()
     {
         Id = id,
         Account = account,
@@ -42,6 +44,7 @@ internal static class APost
         IsMine = isMine,
         Media = media ?? [],
         Mentions = mentions ?? [],
+        CustomEmoji = customEmoji ?? [],
         Boosted = boosted,
         Url = $"https://mastodon.social/@jeff/{id}",
         AvatarUrl = avatarUrl,

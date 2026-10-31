@@ -33,6 +33,10 @@ internal static class PostWire
             PostedAt = MastodonWire.AsUtc(status.CreatedAt),
             Content = InstanceHtml.ToPlainText(status.Content),
 
+            // The shortcodes stay in the content as written, which is what the CLI prints; these say which of them are
+            // pictures (ADR-0035).
+            CustomEmoji = MastodonWire.CustomEmoji(status.Emojis),
+
             // The wire says "no warning" with an empty string, which is not the same thing as a warning to print.
             ContentWarning = MastodonWire.SaidOrNothing(status.SpoilerText),
 

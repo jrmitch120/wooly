@@ -254,6 +254,32 @@ public class PostEngagementCommandTests : IDisposable
     }
 
     /// <summary>
+    ///     The CLI draws no pictures, so a custom emoji is its shortcode, written exactly as the author wrote it, in
+    ///     the text and in <c>--json</c>'s <c>content</c> alike — and the JSON gets no map of them, which nothing
+    ///     asked for (ADR-0035).
+    /// </summary>
+    [Fact]
+    public void Show_KeepsCustomEmojiAsTheirShortcodes()
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Answering(APost.With(
+            content: "I write :php: in :US_AZ:",
+            customEmoji:
+            [
+                new CustomEmoji("php", "https://files.mastodon.social/emoji/php.png"),
+                new CustomEmoji("US_AZ", "https://files.mastodon.social/emoji/US_AZ.png"),
+            ]));
+
+        Assert.Contains("I write :php: in :US_AZ:", Run(["post", "show", "110"]).Output);
+
+        var post = JsonDocument.Parse(Run(["post", "show", "110", "--json"]).Output).RootElement;
+        Assert.Equal("I write :php: in :US_AZ:", post.GetProperty("content").GetString());
+        Assert.DoesNotContain(
+            post.EnumerateObject(),
+            property => property.Name.Contains("emoji", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
     ///     A script asking what a post carries gets the answer from <c>--json</c> rather than from the human output —
     ///     including whether the attachment was described at all, which is the question the human line answers with a
     ///     phrase of this client's own.

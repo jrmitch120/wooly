@@ -57,4 +57,15 @@ public readonly record struct Span(string Text, Role Role)
     ///     nothing — rather than trusted to have been numbered the same way twice.
     /// </remarks>
     public Reference? Reference { get; init; }
+
+    /// <summary>
+    ///     The custom emoji this run is written for, or <see langword="null" /> for a run that is none: its shortcode
+    ///     as written until <see cref="CustomEmojiBox.Boxed" /> sets it as its box, where the <b>Raster</b> draws, and
+    ///     its box after (ADR-0035).
+    /// </summary>
+    /// <remarks>
+    ///     Never a <see cref="Reference" /> as well: a custom emoji is not walked to, clicked open, or shown on the
+    ///     Picture screen.
+    /// </remarks>
+    public Core.CustomEmoji? Emoji { get; init; }
 }

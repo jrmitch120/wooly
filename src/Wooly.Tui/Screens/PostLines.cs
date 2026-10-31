@@ -106,7 +106,7 @@ public static class PostLines
                 .. Byline(shown, width, drawing.Now, pictures, raster),
             ],
             [
-                Body(show, width, reading, saysHowToAskPast),
+                Body(show, drawing, reading, saysHowToAskPast),
                 .. Media(show, drawing, Inset.FeedRows, reading, saysHowToAskPast),
                 LinkPreview(show, drawing, Inset.FeedRows, reading),
                 Poll(show, width, reading),
@@ -158,7 +158,7 @@ public static class PostLines
             ],
             [
                 // The post screen is about this post, so x is always something that can act on it here.
-                Body(show, width, reading, saysHowToAskPast: true),
+                Body(show, drawing, reading, saysHowToAskPast: true),
                 .. Media(show, drawing, Inset.WholeRows, reading, saysHowToAskPast: true),
                 LinkPreview(show, drawing, Inset.WholeRows, reading),
                 Poll(show, width, reading),
@@ -185,12 +185,17 @@ public static class PostLines
     ///         <see cref="Feed" />'s is.
     ///     </para>
     /// </remarks>
-    public static IReadOnlyList<Line> Preview(Post post, int width) =>
-        [.. Previewed(post, width).Select((line, at) => at == 0 ? line.StartingContent() : line)];
+    public static IReadOnlyList<Line> Preview(Post post, Drawing drawing) =>
+        [.. Previewed(post, drawing).Select((line, at) => at == 0 ? line.StartingContent() : line)];
 
     /// <summary>The rows <see cref="Preview" /> draws, with nothing marked on them.</summary>
-    private static IReadOnlyList<Line> Previewed(Post post, int width)
+    /// <remarks>
+    ///     Its custom emoji are drawn as the post's own words draw them, and held whole by the cut as by the wrap
+    ///     (ADR-0035).
+    /// </remarks>
+    private static IReadOnlyList<Line> Previewed(Post post, Drawing drawing)
     {
+        var width = drawing.Width;
         var shown = post.Boosted ?? post;
 
         if (shown.ContentWarning is { } warning)
@@ -198,19 +203,35 @@ public static class PostLines
             return [Line.Of(TextWrap.Clip($"{WarningMark}{warning}", width), Role.Muted)];
         }
 
-        var rows = TextWrap.Wrap(shown.Content, width).Where(row => !string.IsNullOrWhiteSpace(row)).ToList();
+        // The custom emoji written in text, found as the post's own words find them.
+        IReadOnlyList<Shortcode> Written(string text) =>
+            BodyText.CustomEmoji(text, BodyText.References(text), shown.CustomEmoji);
+
+        // A row of the preview, muted, its custom emoji set as their boxes.
+        Line Muted(string text, IReadOnlyList<Shortcode> written, int at = 0) =>
+            CustomEmojiBox.Boxed(new Line([.. CustomEmojiBox.Written(text, Role.Muted, written, at)]), drawing);
+
+        var shortcodes = Written(shown.Content);
+
+        var rows = TextWrap.Rows(shown.Content, width, CustomEmojiBox.Held(shortcodes, drawing))
+                           .Where(row => !string.IsNullOrWhiteSpace(row.Text))
+                           .ToList();
 
         if (rows.Count <= PreviewRows)
         {
-            return [.. rows.Select(row => Line.Of(row, Role.Muted))];
+            return [.. rows.Select(row => Muted(row.Text, shortcodes, row.At))];
         }
 
         // The last row carries the rest of the text and is cut with the ellipsis Clip marks a cut with, so the
-        // preview says it stops short rather than reading as the whole post.
+        // preview says it stops short rather than reading as the whole post. The rest is joined into a text of its
+        // own, so its shortcodes are found afresh in it.
+        var rest = string.Join(' ', rows.Skip(PreviewRows - 1).Select(row => row.Text));
+        var clipped = TextWrap.Clip(rest, width, CustomEmojiBox.Held(Written(rest), drawing));
+
         return
         [
-            .. rows.Take(PreviewRows - 1).Select(row => Line.Of(row, Role.Muted)),
-            Line.Of(TextWrap.Clip(string.Join(' ', rows.Skip(PreviewRows - 1)), width), Role.Muted),
+            .. rows.Take(PreviewRows - 1).Select(row => Muted(row.Text, shortcodes, row.At)),
+            Muted(clipped, Written(clipped)),
         ];
     }
 
@@ -388,8 +409,9 @@ public static class PostLines
     ///     Whether the row naming <c>x</c> goes under the warning. The text stays behind it either way — what is off on
     ///     the one screen that says no is the offer, not the hiding (#120).
     /// </param>
-    private static IEnumerable<Line> Body(OnShow show, int width, Reading reading, bool saysHowToAskPast)
+    private static IEnumerable<Line> Body(OnShow show, Drawing drawing, Reading reading, bool saysHowToAskPast)
     {
+        var width = drawing.Width;
         var post = show.Shown;
         var lines = new List<Line>();
 
@@ -422,10 +444,16 @@ public static class PostLines
         // The picked one is passed in as itself rather than as a place in this list, so a pick left over from a post
         // that has since been edited matches nothing here — a pick on nothing rather than a bracket around whatever
         // is now written in that place.
+        // The custom emoji the same way, found once and held whole by the wrap where they are drawn, so the rows are
+        // laid out for the room the Raster gives them from the first frame rather than for whether the pictures have
+        // landed (ADR-0035). A warned post's are never wanted until its words are shown, as the rest of it is.
         var references = BodyText.References(post.Content);
+        var shortcodes = BodyText.CustomEmoji(post.Content, references, post.CustomEmoji);
 
-        lines.AddRange(TextWrap.Rows(post.Content, width)
-                               .Select(row => new Line(BodyText.Spans(row, references, reading.Reference))));
+        lines.AddRange(TextWrap.Rows(post.Content, width, CustomEmojiBox.Held(shortcodes, drawing))
+                               .Select(row => CustomEmojiBox.Boxed(
+                                   new Line(BodyText.Spans(row, references, reading.Reference, shortcodes)),
+                                   drawing)));
 
         return lines;
     }

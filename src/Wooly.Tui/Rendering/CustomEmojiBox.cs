@@ -1,0 +1,151 @@
+using Wooly.Core;
+using Wooly.Tui.Media;
+using Wooly.Tui.Theme;
+
+namespace Wooly.Tui.Rendering;
+
+/// <summary>
+///     What a <b>custom emoji</b> costs the line it is written in: two columns and one row, about square in a cell
+///     twice as tall as it is wide, held from the first frame wherever the <b>Raster</b> draws, and its shortcode's
+///     letters, muted, where it draws nothing (ADR-0035).
+/// </summary>
+/// <remarks>
+///     Which of the two is the Raster's alone, never whether the picture has landed: a line laid out as seven columns
+///     of <c>:US_AZ:</c> until the picture came would be two columns once it had, and the paragraph under the reader
+///     would rewrap. So a line's layout never depends on the picture cache, and the shaded room stands until the
+///     picture lands, and for good where it is refused or never comes.
+///     <para>
+///         Laid out in two steps, so that whatever writes text that may carry one — a post's words now, a name, a
+///         warning, a bio after — says only where each is written: <see cref="Shortcode" /> marks the run, and
+///         <see cref="Boxed" /> sets every run marked on a line as its box, knowing the columns each stands at. The
+///         wrap and the clip are told the same shortcodes wherever <see cref="Draws" />, and hold each in
+///         <see cref="Columns" />, never cut.
+///     </para>
+/// </remarks>
+public static class CustomEmojiBox
+{
+    /// <summary>How wide a custom emoji's box is: a Unicode emoji's width, so it sits in a line as one does.</summary>
+    public const int Columns = 2;
+
+    /// <summary>How tall it is: the line it is written in, and no more.</summary>
+    public const int Rows = 1;
+
+    /// <summary>
+    ///     Whether a custom emoji is drawn as its box under <paramref name="drawing" /> — which is whether the
+    ///     <b>Raster</b> draws pictures at all — rather than written as its shortcode.
+    /// </summary>
+    public static bool Draws(Drawing drawing) => Drawing.Draws(drawing.Pictures, drawing.Raster, out _);
+
+    /// <summary>
+    ///     The shortcodes a wrap or a clip of text under <paramref name="drawing" /> holds whole at
+    ///     <see cref="Columns" />: all of <paramref name="shortcodes" /> where custom emoji are drawn, and none where
+    ///     they are their letters.
+    /// </summary>
+    public static IReadOnlyList<Shortcode> Held(IReadOnlyList<Shortcode> shortcodes, Drawing drawing) =>
+        Draws(drawing) ? shortcodes : [];
+
+    /// <summary>
+    ///     <paramref name="emoji" /> as written, its shortcode in the muted role so that it reads as a picture that was
+    ///     meant, and marked as the emoji (<see cref="Span.Emoji" />) for <see cref="Boxed" /> to set as its box.
+    /// </summary>
+    public static Span Shortcode(CustomEmoji emoji) => new(emoji.Written, Role.Muted) { Emoji = emoji };
+
+    /// <summary>
+    ///     <paramref name="text" /> in <paramref name="role" />, but for each of <paramref name="shortcodes" /> written
+    ///     whole in it, which is a run of its own (<see cref="Shortcode(CustomEmoji)" />) — and one only partly in it,
+    ///     cut in two where nothing draws and the wrap does not hold it, its letters muted and no custom emoji.
+    /// </summary>
+    /// <param name="text">What is written.</param>
+    /// <param name="role">What the rest of it is.</param>
+    /// <param name="shortcodes">The custom emoji written in the text it is part of, left to right.</param>
+    /// <param name="at">Where <paramref name="text" /> starts in the text they were found in.</param>
+    public static IEnumerable<Span> Written(string text, Role role, IReadOnlyList<Shortcode> shortcodes, int at = 0)
+    {
+        var from = 0;
+
+        foreach (var shortcode in shortcodes)
+        {
+            var starts = Math.Max(shortcode.At - at, from);
+            var stops = Math.Min(shortcode.End - at, text.Length);
+
+            if (stops <= starts)
+            {
+                continue;
+            }
+
+            if (starts > from)
+            {
+                yield return new Span(text[from..starts], role);
+            }
+
+            yield return starts == shortcode.At - at && stops == shortcode.End - at
+                ? Shortcode(shortcode.Emoji)
+                : new Span(text[starts..stops], Role.Muted);
+
+            from = stops;
+        }
+
+        if (text.Length > from)
+        {
+            yield return new Span(text[from..], role);
+        }
+    }
+
+    /// <summary>
+    ///     <paramref name="line" /> with each custom emoji written on it set as its box where
+    ///     <paramref name="drawing" /> draws, and as it was where it does not: the shortcode muted, which is what the
+    ///     line was laid out for.
+    /// </summary>
+    /// <remarks>
+    ///     Through Kitty's placeholders a box is the Stand-in's shade until the picture lands and the picture after,
+    ///     set at the column it stands at and wanted after anything else the line wants, so a name's emoji come after
+    ///     its avatar. On the ways that draw through a box, sixel and Kitty's, it is the shade alone, wanting nothing,
+    ///     until custom emoji have boxes of their own there (#527): in the box pool attachments and avatars draw from,
+    ///     a page of them would leave an attachment undrawn.
+    /// </remarks>
+    public static Line Boxed(Line line, Drawing drawing)
+    {
+        if (!Draws(drawing) || !line.Spans.Any(span => span.Emoji is not null))
+        {
+            return line;
+        }
+
+        var spans = new List<Span>(line.Spans.Count);
+        var insets = new List<Inset>(line.Insets);
+        var wanted = new List<Drawn>();
+        var column = 0;
+
+        foreach (var span in line.Spans)
+        {
+            if (span.Emoji is not { } emoji)
+            {
+                spans.Add(span);
+                column += span.Width;
+
+                continue;
+            }
+
+            if (drawing.Raster?.Way is not PictureWay.Placeholders)
+            {
+                spans.Add(StandIn.Row(Columns) with { Emoji = emoji });
+                column += Columns;
+
+                continue;
+            }
+
+            var box = PictureBox.Fixed(Drawn.CustomEmoji(emoji), Columns, Rows, drawing.Pictures, drawing.Raster);
+
+            spans.Add(box.Cells(0) with { Emoji = emoji });
+            insets.AddRange(box.Insets(0, column));
+            wanted.Add(box.Wanted!);
+            column += Columns;
+        }
+
+        return line.Respanned(spans) with
+        {
+            Insets = insets,
+            Wants = line.Wants ?? wanted.FirstOrDefault(),
+            AlsoWants = [.. line.AlsoWants, .. line.Wants is null ? wanted.Skip(1) : wanted],
+        };
+    }
+}

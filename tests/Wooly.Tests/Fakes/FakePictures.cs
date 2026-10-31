@@ -1,4 +1,5 @@
 using Terminal.Gui.Drawing;
+using Wooly.Core;
 using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 
@@ -60,6 +61,13 @@ internal sealed class FakePictures : IPictures
 
         return this;
     }
+
+    /// <summary>
+    ///     Says that <paramref name="emoji" />'s still picture has arrived, at the given size in pixels — one picture
+    ///     for every post and name that uses it.
+    /// </summary>
+    public FakePictures HoldingCustomEmoji(CustomEmoji emoji, int width = 36, int height = 36) =>
+        Held(Drawn.CustomEmoji(emoji).Id, width, height);
 
     /// <summary>
     ///     Says that the picture for the attachment <paramref name="mediaId" /> has arrived as a busy photograph —

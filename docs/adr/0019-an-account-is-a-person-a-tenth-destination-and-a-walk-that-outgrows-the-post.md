@@ -47,10 +47,15 @@ four rows and a divider with no gaps left behind.
 
 **No new `Role`, and no emoji.** A verified field takes a `✓` after its value, in `Role.Muted`, because Mastodon only
 ever verifies a link and the mark therefore always lands on something already drawn in `Role.Link`. The two flags read
-`⚙ bot` and `⚿ locked`, the word carrying and the glyph decorating. 🤖 and 🔒 are astral, `TextWrap.Clip` cuts by
-`char`, and their column width is terminal-dependent — three reasons the 61-column contract cannot absorb them. Every
-glyph the TUI has today is BMP and one column wide, and it stays that way until something makes `TextWrap` rune-aware,
-which is a shell-wide change no feature should smuggle in.
+`⚙ bot` and `⚿ locked`, the word carrying and the glyph decorating. 🤖 and 🔒 are astral, `TextWrap.Clip` cut by
+`char` when this was decided, and their column width is terminal-dependent — three reasons the 61-column contract could
+not absorb them. Every glyph the TUI had then was BMP and one column wide, and it was to stay that way until something
+made `TextWrap` rune-aware, which is a shell-wide change no feature should smuggle in.
+
+> **Corrected for #523.** That change came with #207: `TextWrap` measures in the columns a terminal draws in, and
+> `TextWrap.Clip` cuts between graphemes by those columns, never inside one (`Glyphs.Cut`). The flags keep their words
+> all the same, which carry where a glyph only decorates. A custom emoji is held whole at two columns by the same wrap
+> and clip (ADR-0035).
 
 ## The rail carries ten destinations, and the tenth is paid for once
 

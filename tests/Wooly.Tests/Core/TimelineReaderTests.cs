@@ -454,6 +454,81 @@ public class TimelineReaderTests
     }
 
     /// <summary>
+    ///     The custom emoji a post's words use, each a shortcode and the address of its still picture, which is all the
+    ///     instance has to say for a <c>:php:</c> to be drawn rather than read (ADR-0035). The animated address is not
+    ///     carried: nothing in Wooly moves on its own, so an animated emoji is drawn at its still.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsTheCustomEmojiAPostLists()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(
+                Page(
+                    PostJson(
+                        "110",
+                        content: "<p>I write :php: in :US_AZ:</p>",
+                        emojis: EmojisJson(
+                            ("php", "https://files.mastodon.social/emoji/php.png"),
+                            ("US_AZ", "https://files.mastodon.social/emoji/US_AZ.gif"))))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var post = Assert.Single(fetch.Items);
+        Assert.Equal(
+            [
+                new CustomEmoji("php", "https://files.mastodon.social/emoji/php-static.png"),
+                new CustomEmoji("US_AZ", "https://files.mastodon.social/emoji/US_AZ-static.png"),
+            ],
+            post.CustomEmoji);
+        Assert.Equal("I write :php: in :US_AZ:", post.Content);
+    }
+
+    /// <summary>
+    ///     A post listing no custom emoji carries none, whether the instance sent an empty list or a <c>null</c>, and
+    ///     an emoji with no shortcode or no picture to draw is no custom emoji at all: there is nothing it could be
+    ///     drawn as.
+    /// </summary>
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("null")]
+    [InlineData("""[{ "shortcode": "", "url": "https://x/a.png", "static_url": "https://x/a.png" }]""")]
+    [InlineData("""[{ "shortcode": "php", "url": "", "static_url": "", "visible_in_picker": true }]""")]
+    public async Task Read_ReportsAPostListingNoCustomEmojiAsCarryingNone(string emojis)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(Page(PostJson("110", content: "<p>:php:</p>", emojis: emojis))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        Assert.Empty(Assert.Single(fetch.Items).CustomEmoji);
+    }
+
+    /// <summary>A boost's words are the boosted post's, so the custom emoji they use are the boosted post's.</summary>
+    [Fact]
+    public async Task Read_ReportsTheCustomEmojiOfTheBoostedPost()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json(
+                Page(
+                    PostJson(
+                        "110",
+                        content: "",
+                        boosting: PostJson(
+                            "99",
+                            account: "alice@hachyderm.io",
+                            content: "<p>:php:</p>",
+                            emojis: EmojisJson(("php", "https://files.hachyderm.io/emoji/php.png")))))));
+
+        var fetch = await NewReader(network).Read(Profile, Timeline.Home, 20, TestContext.Current.CancellationToken);
+
+        var boost = Assert.Single(fetch.Items);
+        Assert.Empty(boost.CustomEmoji);
+        Assert.Equal(
+            [new CustomEmoji("php", "https://files.hachyderm.io/emoji/php-static.png")],
+            boost.Boosted?.CustomEmoji);
+    }
+
+    /// <summary>
     ///     What the instance made of a link the author already wrote — a title, a site name, sometimes a picture — which
     ///     is enrichment the raw address does not carry (ADR-0018).
     /// </summary>
@@ -1324,6 +1399,23 @@ public class TimelineReaderTests
         ]
         """;
 
+    /// <summary>
+    ///     The custom emoji a post lists, as the wire serves them: each picture at an address of its own, and again as
+    ///     a still beside it (<c>-static</c> here), which is the one an animated emoji is drawn at.
+    /// </summary>
+    private static string EmojisJson(params (string Shortcode, string Url)[] emojis) =>
+        "[" + string.Join(
+            ",",
+            emojis.Select(emoji =>
+                $$"""
+                  {
+                    "shortcode": "{{emoji.Shortcode}}",
+                    "url": "{{emoji.Url}}",
+                    "static_url": "{{emoji.Url[..emoji.Url.LastIndexOf('.')]}}-static.png",
+                    "visible_in_picker": true
+                  }
+                  """)) + "]";
+
     /// <param name="marks">
     ///     What the instance said this profile has already done to the post, as the wire spells the three flags — or
     ///     <see langword="null" /> for an instance that sent none of them.
@@ -1341,10 +1433,12 @@ public class TimelineReaderTests
         string? media = null,
         string? mentions = null,
         bool sensitive = false,
-        string? card = null) =>
+        string? card = null,
+        string? emojis = null) =>
         $$"""
           {
             "id": "{{id}}",
+            "emojis": {{emojis ?? "[]"}},
             {{marks ?? string.Empty}}
             "sensitive": {{(sensitive ? "true" : "false")}},
             "media_attachments": {{media ?? "[]"}},

@@ -1013,10 +1013,24 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   picture, a link preview's — is the shape the instance reported, 16:9 where it reported none, and the picture is fitted
   inside it, centred, with slack beside it or above and below where the shape was a guess. A fixed box — an avatar, 4×2
   on a byline and 8×4 on an account header; a pending attachment's picture, 3×1; the edit public profile form's avatar,
-  4×2, and header, 12×2 — is filled: a picture of another shape is cropped to it from the middle, as an instance crops
-  an avatar, and never stretched. Kitty and sixel take a picture to its box by the one step (`PictureDecoder.Filled`),
-  so the two cannot crop differently. A Stand-in's blur is the exception: decoded square, it is stretched to its box,
-  which gives it back the picture's proportions (ADR-0025's amendment for #438).
+  4×2, and header, 12×2; a custom emoji, 2×1 — is filled: a picture of another shape is cropped to it from the middle,
+  as an instance crops an avatar, and never stretched. Kitty and sixel take a picture to its box by the one step
+  (`PictureDecoder.Filled`), so the two cannot crop differently. A Stand-in's blur is the exception: decoded square, it
+  is stretched to its box, which gives it back the picture's proportions (ADR-0025's amendment for #438).
+- **A custom emoji is a picture two columns wide and one row tall, in the line** (#523, ADR-0035). A shortcode the post
+  lists — `:php:`, `:US_AZ:` — is drawn in a post's words, and in the preview of the reader's own post under a
+  notification, as a Unicode emoji sits: wrapped as one character two columns wide, so `:US_AZ:Phoenix` breaks before
+  it where it does not fit and never inside it, and dropped whole where a row is clipped. Whether it takes those two
+  columns or its shortcode's letters is the Raster's alone: on any terminal that draws, the two columns are held from
+  the first frame, shaded as a Stand-in until its still picture lands and for good where it is refused or never comes,
+  so nothing rewraps. Through Kitty's placeholders it is then two placeholder cells, its picture fetched and decoded
+  once for every post that uses it, keyed by its static address, and sent to the terminal once per box size; through a
+  box, sixel and Kitty's, it stays its shaded room until custom emoji have boxes and cuts of their own (#527). Where
+  nothing draws, the shortcode is written as the instance wrote it, in `muted`, so it reads as a picture that was meant.
+  A `:word:` the post does not list — a time like `10:30:45`, an emoji since deleted — is the words someone wrote, in
+  `body`, and so is one written inside an address or a tag. An animated custom emoji is drawn at its still. A custom
+  emoji is no **reference**: it is not walked to, a click on it picks the post, and it is never on the Picture screen.
+  A warned post's are not sent for until its words are shown. The CLI writes the shortcodes as written, text and JSON.
 - **The description stands above the picture**, so it does not move when the pixels land under it. Until they do, the
   box under it holds its Stand-in, the size the picture will be, so nothing moves when the picture replaces it.
 - **Nothing about a picture is ever an error,** but one. A fetch that fails and a file that will not decode both leave
@@ -2739,13 +2753,13 @@ is drawn reversed instead (#316).
 | `hashtag` | A tag inside a post's text | the `#` |
 | `mention` | An account named inside a post's text | the `@` |
 | `link` | An address inside a post's text | the scheme |
-| `muted` | Timestamps, counts nobody acted on, hints, a status row key's explanation, the row's `…+N` overflow mark, and the crumbs walked through on the content panel's title — the `›` between them and the `… › ` a long trail leads with included | position, and `…` on the mark |
+| `muted` | Timestamps, counts nobody acted on, hints, a status row key's explanation, the row's `…+N` overflow mark, and the crumbs walked through on the content panel's title — the `›` between them and the `… › ` a long trail leads with included, and a custom emoji's shortcode where nothing draws (ADR-0035) | position, and `…` on the mark, and a shortcode's colons |
 | `byline-name` | A display name | position |
 | `byline-handle` | `username@instance` | the `@` |
 | `audience` | The visibility mark | `○ ◌ ● ✉` |
 | `content-warning` | A warning and its text | `⚠` |
 | `media` | Image placeholders, attachment links, a link preview's title, and the columns a byline holds for an avatar | `▒▒▒▒`, `⏵` |
-| `stand-in` | A drawn picture's box while the picture is not here: the shaded fill standing in for it, at its size, under the blur where the instance sent a blurhash (ADR-0025, #349) | `░` |
+| `stand-in` | A drawn picture's box while the picture is not here: the shaded fill standing in for it, at its size, under the blur where the instance sent a blurhash (ADR-0025, #349), and a custom emoji's two columns until its picture lands (ADR-0035) | `░` |
 | *(none — a picture's own pixels)* | A drawn picture | it is the picture |
 | `poll` | Options and their bars | the bar itself, and `✓ `/`[x]` marking a picked one |
 | `reference-picked` | The brackets around a picked reference | `‹ ›`, always drawn |

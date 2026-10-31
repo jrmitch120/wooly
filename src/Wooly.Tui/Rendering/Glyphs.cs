@@ -221,12 +221,35 @@ public static class Glyphs
     ///     what <see cref="TextWrap.Row" /> hands back (#83). Grapheme clusters are stepped over whole: a cut between
     ///     a base character and its combining mark, or inside a ZWJ sequence, paints something nobody wrote.
     /// </remarks>
-    public static int Reach(string text, int from, int to, int columns)
+    /// <param name="text">The text.</param>
+    /// <param name="from">Where in it to start.</param>
+    /// <param name="to">Where in it to stop at the latest.</param>
+    /// <param name="columns">How many columns there are.</param>
+    /// <param name="held">
+    ///     The custom emoji written in <paramref name="text" /> that are drawn as their boxes, left to right: each is
+    ///     stepped over whole, at <see cref="CustomEmojiBox.Columns" />, as a character of that width would be — never
+    ///     cut, and stopped in front of where it does not fit (ADR-0035).
+    /// </param>
+    public static int Reach(string text, int from, int to, int columns, IReadOnlyList<Shortcode>? held = null)
     {
         var at = from;
+        var next = 0;
 
         while (at < to)
         {
+            if (Held(held, at, ref next) is { } shortcode)
+            {
+                if (CustomEmojiBox.Columns > columns)
+                {
+                    return at;
+                }
+
+                columns -= CustomEmojiBox.Columns;
+                at = shortcode.End;
+
+                continue;
+            }
+
             // Plain ASCII is a character a column, answered without cutting the text up — which is what this walks
             // over on nearly every row, and every row is laid out afresh on every frame.
             if (text[at] is >= FirstPlainAscii and <= LastPlainAscii)
@@ -261,8 +284,57 @@ public static class Glyphs
     ///     Where the character at <paramref name="at" /> ends — the whole grapheme cluster, which is the smallest step
     ///     any layout here takes.
     /// </summary>
-    public static int Past(string text, int at, int to) =>
-        text[at] is >= FirstPlainAscii and <= LastPlainAscii
-            ? at + 1
+    /// <param name="text">The text.</param>
+    /// <param name="at">Where the character starts.</param>
+    /// <param name="to">Where the text stops at the latest.</param>
+    /// <param name="held">
+    ///     The custom emoji drawn as their boxes, as <see cref="Reach" /> takes them: one starting at
+    ///     <paramref name="at" /> is stepped past whole.
+    /// </param>
+    public static int Past(string text, int at, int to, IReadOnlyList<Shortcode>? held = null)
+    {
+        var next = 0;
+
+        return Held(held, at, ref next) is { } shortcode ? shortcode.End
+            : text[at] is >= FirstPlainAscii and <= LastPlainAscii ? at + 1
             : at + StringInfo.GetNextTextElementLength(text.AsSpan(at, to - at));
+    }
+
+    /// <summary>
+    ///     How wide <paramref name="text" /> is with each of <paramref name="held" /> drawn as its box, which is
+    ///     <see cref="CustomEmojiBox.Columns" /> however long its shortcode.
+    /// </summary>
+    public static int Columns(string text, IReadOnlyList<Shortcode> held)
+    {
+        var columns = 0;
+        var at = 0;
+
+        foreach (var shortcode in held)
+        {
+            columns += Columns(text[at..shortcode.At]) + CustomEmojiBox.Columns;
+            at = shortcode.End;
+        }
+
+        return columns + Columns(text[at..]);
+    }
+
+    /// <summary>
+    ///     The one of <paramref name="held" /> written at <paramref name="at" />, if one is, looked for from
+    ///     <paramref name="next" /> on and leaving it at the first that has not been passed — so that a walk along the
+    ///     text looks at each once.
+    /// </summary>
+    private static Shortcode? Held(IReadOnlyList<Shortcode>? held, int at, ref int next)
+    {
+        if (held is null)
+        {
+            return null;
+        }
+
+        while (next < held.Count && held[next].At < at)
+        {
+            next++;
+        }
+
+        return next < held.Count && held[next].At == at ? held[next] : null;
+    }
 }

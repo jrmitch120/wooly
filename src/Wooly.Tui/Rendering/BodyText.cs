@@ -62,6 +62,21 @@ public static partial class BodyText
     }
 
     /// <summary>
+    ///     The shortcodes of <paramref name="listed" /> written in <paramref name="text" />, left to right, but for any
+    ///     written inside one of <paramref name="references" />: an address or a tag is walked to and opened whole,
+    ///     so what is written in it stays its letters.
+    /// </summary>
+    public static IReadOnlyList<Shortcode> CustomEmoji(
+        string text,
+        IReadOnlyList<Reference> references,
+        IReadOnlyList<Core.CustomEmoji> listed) =>
+    [
+        .. Shortcode.In(text, listed)
+                    .Where(shortcode => !references.Any(reference =>
+                        shortcode.At < reference.End && reference.At < shortcode.End)),
+    ];
+
+    /// <summary>
     ///     The runs across <paramref name="row" />, left to right, with what each one is — the plain text, and
     ///     whichever of <paramref name="references" /> are written on this row.
     /// </summary>
@@ -78,14 +93,25 @@ public static partial class BodyText
     ///     The one the reader has walked to, or <see langword="null" /> where none is picked — which is every post but
     ///     the one being read, and every screen where <c>←</c> and <c>→</c> have not been pressed.
     /// </param>
+    /// <param name="shortcodes">
+    ///     The custom emoji written in that whole text, as <see cref="CustomEmoji" /> found them: each written on this
+    ///     row is a run of its own, its shortcode muted (<see cref="CustomEmojiBox.Shortcode" />) until
+    ///     <see cref="CustomEmojiBox.Boxed" /> sets it as its box. One the wrap cut across two rows — which it does
+    ///     only where nothing draws, and so it is letters — is muted on both and is no custom emoji on either.
+    /// </param>
     public static IReadOnlyList<Span> Spans(
         TextWrap.Row row,
         IReadOnlyList<Reference> references,
-        Reference? picked = null)
+        Reference? picked = null,
+        IReadOnlyList<Shortcode>? shortcodes = null)
     {
         var spans = new List<Span>();
         var text = row.Text;
         var at = 0;
+
+        // The plain text text[from..to] of the row, cut where a custom emoji is written in it.
+        void Plain(int from, int to) =>
+            spans.AddRange(CustomEmojiBox.Written(text[from..to], Role.Body, shortcodes ?? [], row.At + from));
 
         foreach (var reference in references)
         {
@@ -106,7 +132,7 @@ public static partial class BodyText
             // address is written by whoever ended the sentence, not by whoever wrote the address.
             if (starts > at)
             {
-                spans.Add(new Span(text[at..starts], Role.Body));
+                Plain(at, starts);
             }
 
             var bracketed = picked == reference;
@@ -126,11 +152,13 @@ public static partial class BodyText
             at = stops;
         }
 
-        if (at < text.Length || spans.Count == 0)
+        Plain(at, text.Length);
+
+        if (spans.Count == 0)
         {
             // A row with nothing on it is still a row of the screen, so it goes back as one empty run rather than as
             // no runs at all.
-            spans.Add(new Span(text[at..], Role.Body));
+            spans.Add(new Span(string.Empty, Role.Body));
         }
 
         return spans;

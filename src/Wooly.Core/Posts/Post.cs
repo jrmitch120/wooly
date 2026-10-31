@@ -97,6 +97,13 @@ public sealed record Post
     public IReadOnlyList<string> Mentions { get; init; } = [];
 
     /// <summary>
+    ///     The custom emoji <see cref="Content" /> uses, as the instance listed them, and empty where it uses none. The
+    ///     shortcodes themselves stay in <see cref="Content" /> as written; this is what says which of them are
+    ///     pictures, since a <c>:word:</c> the post does not list is only words (ADR-0035).
+    /// </summary>
+    public IReadOnlyList<CustomEmoji> CustomEmoji { get; init; } = [];
+
+    /// <summary>
     ///     The post this one boosts, or <see langword="null" /> if it is not a boost. A boost carries no text of its
     ///     own — <see cref="Account" /> is who boosted, and everything worth reading is in here.
     /// </summary>

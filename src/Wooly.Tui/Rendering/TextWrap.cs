@@ -17,7 +17,9 @@ public static class TextWrap
     /// <summary>One wrapped row, and where in the text it came out of it starts.</summary>
     /// <remarks>
     ///     <see cref="Text" /> is always <c>text.Substring(At, Text.Length)</c> of whatever was wrapped, so an offset
-    ///     into the text and a column on the row differ by <see cref="At" /> and by nothing else.
+    ///     into the text and an offset into the row differ by <see cref="At" /> and by nothing else. A column on the
+    ///     row is another thing: a character two columns wide and a custom emoji held at two whatever its shortcode's
+    ///     length (ADR-0035) are why a row's runs are cut by offset and measured afterwards.
     /// </remarks>
     /// <param name="Text">What is written on the row.</param>
     /// <param name="At">Where the row starts in the text it was wrapped out of.</param>
@@ -42,7 +44,14 @@ public static class TextWrap
     ///     on the whole text before this is called: a row on its own cannot tell whether it is holding the second half
     ///     of an address that was cut in two.
     /// </remarks>
-    public static IReadOnlyList<Row> Rows(string text, int width)
+    /// <param name="text">The text.</param>
+    /// <param name="width">How many columns each row has.</param>
+    /// <param name="held">
+    ///     The custom emoji written in <paramref name="text" /> that are drawn as their boxes, left to right, each
+    ///     wrapped as one character <see cref="CustomEmojiBox.Columns" /> wide: broken before where it does not fit,
+    ///     never inside (ADR-0035). None where the Raster draws nothing, and the shortcodes are letters like any other.
+    /// </param>
+    public static IReadOnlyList<Row> Rows(string text, int width, IReadOnlyList<Shortcode>? held = null)
     {
         if (width <= 0)
         {
@@ -56,7 +65,7 @@ public static class TextWrap
         {
             var line = text.IndexOf('\n', at);
 
-            WrapParagraph(text, at, line < 0 ? text.Length : line, width, rows);
+            WrapParagraph(text, at, line < 0 ? text.Length : line, width, held, rows);
 
             if (line < 0)
             {
@@ -76,16 +85,30 @@ public static class TextWrap
     ///     reader would call a character (#207): the ellipsis is the last column of the row, and what comes back may
     ///     be a column short of the width where a two-column character stood at the cut.
     /// </remarks>
-    public static string Clip(string text, int width) => width <= 0 ? string.Empty
-        : Glyphs.Columns(text) <= width ? text
+    /// <param name="text">The text.</param>
+    /// <param name="width">How many columns there are.</param>
+    /// <param name="held">
+    ///     The custom emoji written in <paramref name="text" /> that are drawn as their boxes, left to right: each one
+    ///     character <see cref="CustomEmojiBox.Columns" /> wide, kept whole or dropped whole with the rest of what is
+    ///     cut, never cut in half (ADR-0035).
+    /// </param>
+    public static string Clip(string text, int width, IReadOnlyList<Shortcode>? held = null) => width <= 0
+        ? string.Empty
+        : (held is { Count: > 0 } ? Glyphs.Columns(text, held) : Glyphs.Columns(text)) <= width ? text
         : width == 1 ? "…"
-        : Glyphs.Cut(text, width - 1) + "…";
+        : text[..Glyphs.Reach(text, 0, text.Length, width - 1, held)] + "…";
 
     /// <summary>
     ///     The rows <c>text[from..to]</c> takes, added to <paramref name="rows" /> — one paragraph, which is as far as
     ///     a row ever reaches, since the author's own line break ends one.
     /// </summary>
-    private static void WrapParagraph(string text, int from, int to, int width, List<Row> rows)
+    private static void WrapParagraph(
+        string text,
+        int from,
+        int to,
+        int width,
+        IReadOnlyList<Shortcode>? held,
+        List<Row> rows)
     {
         // What the author put at the end of the line is not something a reader can see, and a row of trailing spaces
         // would be a row of the screen spent on nothing.
@@ -115,7 +138,7 @@ public static class TextWrap
 
             // Where the row's columns run out, which is where its characters run out only for Latin text: the edge
             // is asked for in the columns a terminal draws in and answered as an index into the text (#207).
-            var edge = Glyphs.Reach(text, at, to, width);
+            var edge = Glyphs.Reach(text, at, to, width, held);
 
             if (edge == to)
             {
@@ -138,7 +161,7 @@ public static class TextWrap
                 // Where not even one character fits — a region narrower than the character standing at the front of
                 // it — that character is drawn anyway, on a row of its own: a row holding nothing is a row this never
                 // gets past.
-                var cut = edge > at ? edge : Glyphs.Past(text, at, to);
+                var cut = edge > at ? edge : Glyphs.Past(text, at, to, held);
 
                 rows.Add(new Row(text[at..cut], at));
                 at = cut;

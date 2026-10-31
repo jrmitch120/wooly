@@ -5,6 +5,7 @@ using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
+using Wooly.Core;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
@@ -443,6 +444,42 @@ public class PicturesTests
         Assert.NotNull(picture);
         Assert.Equal(80, picture.Width);
         Assert.Equal(80, picture.Height);
+    }
+
+    /// <summary>
+    ///     A custom emoji is one picture for every post that uses it, named by the address of its still: a timeline of
+    ///     fifty posts carrying <c>:verified:</c> fetches and decodes it once (ADR-0035) — and holds it no larger than
+    ///     the two cells by one it is drawn in, rather than at the window's width.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_FetchesACustomEmojiManyPostsUseOnceAndHoldsItAtItsBox()
+    {
+        var asked = new List<string>();
+
+        using var pictures = APictures(_ => APng(128, 128), out var landings, asked: asked);
+
+        var emoji = new CustomEmoji("verified", "https://files.example/emoji/verified.png");
+
+        // Three posts using it in one frame, and an account's name using it under another shortcode the next.
+        pictures.Want(
+            [Near(Drawn.CustomEmoji(emoji)), Near(Drawn.CustomEmoji(emoji)), Near(Drawn.CustomEmoji(emoji))],
+            ADrawingTerminal,
+            Wide);
+
+        await landings.Landed(1);
+
+        pictures.Want(
+            [Near(Drawn.CustomEmoji(emoji with { Shortcode = "checked" }))],
+            ADrawingTerminal,
+            Wide);
+
+        Assert.Equal(["https://files.example/emoji/verified.png"], asked);
+
+        var picture = pictures.Of(Drawn.CustomEmoji(emoji));
+
+        Assert.NotNull(picture);
+        Assert.Equal(20, picture.Width);
+        Assert.Equal(20, picture.Height);
     }
 
     /// <summary>

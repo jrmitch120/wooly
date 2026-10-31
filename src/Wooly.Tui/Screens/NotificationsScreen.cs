@@ -350,7 +350,7 @@ public sealed class NotificationsScreen(
                 // is for — told apart by who wrote it rather than by the kind, so a kind this client has no word for
                 // is drawn by the same rule (#452).
                 var drawn = post.IsMine
-                    ? PostLines.Preview(post, inner)
+                    ? PostLines.Preview(post, drawing.In(inner))
                     : PostLines.Feed(post, drawing.In(inner), ReadingOf(post, at));
 
                 rows.AddRange(drawn.Select(line => line.After(new Span("  ", Role.Body))));
