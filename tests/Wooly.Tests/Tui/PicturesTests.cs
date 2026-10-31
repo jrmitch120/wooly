@@ -777,7 +777,7 @@ public class PicturesTests
     }
 
     /// <summary>
-    ///     An original, held only while the Picture screen shows it, may read past what any inline picture may: the
+    ///     An original, held only while the Picture screen is open, may read past what any inline picture may: the
     ///     same file the timeline refuses is drawn there (ADR-0034).
     /// </summary>
     [Fact]
@@ -869,6 +869,35 @@ public class PicturesTests
         Assert.Null(pictures.Of(AnOriginal()));
         Assert.Equal([AnOriginal().Id], pictures.Drain());
         Assert.NotNull(pictures.Of(APicture("m1")));
+    }
+
+    /// <summary>
+    ///     The originals of every picture on a post, held side by side while the Picture screen steps through them, are
+    ///     let go of together by the first frame that wants none of them — the screen gone — each said for a Kitty
+    ///     terminal to forget, and the smaller copies the feed draws stay held (review of #514).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_LetsGoOfEveryOriginalOnAPostTheFirstFrameThatWantsNoneOfThem()
+    {
+        using var pictures = APictures(address => address.EndsWith("original.png", StringComparison.Ordinal)
+            ? APng(2000, 1500)
+            : APng(400, 300), out var landings);
+
+        string[] post = ["m1", "m2", "m3", "m4"];
+
+        pictures.Want(
+            [.. post.Select(id => OnScreen(AnOriginal(id))), .. post.Select(id => Near(APicture(id)))],
+            ADrawingTerminal,
+            Wide);
+        await landings.Landed(post.Length * 2);
+
+        Assert.All(post, id => Assert.NotNull(pictures.Of(AnOriginal(id))));
+
+        pictures.Want([.. post.Select(id => OnScreen(APicture(id)))], ADrawingTerminal, Wide);
+
+        Assert.All(post, id => Assert.Null(pictures.Of(AnOriginal(id))));
+        Assert.Equal([.. post.Select(id => AnOriginal(id).Id)], pictures.Drain().Order());
+        Assert.All(post, id => Assert.NotNull(pictures.Of(APicture(id))));
     }
 
     /// <summary>

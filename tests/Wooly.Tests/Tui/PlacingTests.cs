@@ -319,6 +319,43 @@ public class PlacingTests
     }
 
     /// <summary>
+    ///     A picture a row carries ahead of a keypress (<see cref="Line.Ahead" />) — the Picture screen's next picture,
+    ///     landed — has its sixel encoded ahead, off the frame, and is shown in no box; once the keypress puts it in the
+    ///     rows' own boxes, showing it costs the sending and not the encoding (review of #514).
+    /// </summary>
+    [Fact]
+    public void APictureCarriedAheadOfAKeypressIsEncodedAheadAndShownInNoBox()
+    {
+        var ahead = new List<Action>();
+        var encoded = 0;
+        var frame = new AFrame(
+            new FakePictures().Holding("m1", 40, 80).Holding("m2", 40, 80),
+            work => ahead.Add(work),
+            (_, _) =>
+            {
+                encoded++;
+
+                return "sixel";
+            });
+        var showing = Rows(Box("m1", at: 2));
+
+        showing[2] = showing[2] with { Ahead = [new Inset(Picture("m2"), 0, 4, 4)] };
+
+        frame.Place(showing, top: 0, ARaster.Sixel());
+
+        Assert.Equal(1, encoded);
+        Assert.Empty(frame.ShownIn("m2"));
+
+        Assert.Single(ahead)();
+        Assert.Equal(2, encoded);
+
+        frame.Place(Rows(Box("m2", at: 2)), top: 0, ARaster.Sixel());
+
+        Assert.Single(frame.ShownIn("m2"));
+        Assert.Equal(2, encoded);
+    }
+
+    /// <summary>
     ///     A sixel box straddling the foot of a page moving down has the cuts of the next four rows of the scroll
     ///     encoded ahead, off the frame, and the one a row back for a reader who turns round — so a step costs the
     ///     sending and not the encoding (#292, ADR-0023).

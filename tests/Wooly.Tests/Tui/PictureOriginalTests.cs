@@ -117,12 +117,12 @@ public class PictureOriginalTests
     }
 
     /// <summary>
-    ///     A step to the post's next picture sends for that picture's original and wants the one stepped off no more,
-    ///     so that it is let go of then rather than when the screen goes — and takes off the status row what was said of
-    ///     the one stepped off, which is not the one drawn now (#518).
+    ///     A step to the post's next picture draws that picture's original and still wants the one stepped off, so that
+    ///     a step back finds it held rather than sending for it again — and takes off the status row what was said of
+    ///     the one stepped off, which is not the one drawn now (#518, review of #514).
     /// </summary>
     [Fact]
-    public async Task SteppingToAnotherPictureWantsItsOriginalInsteadAndTakesBackWhatWasSaid()
+    public async Task SteppingToAnotherPictureKeepsTheOneSteppedOffWantedAndTakesBackWhatWasSaid()
     {
         var pictures = new FakePictures()
             .Holding("m1", 400, 300)
@@ -139,8 +139,12 @@ public class PictureOriginalTests
         drawn.Redraw();
 
         Assert.Contains(Wanted(pictures), wanted => wanted.Drawn.Id == Original("m2").Id && wanted.OnScreen);
-        Assert.DoesNotContain(Wanted(pictures), wanted => wanted.Drawn.Id == Original("m1").Id);
+        Assert.Contains(Wanted(pictures), wanted => wanted.Drawn.Id == Original("m1").Id);
         Assert.DoesNotContain("too large", drawn.Rows()[^1], StringComparison.Ordinal);
+
+        drawn.Press(Key.CursorLeft);
+
+        Assert.Contains("too large", drawn.Rows()[^1], StringComparison.Ordinal);
     }
 
     /// <summary>

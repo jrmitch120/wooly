@@ -942,8 +942,8 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   wanted by the screen only then. The original is a `Drawn` of its own (`Drawn.Original`), held apart from the
   timeline's pictures: it counts against neither budget and lets none of them go to make room, may read up to 32 MB
   (`Pictures.MostBytesHeldApart`) where an inline picture stays at 8 MB, is decoded no larger than the window, and is
-  let go the first frame that does not want it — so once the screen goes, or steps to another picture, while the smaller
-  copy stays held for the timeline. `esc` goes back at its first press, to the screen it was opened from with the same
+  let go the first frame that does not want it — so once the screen goes, while the smaller copy stays held for the
+  timeline. `esc` goes back at its first press, to the screen it was opened from with the same
   pick and the same picture walked; on the post screen as in a feed.
 - **`←`/`→` on the Picture screen step along the post's still pictures** (#518), in the order they are drawn, a video or
   the like on the same post passed over, each drawn as any picture is there with its own description, and stopping at
@@ -951,7 +951,14 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   `Picture 2 of 4 by @author`, and the status row offers `←→`; neither says anything of them where there is one. The
   steps are the screen's own verbs (`Verb.NextPicture`, `Verb.PreviousPicture`) rather than a walk of its references, so
   the first `esc` still goes back, and what is walked underneath is the picture it was opened on, whichever was stepped
-  to.
+  to. The screen sends for the originals of all the post's pictures, not only the one shown: that one first, and the
+  rest once it has landed or been refused. It holds every one of them apart until it goes, so a step no longer lets go
+  of the picture it leaves (review of #514). A step to a picture whose original has landed draws it at once, with no
+  Stand-in, and a step back finds the one left still there. A step to one still on its way shows its Stand-in, or the
+  smaller copy where its original was refused, and the status row's word is only ever about the picture shown. Where
+  pictures are drawn as Kitty placeholders or as sixel, the landed ones not shown are encoded ahead in the boxes they
+  are drawn in (`Line.Ahead`), so the step draws its picture on its own frame. The cost is up to four originals held at
+  the window's size while the screen is open (ADR-0034).
 - **A warned post's attachments are drawn only once the reader has asked for them.** A spoiler text, the instance's own
   sensitive flag, or both, and `x` shows them along with whatever else the post is hiding (#113). Until it is pressed
   there is no box, no label, no description and no address — and no `Wants`, so nothing is fetched and nothing is

@@ -64,7 +64,7 @@ public sealed class Pictures(
     /// <summary>
     ///     How many bytes of a download are worth reading for a picture held apart (<see cref="Drawn.HeldApart" />):
     ///     an attachment's original, which a photograph off a phone or a screenshot of a page can be several megabytes
-    ///     of, and which is held only while the Picture screen shows it (ADR-0034).
+    ///     of, and which is held only while the Picture screen is open on its post (ADR-0034).
     /// </summary>
     public const int MostBytesHeldApart = 32 * 1024 * 1024;
 
@@ -305,8 +305,8 @@ public sealed class Pictures(
     /// <summary>
     ///     Forgets every picture held apart that <paramref name="taking" /> does not want — pixels, file and all, and
     ///     whether or not it is on its way — writing down whose pixels went for the next <see cref="Drain" />: the
-    ///     Picture screen has gone, or moved on from it, and it is held only while it is looked at (ADR-0034). One on
-    ///     its way lands nowhere, and is sent for again if it is wanted again. Under the lock.
+    ///     Picture screen that wanted it has gone, and it is held only while that is open (ADR-0034). One on its way
+    ///     lands nowhere, and is sent for again if it is wanted again. Under the lock.
     /// </summary>
     private void LetGoOfWhatIsHeldApart(List<WantedPicture> taking)
     {

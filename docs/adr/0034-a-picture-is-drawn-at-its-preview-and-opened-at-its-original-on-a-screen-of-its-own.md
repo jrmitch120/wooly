@@ -17,9 +17,9 @@ after the post's text references, in the order the pictures are drawn, and `⏎`
 original, its description and a hint row beneath it (amended below), `←`/`→` stepping through the post's other pictures
 and `esc` going back. The preview, already held, is drawn there at once and the original replaces it when it lands
 (amended below), in a box settled from the original's shape so that nothing moves. One picture is held only while it is
-looked at, so the screen may read a download past the 8 MB `Pictures.MostBytes` allows the timeline — up to 32 MB,
-decoded straight to the window's size — and an original past even that leaves the preview standing with a word on the
-status row.
+looked at (amended below), so the screen may read a download past the 8 MB `Pictures.MostBytes` allows the timeline —
+up to 32 MB, decoded straight to the window's size — and an original past even that leaves the preview standing with a
+word on the status row.
 
 **It opens inside the terminal, not in the reader's browser,** although that was the cheaper way and is how a video
 opens (ADR-0017). A video cannot be played here; a picture can, and sending the reader out of the TUI to read a
@@ -70,3 +70,23 @@ row goes to the picture. The count it carried moves to the crumb, `Picture 2 of 
 post with one picture keeps `Picture by @author`. The description, and `a picture, undescribed`, are centred under the
 picture row by row, and cut at a quarter of the screen's rows with `…`, so that a description as long as an article
 cannot leave the picture no room.
+
+## Amendment: the screen holds the original of every picture on the post while it is open (review of #514)
+
+The screen first wanted only the original of the picture it showed, so a step let go of the one it left and sent for the
+next, and the Stand-in came up on every step: fair on opening, tiresome by the third picture of four. The screen now
+sends for the originals of all the post's pictures it steps through. The one shown is sent for first, and the rest only
+once it has landed or been refused, so that they do not share the line with the picture being looked at. Each is held
+apart until the screen goes, as the shown one was, and a step no longer lets go of the one it leaves. A step to a
+picture whose original has landed draws it at once, with no Stand-in, and a step back finds the one left still held. A
+step to one still on its way shows its Stand-in, or the smaller copy where its original was refused, as before, and the
+status row's word about a refused original is only ever about the picture shown. Where pictures are drawn as Kitty
+placeholders or as sixel, the landed originals not shown are encoded ahead, each in the box it is drawn in
+(`Line.Ahead`), so that a step draws its picture on its own frame rather than one encode later.
+
+The cost is memory, held for as long as the screen is open: up to four originals rather than one, four being the most
+attachments Mastodon carries on a post. Each is decoded to the window, about 9 MB of pixels for a window 2000 by 1200
+pixels, and its file is held beside it: a few megabytes for most photographs, and at most the 32 MB
+`Pictures.MostBytesHeldApart` reads. None of it counts against the timeline's two budgets, which are unchanged, and all
+of it is let go the first frame after the screen goes, the smaller copies staying held for the timeline. A Kitty
+terminal is told to forget every one it was sent, and those encoded ahead and never sent are dropped with them.

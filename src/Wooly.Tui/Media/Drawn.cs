@@ -37,8 +37,8 @@ public sealed record Drawn(string Id, string Address)
     /// <remarks>
     ///     <see cref="Pictures" /> counts it against neither of its budgets and lets nothing else go to make room for
     ///     it, lets go of it the first frame that does not want it, and reads up to
-    ///     <see cref="Pictures.MostBytesHeldApart" /> of it rather than <see cref="Pictures.MostBytes" /> — one picture,
-    ///     held only while it is looked at, can afford what a feed of them could not.
+    ///     <see cref="Pictures.MostBytesHeldApart" /> of it rather than <see cref="Pictures.MostBytes" /> — one post's
+    ///     few pictures, held only while its Picture screen is open, can afford what a feed of them could not.
     /// </remarks>
     public bool HeldApart { get; init; }
 
