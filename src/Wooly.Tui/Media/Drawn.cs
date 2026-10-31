@@ -45,7 +45,8 @@ public sealed record Drawn(string Id, string Address)
     /// <summary>
     ///     An attachment on a post, at the smaller copy where the instance offered one: a feed holds dozens of
     ///     pictures, and holding each at full size would cost the memory of a few of them and fetching each somebody's
-    ///     data allowance. The original is fetched only for the Picture screen (<see cref="Original" />, ADR-0034).
+    ///     data allowance. The original is fetched only for the Picture screen (<see cref="Original" />, ADR-0034) —
+    ///     except where the instance offered no smaller copy, and the original is all there is to draw here too.
     /// </summary>
     /// <remarks>
     ///     Falling back to the attachment's own file is only ever a still picture's fallback, and the caller is what

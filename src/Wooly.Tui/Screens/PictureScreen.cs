@@ -35,18 +35,45 @@ namespace Wooly.Tui.Screens;
 ///         whichever was stepped to.
 ///     </para>
 /// </remarks>
-/// <param name="post">The post the picture is on, which may be a boost: its author is who the crumb names.</param>
-/// <param name="picture">The picture opened, which is the one shown until <c>←</c> or <c>→</c> steps off it.</param>
-public sealed class PictureScreen(Post post, PostMedia picture) : Screen
+public sealed class PictureScreen : Screen
 {
+    /// <summary>The key that goes back, and what it is said to do, on the status row and the hint row alike.</summary>
+    private static readonly KeyHint Back = new("esc", "back");
+
+    /// <summary>The keys that step, and what they are said to do, on the status row and the hint row alike.</summary>
+    private static readonly KeyHint Step = new("←→", "picture");
+
+    /// <summary>The post the picture is on, which may be a boost.</summary>
+    private readonly Post _post;
+
+    /// <summary>How this screen puts a word on the status row, or takes its word off it.</summary>
+    private readonly Action<string?> _saying;
+
     /// <summary>
     ///     What <c>←</c> and <c>→</c> step through: the post's pictures, or just the one opened where it is not among
     ///     them.
     /// </summary>
-    private readonly List<PostMedia> _pictures = PicturesOn(post) is var on && on.Contains(picture) ? on : [picture];
+    private readonly List<PostMedia> _pictures;
 
     /// <summary>Which of <see cref="_pictures" /> is showing, the one opened until a step.</summary>
-    private int _showing = Math.Max(0, PicturesOn(post).IndexOf(picture));
+    private int _showing;
+
+    /// <summary>A Picture screen opened on <paramref name="picture" />.</summary>
+    /// <param name="post">The post the picture is on, which may be a boost: its author is who the crumb names.</param>
+    /// <param name="picture">The picture opened, which is the one shown until <c>←</c> or <c>→</c> steps off it.</param>
+    /// <param name="saying">
+    ///     How this screen puts a word on the status row, or takes its word off it: why the original it draws would
+    ///     not come. Given it by the shell that pushes it, which is the one that owns the row.
+    /// </param>
+    public PictureScreen(Post post, PostMedia picture, Action<string?> saying)
+    {
+        var on = PicturesOn(post);
+
+        _post = post;
+        _saying = saying;
+        _pictures = on.Contains(picture) ? on : [picture];
+        _showing = _pictures.IndexOf(picture);
+    }
 
     /// <summary>
     ///     The picture this screen draws, the one opened or the one stepped to since — what the box, the description
@@ -61,17 +88,10 @@ public sealed class PictureScreen(Post post, PostMedia picture) : Screen
     private (string Id, Unshowable? Why)? _told;
 
     /// <inheritdoc />
-    public override string Crumb => $"Picture by @{(post.Boosted ?? post).Account}";
-
-    /// <summary>
-    ///     How this screen puts a word on the status row, or takes its word off it: why the original it draws would
-    ///     not come. Given it by the shell that pushes it, which is the one that owns the row.
-    /// </summary>
-    internal Action<string?>? Saying { get; set; }
+    public override string Crumb => $"Picture by @{(_post.Boosted ?? _post).Account}";
 
     /// <inheritdoc />
-    protected override IReadOnlyList<KeyHint> OwnKeys =>
-        [new("esc", "back"), .. Several ? [new KeyHint("←→", "picture")] : Array.Empty<KeyHint>()];
+    protected override IReadOnlyList<KeyHint> OwnKeys => Several ? [Back, Step] : [Back];
 
     /// <inheritdoc />
     /// <remarks>
@@ -130,11 +150,11 @@ public sealed class PictureScreen(Post post, PostMedia picture) : Screen
     /// </summary>
     private Line Hint => Several
         ? Line.Of(
-            new Span("esc", Role.Key),
-            new Span(" back · ", Role.Muted),
-            new Span("←→", Role.Key),
-            new Span($" picture {_showing + 1} of {_pictures.Count}", Role.Muted))
-        : Line.Of(new Span("esc", Role.Key), new Span(" back", Role.Muted));
+            new Span(Back.Key, Role.Key),
+            new Span($" {Back.Does} · ", Role.Muted),
+            new Span(Step.Key, Role.Key),
+            new Span($" {Step.Does} {_showing + 1} of {_pictures.Count}", Role.Muted))
+        : Line.Of(new Span(Back.Key, Role.Key), new Span($" {Back.Does}", Role.Muted));
 
     /// <summary>
     ///     <paramref name="box" />'s rows, centred in <paramref name="width" /> — its top row saying it waits for
@@ -171,11 +191,11 @@ public sealed class PictureScreen(Post post, PostMedia picture) : Screen
 
         if (why is { } refused)
         {
-            Saying?.Invoke(Said(refused));
+            _saying(Said(refused));
         }
         else if (hadSaid)
         {
-            Saying?.Invoke(null);
+            _saying(null);
         }
     }
 
@@ -195,8 +215,9 @@ public sealed class PictureScreen(Post post, PostMedia picture) : Screen
     /// <summary>
     ///     <paramref name="post" />'s still pictures in the order they are drawn, which is the order they are stepped
     ///     through: every one is drawn where this screen could be opened at all, and a video or the like on the same
-    ///     post is passed over, its preview being no picture of its own.
+    ///     post is passed over, its preview being no picture of its own — the rule the walk keeps
+    ///     (<see cref="AttachmentReferences.IsPicture" />).
     /// </summary>
     private static List<PostMedia> PicturesOn(Post post) =>
-        [.. (post.Boosted ?? post).Media.Where(media => media.Kind is MediaKind.Image)];
+        [.. (post.Boosted ?? post).Media.Where(AttachmentReferences.IsPicture)];
 }

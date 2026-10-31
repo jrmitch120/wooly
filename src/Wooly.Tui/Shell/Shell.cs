@@ -934,11 +934,9 @@ public sealed class Shell
         // one — and is the one reference left walked as it opens, so that esc comes back to it as it was rather than to
         // the walk starting over (ADR-0034, #516). Asked ahead of the roles, a picture's address sharing Media with a
         // video's.
-        if (Screen.OpenWalkedPicture() is { } picture)
+        // It says on the status row why an original will not come, which only a frame drawing it learns (#517).
+        if (Screen.OpenWalkedPicture(notice => StatusRow.Say(notice, isError: true)) is { } picture)
         {
-            // It says on the status row why an original will not come, which only a frame drawing it learns (#517).
-            picture.Saying = notice => StatusRow.Say(notice, isError: true);
-
             Push(picture);
 
             return Task.CompletedTask;

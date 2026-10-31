@@ -24,8 +24,9 @@ public sealed record PostMedia
     /// <summary>
     ///     A smaller copy for showing in place, or <see langword="null" /> where the instance offered none. Preferred
     ///     over <see cref="Url" /> for anything drawn inline: a feed holds dozens of pictures, and fetching each at full
-    ///     size would cost the memory of a few of them and somebody's data allowance. The original is fetched only
-    ///     for the TUI's Picture screen, one picture at a time (ADR-0034).
+    ///     size would cost the memory of a few of them and somebody's data allowance. The original is fetched to be
+    ///     shown only for the TUI's Picture screen, one picture at a time (ADR-0034) — except for a still picture
+    ///     the instance offered no smaller copy of, whose original is what the timeline draws as well.
     /// </summary>
     public string? Preview { get; init; }
 

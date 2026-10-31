@@ -22,11 +22,11 @@ namespace Wooly.Tui.Rendering;
 /// </remarks>
 /// <param name="Post">The post being read, which may be a boost — <see cref="OnShow" /> unwraps it.</param>
 /// <param name="Revealed">Whether this reader has asked past whatever warning it carries.</param>
-/// <param name="DrawsPictures">
-///     Whether its pictures are drawn rather than linked where it is read, which is what settles whether they are walked
-///     (<see cref="AttachmentReferences" />, ADR-0034).
+/// <param name="Boxed">
+///     The attachment references the rows last drawn carry, a still picture's among them only where its box was drawn,
+///     which is what settles whether its pictures are walked (<see cref="AttachmentReferences" />, ADR-0034).
 /// </param>
-public readonly record struct PostReferences(Post Post, bool Revealed, bool DrawsPictures) : IReferring
+public readonly record struct PostReferences(Post Post, bool Revealed, IReadOnlySet<Reference> Boxed) : IReferring
 {
     /// <inheritdoc />
     public IReadOnlyList<Reference> References
@@ -38,7 +38,7 @@ public readonly record struct PostReferences(Post Post, bool Revealed, bool Draw
             return
             [
                 .. show.Words ? BodyText.References(show.Shown.Content) : [],
-                .. show.Media ? BeyondTheText(show.Shown, DrawsPictures) : [],
+                .. show.Media ? BeyondTheText(show.Shown, Boxed) : [],
             ];
         }
     }
@@ -52,9 +52,9 @@ public readonly record struct PostReferences(Post Post, bool Revealed, bool Draw
     ///     warning on exactly the terms its attachments do since #113, and asking twice would be two places for that to
     ///     be answered differently.
     /// </remarks>
-    private static IEnumerable<Reference> BeyondTheText(Post post, bool drawsPictures)
+    private static IEnumerable<Reference> BeyondTheText(Post post, IReadOnlySet<Reference> boxed)
     {
-        foreach (var attached in AttachmentReferences.Of(post, drawsPictures))
+        foreach (var attached in AttachmentReferences.Of(post, boxed))
         {
             yield return attached;
         }

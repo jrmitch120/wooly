@@ -406,7 +406,7 @@ public class ScreenKeyTests
                 return new HelpScreen(Feed([post]));
 
             case "picture":
-                return new PictureScreen(post with { Media = [APost.APicture()] }, APost.APicture());
+                return new PictureScreen(post with { Media = [APost.APicture()] }, APost.APicture(), _ => { });
 
             case "profiles":
                 return new ProfilesScreen([FakeProfileRegistry.Profile("personal", "mastodon.social", null)], "personal", []);

@@ -1,6 +1,7 @@
 using Terminal.Gui.Input;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 using Attribute = Terminal.Gui.Drawing.Attribute;
@@ -270,6 +271,26 @@ public class PictureWalkTests
         Assert.DoesNotContain(rows, row => row.Contains(ReferenceMode, StringComparison.Ordinal));
     }
 
+    /// <summary>
+    ///     In a content region too narrow for a picture's box, only its description is drawn, and the picture is not
+    ///     walked to: <c>→</c> stops on nothing nobody can see, and <c>⏎</c> opens the post rather than a picture.
+    /// </summary>
+    [Fact]
+    public async Task APictureInARegionTooNarrowForItsBoxIsNotWalked()
+    {
+        // 25 columns leave a post two of the content region's, which is no room for a box between its brackets.
+        using var drawn = await Drawn(APost.With(id: "110", media: [APost.APicture("m1", shape: Wide)]), width: 25);
+
+        drawn.Press(Key.CursorRight);
+
+        Assert.DoesNotContain(drawn.Rows(), row => row.Contains(StandIn.Shade));
+
+        drawn.Press(Key.Enter);
+        drawn.Settle();
+
+        Assert.IsType<PostScreen>(drawn.Shell.Screen);
+    }
+
     /// <summary>A video's or an animation's preview box is never walked to as a picture; its label is.</summary>
     [Theory]
     [InlineData(MediaKind.Video, "Video")]
@@ -345,17 +366,18 @@ public class PictureWalkTests
     }
 
     /// <summary>
-    ///     The shell on an 80-column terminal drawing pictures in the no-colour theme, reading <paramref name="post" />
-    ///     and one more under it.
+    ///     The shell on an 80-column terminal, or one <paramref name="width" /> columns wide, drawing pictures in the
+    ///     no-colour theme, reading <paramref name="post" /> and one more under it.
     /// </summary>
     private static Task<DrawnShell> Drawn(
         Post post,
         FakePictures? pictures = null,
         int height = 40,
         ITheme? theme = null,
-        bool drawsPictures = true) =>
+        bool drawsPictures = true,
+        int width = 80) =>
         DrawnShell.Of(
-            80,
+            width,
             height,
             theme ?? Themes.Plain,
             new AShell { Timelines = FakeTimelineReader.Holding(post, APost.With(id: "220")) },

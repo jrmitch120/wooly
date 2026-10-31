@@ -90,7 +90,7 @@ public class PicturesTests
             {
                 asked.Add(address);
 
-                return Task.FromResult<byte[]?>(APng(4, 4));
+                return Task.FromResult(Fetched.Of(APng(4, 4)));
             },
             landed.SetResult);
 
@@ -122,7 +122,7 @@ public class PicturesTests
             {
                 asked.Add(address);
 
-                return Task.FromResult<byte[]?>(null);
+                return Task.FromResult(Fetched.None);
             },
             () => { });
 
@@ -165,7 +165,7 @@ public class PicturesTests
         var both = new TaskCompletionSource();
 
         using var pictures = new Pictures(
-            (_, _, _) => Task.FromResult<byte[]?>(APng(4, 4)),
+            (_, _, _) => Task.FromResult(Fetched.Of(APng(4, 4))),
             () =>
             {
                 if (Interlocked.Increment(ref landed) == 2)
@@ -829,6 +829,24 @@ public class PicturesTests
     }
 
     /// <summary>
+    ///     Whatever does the fetching may say a file was too large, as the fetch <see cref="Pictures.Over" /> makes
+    ///     does, and an original it says that of is refused as too large rather than as not had (ADR-0034).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_SaysAnOriginalIsTooLargeWhereItsFetchSaysSo()
+    {
+        var landings = new Landings();
+
+        using var pictures = new Pictures((_, _, _) => Task.FromResult(Fetched.TooLarge), landings.Land);
+
+        pictures.Want([OnScreen(AnOriginal())], ADrawingTerminal, Wide);
+        await landings.Landed(1);
+
+        Assert.Equal(Unshowable.TooLarge, pictures.WhyNot(AnOriginal()));
+        Assert.Null(pictures.Of(AnOriginal()));
+    }
+
+    /// <summary>
     ///     An original and the smaller copy of the same attachment are two pictures, held side by side; the first frame
     ///     that does not want the original lets go of it, and says so for a Kitty terminal to forget it too, while the
     ///     smaller copy stays held for the timeline it came from (ADR-0034).
@@ -940,7 +958,7 @@ public class PicturesTests
                     asked?.Add(address);
                 }
 
-                return Task.FromResult(serve(address));
+                return Task.FromResult(Fetched.Of(serve(address)));
             },
             landed.Land);
     }
@@ -1081,7 +1099,7 @@ public class PicturesTests
     private sealed class Gated
     {
         private readonly Lock _gate = new();
-        private readonly Dictionary<string, TaskCompletionSource<byte[]?>> _answers = [];
+        private readonly Dictionary<string, TaskCompletionSource<Fetched>> _answers = [];
         private readonly List<string> _asked = [];
 
         /// <summary>Every address asked for, in the order the fetches started.</summary>
@@ -1096,7 +1114,7 @@ public class PicturesTests
             }
         }
 
-        public Task<byte[]?> Fetch(string address, int most, CancellationToken cancellation)
+        public Task<Fetched> Fetch(string address, int most, CancellationToken cancellation)
         {
             lock (_gate)
             {
@@ -1113,7 +1131,7 @@ public class PicturesTests
         {
             lock (_gate)
             {
-                Answering(address).TrySetResult(bytes);
+                Answering(address).TrySetResult(Fetched.Of(bytes));
             }
         }
 
@@ -1128,11 +1146,11 @@ public class PicturesTests
             }
         }
 
-        private TaskCompletionSource<byte[]?> Answering(string address)
+        private TaskCompletionSource<Fetched> Answering(string address)
         {
             if (!_answers.TryGetValue(address, out var answer))
             {
-                answer = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                answer = new TaskCompletionSource<Fetched>(TaskCreationOptions.RunContinuationsAsynchronously);
                 _answers[address] = answer;
             }
 

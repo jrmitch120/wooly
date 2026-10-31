@@ -16,18 +16,18 @@ namespace Wooly.Tui.Media;
 /// </remarks>
 /// <param name="fetch">
 ///     How the bytes at an address are got, reading no more than the count of them it is handed — or
-///     <see langword="null" /> where they cannot be had. A delegate rather than an <see cref="HttpClient" /> so that a
-///     test can answer without a socket, and so the one thing this class is about — asked once, held, and announced
-///     when it lands — is testable on its own. The count is the limit this class keeps for the picture sent for
-///     (<see cref="MostBytes" />, <see cref="MostBytesHeldApart" />), and the fetch <see cref="Over" /> makes is the
-///     one that refuses a file past it as too large rather than as not had (<see cref="WhyNot" />).
+///     <see cref="Fetched.None" /> where they cannot be had, and <see cref="Fetched.TooLarge" /> where the file is past
+///     that count, which <see cref="WhyNot" /> tells apart. A delegate rather than an <see cref="HttpClient" /> so
+///     that a test can answer without a socket, and so the one thing this class is about — asked once, held, and
+///     announced when it lands — is testable on its own. The count is the limit this class keeps for the picture sent
+///     for (<see cref="MostBytes" />, <see cref="MostBytesHeldApart" />).
 /// </param>
 /// <param name="arrived">
 ///     What to do when a picture lands: redraw, so the rows that have been waiting for it fill in. Called off the
 ///     thread the fetch finished on, so whatever is passed here is what has to get back to the UI thread.
 /// </param>
 public sealed class Pictures(
-    Func<string, int, CancellationToken, Task<byte[]?>> fetch,
+    Func<string, int, CancellationToken, Task<Fetched>> fetch,
     Action arrived) : IPictures, IDisposable
 {
     /// <summary>
@@ -92,12 +92,6 @@ public sealed class Pictures(
     /// <summary>What is remembered, wanted longest ago first — the order both tiers let go of it in.</summary>
     private readonly LinkedList<Held> _wanted = new();
 
-    /// <summary>
-    ///     What is remembered of the pictures held apart (<see cref="Drawn.HeldApart" />), by id: kept out of both
-    ///     tiers' tallies, and let go of the first frame that does not want them.
-    /// </summary>
-    private readonly HashSet<string> _apart = [];
-
     /// <summary>What the latest frame had on screen, which is never let go of from the decoded tier.</summary>
     private HashSet<string> _onScreen = [];
 
@@ -160,12 +154,12 @@ public sealed class Pictures(
 
             if (!response.IsSuccessStatusCode)
             {
-                return null;
+                return Fetched.None;
             }
 
             if (response.Content.Headers.ContentLength > most)
             {
-                throw new TooLarge();
+                return Fetched.TooLarge;
             }
 
             await using var body = await response.Content.ReadAsStreamAsync(cancellation).ConfigureAwait(false);
@@ -241,19 +235,8 @@ public sealed class Pictures(
             foreach (var wanted in taking)
             {
                 var held = _held[wanted.Drawn.Id];
-                var apart = !Counts(held);
+                var (keepsFile, decodes) = Takes(wanted, held, ref bytesLeft, ref pixelsLeft);
 
-                // A size not known yet is a picture never fetched, taken while there is any room at all: what it costs
-                // is only learnt by fetching it, and once it is known the next frame goes by it. Going by a guess
-                // instead would either fetch nothing near a screen of photographs or everything near one of avatars.
-                // A picture held apart is taken whatever room there is, and takes none.
-                var keepsFile = wanted.OnScreen || apart
-                    || (held.Length is { } length ? length <= bytesLeft : bytesLeft > 0);
-                var decodes = wanted.OnScreen || apart
-                    || (held.Pixels is { } pixels ? pixels <= pixelsLeft : pixelsLeft > 0);
-
-                bytesLeft -= keepsFile && !apart ? held.Length ?? 0 : 0;
-                pixelsLeft -= decodes && !apart ? held.Pixels ?? 0 : 0;
                 held.DecodesIn = decodes ? _frame : held.DecodesIn;
 
                 if (held.Coming || held.WhyNot is not null)
@@ -290,6 +273,36 @@ public sealed class Pictures(
     }
 
     /// <summary>
+    ///     Whether this frame has room to keep <paramref name="held" />'s file and to decode its pixels, taking what
+    ///     they cost out of what room is left. Under the lock.
+    /// </summary>
+    /// <remarks>
+    ///     A size not known yet is a picture never fetched, taken while there is any room at all: what it costs is only
+    ///     learnt by fetching it, and once it is known the next frame goes by it. Going by a guess instead would either
+    ///     fetch nothing near a screen of photographs or everything near one of avatars. One on screen is taken
+    ///     whatever room is left, and one held apart whatever room there is, taking none (<see cref="Counts" />).
+    /// </remarks>
+    private static (bool KeepsFile, bool Decodes) Takes(
+        WantedPicture wanted,
+        Held held,
+        ref long bytesLeft,
+        ref long pixelsLeft)
+    {
+        if (!Counts(held))
+        {
+            return (true, true);
+        }
+
+        var keepsFile = wanted.OnScreen || (held.Length is { } length ? length <= bytesLeft : bytesLeft > 0);
+        var decodes = wanted.OnScreen || (held.Pixels is { } pixels ? pixels <= pixelsLeft : pixelsLeft > 0);
+
+        bytesLeft -= keepsFile ? held.Length ?? 0 : 0;
+        pixelsLeft -= decodes ? held.Pixels ?? 0 : 0;
+
+        return (keepsFile, decodes);
+    }
+
+    /// <summary>
     ///     Forgets every picture held apart that <paramref name="taking" /> does not want — pixels, file and all, and
     ///     whether or not it is on its way — writing down whose pixels went for the next <see cref="Drain" />: the
     ///     Picture screen has gone, or moved on from it, and it is held only while it is looked at (ADR-0034). One on
@@ -297,25 +310,17 @@ public sealed class Pictures(
     /// </summary>
     private void LetGoOfWhatIsHeldApart(List<WantedPicture> taking)
     {
-        if (_apart.Count == 0)
-        {
-            return;
-        }
-
         var wanting = taking.Select(wanted => wanted.Drawn.Id).ToHashSet();
 
-        foreach (var id in _apart.Where(id => !wanting.Contains(id)).ToList())
+        foreach (var held in _held.Values.Where(held => !Counts(held) && !wanting.Contains(held.Drawn.Id)).ToList())
         {
-            var held = _held[id];
-
             if (held.Picture is not null)
             {
-                RecordLetGo(id);
+                RecordLetGo(held.Drawn.Id);
             }
 
             _wanted.Remove(held.Place);
-            _held.Remove(id);
-            _apart.Remove(id);
+            _held.Remove(held.Drawn.Id);
         }
     }
 
@@ -343,7 +348,7 @@ public sealed class Pictures(
             {
                 _wanted.Remove(held.Place);
                 _held.Remove(drawn.Id);
-                _encoded -= RememberingCost;
+                Tally(held, bytes: -RememberingCost);
             }
         }
     }
@@ -435,46 +440,59 @@ public sealed class Pictures(
 
         held.Place = place(held);
         _held[drawn.Id] = held;
-
-        if (Counts(held))
-        {
-            _encoded += RememberingCost;
-        }
-        else
-        {
-            _apart.Add(drawn.Id);
-        }
+        Tally(held, bytes: RememberingCost);
 
         return held;
     }
 
     /// <summary>
     ///     Whether <paramref name="held" /> counts against the two budgets, which is every picture but one held apart
-    ///     (<see cref="Drawn.HeldApart" />): that one is let go of by no frame wanting it, never to make room, and so
-    ///     never makes the tiers let go of anything else either (ADR-0034).
+    ///     (<see cref="Drawn.HeldApart" />): that one is taken whatever room there is (<see cref="Takes" />), costs
+    ///     neither tally anything (<see cref="Tally" />), is let go of by no frame wanting it
+    ///     (<see cref="LetGoOfWhatIsHeldApart" />) and never to make room (<see cref="LetGo" />), and so never makes
+    ///     the tiers let go of anything else either (ADR-0034). The one question all four ask.
     /// </summary>
     private static bool Counts(Held held) => !held.Drawn.HeldApart;
+
+    /// <summary>
+    ///     Moves the two tallies by what <paramref name="held" /> has just come to cost or stopped costing: the one
+    ///     place either moves, and so the one place a picture held apart is kept out of them (<see cref="Counts" />).
+    ///     Under the lock.
+    /// </summary>
+    /// <param name="held">The picture whose cost changed.</param>
+    /// <param name="bytes">How many more bytes of file and remembering it costs, or fewer where negative.</param>
+    /// <param name="pixels">How many more bytes of pixels it costs, or fewer where negative.</param>
+    private void Tally(Held held, long bytes = 0, long pixels = 0)
+    {
+        if (!Counts(held))
+        {
+            return;
+        }
+
+        _encoded += bytes;
+        _decoded += pixels;
+    }
 
     /// <summary>
     ///     What the file at <paramref name="path" /> holds, or <see langword="null" /> where it is gone or cannot be
     ///     read — refused as too large where it holds more than <paramref name="most" />, the cap a file server is held
     ///     to, since a photograph straight off a camera decodes to as much memory wherever it came from.
     /// </summary>
-    private static async Task<byte[]?> ReadFile(string path, int most, CancellationToken cancellation)
+    private static async Task<Fetched> ReadFile(string path, int most, CancellationToken cancellation)
     {
         try
         {
             await using var file = File.OpenRead(path);
 
-            return file.Length > most ? throw new TooLarge() : await Read(file, most, cancellation).ConfigureAwait(false);
+            return file.Length > most ? Fetched.TooLarge : await Read(file, most, cancellation).ConfigureAwait(false);
         }
         catch (IOException)
         {
-            return null;
+            return Fetched.None;
         }
         catch (UnauthorizedAccessException)
         {
-            return null;
+            return Fetched.None;
         }
     }
 
@@ -483,7 +501,7 @@ public sealed class Pictures(
     ///     Read in pieces and counted as it goes rather than taken whole, because a server that declares no length —
     ///     or declares one and sends another — would otherwise decide how much of this client's memory to use.
     /// </summary>
-    private static async Task<byte[]> Read(Stream body, int most, CancellationToken cancellation)
+    private static async Task<Fetched> Read(Stream body, int most, CancellationToken cancellation)
     {
         using var bytes = new MemoryStream();
         var piece = new byte[64 * 1024];
@@ -497,21 +515,14 @@ public sealed class Pictures(
 
             if (read == 0)
             {
-                return bytes.ToArray();
+                return Fetched.Of(bytes.ToArray());
             }
 
             bytes.Write(piece, 0, read);
         }
 
-        throw new TooLarge();
+        return Fetched.TooLarge;
     }
-
-    /// <summary>
-    ///     A file refused for being larger than it may be, by the fetch <see cref="Over" /> makes: told apart from the
-    ///     file that could not be had at all, which is <see langword="null" />, so that the Picture screen can say
-    ///     which of the two its original was (<see cref="Unshowable" />).
-    /// </summary>
-    private sealed class TooLarge : Exception;
 
     /// <summary>
     ///     Gets <paramref name="drawn" />'s pixels: from its file where that is already held, from the network where
@@ -538,7 +549,16 @@ public sealed class Pictures(
                     bytes = _held.GetValueOrDefault(drawn.Id)?.Bytes;
                 }
 
-                bytes ??= await fetch(drawn.Address, drawn.HeldApart ? MostBytesHeldApart : MostBytes, _abandoned.Token);
+                if (bytes is null)
+                {
+                    var fetched = await fetch(
+                        drawn.Address,
+                        drawn.HeldApart ? MostBytesHeldApart : MostBytes,
+                        _abandoned.Token);
+
+                    bytes = fetched.Bytes;
+                    tooLarge = fetched.IsTooLarge;
+                }
 
                 if (bytes is not null)
                 {
@@ -558,10 +578,6 @@ public sealed class Pictures(
 
                 Pump();
             }
-        }
-        catch (TooLarge)
-        {
-            tooLarge = true;
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)
         {
@@ -711,18 +727,15 @@ public sealed class Pictures(
             {
                 _wanted.Remove(held.Place);
                 _held.Remove(held.Drawn.Id);
-                _encoded -= RememberingCost;
+                Tally(held, bytes: -RememberingCost);
             }
         }
     }
 
-    /// <summary>
-    ///     Holds <paramref name="bytes" /> as <paramref name="held" />'s file, keeping the tally where it
-    ///     <see cref="Counts" />.
-    /// </summary>
+    /// <summary>Holds <paramref name="bytes" /> as <paramref name="held" />'s file, keeping the tally.</summary>
     private void HoldFile(Held held, byte[] bytes)
     {
-        _encoded += Counts(held) ? bytes.LongLength - (held.Bytes?.LongLength ?? 0) : 0;
+        Tally(held, bytes: bytes.LongLength - (held.Bytes?.LongLength ?? 0));
         held.Bytes = bytes;
         held.Length = bytes.Length;
     }
@@ -733,24 +746,21 @@ public sealed class Pictures(
     /// </summary>
     private void LetGoOfFile(Held held)
     {
-        _encoded -= held.Bytes?.LongLength ?? 0;
+        Tally(held, bytes: -(held.Bytes?.LongLength ?? 0));
         held.Bytes = null;
     }
 
-    /// <summary>
-    ///     Holds <paramref name="picture" /> as <paramref name="held" />'s pixels, keeping the tally where it
-    ///     <see cref="Counts" />.
-    /// </summary>
+    /// <summary>Holds <paramref name="picture" /> as <paramref name="held" />'s pixels, keeping the tally.</summary>
     private void HoldPixels(Held held, Picture picture)
     {
-        _decoded += Counts(held) ? Cost(picture) - Cost(held.Picture) : 0;
+        Tally(held, pixels: Cost(picture) - Cost(held.Picture));
         held.Picture = picture;
     }
 
     /// <summary>Lets go of <paramref name="held" />'s pixels, keeping the tally.</summary>
     private void LetGoOfPixels(Held held)
     {
-        _decoded -= Cost(held.Picture);
+        Tally(held, pixels: -Cost(held.Picture));
         held.Picture = null;
     }
 

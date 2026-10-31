@@ -19,7 +19,9 @@ namespace Wooly.Tui.Rendering;
 ///         theme already tells a tag from a mention from an address, and a second enum saying the same thing would be
 ///         a second place to add a kind to. A drawn picture's draws in none, being brackets round a box, and shares
 ///         <c>Media</c> with the rest of a post's attachments: which attachment it is, and so whether it is a picture,
-///         is said by its <see cref="At" /> (<see cref="Rendering.AttachmentReferences.Picture" />).
+///         is said by the post it is walked inside, whose attachment it is the reference of
+///         (<see cref="Rendering.AttachmentReferences.Picture" />) — asked of the post rather than carried here as a
+///         kind of its own, for the reason the roles are one vocabulary.
 ///     </para>
 /// </remarks>
 /// <param name="Text">

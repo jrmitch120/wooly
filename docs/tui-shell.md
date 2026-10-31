@@ -752,7 +752,7 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   same `Shell.OpenAddress` call a picked link already does, refusal for refusal.
 - **A walked picture is a fifth, and the one that stays inside the TUI** (#516, ADR-0034). `⏎` on it pushes its
   **Picture screen** rather than handing its address to anything, told apart from a video's address — the two share
-  `Media` — by the attachment its place in the walk names (`Screen.WalkedPicture`). Nothing is fetched to open it.
+  `Media` — by the attachment its reference was made of (`Screen.PictureOf`). Nothing is fetched to open it.
 - **`⏎` lets the reference go, on every outcome but a picture's** (#474): a hashtag pushed, a mention opened, an address or an
   attachment's or link preview's address handed to the browser, and a refusal alike. `Shell.OpenReference` lets it go
   as part of opening, before the outcome is known, so no outcome is an exception. Walking back out of the hashtag or
@@ -917,10 +917,11 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   gives up (#519), a glyph on each row so that a box partly scrolled off still shows them, and `[` `]` on a box one row
   tall — in `ReferencePicked`, the role `‹ ›` use. Only the bracket columns change on walking to it or letting it go.
   Its every row carries the reference on its bracket columns and not on the box, and a click there picks the post
-  rather than walking to it: a picture is walked to by keys alone until mouse support. Whether pictures are drawn at
-  all is told to the screen by the content region each frame (`Screen.DrawsPictures`), from the same `Drawing.Draws`
-  answer the rows are laid out by. A video's or animation's preview box, a link preview's picture and avatars are
-  never walked to as pictures.
+  rather than walking to it: a picture is walked to by keys alone until mouse support. Which pictures are in a box is
+  read off the rows themselves, written down by the call the content region lays them out through
+  (`Screen.LaidOut`): a terminal that cannot draw links every picture, and a region too narrow for a box draws a
+  picture's description alone, and either way the picture is not walked. A video's or animation's preview box, a link
+  preview's picture and avatars are never walked to as pictures.
 - **`⏎` on a walked picture opens its Picture screen** (#516, ADR-0034), a screen pushed onto the stack and crumbed
   `Picture by @author`: the one picture fitted whole into the window less the rows under it, at its shape and centred
   across, never cropped or stretched out of shape; what its author said it shows (`PostMedia.Shows`, so `a picture,

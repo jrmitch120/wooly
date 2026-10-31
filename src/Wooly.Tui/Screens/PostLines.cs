@@ -530,34 +530,29 @@ public static class PostLines
             yield break;
         }
 
-        // Built once, off the same formula Screen.References walks, so a bracket here and the pick the reader made
-        // can never come to disagree about which attachment it landed on (AttachmentReferences).
         var draws = Drawing.Draws(drawing.Pictures, drawing.Raster, out _);
-        var references = AttachmentReferences.Of(post, draws);
-        var at = 0;
 
-        foreach (var attached in post.Media)
+        for (var at = 0; at < post.Media.Count; at++)
         {
+            var attached = post.Media[at];
+
+            // Off the same formula Screen.References walks, so a bracket here and the pick the reader made can never
+            // come to disagree about which attachment it landed on (AttachmentReferences).
+            var reference = AttachmentReferences.For(post, at);
+
             if (attached.Opens)
             {
-                yield return Opened(attached, references[at], reading.Reference, drawing, mostRows);
-
-                at++;
+                yield return Opened(attached, reference, reading.Reference, drawing, mostRows);
 
                 continue;
             }
 
-            if (!draws)
+            if (!draws || !AttachmentReferences.IsPicture(attached))
             {
                 yield return [.. LinkedImage(attached, width)];
 
                 continue;
             }
-
-            // Walked to as the picture it is, its box bracketed while it is (ADR-0034).
-            var reference = references[at];
-
-            at++;
 
             // The description first, so it does not move when the picture lands underneath it — and marked as wanting
             // a picture, which is how the view knows to send for one if this post is near enough to the screen.
@@ -574,12 +569,13 @@ public static class PostLines
             // Hidden from the first frame where the reader asked for it, not from when the picture lands: the box is
             // there either way, so a caption taken down on arrival would be a row going and the post moving under the
             // reader, which is what the box was reserved to stop (ADR-0025). The box's own top row carries the Wants
-            // then, there being no caption to carry it.
-            var walked = reading.Reference == reference;
+            // then, there being no caption to carry it. Walked to as the picture it is, its box bracketed while it is
+            // (ADR-0034).
+            var beside = new BracketColumns(reference, Walked: reading.Reference == reference);
 
             yield return drawing.HideDrawnCaption
-                ? [.. Reserved(box, drawn, Bracketed, reference, walked)]
-                : [described, .. Reserved(box, column: Bracketed, reference: reference, walked: walked)];
+                ? [.. Reserved(box, drawn, beside)]
+                : [described, .. Reserved(box, bracketed: beside)];
         }
     }
 
@@ -656,7 +652,7 @@ public static class PostLines
             :
             [
                 Label(saysWhatItShows: !drawing.HideDrawnCaption) with { Wants = drawn },
-                .. Reserved(box, column: Bracketed),
+                .. Reserved(box, bracketed: new BracketColumns()),
             ];
     }
 
@@ -742,8 +738,8 @@ public static class PostLines
     ///     </para>
     ///     <para>
     ///         What each row holds and what is set into it is the <see cref="PictureBox" />'s, shaped from what the
-    ///         instance reported; this lays the box across the row, <paramref name="column" /> columns in, and says what
-    ///         its top row waits for.
+    ///         instance reported; this lays the box across the row, between its bracket columns where it has them, and
+    ///         says what its top row waits for.
     ///     </para>
     /// </remarks>
     /// <param name="box">The box the shape settled.</param>
@@ -751,27 +747,15 @@ public static class PostLines
     ///     What the box's top row says it is waiting for, where no caption above it is there to say so — or
     ///     <see langword="null" /> where one is.
     /// </param>
-    /// <param name="column">
-    ///     How far in from the row's left the box starts: <see cref="Bracketed" /> for an attachment's, held blank
-    ///     on every row, and none for a link preview's.
+    /// <param name="bracketed">
+    ///     The <see cref="Bracketed" /> column either side of an attachment's box, or <see langword="null" /> for a
+    ///     link preview's, which has none and starts at the row's left.
     /// </param>
-    /// <param name="reference">
-    ///     The still picture's reference where the box is one, which every row's bracket column carries — so that the
-    ///     walk enters at it, lets it go and brings it on to the page by whichever of its rows are there, as it does a
-    ///     wrapped link's (<see cref="Span.Reference" />) — or <see langword="null" /> for a box nothing walks to.
-    ///     Never on the box's own cells.
-    /// </param>
-    /// <param name="walked">
-    ///     Whether <paramref name="reference" /> is the one walked to, which draws the brackets in the columns either
-    ///     side of the box (<see cref="PictureBrackets" />).
-    /// </param>
-    private static IEnumerable<Line> Reserved(
-        PictureBox box,
-        Drawn? wants = null,
-        int column = 0,
-        Reference? reference = null,
-        bool walked = false)
+    private static IEnumerable<Line> Reserved(PictureBox box, Drawn? wants = null, BracketColumns? bracketed = null)
     {
+        var column = bracketed is null ? 0 : Bracketed;
+        var reference = bracketed?.Reference;
+
         Span Beside(string glyph) => new(glyph, Role.ReferencePicked) { Reference = reference };
 
         for (var row = 0; row < box.Rows; row++)
@@ -781,9 +765,9 @@ public static class PostLines
 
             // Walked, the row is held out to the box's right edge, so that the closing bracket is in the column past it
             // whatever the pixels left blank on this row — blanks the page would have shown there anyway.
-            var cells = column == 0
+            var cells = bracketed is not { } columns
                 ? Line.Of(held)
-                : walked
+                : columns.Walked
                     ? Line.Of(
                         Beside(opening),
                         held,
@@ -795,6 +779,23 @@ public static class PostLines
             yield return row == 0 ? line with { Wants = wants } : line;
         }
     }
+
+    /// <summary>
+    ///     The <see cref="Bracketed" /> column either side of an attachment's box, which every attachment's box gives up
+    ///     whether or not it is walked (ADR-0034).
+    /// </summary>
+    /// <param name="Reference">
+    ///     The still picture's reference where the box is one, which every row's bracket column carries — so that the
+    ///     walk enters at it, lets it go and brings it on to the page by whichever of its rows are there, as it does a
+    ///     wrapped link's (<see cref="Span.Reference" />), and so that a picture is walked only where its box is drawn
+    ///     (<see cref="Screen.LaidOut" />) — or <see langword="null" /> for a box nothing walks to, a video's preview.
+    ///     Never on the box's own cells.
+    /// </param>
+    /// <param name="Walked">
+    ///     Whether <paramref name="Reference" /> is the one walked to, which draws the brackets in the two columns
+    ///     (<see cref="PictureBrackets" />) rather than leaving them blank.
+    /// </param>
+    private readonly record struct BracketColumns(Reference? Reference = null, bool Walked = false);
 
     /// <summary>
     ///     The brackets either side of row <paramref name="row" /> of a walked picture's <paramref name="rows" />-row

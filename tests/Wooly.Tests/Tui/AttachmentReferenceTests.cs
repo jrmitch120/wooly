@@ -87,7 +87,7 @@ public class AttachmentReferenceTests
     public void Drawn_BracketsTheKindsLabelWithTheDescriptionAlongsideItWhilePicked(MediaKind kind, string label)
     {
         var post = APost.With(content: "Hello", media: [APost.Attached(kind, description: "Sheep, at length")]);
-        var reference = AttachmentReferences.Of(post, drawsPictures: false).Single();
+        var reference = AttachmentReferences.For(post, at: 0);
 
         var unpicked = PostLines.Feed(post, new Drawing(61, Now), default);
         var picked = PostLines.Feed(post, new Drawing(61, Now), new Reading(Reference: reference));
