@@ -811,19 +811,13 @@ public sealed class Shell
     /// </summary>
     /// <remarks>
     ///     A reference drawn and never walked — a mention in a bio — leaves the thing picked and nothing walked to,
-    ///     which is what a click anywhere else on it does. So does a picture's, beside its box: a picture is walked to
-    ///     by keys alone until opening one by clicking comes with mouse support, a click walking to one being half of
-    ///     the double click that would open it (ADR-0034).
+    ///     which is what a click anywhere else on it does. A picture is walked to by a click anywhere on its box or
+    ///     beside it, which is the first half of the double click that opens it on its Picture screen (ADR-0034).
     /// </remarks>
     public void PickReference(int at, Reference reference)
     {
         Section(at);
-
-        if (Screen.PictureOf(reference) is null)
-        {
-            Screen.WalkToReference(reference);
-        }
-
+        Screen.WalkToReference(reference);
         Changed?.Invoke();
     }
 

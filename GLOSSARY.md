@@ -740,8 +740,8 @@ _Avoid_: kind (which is what a search result *is*, not where it sits), tab, grou
 A hashtag, a mention, or an address found inside written text — a post's, and since ADR-0019 an account's **Bio** and
 its **Custom field**s too — or an **Attachment**'s own address, once it is not drawn as a picture in its own right
 (ADR-0017), or a still picture that is, in a box, which opens onto a **Picture screen** (ADR-0034), or a **Link
-preview**'s own address (ADR-0018) — the things `←`/`→` walk, a click walks to, and `⏎` opens; a picture is walked to by
-keys alone, and not yet by a click, until opening one by clicking comes with mouse support (ADR-0034). Distinct from
+preview**'s own address (ADR-0018) — the things `←`/`→` walk, a click walks to, and `⏎` or a double click opens; a
+picture, having no text to click, answers a click anywhere on its box or beside it (ADR-0034). Distinct from
 **Picked**, which is which thing on the screen the reader has walked to; a reference is walked *inside* whatever is
 picked, one level in. What carries them is asked of the picked thing rather than assumed to be a post, a bio being the
 first thing here that is not one. A walked-to reference is let go once none of its rows are on the **Page**, and once
