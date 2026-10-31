@@ -967,6 +967,64 @@ public class PicturesTests
     }
 
     /// <summary>
+    ///     The fetches of a post's originals still under way when no frame wants them any more — the Picture screen
+    ///     gone — are called off, so that they give their places among the <see cref="Pictures.AtATime" /> back to the
+    ///     timeline's pictures rather than holding them for downloads nobody will draw (review of #514).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_CallsOffTheFetchesOfOriginalsNoFrameWants()
+    {
+        var fetch = new Gated(givesUpWhenCalledOff: true);
+        var landings = new Landings();
+
+        using var pictures = new Pictures(fetch.Fetch, landings.Land);
+
+        string[] post = ["m1", "m2", "m3", "m4"];
+
+        pictures.Want([.. post.Select(id => OnScreen(AnOriginal(id)))], ADrawingTerminal, Wide);
+
+        Assert.Equal(Pictures.AtATime, fetch.Asked.Count);
+
+        pictures.Want([OnScreen(Picture("timeline"))], ADrawingTerminal, Wide);
+        await fetch.Until(Pictures.AtATime + 1);
+
+        Assert.Equal([.. post.Select(id => AnOriginal(id).Address)], fetch.CalledOff.Order());
+        Assert.Equal("timeline", fetch.Asked[^1]);
+
+        fetch.Answer("timeline", APng(4, 4));
+        await landings.Landed(1);
+
+        Assert.NotNull(pictures.Of(Picture("timeline")));
+    }
+
+    /// <summary>
+    ///     An original sent for again while the fetch called off when the Picture screen went is still under way — the
+    ///     post's picture opened again at once — waits for that fetch to be over rather than starting a second beside
+    ///     it, and is then sent for afresh, nothing the one called off brought being taken for it (review of #514).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_SendsForAnOriginalStillBeingFetchedOnlyOnceThatFetchIsOver()
+    {
+        var fetch = new Gated();
+        var landings = new Landings();
+
+        using var pictures = new Pictures(fetch.Fetch, landings.Land);
+
+        pictures.Want([OnScreen(AnOriginal())], ADrawingTerminal, Wide);
+        pictures.Want([], ADrawingTerminal, Wide);
+        pictures.Want([OnScreen(AnOriginal())], ADrawingTerminal, Wide);
+
+        Assert.Single(fetch.Asked);
+
+        fetch.Answer(AnOriginal().Address, APng(400, 300));
+        await fetch.Until(2);
+        await landings.Landed(1);
+
+        Assert.Equal([AnOriginal().Address, AnOriginal().Address], fetch.Asked);
+        Assert.NotNull(pictures.Of(AnOriginal()));
+    }
+
+    /// <summary>
     ///     A cache over a fetch that answers with <paramref name="serve" />'s bytes for each address, writing down
     ///     every address it is asked for in <paramref name="asked" />.
     /// </summary>
@@ -1125,11 +1183,15 @@ public class PicturesTests
     ///     A file server that answers only when told to, so that a test can hold fetches open and see which are
     ///     started, and in what order, while they are.
     /// </summary>
-    private sealed class Gated
+    /// <param name="givesUpWhenCalledOff">
+    ///     Whether a fetch called off ends there, as one over a socket does, rather than going on until it is answered.
+    /// </param>
+    private sealed class Gated(bool givesUpWhenCalledOff = false)
     {
         private readonly Lock _gate = new();
         private readonly Dictionary<string, TaskCompletionSource<Fetched>> _answers = [];
         private readonly List<string> _asked = [];
+        private readonly List<string> _calledOff = [];
 
         /// <summary>Every address asked for, in the order the fetches started.</summary>
         public List<string> Asked
@@ -1143,13 +1205,39 @@ public class PicturesTests
             }
         }
 
+        /// <summary>Every address whose fetch was called off, in the order they were.</summary>
+        public List<string> CalledOff
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return [.. _calledOff];
+                }
+            }
+        }
+
         public Task<Fetched> Fetch(string address, int most, CancellationToken cancellation)
         {
             lock (_gate)
             {
-                _asked.Add(address);
+                var answer = Answering(address);
 
-                return Answering(address).Task;
+                _asked.Add(address);
+                cancellation.Register(() =>
+                {
+                    lock (_gate)
+                    {
+                        _calledOff.Add(address);
+                    }
+
+                    if (givesUpWhenCalledOff)
+                    {
+                        answer.TrySetCanceled(cancellation);
+                    }
+                });
+
+                return answer.Task;
             }
         }
 

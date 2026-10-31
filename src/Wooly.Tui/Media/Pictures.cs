@@ -113,6 +113,14 @@ public sealed class Pictures(
     /// <summary>How many fetches and decodes are under way, never more than <see cref="AtATime" />.</summary>
     private int _fetching;
 
+    /// <summary>
+    ///     The pictures being fetched or decoded now, by <see cref="Drawn.Id" />, each with what calls its fetch off: a
+    ///     picture held apart that no frame wants any more (<see cref="LetGoOfWhatIsHeldApart" />). Asked before a
+    ///     fetch starts, so that a picture whose fetch is still under way — called off, but not over yet — is not sent
+    ///     for a second time beside it, but once it is over (<see cref="Pump" />).
+    /// </summary>
+    private readonly Dictionary<string, CancellationTokenSource> _underWay = [];
+
     private readonly CancellationTokenSource _abandoned = new();
 
     /// <summary>How many frames have said what they want, which is what names the latest of them.</summary>
@@ -209,6 +217,8 @@ public sealed class Pictures(
     /// </remarks>
     public void Want(IReadOnlyList<WantedPicture> frame, Raster raster, int columns)
     {
+        List<CancellationTokenSource> callingOff;
+
         lock (_gate)
         {
             // What is already waiting its turn, and what this frame sends for that was not: the two that make up the
@@ -254,7 +264,7 @@ public sealed class Pictures(
                 }
             }
 
-            LetGoOfWhatIsHeldApart(taking);
+            callingOff = LetGoOfWhatIsHeldApart(taking);
 
             Abandon(taking);
 
@@ -269,7 +279,27 @@ public sealed class Pictures(
             ];
         }
 
+        // Outside the lock, because calling a fetch off runs whatever it registered there, and that may be the end of
+        // the fetch itself coming back through here.
+        callingOff.ForEach(CallOff);
+
         Pump();
+    }
+
+    /// <summary>
+    ///     Calls off the fetch <paramref name="calling" /> was made for — which may be over, and its means of calling it
+    ///     off let go of, by now.
+    /// </summary>
+    private static void CallOff(CancellationTokenSource calling)
+    {
+        try
+        {
+            calling.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Over already: there is nothing left to call off.
+        }
     }
 
     /// <summary>
@@ -306,11 +336,18 @@ public sealed class Pictures(
     ///     Forgets every picture held apart that <paramref name="taking" /> does not want — pixels, file and all, and
     ///     whether or not it is on its way — writing down whose pixels went for the next <see cref="Drain" />: the
     ///     Picture screen that wanted it has gone, and it is held only while that is open (ADR-0034). One on its way
-    ///     lands nowhere, and is sent for again if it is wanted again. Under the lock.
+    ///     has its fetch called off and lands nowhere, and is sent for again if it is wanted again, once that fetch is
+    ///     over. Under the lock.
     /// </summary>
-    private void LetGoOfWhatIsHeldApart(List<WantedPicture> taking)
+    /// <returns>
+    ///     What calls off the fetches of those on their way, for the caller to call off once out of the lock: an
+    ///     original is up to <see cref="MostBytesHeldApart" />, and one nobody will draw would otherwise go on holding
+    ///     one of the <see cref="AtATime" /> places the timeline's pictures wait on (review of #514).
+    /// </returns>
+    private List<CancellationTokenSource> LetGoOfWhatIsHeldApart(List<WantedPicture> taking)
     {
         var wanting = taking.Select(wanted => wanted.Drawn.Id).ToHashSet();
+        var callingOff = new List<CancellationTokenSource>();
 
         foreach (var held in _held.Values.Where(held => !Counts(held) && !wanting.Contains(held.Drawn.Id)).ToList())
         {
@@ -319,9 +356,16 @@ public sealed class Pictures(
                 RecordLetGo(held.Drawn.Id);
             }
 
+            if (_underWay.TryGetValue(held.Drawn.Id, out var calling))
+            {
+                callingOff.Add(calling);
+            }
+
             _wanted.Remove(held.Place);
             _held.Remove(held.Drawn.Id);
         }
+
+        return callingOff;
     }
 
     /// <summary>
@@ -356,27 +400,46 @@ public sealed class Pictures(
     /// <summary>
     ///     Starts the nearest of what is waiting, for as many as there is room for under <see cref="AtATime" />. Called
     ///     when a frame has said what it wants and whenever a fetch finishes, which are the only two things that change
-    ///     what can start.
+    ///     what can start. One whose last fetch is still under way waits for that to be over, called off as it will
+    ///     have been (<see cref="_underWay" />).
     /// </summary>
     private void Pump()
     {
         while (true)
         {
             Drawn next;
+            Held held;
+            CancellationTokenSource calling;
 
             lock (_gate)
             {
-                if (_fetching >= AtATime || _queued.Count == 0 || _abandoned.IsCancellationRequested)
+                if (_fetching >= AtATime || _abandoned.IsCancellationRequested)
                 {
                     return;
                 }
 
-                next = _queued[0];
-                _queued.RemoveAt(0);
+                var at = _queued.FindIndex(drawn => !_underWay.ContainsKey(drawn.Id));
+
+                if (at < 0)
+                {
+                    return;
+                }
+
+                next = _queued[at];
+                _queued.RemoveAt(at);
+
+                if (_held.GetValueOrDefault(next.Id) is not { } waiting)
+                {
+                    continue;
+                }
+
+                held = waiting;
+                calling = CancellationTokenSource.CreateLinkedTokenSource(_abandoned.Token);
+                _underWay[next.Id] = calling;
                 _fetching++;
             }
 
-            _ = Fetch(next);
+            _ = Fetch(next, held, calling);
         }
     }
 
@@ -529,7 +592,13 @@ public sealed class Pictures(
     ///     not, and decoded only where the latest frame had room for them. A file fetched for a picture the decoded tier
     ///     had no room for is held as a file, and decoded when the picture is scrolled to.
     /// </summary>
-    private async Task Fetch(Drawn drawn)
+    /// <param name="drawn">The picture.</param>
+    /// <param name="held">
+    ///     What is remembered of it as the fetch starts, which is where what it brings lands — and only there: one let
+    ///     go of while it was on its way, and wanted again since, is remembered afresh and sent for afresh.
+    /// </param>
+    /// <param name="calling">What calls this fetch off, let go of once it is over.</param>
+    private async Task Fetch(Drawn drawn, Held held, CancellationTokenSource calling)
     {
         byte[]? bytes = null;
         Size? stored = null;
@@ -546,7 +615,7 @@ public sealed class Pictures(
             {
                 lock (_gate)
                 {
-                    bytes = _held.GetValueOrDefault(drawn.Id)?.Bytes;
+                    bytes = held.Bytes;
                 }
 
                 if (bytes is null)
@@ -554,7 +623,7 @@ public sealed class Pictures(
                     var fetched = await fetch(
                         drawn.Address,
                         drawn.HeldApart ? MostBytesHeldApart : MostBytes,
-                        _abandoned.Token);
+                        calling.Token);
 
                     bytes = fetched.Bytes;
                     tooLarge = fetched.IsTooLarge;
@@ -566,7 +635,7 @@ public sealed class Pictures(
                     // decode is the slow part, and a frame waiting on one would be a frame that stuttered.
                     var file = bytes;
 
-                    (stored, picture) = await Task.Run(() => Decoded(drawn, file), _abandoned.Token);
+                    (stored, picture) = await Task.Run(() => Decoded(held, file), calling.Token);
                 }
             }
             finally
@@ -574,6 +643,8 @@ public sealed class Pictures(
                 lock (_gate)
                 {
                     _fetching--;
+                    _underWay.Remove(drawn.Id);
+                    calling.Dispose();
                 }
 
                 Pump();
@@ -597,13 +668,13 @@ public sealed class Pictures(
 
         lock (_gate)
         {
-            landed = Land(drawn, stored is null ? null : bytes, stored, picture, tooLarge);
-            refused = drawn.HeldApart && _held.GetValueOrDefault(drawn.Id)?.WhyNot is not null;
+            landed = Land(held, stored is null ? null : bytes, stored, picture, tooLarge);
+            refused = drawn.HeldApart && IsHeld(held) && held.WhyNot is not null;
             LetGo();
         }
 
         // A picture held apart that will not come is announced as one landing is: the Picture screen waiting on it
-        // says why on the status row, and only a frame drawn again asks it.
+        // says why under it, and only a frame drawn again asks it.
         if (landed || refused)
         {
             arrived();
@@ -615,7 +686,7 @@ public sealed class Pictures(
     ///     to decode it to where that frame had room for them — or nothing at all where the bytes are not a picture.
     ///     Outside the lock, because this is the slow part.
     /// </summary>
-    private (Size? Stored, Picture? Picture) Decoded(Drawn drawn, byte[] bytes)
+    private (Size? Stored, Picture? Picture) Decoded(Held held, byte[] bytes)
     {
         if (PictureDecoder.Measured(bytes) is not { } stored)
         {
@@ -626,7 +697,7 @@ public sealed class Pictures(
 
         lock (_gate)
         {
-            if (_held.GetValueOrDefault(drawn.Id) is not { } held || held.DecodesIn != _frame)
+            if (!IsHeld(held) || held.DecodesIn != _frame)
             {
                 return (stored, null);
             }
@@ -638,22 +709,30 @@ public sealed class Pictures(
     }
 
     /// <summary>
-    ///     Writes down what came of sending for <paramref name="drawn" />, and says whether there are new pixels to
-    ///     draw — letting go of the pixels it already held where those are replaced. Under the lock.
+    ///     Whether <paramref name="held" /> is still what is remembered of its picture, rather than forgotten while it
+    ///     was on its way, or forgotten and remembered afresh since. Under the lock.
     /// </summary>
-    /// <param name="drawn">The picture sent for.</param>
+    private bool IsHeld(Held held) => _held.GetValueOrDefault(held.Drawn.Id) == held;
+
+    /// <summary>
+    ///     Writes down what came of sending for <paramref name="held" />'s picture, and says whether there are new
+    ///     pixels to draw — letting go of the pixels it already held where those are replaced. Under the lock.
+    /// </summary>
+    /// <param name="held">What was remembered of the picture sent for as the fetch started.</param>
     /// <param name="bytes">Its file, or <see langword="null" /> where none came that was a picture.</param>
     /// <param name="stored">How big it is stored, where it was a picture.</param>
     /// <param name="picture">Its pixels, where the latest frame had room for them.</param>
     /// <param name="tooLarge">Whether no file came because the one there was refused as too large.</param>
-    private bool Land(Drawn drawn, byte[]? bytes, Size? stored, Picture? picture, bool tooLarge)
+    private bool Land(Held held, byte[]? bytes, Size? stored, Picture? picture, bool tooLarge)
     {
         // Never forgotten while it was on its way (LetGo), so there is somewhere for it to land. Where the page moved on
         // while it was coming, it lands as a file alone, because Decoded asked the latest frame whether to decode it:
         // the file of a picture scrolled past, kept so that scrolling back to it is a decode rather than a fetch
         // (ADR-0025). Only a shell closing forgets it, and that is not told about anything — and a frame that no longer
-        // wants a picture held apart, which is let go whatever it is doing (LetGoOfWhatIsHeldApart).
-        if (!_held.TryGetValue(drawn.Id, out var held))
+        // wants a picture held apart, which is let go whatever it is doing and its fetch called off
+        // (LetGoOfWhatIsHeldApart): what that fetch brings lands nowhere, not even on the picture remembered afresh
+        // where it was wanted again since, which is sent for afresh.
+        if (!IsHeld(held))
         {
             return false;
         }
@@ -681,7 +760,7 @@ public sealed class Pictures(
         // id is keyed on the size it was decoded at, so nothing would ever ask for it, or delete it, again.
         if (held.Picture is not null)
         {
-            RecordLetGo(drawn.Id);
+            RecordLetGo(held.Drawn.Id);
         }
 
         HoldPixels(held, picture);

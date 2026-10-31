@@ -64,7 +64,10 @@ pixels, and its file is held beside it: a few megabytes for most photographs, 32
 the timeline's pictures (`Drawn.HeldApart`): none of it counts against the timeline's two budgets, which are unchanged,
 and none of the timeline's pictures is let go to make room. All of it is let go the first frame after the screen goes,
 the smaller copies staying held for the timeline; a Kitty terminal is told to forget every one it was sent, and those
-encoded ahead and never sent are dropped with them.
+encoded ahead and never sent are dropped with them. An original still on its way then has its download called off, so
+that it does not go on holding one of the few places the timeline's pictures are fetched through, and one wanted again
+before that download is over — the picture opened again at once — waits for it to be over rather than being fetched a
+second time beside it.
 
 **A download is read up to 32 MB** (`Pictures.MostBytesHeldApart`) for an original, where the timeline stops at 8 MB
 (`Pictures.MostBytes`). An original past 32 MB is refused, and the smaller copy is drawn in its place.
