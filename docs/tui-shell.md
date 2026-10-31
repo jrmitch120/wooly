@@ -251,6 +251,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Media — the attachments screen, a row for each thing attached to a compose or a reply | `⏎` on the Media header, or a click on its line, where a short terminal folded the rows into it | story 58 |
 | Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
+| Picture — one still picture on a post over the whole window at its original, fitted whole, its description wrapped and centred beneath it, crumbed `Picture by @author`, or `Picture 2 of 4 by @author` where the post has several | `⏎` on a walked picture, in a feed or on the post screen | #516, #517 (ADR-0034) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
 Every screen owes three things: it reads at 57 columns (58 for a screen with widgets of its own — compose, the
@@ -294,7 +295,7 @@ Feed and post:
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `w` | Who favorited it, or who boosted it: the actors screen, one side at a time | On a boost, the post boosted. Opens "Favorited by" where the post's count of favorites is above zero, else "Boosted by" where its boosts are, else says `Nobody has favorited or boosted this.` and opens nothing — settled from the counts before anything is read, and always the list, never a shortcut to one account (#489). On Notifications `w` is who did what the row reports, and on an account screen's header block their follows (below, #490) |
 | `x` | Show what the post is hiding | Its warned text and poll, its sensitive attachments and link preview, or both halves at once (#113, #116, #119). What it showed belongs to the screen it was pressed on (#121, below) |
-| `←` `→` | Walk the references (hashtag, mention, link) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below) |
+| `←` `→` | Walk the references (hashtag, mention, link, attachment, drawn picture) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below), a walked picture on its Picture screen, inside the TUI (#516), letting the reference go as every opening does, so that `esc` comes back to the post picked and nothing walked (review of #514). A walked picture is drawn between `⎡⎢⎣` and `⎤⎥⎦` beside its box (`[` `]` for a box one row tall) (#515), and a click anywhere on its box walks to it and a double click there opens it (review of #514) |
 | `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll is on screen and would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
 | `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. Only where the poll is on screen and would still take a vote — and on a poll already voted in or closed, says which rather than asking |
 
@@ -318,6 +319,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Choose avatar / Choose header | the Attach browser's keys, but it lists only pictures, `ctrl-a` shows no other files, one file may be chosen, and `⏎` takes the file chosen, else the one under the cursor, back to the form's row as its picture (#407) · `esc` back to the form unchanged |
 | Attach | type to filter, fuzzily (#376) · `space` choose the file under the cursor, or let it go — up to what the post has room for · `⏎` attach what is chosen, wherever the cursor is, else the file under the cursor, else open the folder under it · `→` open a folder · `←` up a folder · `↑`/`↓` walk the list · `ctrl-a` every file, and again only the accepted types · `backspace`/`delete` only ever the filter, stopping at empty · `esc` clear the filter, then back to the draft unchanged |
 | Media (the attachments screen) | `↑`/`↓` walk the rows · `⏎` describe the row · `del`/`backspace` take it off · `ctrl-z` bring back the last one taken off · `shift-↑`/`shift-↓` move it · `r` retry it where a retry can help · `s` the sensitive toggle · `ctrl-o` the file browser, attaching onto the compose under it · `ctrl-v`/`alt-v` attach from the clipboard onto it · `esc` back to the draft (story 58) |
+| Picture | `←`/`→` step to the post's previous or next still picture, in the order they are drawn and passing over a video or the like on the same post, each drawn as any is with its own description, stopping at either end rather than coming round; the status row says them only where the post has several, and the crumb counts which this is (`Picture 2 of 4 by @author`), updating with each step (#518, review of #514) · `esc` back at its first press, to the screen it was opened from with the same pick and nothing walked, whichever was stepped to — nothing on the screen is walked or picked for it to let go of first, the steps being the screen's own (#516, #518, review of #514) |
 | Home, local, federated, each tag set, Discover, Notifications, Messages, Requests, Post, Account, Follows, Actors | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -645,11 +647,12 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   such list; a bare `@maria` resolved against the reader's own instance opens whoever *their* server has by that name,
   which is the failure this section already warns about below. Hashtags and addresses need no resolution and walk
   normally, which is what makes a verified link on somebody's profile reachable — the most useful thing on the screen.
-  The precedent for drawn-but-unwalkable is an `Image` attachment and a link preview's author name.
+  The precedent for drawn-but-unwalkable is a video's preview box and a link preview's author name.
 - **Walkable**: hashtag, mention, and address — the three references `BodyText` finds — followed, since #109
   (ADR-0017), by every `Video`, `Animation`, `Audio` or `Unknown` attachment on the post, in attachment order, and
-  since #116 (ADR-0018) by the post's link preview, last of all. **Not walkable**: an `Image` attachment, which is
-  drawn or linked but never opened this way; the name a link preview says wrote the page, which is plain text and
+  since #116 (ADR-0018) by the post's link preview, last of all. **Not walkable**: an `Image` attachment where it is
+  linked rather than drawn — a drawn one is walked after the labels' places, and opens on its Picture screen (#515,
+  #516, ADR-0034); the name a link preview says wrote the page, which is plain text and
   never an address; text still behind a content warning, which has no references until `x` shows it, since the
   brackets marking a pick would be behind the warning too (#83); and every attachment on a **warned** post, along with
   its link preview, for the same reason since #113 — its label is behind the warning with the rest of what is hidden,
@@ -675,7 +678,8 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   reference drawn across two rows (#83).
 - **A click on a reference walks to it** (#475), as `→` would have arrived there, picking the thing it is inside first
   and letting go of any reference held in another; a single click never opens anything. Every run drawn for a
-  reference — both halves of a wrapped one, its brackets, an attachment's kind, a link preview's title — carries the
+  reference — both halves of a wrapped one, its brackets, an attachment's kind, a link preview's title, every cell of a
+  drawn picture's box and the bracket columns beside it — carries the
   reference it is drawn for (`Span.Reference`), and the click is answered off that rather than off a second reckoning
   of where each reference fell. It is the reference itself, not its place in the walk, so what was drawn is matched
   against what may be walked to: a mention in a bio matches nothing walkable, and the click only picks.
@@ -747,12 +751,18 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   An attachment's own address needs no elided-form or scheme check the way body text does — it arrives off the wire
   already well-formed (`PostMedia.Url`) rather than matched by pattern out of prose — so it goes through the exact
   same `Shell.OpenAddress` call a picked link already does, refusal for refusal.
-- **`⏎` lets the reference go, on every outcome** (#474): a hashtag pushed, a mention opened, an address or an
-  attachment's or link preview's address handed to the browser, and a refusal alike. `Shell.OpenReference` lets it go
-  as part of opening, before the outcome is known, so no outcome is an exception. Walking back out of the hashtag or
-  account it opened, the first `esc` goes back rather than being spent on an old bracket; after a link, the next `→`
-  starts again at the first reference; and the status row leaves reference mode at once. A refused reference costs one
-  `→` to pick again.
+- **A walked picture is a fifth, and the one that stays inside the TUI** (#516, ADR-0034). `⏎` on it pushes its
+  **Picture screen** rather than handing its address to anything, told apart from a video's address — the two share
+  `Media` — by the attachment its reference was made of (`Screen.OpenWalkedPicture`). Nothing is fetched to open it.
+- **`⏎` lets the reference go, on every outcome** (#474): a hashtag pushed, a mention opened, a picture's Picture
+  screen pushed, an address or an attachment's or link preview's address handed to the browser, and a refusal alike.
+  `Shell.OpenReference` lets it go as part of opening, before the outcome is known, so no outcome is an exception.
+  Walking back out of the hashtag, account or picture it opened, the first `esc` goes back rather than being spent on
+  an old bracket, to the same post picked and nothing walked; after a link, the next `→` starts again at the first
+  reference; and the status row leaves reference mode at once. A refused reference costs one `→` to pick again. A
+  picture was once the exception, left walked under its Picture screen so that `esc` came back to it (#516); that was
+  reversed for one rule across every reference (review of #514), the Picture screen keeping for itself which picture
+  it opened on and stepping from there.
 - **The launch is decided apart from the act, and outside `ShellPorts`.** This is the first thing in the shell that
   leaves the terminal, so it lives in its own small seam rather than folded into the ports (which are specifically
   "everything the shell reaches an *instance* through" — a browser reaches outside the instance). `BrowserLaunch`
@@ -902,8 +912,61 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   once the preview has actually landed. Pending, or never coming, and the description stands.
 - **A still picture that cannot be drawn is unaffected by #109**, and keeps the shape every attachment had before it: a
   `⏵`, the description, and the address on the rows below — wrapped rather than clipped, since a real address is
-  longer than 61 columns and a link with its end cut off is not a link. `Image` never joins the walk, so there is
-  nothing here for `←`/`→` to reach.
+  longer than 61 columns and a link with its end cut off is not a link. An `Image` joins the walk only where it is
+  drawn (ADR-0034), so there is nothing here for `←`/`→` to reach.
+- **A drawn still picture is walked to** after the post's text references, in attachment order beside the labels
+  (#515). Walked, it is drawn between `⎡⎢⎣` and `⎤⎥⎦` in the column either side of its box that every attachment's box
+  gives up (#519), a glyph on each row so that a box partly scrolled off still shows them, and `[` `]` on a box one row
+  tall — in `ReferencePicked`, the role `‹ ›` use. Only the bracket columns change on walking to it or letting it go.
+  Every cell of every row carries the reference, the box's own and its bracket columns alike, each row held out to the
+  column past the box's right edge whatever the pixels left blank on it: so a click anywhere on the box or beside it
+  walks to the picture and brackets it, and a double click there opens its Picture screen, in a feed and on the post
+  screen alike (review of #514, ADR-0034). Which pictures are in a box is
+  read off the rows themselves, written down by the call the content region lays them out through
+  (`Screen.LaidOut`): a terminal that cannot draw links every picture, and a region too narrow for a box draws a
+  picture's description alone, and either way the picture is not walked. A video's or animation's preview box, a link
+  preview's picture and avatars are never walked to as pictures.
+- **`⏎` on a walked picture opens its Picture screen** (#516, ADR-0034), a screen pushed onto the stack and crumbed
+  `Picture by @author` (`Picture 2 of 4 by @author` where the post has several): the one picture fitted whole into the
+  window less the description's rows and one more, at its shape and centred across, never cropped or stretched out of
+  shape; what its author said it shows (`PostMedia.Shows`, so `a picture, undescribed` where they said nothing) wrapped
+  and centred beneath it, row by row, shown as written, markup and all, and cut at a quarter of the content region's
+  rows (one at least), its last row shown ending in `…`, so that a description as long as a whole article — one bridged
+  from a blog can be — never squeezes the picture out, the picture being given its room first (review of #514). Under
+  that, the one more row: kept for saying why the original will not come, centred, and blank where it is coming or here,
+  so that nothing moves when it is said. Nothing under that: a hint row there saying `esc back` again was taken out, the
+  status row already listing the keys, and its row given to the picture (review of #514). Its box is settled again on
+  every frame from the room the window gives it, so a resize draws the picture to fit the new window. It draws the
+  instance's original (#517): an empty box until the original lands — blank cells in the page's colour, with no
+  **Stand-in**'s blur or shade, which felt off on a screen of one picture (review of #514) — then the original in the
+  same cells, the box settled from the original's shape (`PostMedia.OriginalShape`, the smaller copy's standing in where
+  the instance said none) so that nothing moves. Not the smaller copy the timeline already holds, though it is there at
+  once: drawn first and swapped for the original, it read as the picture flashing (review of #514). The smaller copy is
+  drawn, stretched to the box, only where the original will not come, and is wanted by the screen only then. The
+  original is a `Drawn` of its own (`Drawn.Original`), held apart from the timeline's pictures: it counts against
+  neither budget and lets none of them go to make room, may read up to 32 MB (`Pictures.MostBytesHeldApart`) where an
+  inline picture stays at 8 MB, is decoded no larger than the window, and is let go the first frame that does not want
+  it — so once the screen goes, while the smaller copy stays held for the timeline, its download called off where it is
+  still on its way. `esc` goes back at its first press, to the screen it was opened from with the same pick and nothing
+  walked, opening it having let the picture go as opening a link does (review of #514); on the post screen as in a
+  feed.
+- **`←`/`→` on the Picture screen step along the post's still pictures** (#518), in the order they are drawn, a video or
+  the like on the same post passed over, each drawn as any picture is there with its own description, and stopping at
+  either end rather than coming round, as the walk does. The crumb counts them where there are several,
+  `Picture 2 of 4 by @author`, and the status row offers `←→`; neither says anything of them where there is one. The
+  steps are the screen's own verbs (`Verb.NextPicture`, `Verb.PreviousPicture`) rather than a walk of its references, so
+  the first `esc` still goes back, to nothing walked underneath whichever was stepped to; the screen steps from the
+  picture it was opened on, which it holds itself rather than reading off a walk underneath. The screen sends for the
+  originals of all the post's pictures, not only the one shown: that one first, and the rest from the first frame one of
+  them has landed or been refused. It holds every one landed or refused apart until it goes, so a step no longer lets go
+  of the picture it leaves (review of #514); one stepped off before anything has landed is let go, its download called
+  off. A step to a picture whose original has landed draws it at once, with no empty box first, and a step back finds
+  the one left still there. A step to one still on its way shows its empty box, or the smaller copy where its original
+  was refused, and what is said of an original under the description is only ever about the picture shown. Where
+  pictures are drawn as Kitty placeholders or as sixel, the landed ones not shown are encoded ahead in the boxes they
+  are drawn in and on the rows those boxes set them on (`Line.Ahead`), so the step draws its picture on its own frame;
+  one encoded ahead for a window since resized is dropped, never having been sent. The cost is up to four originals
+  held at the window's size while the screen is open (ADR-0034).
 - **A warned post's attachments are drawn only once the reader has asked for them.** A spoiler text, the instance's own
   sensitive flag, or both, and `x` shows them along with whatever else the post is hiding (#113). Until it is pressed
   there is no box, no label, no description and no address — and no `Wants`, so nothing is fetched and nothing is
@@ -941,6 +1004,10 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
 - **A picture is drawn at the full width of the column it is in, at its own proportions**, capped at 16 rows in a feed
   item and 32 on the post screen. Width-driven rather than height-driven — that is the difference between an inline
   picture and a postage stamp.
+- **An attachment's box gives up a column either side** (#519, ADR-0034). A still picture's box and a video's or an
+  animation's preview are drawn a column in from each edge of the content region, walked or not: those columns are
+  where a walked picture's brackets go, so walking to one moves nothing, and a video's box lines up with a picture's on
+  the same post. A link preview's picture and every fixed box keep the width they had.
 - **Fixed boxes are cropped to fill; shaped boxes fit** (#438). Every drawn picture has a **picture box**
   (`PictureBox`), settled before its pixels arrive and holding its Stand-in until they do. A shaped box — a post's
   picture, a link preview's — is the shape the instance reported, 16:9 where it reported none, and the picture is fitted
@@ -952,8 +1019,12 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   which gives it back the picture's proportions (ADR-0025's amendment for #438).
 - **The description stands above the picture**, so it does not move when the pixels land under it. Until they do, the
   box under it holds its Stand-in, the size the picture will be, so nothing moves when the picture replaces it.
-- **Nothing about a picture is ever an error.** A fetch that fails and a file that will not decode both leave the
-  description standing on its own, which is what a terminal that cannot draw shows anyway.
+- **Nothing about a picture is ever an error,** but one. A fetch that fails and a file that will not decode both leave
+  the description standing on its own, which is what a terminal that cannot draw shows anyway. The exception is the
+  Picture screen's original (#517): one larger than 32 MB, or one that cannot be fetched or decoded, has the smaller
+  copy drawn in its place and `The original is too large to show.` or `The original could not be fetched.` said on a
+  row of the screen's own under the description, kept for it whether or not anything is said there, so that nothing
+  moves; never on the status row, which goes on listing the keys (review of #514).
 - **A drawn picture's caption can hide, behind a preference that defaults off.** `hide_drawn_caption` (below) hides
   `Described` only once a picture is *actually drawn* — the same branch that emits `Box(inset)`. A terminal that
   cannot draw at all and one that can but hasn't gotten this picture yet are treated identically, so there is no
@@ -2487,9 +2558,9 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Click | A group's title, a compact heading, the API panel, the rest of the edge the mark is on | Nothing. Only destinations and the mark answer a click |
 | Click | A crumb of the breadcrumb, behind the one in front | Walks back to that screen in one move: everything drilled in above it comes off the stack, as that many presses of `esc` would take it off, and the screen is in front as it was left — its **Page**, its **Picked** and any **Reference** picked on it — with nothing asked of the instance. What the screens taken off asked for is dropped, as with any pop. The first crumb is the click on the destination shown above. Which crumb a column is comes off the breadcrumb's own spans, each carrying its place in the stack as its `Span.Item`, as the rail's rows carry theirs, so the click lands on the crumb drawn under the pointer however the trail is elided. A crumb whose walk back would take a touched compose off the stack asks first, as every way out of one does (#373); a crumb above a compose still walks back. Crumbs are not drawn as clickable. The other move the keys do not have (#308) |
 | Click | The crumb in front, the `… ›` lead of an elided trail, a separator, the fetch mark, the edge after the trail | Nothing. Only a crumb behind the one in front answers a click |
-| Click | A row of a thing in the content | Picks that thing, through the same pick `[`/`]` make: any row of it counts — a tall post's byline, its text, a picture on it — since which thing a row is part of is its `Line.Item`, the ordinal `Screen.Pick` takes. The remark on the status row goes, as it does for `j`/`k`, and a **Reference** walked to inside the thing is let go, so the `⏎` after it opens the thing rather than the reference. The page stays where it is rather than following the pick, so what was clicked never moves out from under the pointer. The same on every listing screen, the account screen's header block (after which the post keys go quiet, as after `j`/`k`) and a search's results in their sections among them (#290). A click on a **Reference** — a hashtag, mention or address in a post's text, a **Bio** or a **Custom field**, an **Attachment**'s own address, a **Link preview**'s — picks the thing it is inside and walks to it, exactly as `→` would have, brackets and the status row's reference mode included; a click on either row of an address the wrap cut in two, or on the brackets of the one already walked to, counts. It never opens anything. Which reference a column is comes off the runs drawn under the pointer, each carrying the reference it is drawn for as its `Span.Reference`, as a crumb's carry its `Span.Item`; a reference drawn and never walked, a mention in a bio, picks the thing and walks to nothing (#475) |
+| Click | A row of a thing in the content | Picks that thing, through the same pick `[`/`]` make: any row of it counts — a tall post's byline, its text, a picture on it — since which thing a row is part of is its `Line.Item`, the ordinal `Screen.Pick` takes. The remark on the status row goes, as it does for `j`/`k`, and a **Reference** walked to inside the thing is let go, so the `⏎` after it opens the thing rather than the reference. The page stays where it is rather than following the pick, so what was clicked never moves out from under the pointer. The same on every listing screen, the account screen's header block (after which the post keys go quiet, as after `j`/`k`) and a search's results in their sections among them (#290). A click on a **Reference** — a hashtag, mention or address in a post's text, a **Bio** or a **Custom field**, an **Attachment**'s own address, a **Link preview**'s, a drawn picture anywhere on its box or in the bracket columns beside it — picks the thing it is inside and walks to it, exactly as `→` would have, brackets and the status row's reference mode included; a click on either row of an address the wrap cut in two, or on the brackets of the one already walked to, counts. It never opens anything. Which reference a column is comes off the runs drawn under the pointer, each carrying the reference it is drawn for as its `Span.Reference`, as a crumb's carry its `Span.Item`; a reference drawn and never walked, a mention in a bio, picks the thing and walks to nothing (#475) |
 | Click | A heading, a rule, a blank, the space under the last thing | Nothing. A click never guesses which thing was meant |
-| Double click | A row of a thing in the content | That click, and then `⏎` through the **Keymap** on the screen in front, so it means whatever `⏎` means there: it opens a post, a search result, a conversation, the asker of a follow request or a person, and switches to a profile on the profiles screen. Where `⏎` means nothing for what is picked — the account screen's header block — it picks and does nothing more. On a **Reference** it opens the reference: the first click walks to it (#475), and the `⏎` opens it and lets it go (#474) — a hashtag's screen, a mention's account, an address handed to the browser. It opens the one the first click walked to, without asking the row again, so the brackets that click drew moving the row a column on, or wrapping a long address anew, cannot change what opens (#479). Off any reference the click lets a walked **Reference** go first, so a double click on a post's text with a hashtag walked to opens the post. Terminal.Gui's own detection says what is a double click (#291) |
+| Double click | A row of a thing in the content | That click, and then `⏎` through the **Keymap** on the screen in front, so it means whatever `⏎` means there: it opens a post, a search result, a conversation, the asker of a follow request or a person, and switches to a profile on the profiles screen. Where `⏎` means nothing for what is picked — the account screen's header block — it picks and does nothing more. On a **Reference** it opens the reference: the first click walks to it (#475), and the `⏎` opens it and lets it go (#474) — a hashtag's screen, a mention's account, an address handed to the browser, a drawn picture's **Picture screen**. It opens the one the first click walked to, without asking the row again, so the brackets that click drew moving the row a column on, or wrapping a long address anew, cannot change what opens (#479). Off any reference the click lets a walked **Reference** go first, so a double click on a post's text with a hashtag walked to opens the post. Terminal.Gui's own detection says what is a double click (#291) |
 | Double click | A heading, a rule, a blank, the space under the last thing | Nothing: never a `⏎` on what was picked before |
 | Double click | The breadcrumb | Its first click's walk back and nothing more: never a `⏎` on the screen it landed on (#308) |
 | Click | The **Scrollbar**, its track or its thumb: the content panel's right edge or the margin column just inside it, beside the track's rows | Nothing: the click moves no page, leaves **Picked** where it is and picks no row beside the margin. With a confirmation open it declines it, as a click anywhere does. A press on the thumb instead takes hold of it for the drag, the only thing on the bar that moves the page (below, #503). The bar answers on two columns though only the edge is drawn, so there are two to aim for the thumb with; the window answers them before any view is asked, the edge being the panel's frame — the hit area #502 gave the bar, whose page turn on the track was dropped |

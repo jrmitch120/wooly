@@ -4,7 +4,8 @@ namespace Wooly.Tui.Rendering;
 
 /// <summary>
 ///     What a post carries that points somewhere else: the hashtags, handles and addresses written in its text, in the
-///     order they were written, then its attachments' own addresses and its link preview's (#83, ADR-0017, ADR-0018).
+///     order they were written, then its attachments' own addresses — a drawn still picture's among them — and its link
+///     preview's (#83, ADR-0017, ADR-0018, ADR-0034).
 ///     What every screen with a post on it walks, and the default answer to <see cref="IReferring" />.
 /// </summary>
 /// <remarks>
@@ -12,7 +13,7 @@ namespace Wooly.Tui.Rendering;
 ///     warning, because the brackets a picked reference is drawn in would be behind it too and a pick there is one
 ///     nobody can see (<c>docs/tui-shell.md</c>). The attachment ones go as soon as the post is warned at all: since
 ///     #113 the attachments are behind the warning with the text, so <c>←</c>/<c>→</c> would be walking to a label
-///     nobody can see and <c>⏎</c> opening a video the reader never asked for.
+///     or a picture nobody can see and <c>⏎</c> opening a video the reader never asked for.
 ///     <para>
 ///         Both halves asked of <see cref="OnShow" /> rather than worked out here, because they are the same two
 ///         questions <see cref="Screens.PostLines" /> puts about the same post: what is walked is what was drawn, and
@@ -21,7 +22,11 @@ namespace Wooly.Tui.Rendering;
 /// </remarks>
 /// <param name="Post">The post being read, which may be a boost — <see cref="OnShow" /> unwraps it.</param>
 /// <param name="Revealed">Whether this reader has asked past whatever warning it carries.</param>
-public readonly record struct PostReferences(Post Post, bool Revealed) : IReferring
+/// <param name="Boxed">
+///     The attachment references the rows last drawn carry, a still picture's among them only where its box was drawn,
+///     which is what settles whether its pictures are walked (<see cref="AttachmentReferences" />, ADR-0034).
+/// </param>
+public readonly record struct PostReferences(Post Post, bool Revealed, IReadOnlySet<Reference> Boxed) : IReferring
 {
     /// <inheritdoc />
     public IReadOnlyList<Reference> References
@@ -33,23 +38,23 @@ public readonly record struct PostReferences(Post Post, bool Revealed) : IReferr
             return
             [
                 .. show.Words ? BodyText.References(show.Shown.Content) : [],
-                .. show.Media ? BeyondTheText(show.Shown) : [],
+                .. show.Media ? BeyondTheText(show.Shown, Boxed) : [],
             ];
         }
     }
 
     /// <summary>
-    ///     The references a post carries beyond its own text: its attachments' addresses in the order they were
-    ///     attached, and then its link preview's (ADR-0018).
+    ///     The references a post carries beyond its own text: its attachments' in the order they were attached — a drawn
+    ///     picture's among them — and then its link preview's (ADR-0018, ADR-0034).
     /// </summary>
     /// <remarks>
     ///     Shown and hidden together, which is why they are one question here: the link preview stands behind a post's
     ///     warning on exactly the terms its attachments do since #113, and asking twice would be two places for that to
     ///     be answered differently.
     /// </remarks>
-    private static IEnumerable<Reference> BeyondTheText(Post post)
+    private static IEnumerable<Reference> BeyondTheText(Post post, IReadOnlySet<Reference> boxed)
     {
-        foreach (var attached in AttachmentReferences.Of(post))
+        foreach (var attached in AttachmentReferences.Of(post, boxed))
         {
             yield return attached;
         }

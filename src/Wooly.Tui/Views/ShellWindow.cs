@@ -268,8 +268,10 @@ internal sealed class ShellWindow : Window
             // Laid out under the Raster the region settled the frame by, read rather than asked again here, so that a
             // click or a key between frames lays the rows out as they were drawn (#357). Never called before the
             // region is built, which is all the null-forgiving says. Told where the page is, for a screen with something
-            // that keeps to it (#382).
-            (width, height) => shell.Screen.Lines(
+            // that keeps to it (#382). Laid out through LaidOut rather than Lines, which writes down what the rows drew
+            // as they are made, so that what the screen walks is what was drawn: a still picture is a reference only
+            // where it is in a box (ADR-0034).
+            (width, height) => shell.Screen.LaidOut(
                 new Drawing(
                     Room(shell.Screen, width),
                     clock.GetUtcNow(),

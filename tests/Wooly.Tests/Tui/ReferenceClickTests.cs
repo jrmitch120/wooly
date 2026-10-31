@@ -1,7 +1,6 @@
 using Terminal.Gui.Input;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
-using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 using static Wooly.Tests.Tui.ContentClicks;
@@ -189,13 +188,11 @@ public class ReferenceClickTests
     }
 
     /// <summary>
-    ///     A click on text outside any reference, or on a picture drawn as a picture, picks the post as it always has, and
-    ///     walks to nothing.
+    ///     A click on text outside any reference picks the post as it always has, and walks to nothing — a picture drawn
+    ///     as a picture being a reference of its own, walked to by a click on it (<c>PictureClickTests</c>).
     /// </summary>
-    [Theory]
-    [InlineData("text")]
-    [InlineData("picture")]
-    public async Task AClickOutsideAnyReferencePicksThePostAsBefore(string where)
+    [Fact]
+    public async Task AClickOutsideAnyReferencePicksThePostAsBefore()
     {
         var pictures = new FakePictures().Holding("m1", 800, 600);
 
@@ -209,17 +206,7 @@ public class ReferenceClickTests
         using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built, pictures: pictures, drawsPictures: true);
 
         drawn.Press(Key.CursorRight);
-
-        if (where == "text")
-        {
-            ClickOn(drawn, "Carding");
-        }
-        else
-        {
-            var picture = Assert.Single(drawn.Content.SubViews.OfType<PictureView>(), view => view.Visible).FrameToScreen();
-
-            drawn.Click(picture.X + picture.Width / 2, picture.Y + picture.Height / 2);
-        }
+        ClickOn(drawn, "Carding");
 
         Assert.Equal("220", drawn.Shell.Screen.Picked?.Id);
         Assert.Null(drawn.Shell.Screen.Reference);

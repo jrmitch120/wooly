@@ -13,6 +13,7 @@ internal sealed class FakePictures : IPictures
 {
     private readonly Dictionary<string, Picture> _held = [];
     private readonly List<string> _letGo = [];
+    private readonly Dictionary<string, Unshowable> _refused = [];
 
     /// <summary>Whose avatars have arrived, wherever the instance serves them from.</summary>
     private readonly Dictionary<string, Picture> _avatars = [];
@@ -34,6 +35,13 @@ internal sealed class FakePictures : IPictures
 
     /// <summary>Says that the picture for the attachment <paramref name="mediaId" /> has arrived, at the given size in pixels.</summary>
     public FakePictures Holding(string mediaId, int width, int height) => Held(mediaId, width, height);
+
+    /// <summary>
+    ///     Says that the original of the attachment <paramref name="mediaId" /> has arrived, as the Picture screen sends
+    ///     for it, at the given size in pixels.
+    /// </summary>
+    public FakePictures HoldingOriginal(string mediaId, int width, int height) =>
+        Held(Drawn.Original(APost.APicture(mediaId), 0, 0).Id, width, height);
 
     /// <summary>
     ///     Says that the picture the instance chose for <paramref name="link" /> has arrived, at the given size in
@@ -81,6 +89,20 @@ internal sealed class FakePictures : IPictures
 
         return _held.GetValueOrDefault(drawn.Id)
             ?? _avatars.FirstOrDefault(avatar => Drawn.Avatar(avatar.Key, drawn.Address) == drawn).Value;
+    }
+
+    /// <inheritdoc />
+    public Unshowable? WhyNot(Drawn drawn) => _refused.TryGetValue(drawn.Id, out var why) ? why : null;
+
+    /// <summary>
+    ///     Says that the picture <paramref name="id" /> names could not be had, for <paramref name="why" /> — what the
+    ///     Picture screen says on the status row of an original refused.
+    /// </summary>
+    public FakePictures Refusing(string id, Unshowable why)
+    {
+        _refused[id] = why;
+
+        return this;
     }
 
     /// <inheritdoc />

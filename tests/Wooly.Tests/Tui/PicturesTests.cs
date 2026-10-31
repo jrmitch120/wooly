@@ -86,11 +86,11 @@ public class PicturesTests
         var landed = new TaskCompletionSource();
 
         using var pictures = new Pictures(
-            (address, _) =>
+            (address, _, _) =>
             {
                 asked.Add(address);
 
-                return Task.FromResult<byte[]?>(APng(4, 4));
+                return Task.FromResult(Fetched.Of(APng(4, 4)));
             },
             landed.SetResult);
 
@@ -109,8 +109,8 @@ public class PicturesTests
     }
 
     /// <summary>
-    ///     The smaller copy is what gets fetched where the instance offered one: a terminal draws a few hundred pixels
-    ///     across, and the original is somebody's data allowance.
+    ///     The smaller copy is what gets fetched where the instance offered one: a feed holds dozens of pictures, and
+    ///     each original is somebody's data allowance. The original is fetched only for the Picture screen (ADR-0034).
     /// </summary>
     [Fact]
     public void Pictures_FetchesTheFileItselfOnlyWhereThereIsNoPreview()
@@ -118,11 +118,11 @@ public class PicturesTests
         var asked = new List<string>();
 
         using var pictures = new Pictures(
-            (address, _) =>
+            (address, _, _) =>
             {
                 asked.Add(address);
 
-                return Task.FromResult<byte[]?>(null);
+                return Task.FromResult(Fetched.None);
             },
             () => { });
 
@@ -141,7 +141,7 @@ public class PicturesTests
         var asks = 0;
 
         using var pictures = new Pictures(
-            (_, _) =>
+            (_, _, _) =>
             {
                 asks++;
 
@@ -165,7 +165,7 @@ public class PicturesTests
         var both = new TaskCompletionSource();
 
         using var pictures = new Pictures(
-            (_, _) => Task.FromResult<byte[]?>(APng(4, 4)),
+            (_, _, _) => Task.FromResult(Fetched.Of(APng(4, 4))),
             () =>
             {
                 if (Interlocked.Increment(ref landed) == 2)
@@ -763,7 +763,7 @@ public class PicturesTests
         // Chunked: no Content-Length at all, so the only way to know it is too big is to have counted.
         var network = new ScriptedHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new StreamContent(new MemoryStream(new byte[Pictures.MostBytes + 1])),
+            Content = new StreamContent(new MemoryStream(Padded(APng(400, 300), Pictures.MostBytes + 1))),
         });
 
         using var http = new HttpClient(network);
@@ -771,14 +771,257 @@ public class PicturesTests
 
         pictures.Want([Near(Drawn.Attached(APost.APicture()))], ADrawingTerminal, Wide);
 
-        // Nothing announces a refusal, so the wait is for the request to have been made and answered.
-        while (network.Requests.Count == 0)
-        {
-            await Task.Delay(10, TestContext.Current.CancellationToken);
-        }
-
+        Assert.Equal(Unshowable.TooLarge, await Refused(pictures, Drawn.Attached(APost.APicture())));
         Assert.Null(pictures.Of(Drawn.Attached(APost.APicture())));
         Assert.False(landed);
+    }
+
+    /// <summary>
+    ///     An original, held only while the Picture screen is open, may read past what any inline picture may: the
+    ///     same file the timeline refuses is drawn there (ADR-0034).
+    /// </summary>
+    [Fact]
+    public async Task Over_DrawsAnOriginalLargerThanAnInlinePictureMayBe()
+    {
+        var network = new ScriptedHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new MemoryStream(Padded(APng(400, 300), Pictures.MostBytes + 1))),
+        });
+
+        var landings = new Landings();
+
+        using var http = new HttpClient(network);
+        using var pictures = Pictures.Over(http, landings.Land);
+
+        pictures.Want([OnScreen(AnOriginal())], ADrawingTerminal, Wide);
+        await landings.Landed(1);
+
+        Assert.Equal(400, pictures.Of(AnOriginal())?.Width);
+        Assert.Equal(APost.APicture().Url, Assert.Single(network.Requests).RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     An original larger even than <see cref="Pictures.MostBytesHeldApart" /> is refused as too large — whether
+    ///     the server declared as much or the bytes had to be counted — and said to be, so that the Picture screen drawn
+    ///     again can say why the smaller copy is still standing (ADR-0034).
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Over_RefusesAnOriginalLargerThanItMayBeAndSaysSo(bool declared)
+    {
+        var file = new byte[Pictures.MostBytesHeldApart + 1];
+        var network = new ScriptedHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = declared ? new ByteArrayContent(file) : new StreamContent(new MemoryStream(file)),
+        });
+
+        var landings = new Landings();
+
+        using var http = new HttpClient(network);
+        using var pictures = Pictures.Over(http, landings.Land);
+
+        pictures.Want([OnScreen(AnOriginal())], ADrawingTerminal, Wide);
+        await landings.Landed(1);
+
+        Assert.Equal(Unshowable.TooLarge, pictures.WhyNot(AnOriginal()));
+        Assert.Null(pictures.Of(AnOriginal()));
+    }
+
+    /// <summary>
+    ///     Whatever does the fetching may say a file was too large, as the fetch <see cref="Pictures.Over" /> makes
+    ///     does, and an original it says that of is refused as too large rather than as not had (ADR-0034).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_SaysAnOriginalIsTooLargeWhereItsFetchSaysSo()
+    {
+        var landings = new Landings();
+
+        using var pictures = new Pictures((_, _, _) => Task.FromResult(Fetched.TooLarge), landings.Land);
+
+        pictures.Want([OnScreen(AnOriginal())], ADrawingTerminal, Wide);
+        await landings.Landed(1);
+
+        Assert.Equal(Unshowable.TooLarge, pictures.WhyNot(AnOriginal()));
+        Assert.Null(pictures.Of(AnOriginal()));
+    }
+
+    /// <summary>
+    ///     An original and the smaller copy of the same attachment are two pictures, held side by side; the first frame
+    ///     that does not want the original lets go of it, and says so for a Kitty terminal to forget it too, while the
+    ///     smaller copy stays held for the timeline it came from (ADR-0034).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_LetsGoOfAnOriginalTheFirstFrameThatDoesNotWantIt()
+    {
+        using var pictures = APictures(address => address.EndsWith("original.png", StringComparison.Ordinal)
+            ? APng(2000, 1500)
+            : APng(400, 300), out var landings);
+
+        pictures.Want([OnScreen(AnOriginal()), OnScreen(APicture("m1"))], ADrawingTerminal, Wide);
+        await landings.Landed(2);
+
+        Assert.Equal(400, pictures.Of(APicture("m1"))?.Width);
+        Assert.Equal(800, pictures.Of(AnOriginal())?.Width);
+
+        pictures.Want([OnScreen(APicture("m1"))], ADrawingTerminal, Wide);
+
+        Assert.Null(pictures.Of(AnOriginal()));
+        Assert.Equal([AnOriginal().Id], pictures.Drain());
+        Assert.NotNull(pictures.Of(APicture("m1")));
+    }
+
+    /// <summary>
+    ///     The originals of every picture on a post, held side by side while the Picture screen steps through them, are
+    ///     let go of together by the first frame that wants none of them — the screen gone — each said for a Kitty
+    ///     terminal to forget, and the smaller copies the feed draws stay held (review of #514).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_LetsGoOfEveryOriginalOnAPostTheFirstFrameThatWantsNoneOfThem()
+    {
+        using var pictures = APictures(address => address.EndsWith("original.png", StringComparison.Ordinal)
+            ? APng(2000, 1500)
+            : APng(400, 300), out var landings);
+
+        string[] post = ["m1", "m2", "m3", "m4"];
+
+        pictures.Want(
+            [.. post.Select(id => OnScreen(AnOriginal(id))), .. post.Select(id => Near(APicture(id)))],
+            ADrawingTerminal,
+            Wide);
+        await landings.Landed(post.Length * 2);
+
+        Assert.All(post, id => Assert.NotNull(pictures.Of(AnOriginal(id))));
+
+        pictures.Want([.. post.Select(id => OnScreen(APicture(id)))], ADrawingTerminal, Wide);
+
+        Assert.All(post, id => Assert.Null(pictures.Of(AnOriginal(id))));
+        Assert.Equal([.. post.Select(id => AnOriginal(id).Id)], pictures.Drain().Order());
+        Assert.All(post, id => Assert.NotNull(pictures.Of(APicture(id))));
+    }
+
+    /// <summary>
+    ///     Holding an original costs the timeline nothing: with the decoded tier as full as its budget allows, an
+    ///     original on screen beside it lets none of the timeline's pictures go to make room (ADR-0034).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_LetsNoTimelinePictureGoToMakeRoomForAnOriginal()
+    {
+        using var pictures = APictures(address => address.EndsWith("original.png", StringComparison.Ordinal)
+            ? APng(4000, 3000)
+            : APng(1000, 640), out var landings);
+
+        var fitting = (int)(Pictures.DecodedBudget / (1000L * 640 * 4));
+        var timeline = Enumerable.Range(0, fitting).Select(at => APicture($"m{at}")).ToList();
+
+        pictures.Want([.. timeline.Select(Near)], ADrawingTerminal, Wide);
+        await landings.Landed(fitting);
+
+        pictures.Want([OnScreen(AnOriginal("m0")), .. timeline.Select(Near)], ADrawingTerminal, Wide);
+        await landings.Landed(fitting + 1);
+
+        Assert.NotNull(pictures.Of(AnOriginal("m0")));
+        Assert.Empty(pictures.Drain());
+        Assert.All(timeline, drawn => Assert.NotNull(pictures.Of(drawn)));
+    }
+
+    /// <summary>
+    ///     An original is decoded no larger than the window it is drawn over, and decoded again, without being fetched
+    ///     again, once the window grows: its <see cref="Drawn.Largest" /> is the window as the latest frame has it,
+    ///     not as it was when it was first sent for.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_DecodesAnOriginalAgainForALargerWindow()
+    {
+        var asked = new List<string>();
+
+        using var pictures = APictures(_ => APng(4000, 3000), out var landings, asked: asked);
+
+        pictures.Want([OnScreen(AnOriginal(columns: 40, rows: 30))], ADrawingTerminal, Wide);
+        await landings.Landed(1);
+
+        Assert.Equal(400, pictures.Of(AnOriginal())?.Width);
+
+        pictures.Want([OnScreen(AnOriginal(columns: 80, rows: 30))], ADrawingTerminal, Wide);
+        await landings.Landed(2);
+
+        Assert.Equal(800, pictures.Of(AnOriginal())?.Width);
+        Assert.Single(asked);
+    }
+
+    /// <summary>
+    ///     An original that cannot be fetched, or that is not a picture once it is, failed — and is said to have, as a
+    ///     refusal is, where an inline picture's failure is told to nobody (ADR-0034).
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Pictures_SaysAnOriginalFailedWhereItCouldNotBeFetchedOrRead(bool arrives)
+    {
+        using var pictures = APictures(_ => arrives ? Encoding.UTF8.GetBytes("<!doctype html>") : null, out var landings);
+
+        pictures.Want([OnScreen(AnOriginal())], ADrawingTerminal, Wide);
+        await landings.Landed(1);
+
+        Assert.Equal(Unshowable.Failed, pictures.WhyNot(AnOriginal()));
+    }
+
+    /// <summary>
+    ///     The fetches of a post's originals still under way when no frame wants them any more — the Picture screen
+    ///     gone — are called off, so that they give their places among the <see cref="Pictures.AtATime" /> back to the
+    ///     timeline's pictures rather than holding them for downloads nobody will draw (review of #514).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_CallsOffTheFetchesOfOriginalsNoFrameWants()
+    {
+        var fetch = new Gated(givesUpWhenCalledOff: true);
+        var landings = new Landings();
+
+        using var pictures = new Pictures(fetch.Fetch, landings.Land);
+
+        string[] post = ["m1", "m2", "m3", "m4"];
+
+        pictures.Want([.. post.Select(id => OnScreen(AnOriginal(id)))], ADrawingTerminal, Wide);
+
+        Assert.Equal(Pictures.AtATime, fetch.Asked.Count);
+
+        pictures.Want([OnScreen(Picture("timeline"))], ADrawingTerminal, Wide);
+        await fetch.Until(Pictures.AtATime + 1);
+
+        Assert.Equal([.. post.Select(id => AnOriginal(id).Address)], fetch.CalledOff.Order());
+        Assert.Equal("timeline", fetch.Asked[^1]);
+
+        fetch.Answer("timeline", APng(4, 4));
+        await landings.Landed(1);
+
+        Assert.NotNull(pictures.Of(Picture("timeline")));
+    }
+
+    /// <summary>
+    ///     An original sent for again while the fetch called off when the Picture screen went is still under way — the
+    ///     post's picture opened again at once — waits for that fetch to be over rather than starting a second beside
+    ///     it, and is then sent for afresh, nothing the one called off brought being taken for it (review of #514).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_SendsForAnOriginalStillBeingFetchedOnlyOnceThatFetchIsOver()
+    {
+        var fetch = new Gated();
+        var landings = new Landings();
+
+        using var pictures = new Pictures(fetch.Fetch, landings.Land);
+
+        pictures.Want([OnScreen(AnOriginal())], ADrawingTerminal, Wide);
+        pictures.Want([], ADrawingTerminal, Wide);
+        pictures.Want([OnScreen(AnOriginal())], ADrawingTerminal, Wide);
+
+        Assert.Single(fetch.Asked);
+
+        fetch.Answer(AnOriginal().Address, APng(400, 300));
+        await fetch.Until(2);
+        await landings.Landed(1);
+
+        Assert.Equal([AnOriginal().Address, AnOriginal().Address], fetch.Asked);
+        Assert.NotNull(pictures.Of(AnOriginal()));
     }
 
     /// <summary>
@@ -795,14 +1038,14 @@ public class PicturesTests
         landings = landed;
 
         return new Pictures(
-            (address, _) =>
+            (address, _, _) =>
             {
                 lock (landed)
                 {
                     asked?.Add(address);
                 }
 
-                return Task.FromResult(serve(address));
+                return Task.FromResult(Fetched.Of(serve(address)));
             },
             landed.Land);
     }
@@ -832,6 +1075,40 @@ public class PicturesTests
 
     /// <summary>An attachment's picture, by the attachment's id.</summary>
     private static Drawn APicture(string id) => Drawn.Attached(APost.APicture(id: id));
+
+    /// <summary>
+    ///     The original of the attachment <paramref name="id" /> names, as a Picture screen of
+    ///     <paramref name="columns" /> by <paramref name="rows" /> draws it.
+    /// </summary>
+    private static Drawn AnOriginal(string id = "m1", int columns = Wide, int rows = 30) =>
+        Drawn.Original(APost.APicture(id: id), columns, rows);
+
+    /// <summary>
+    ///     Why <paramref name="drawn" /> could not be had, waited for: nothing announces an inline picture's failing,
+    ///     so the wait is for the cache to have written it down.
+    /// </summary>
+    private static async Task<Unshowable> Refused(Pictures pictures, Drawn drawn)
+    {
+        var giveUp = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+
+        while (true)
+        {
+            if (pictures.WhyNot(drawn) is { } why)
+            {
+                return why;
+            }
+
+            Assert.True(DateTime.UtcNow < giveUp, $"{drawn.Id} was never refused");
+
+            await Task.Delay(5, TestContext.Current.CancellationToken);
+        }
+    }
+
+    /// <summary>
+    ///     <paramref name="file" /> with nothing after it to make it <paramref name="length" /> bytes long, which a
+    ///     decoder reads past: a real picture as large as a test needs, without the time an encoder takes to make one.
+    /// </summary>
+    private static byte[] Padded(byte[] file, int length) => [.. file, .. new byte[length - file.Length]];
 
     /// <summary>
     ///     An attachment's picture, by the id the instance gave it — which is also the address it is fetched from.
@@ -906,11 +1183,15 @@ public class PicturesTests
     ///     A file server that answers only when told to, so that a test can hold fetches open and see which are
     ///     started, and in what order, while they are.
     /// </summary>
-    private sealed class Gated
+    /// <param name="givesUpWhenCalledOff">
+    ///     Whether a fetch called off ends there, as one over a socket does, rather than going on until it is answered.
+    /// </param>
+    private sealed class Gated(bool givesUpWhenCalledOff = false)
     {
         private readonly Lock _gate = new();
-        private readonly Dictionary<string, TaskCompletionSource<byte[]?>> _answers = [];
+        private readonly Dictionary<string, TaskCompletionSource<Fetched>> _answers = [];
         private readonly List<string> _asked = [];
+        private readonly List<string> _calledOff = [];
 
         /// <summary>Every address asked for, in the order the fetches started.</summary>
         public List<string> Asked
@@ -924,13 +1205,39 @@ public class PicturesTests
             }
         }
 
-        public Task<byte[]?> Fetch(string address, CancellationToken cancellation)
+        /// <summary>Every address whose fetch was called off, in the order they were.</summary>
+        public List<string> CalledOff
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return [.. _calledOff];
+                }
+            }
+        }
+
+        public Task<Fetched> Fetch(string address, int most, CancellationToken cancellation)
         {
             lock (_gate)
             {
-                _asked.Add(address);
+                var answer = Answering(address);
 
-                return Answering(address).Task;
+                _asked.Add(address);
+                cancellation.Register(() =>
+                {
+                    lock (_gate)
+                    {
+                        _calledOff.Add(address);
+                    }
+
+                    if (givesUpWhenCalledOff)
+                    {
+                        answer.TrySetCanceled(cancellation);
+                    }
+                });
+
+                return answer.Task;
             }
         }
 
@@ -941,7 +1248,7 @@ public class PicturesTests
         {
             lock (_gate)
             {
-                Answering(address).TrySetResult(bytes);
+                Answering(address).TrySetResult(Fetched.Of(bytes));
             }
         }
 
@@ -956,11 +1263,11 @@ public class PicturesTests
             }
         }
 
-        private TaskCompletionSource<byte[]?> Answering(string address)
+        private TaskCompletionSource<Fetched> Answering(string address)
         {
             if (!_answers.TryGetValue(address, out var answer))
             {
-                answer = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
+                answer = new TaskCompletionSource<Fetched>(TaskCreationOptions.RunContinuationsAsynchronously);
                 _answers[address] = answer;
             }
 

@@ -183,6 +183,14 @@ internal sealed class Placing
 
                 Prepare(page, moving, cell, raster.SixelColours);
 
+                foreach (var (inset, at, picture) in AheadOfAKeypress(page))
+                {
+                    if (OnPage(inset, at, page) is { Crop: var crop })
+                    {
+                        _sixels.Prepare(inset, picture, cell, crop, raster.SixelColours);
+                    }
+                }
+
                 break;
 
             case PictureWay.Kitty:
@@ -372,7 +380,37 @@ internal sealed class Placing
             }
         }
 
+        foreach (var (inset, _, picture) in AheadOfAKeypress(page))
+        {
+            drawing.Prepare(inset, picture, cell);
+        }
+
+        drawing.LetGoOfSizesNotAsked();
+
         return placed;
+    }
+
+    /// <summary>
+    ///     The pictures the rows on the page carry ahead of a keypress (<see cref="Line.Ahead" />) whose pixels are
+    ///     here, with the row of the page each would be set on, which is as far under the row carrying it as it says:
+    ///     encoded now, and drawn by nothing until the keypress puts one in the rows' own boxes — what lets the Picture
+    ///     screen's step draw a picture on its own frame rather than an encode behind it (review of #514). Where a
+    ///     Kitty terminal draws them, one prepared at a size no frame asks for any more is dropped
+    ///     (<see cref="Placeholders.LetGoOfSizesNotAsked" />), and the rest with the picture when the cache lets go
+    ///     of it.
+    /// </summary>
+    private IEnumerable<(Inset Inset, int Top, Picture Picture)> AheadOfAKeypress(Page page)
+    {
+        for (var at = Math.Max(0, page.Top); at < Math.Min(page.Lines.Count, page.Top + page.Height); at++)
+        {
+            foreach (var (inset, below) in page.Lines[at].Ahead)
+            {
+                if (_pictures.Of(inset.Drawn) is { } picture)
+                {
+                    yield return (inset, at + below - page.Top, picture);
+                }
+            }
+        }
     }
 
     /// <summary>

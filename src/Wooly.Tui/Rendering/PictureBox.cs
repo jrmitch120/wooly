@@ -7,7 +7,8 @@ namespace Wooly.Tui.Rendering;
 /// <summary>
 ///     The cells a <b>drawn</b> picture is painted in, settled before its pixels arrive so that nothing moves when they
 ///     come or go (GLOSSARY.md's <b>Picture box</b>): what every row of it holds, and what is set into each row to be
-///     drawn — the <b>Stand-in</b>'s shade and blur until the pixels are here, and the picture once they are.
+///     drawn — the <b>Stand-in</b>'s shade and blur until the pixels are here, or nothing on the Picture screen
+///     (<see cref="ShapedBlankUntilItLands" />), and the picture once they are.
 /// </summary>
 /// <remarks>
 ///     Said once for every box a screen holds, rather than once at each, because "shade until the pixels are here, then
@@ -116,6 +117,59 @@ public sealed record PictureBox
         Drawing drawing,
         int mostRows)
     {
+        // The blur is set into the whole box over the shade rather than in place of it: the shade is what shows until
+        // the blur is encoded and drawn, and what shows where it never decodes at all (#349).
+        return ShapedOr(
+            drawn,
+            shape,
+            drawing,
+            mostRows,
+            box => new PictureBox(
+                drawn,
+                box.Columns,
+                box.Rows,
+                StandIn.Row(box.Columns),
+                StandIn.WithBlur(box, blurhash, drawing.Blurs)));
+    }
+
+    /// <summary>
+    ///     A box as <see cref="Shaped" /> settles it, blank only until the picture lands — blank cells in the page's
+    ///     own colour, with no <b>Stand-in</b>'s shade or blur in them — and the picture fitted inside it once it has:
+    ///     the Picture screen's, where a blur on a screen that shows the one picture felt off (ADR-0034, review of
+    ///     #514).
+    /// </summary>
+    /// <param name="drawn">The picture.</param>
+    /// <param name="shape">
+    ///     The shape the instance reported for it, or <see langword="null" /> where it reported none.
+    /// </param>
+    /// <param name="drawing">
+    ///     How many columns there are to draw in, whose pixels have arrived, and how this terminal paints them.
+    /// </param>
+    /// <param name="mostRows">The most rows the box may take.</param>
+    /// <returns>The box, or <see langword="null" /> where no picture is drawn or there is no room for one.</returns>
+    public static PictureBox? ShapedBlankUntilItLands(
+        Drawn drawn,
+        PictureShape? shape,
+        Drawing drawing,
+        int mostRows) =>
+        ShapedOr(
+            drawn,
+            shape,
+            drawing,
+            mostRows,
+            box => new PictureBox(drawn, box.Columns, box.Rows, Blanks(box.Columns, Role.Body)));
+
+    /// <summary>
+    ///     A box the shape the instance reported for <paramref name="drawn" />, with the picture fitted inside it once
+    ///     it is here, and what <paramref name="waiting" /> makes of the box while it is not.
+    /// </summary>
+    private static PictureBox? ShapedOr(
+        Drawn drawn,
+        PictureShape? shape,
+        Drawing drawing,
+        int mostRows,
+        Func<Inset, PictureBox> waiting)
+    {
         if (!Drawing.Draws(drawing.Pictures, drawing.Raster, out var cell)
             || Inset.For(drawn, shape, cell, drawing.Width, mostRows) is not { } box)
         {
@@ -124,14 +178,7 @@ public sealed record PictureBox
 
         if (drawing.Pictures.Of(drawn) is not { } picture)
         {
-            // The blur is set into the whole box over the shade rather than in place of it: the shade is what shows
-            // until the blur is encoded and drawn, and what shows where it never decodes at all (#349).
-            return new PictureBox(
-                drawn,
-                box.Columns,
-                box.Rows,
-                StandIn.Row(box.Columns),
-                StandIn.WithBlur(box, blurhash, drawing.Blurs));
+            return waiting(box);
         }
 
         var (fitted, setRow) = box.Fit(picture, cell);
@@ -149,9 +196,10 @@ public sealed record PictureBox
     }
 
     /// <summary>
-    ///     What row <paramref name="row" /> of the box holds: the Stand-in's shade, the box's width across, while a
-    ///     picture is coming and not here; blank columns where none is drawn or a fixed box's picture is here; and
-    ///     where a shaped box's picture is here, blanks to the picture's right edge on the row it is set into and
+    ///     What row <paramref name="row" /> of the box holds: while a picture is coming and not here, the Stand-in's
+    ///     shade the box's width across, or blank cells as wide where the box is blank until it lands
+    ///     (<see cref="ShapedBlankUntilItLands" />); blank columns where none is drawn or a fixed box's picture is here;
+    ///     and where a shaped box's picture is here, blanks to the picture's right edge on the row it is set into and
     ///     nothing on the rest.
     /// </summary>
     public Span Cells(int row) => _set is not null && row == _setRow ? _heldOnSetRow : _held;
@@ -163,5 +211,9 @@ public sealed record PictureBox
     public IReadOnlyList<Inset> Insets(int row, int column) =>
         _set is { } set && row == _setRow ? [set.ShiftedBy(column)] : [];
 
-    private static Span Blanks(int columns, Role role = Role.Media) => new(new string(' ', Math.Max(0, columns)), role);
+    /// <summary>
+    ///     <paramref name="columns" /> blank cells in <paramref name="role" />, none where that is less than one: what a
+    ///     box's rows are held with where nothing shades them, and what a row beside a box is held out with.
+    /// </summary>
+    public static Span Blanks(int columns, Role role = Role.Media) => new(new string(' ', Math.Max(0, columns)), role);
 }

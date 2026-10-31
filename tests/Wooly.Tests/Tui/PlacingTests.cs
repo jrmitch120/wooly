@@ -319,6 +319,77 @@ public class PlacingTests
     }
 
     /// <summary>
+    ///     A picture a row carries ahead of a keypress (<see cref="Line.Ahead" />) — the Picture screen's next picture,
+    ///     landed — has its sixel encoded ahead, off the frame, and is shown in no box; once the keypress puts it in the
+    ///     rows' own boxes, showing it costs the sending and not the encoding (review of #514).
+    /// </summary>
+    [Fact]
+    public void APictureCarriedAheadOfAKeypressIsEncodedAheadAndShownInNoBox()
+    {
+        var ahead = new List<Action>();
+        var encoded = 0;
+        var frame = new AFrame(
+            new FakePictures().Holding("m1", 40, 80).Holding("m2", 40, 80),
+            work => ahead.Add(work),
+            (_, _) =>
+            {
+                encoded++;
+
+                return "sixel";
+            });
+        var showing = Rows(Box("m1", at: 2));
+
+        showing[2] = showing[2] with { Ahead = [new InsetAhead(new Inset(Picture("m2"), 0, 4, 4), Below: 0)] };
+
+        frame.Place(showing, top: 0, ARaster.Sixel());
+
+        Assert.Equal(1, encoded);
+        Assert.Empty(frame.ShownIn("m2"));
+
+        Assert.Single(ahead)();
+        Assert.Equal(2, encoded);
+
+        frame.Place(Rows(Box("m2", at: 2)), top: 0, ARaster.Sixel());
+
+        Assert.Single(frame.ShownIn("m2"));
+        Assert.Equal(2, encoded);
+    }
+
+    /// <summary>
+    ///     A picture carried ahead to be set rows under the row carrying it — one narrower than its box's shape, set
+    ///     down it — has its sixel cut for the rows it would be on: here, its top two rows, the box straddling the foot
+    ///     of the page; so the keypress that puts it there encodes nothing more (review of #514).
+    /// </summary>
+    [Fact]
+    public void APictureCarriedAheadIsEncodedForTheRowsItWouldBeSetOn()
+    {
+        var ahead = new List<Action>();
+        var encoded = 0;
+        var frame = new AFrame(
+            new FakePictures().Holding("m1", 40, 80).Holding("m2", 40, 80),
+            work => ahead.Add(work),
+            (_, _) =>
+            {
+                encoded++;
+
+                return "sixel";
+            });
+        var showing = Rows(Box("m1", at: 2));
+
+        showing[2] = showing[2] with { Ahead = [new InsetAhead(new Inset(Picture("m2"), 0, 4, 4), Below: 6)] };
+
+        frame.Place(showing, top: 0, ARaster.Sixel());
+        ahead.ForEach(work => work());
+
+        var before = encoded;
+
+        frame.Place(Rows(Box("m2", at: 8)), top: 0, ARaster.Sixel());
+
+        Assert.Single(frame.ShownIn("m2"));
+        Assert.Equal(before, encoded);
+    }
+
+    /// <summary>
     ///     A sixel box straddling the foot of a page moving down has the cuts of the next four rows of the scroll
     ///     encoded ahead, off the frame, and the one a row back for a reader who turns round — so a step costs the
     ///     sending and not the encoding (#292, ADR-0023).
@@ -461,6 +532,57 @@ public class PlacingTests
         Assert.Equal(Height - 1, Assert.Single(frame.Place(rows, top: 6, ARaster.Placeholders())).Top);
         Assert.Single(frame.Kitty.Transmitted);
         Assert.Single(encoding);
+    }
+
+    /// <summary>
+    ///     A picture carried ahead of a keypress to a Kitty terminal, encoded for a box of one size and then carried at
+    ///     another — the window resized under the Picture screen — has what was encoded for the first size dropped
+    ///     rather than held for the rest of the run, never having been sent: put on the page in a box that size again,
+    ///     it is encoded afresh rather than sent at once (review of #514).
+    /// </summary>
+    [Fact]
+    public void APictureCarriedAheadAtAnotherSizeDropsWhatWasEncodedForTheOld()
+    {
+        var encoding = new List<Action>();
+        var frame = new AFrame(new FakePictures().Holding("m1", 40, 80).Holding("m2", 40, 80), encoding: encoding.Add);
+
+        frame.Place(Carrying(columns: 4, rows: 4), top: 0, ARaster.Placeholders());
+        EncodeAll(encoding);
+        frame.Place(Carrying(columns: 6, rows: 6), top: 0, ARaster.Placeholders());
+        EncodeAll(encoding);
+
+        var sent = frame.Kitty.Transmitted.Count;
+
+        Assert.Empty(frame.Place(Rows(Box("m2", at: 2)), top: 0, ARaster.Placeholders()));
+        Assert.Equal(sent, frame.Kitty.Transmitted.Count);
+        Assert.Single(encoding);
+
+        // The page showing m1, carrying m2 ahead in a box of the given size.
+        static Line[] Carrying(int columns, int rows)
+        {
+            var showing = Rows(Box("m1", at: 2));
+
+            showing[2] = showing[2] with
+            {
+                Ahead = [new InsetAhead(new Inset(Picture("m2"), 0, columns, rows), Below: 0)],
+            };
+
+            return showing;
+        }
+    }
+
+    /// <summary>
+    ///     Every encode <paramref name="encoding" /> is waiting on done, and any those ask for, until none is left.
+    /// </summary>
+    private static void EncodeAll(List<Action> encoding)
+    {
+        while (encoding.Count > 0)
+        {
+            Action[] waiting = [.. encoding];
+
+            encoding.Clear();
+            Array.ForEach(waiting, encode => encode());
+        }
     }
 
     /// <summary>

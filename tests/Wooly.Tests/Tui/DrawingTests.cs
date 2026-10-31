@@ -55,8 +55,8 @@ public class DrawingTests
     }
 
     /// <summary>
-    ///     The cell a box is shaped by is the Raster's. 61 columns of 10 pixels at 2:1 is 305 pixels tall: 15 rows of
-    ///     20, or 8 of 40.
+    ///     The cell a box is shaped by is the Raster's. 61 columns of 10 pixels — a row of 63 less the column an
+    ///     attachment's box gives up either side (ADR-0034) — at 2:1 is 305 pixels tall: 15 rows of 20, or 8 of 40.
     /// </summary>
     [Fact]
     public void Raster_ShapesTheBoxByItsCell()
@@ -67,7 +67,7 @@ public class DrawingTests
         Assert.Equal(8, Rows(new CellSize(10, 40)));
 
         int Rows(CellSize cell) =>
-            PostLines.Feed(post, new Drawing(61, Now, new FakePictures(), ARaster.Sixel(cell)), default)
+            PostLines.Feed(post, new Drawing(61 + 2, Now, new FakePictures(), ARaster.Sixel(cell)), default)
                 .Count(line => line.Text.Contains(StandIn.Shade, StringComparison.Ordinal));
     }
 

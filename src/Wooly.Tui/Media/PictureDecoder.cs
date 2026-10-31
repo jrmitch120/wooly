@@ -58,9 +58,10 @@ internal static class PictureDecoder
         {
             // The header first, which costs nothing to read, because what it settles is whether the decoder can be
             // told to shrink on the way in: a JPEG can be decoded straight to a fraction of its stored size, so an
-            // eight-megapixel photograph never has to exist whole in memory to end up as a few hundred pixels of
-            // terminal. Asked for only where the picture is bigger than the room, since a target size is a size to
-            // decode *to* and would otherwise blow a thumbnail up to fill it.
+            // eight-megapixel photograph never has to exist whole in memory to end up the size of the box it is drawn
+            // in — a full-width box on a high-density screen is 1500 to 2000 pixels across, and an original on the
+            // Picture screen is decoded to the window (ADR-0034). Asked for only where the picture is bigger than the
+            // room, since a target size is a size to decode *to* and would otherwise blow a thumbnail up to fill it.
             var stored = Image.Identify(bytes).Size;
             var fitted = Fitted(stored, room);
 

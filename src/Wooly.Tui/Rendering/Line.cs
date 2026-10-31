@@ -47,6 +47,15 @@ public sealed record Line
     public IReadOnlyList<Drawn> AlsoWants { get; init; } = [];
 
     /// <summary>
+    ///     Pictures a keypress would put on screen in place of what is there now, each in the box it would be set in
+    ///     and with how far under this row that is, which are not drawn — the Picture screen's other pictures whose
+    ///     originals have landed, for one, which <c>←</c> or <c>→</c> steps to (review of #514). Encoded ahead by
+    ///     <see cref="Media.Placing" /> as a picture near the page is, so that the keypress draws one on its own frame
+    ///     rather than a frame or an encode behind it.
+    /// </summary>
+    public IReadOnlyList<InsetAhead> Ahead { get; init; } = [];
+
+    /// <summary>
     ///     Which of the screen's things this row is part of — the same ordinal <see cref="Screens.Screen.Pick" />
     ///     takes — or <see langword="null" /> for a row that is part of none: a heading, a notice, the blank between
     ///     two posts.
@@ -188,6 +197,7 @@ public sealed record Line
         return Respanned([.. spans, .. Spans]) with
         {
             Insets = Insets.Count == 0 ? Insets : [.. Insets.Select(inset => inset.ShiftedBy(shift))],
+            Ahead = Ahead.Count == 0 ? Ahead : [.. Ahead.Select(ahead => ahead.ShiftedBy(shift))],
             BandsTo = BandsTo + shift,
         };
     }
@@ -202,6 +212,7 @@ public sealed record Line
         Insets = Insets,
         Wants = Wants,
         AlsoWants = AlsoWants,
+        Ahead = Ahead,
         Item = Item,
         Heads = Heads,
         ContentStarts = ContentStarts,

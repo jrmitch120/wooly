@@ -33,6 +33,12 @@ public class NarrowedShellPictureTests
     /// <summary>The last column a screen in that panel draws in: the one before the margin's (#495).</summary>
     private const int LastDrawn = LastInside - 1;
 
+    /// <summary>
+    ///     The last column a picture's box takes in that panel: the one before the column it gives up either side for a
+    ///     walked picture's brackets (ADR-0034).
+    /// </summary>
+    private const int LastBoxed = LastDrawn - 1;
+
     [Fact]
     public async Task ASixelsCellsFallInsideTheNarrowedContentPanel()
     {
@@ -43,8 +49,9 @@ public class NarrowedShellPictureTests
         Assert.NotEmpty(cells);
         Assert.All(cells, cell => Assert.InRange(cell.X, FirstInside, LastInside));
 
-        // And it takes the panel's width: the picture is wider than any panel, so the panel is what bounds it.
-        Assert.Equal(LastDrawn, cells.Max(cell => cell.X));
+        // And it takes the panel's width: the picture is wider than any panel, so the panel, less the column given up
+        // either side, is what bounds it.
+        Assert.Equal(LastBoxed, cells.Max(cell => cell.X));
     }
 
     /// <summary>
@@ -81,14 +88,15 @@ public class NarrowedShellPictureTests
         drawn.PressAsTheLoopDraws(new Key('-'));
 
         AssertSentInTheFrameSaying(drawn, "Width 90%");
-        Assert.Equal((FirstInside + 1, LastDrawn), Across(BoxCells(drawn)));
+        Assert.Equal((FirstInside + 2, LastBoxed), Across(BoxCells(drawn)));
 
         drawn.PressAsTheLoopDraws(new Key('+'));
 
         // The whole terminal again: the panel's inside from just past the rail's 20 columns and the panel's left edge,
-        // to the one before the margin, which is before its right edge on the terminal's last column.
+        // to the one before the margin, which is before its right edge on the terminal's last column, less the column a
+        // picture's box gives up either side.
         AssertSentInTheFrameSaying(drawn, "Width 100%");
-        Assert.Equal((RailLines.Width + 2, 197), Across(BoxCells(drawn)));
+        Assert.Equal((RailLines.Width + 3, 196), Across(BoxCells(drawn)));
     }
 
     /// <summary>
@@ -117,7 +125,7 @@ public class NarrowedShellPictureTests
 
         Assert.Equal(sent.Rows * sent.Columns, cells.Count);
         Assert.All(cells, cell => Assert.InRange(cell.Column, FirstInside, LastInside));
-        Assert.Equal(LastDrawn, cells.Max(cell => cell.Column));
+        Assert.Equal(LastBoxed, cells.Max(cell => cell.Column));
 
         var top = cells.Min(cell => cell.Row);
         var left = cells.Min(cell => cell.Column);
@@ -144,14 +152,14 @@ public class NarrowedShellPictureTests
         drawn.DrawAsTheLoopDraws();
         drawn.PressAsTheLoopDraws(new Key('-'));
 
-        // From just past the panel's left edge to just before the margin inside its right one.
-        Assert.Equal((FirstInside + 1, LastDrawn), Across(PlaceholderCells(drawn)));
-        Assert.Equal(156, Named(PlaceholderCells(drawn)).Columns);
+        // From just past the panel's left edge to just before the margin inside its right one, a column in either side.
+        Assert.Equal((FirstInside + 2, LastBoxed), Across(PlaceholderCells(drawn)));
+        Assert.Equal(154, Named(PlaceholderCells(drawn)).Columns);
 
         drawn.PressAsTheLoopDraws(new Key('+'));
 
-        Assert.Equal((RailLines.Width + 2, 197), Across(PlaceholderCells(drawn)));
-        Assert.Equal(176, Named(PlaceholderCells(drawn)).Columns);
+        Assert.Equal((RailLines.Width + 3, 196), Across(PlaceholderCells(drawn)));
+        Assert.Equal(174, Named(PlaceholderCells(drawn)).Columns);
 
         // The image the cells name, of those the terminal was sent.
         FakeTerminalImages.Transmission Named(List<PlaceholderCell> cells) =>
@@ -175,7 +183,7 @@ public class NarrowedShellPictureTests
         Assert.Empty(PlaceholderCells(drawn));
         Assert.NotEmpty(cells);
         Assert.All(cells, cell => Assert.InRange(cell.X, FirstInside, LastInside));
-        Assert.Equal(LastDrawn, cells.Max(cell => cell.X));
+        Assert.Equal(LastBoxed, cells.Max(cell => cell.X));
     }
 
     /// <summary>
@@ -191,12 +199,12 @@ public class NarrowedShellPictureTests
         drawn.PressAsTheLoopDraws(new Key('-'));
 
         AssertPlacedInTheFrameSaying(drawn, "Width 90%");
-        Assert.Equal((FirstInside + 1, LastDrawn), Across(BoxCells(drawn)));
+        Assert.Equal((FirstInside + 2, LastBoxed), Across(BoxCells(drawn)));
 
         drawn.PressAsTheLoopDraws(new Key('+'));
 
         AssertPlacedInTheFrameSaying(drawn, "Width 100%");
-        Assert.Equal((RailLines.Width + 2, 197), Across(BoxCells(drawn)));
+        Assert.Equal((RailLines.Width + 3, 196), Across(BoxCells(drawn)));
     }
 
     /// <summary>The last frame written placed a Kitty image, and is the frame that said <paramref name="said" />.</summary>
@@ -256,8 +264,8 @@ public class NarrowedShellPictureTests
 
         var sent = terminal.Transmitted[^1];
 
-        Assert.Equal(156, sent.Columns);
-        Assert.Equal((156 * 16, sent.Rows * 34), PngSize(sent.Png));
+        Assert.Equal(154, sent.Columns);
+        Assert.Equal((154 * 16, sent.Rows * 34), PngSize(sent.Png));
     }
 
     /// <summary>A PNG's width and height in pixels, off its header.</summary>

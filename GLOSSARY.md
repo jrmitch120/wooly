@@ -170,10 +170,22 @@ shows whole, with slack beside it. Until the pixels are here the box holds a **S
 the box rather than cropped.
 _Avoid_: thumbnail (only the smallest of them), frame, slot
 
+**Picture screen**:
+One still picture on a post, over the whole window at the original the instance holds rather than the smaller copy a
+**drawn** picture is fetched at, with its description beneath it — what `⏎` opens a walked picture onto, and where a
+screenshot of small text is read (ADR-0034). Its box is left empty until the original lands — blank, with no
+**Stand-in** — and holds the smaller copy only where the original is refused, too large or not fetched or not decoded,
+when a row of the screen's own under the description, kept for it whether or not anything is said there, says why. It
+holds the originals of all the post's pictures while it is open, not only the one shown, so that stepping to another
+with `←`/`→`, or back, finds it already here. The only place the original is ever fetched to be shown, except where the
+instance gave no smaller copy and the timeline draws the original too.
+_Avoid_: viewer (reserved for the account doing the viewing), lightbox, zoom, full view
+
 **Stand-in**:
 What a **drawn** picture's box shows while the picture itself is not here: the instance's blur of it where one was sent,
 a plain shaded fill otherwise. The same size as the picture it stands in for, so nothing moves when one replaces the
-other. A **warned** post has none until it is asked past, since a blur still shows what a warning hides.
+other. A **warned** post has none until it is asked past, since a blur still shows what a warning hides, and the
+**Picture screen** has none at all, its box left empty until the original lands.
 _Avoid_: placeholder (Kitty's), blur, blurred (a **warned** post's), skeleton
 
 **Drawing**:
@@ -732,15 +744,17 @@ _Avoid_: kind (which is what a search result *is*, not where it sits), tab, grou
 **Reference**:
 A hashtag, a mention, or an address found inside written text — a post's, and since ADR-0019 an account's **Bio** and
 its **Custom field**s too — or an **Attachment**'s own address, once it is not drawn as a picture in its own right
-(ADR-0017), or a **Link preview**'s own address (ADR-0018) — the things `←`/`→` walk, a click walks to, and `⏎` opens. Distinct from
+(ADR-0017), or a still picture that is, in a box, which opens onto a **Picture screen** (ADR-0034), or a **Link
+preview**'s own address (ADR-0018) — the things `←`/`→` walk, a click walks to, and `⏎` or a double click opens; a
+picture, having no text to click, answers a click anywhere on its box or beside it (ADR-0034). Distinct from
 **Picked**, which is which thing on the screen the reader has walked to; a reference is walked *inside* whatever is
 picked, one level in. What carries them is asked of the picked thing rather than assumed to be a post, a bio being the
 first thing here that is not one. A walked-to reference is let go once none of its rows are on the **Page**, and once
-`⏎` has opened it. Widened
-past the post's own text on purpose: a video is walked to and opened exactly the way a link is, because placing,
-picking and opening several things on one screen was already solved for the three that live in the text, and a second
-copy of that solve for the ones that do not would be a second place for it to disagree with the first. Replaces what
-`BodyText` used to call a "mark," a word this project had already spent on `Post.Marks` (boost/favorite/pin).
+`⏎` or a double click has opened it. Widened past the post's own text on purpose: a video is walked to and opened exactly the way a link is,
+because placing, picking and opening several things on one screen was already solved for the three that live in the
+text, and a second copy of that solve for the ones that do not would be a second place for it to disagree with the
+first. Replaces what `BodyText` used to call a "mark," a word this project had already spent on `Post.Marks`
+(boost/favorite/pin).
 _Avoid_: mark (for this; reserved for boost/favorite/pin)
 
 **Direct query**:

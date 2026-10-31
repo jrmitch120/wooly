@@ -82,3 +82,9 @@ reused exactly as they stand, with `IsDrawable`'s gate and a caption's compositi
 CLI is untouched — it already links every kind uniformly (ADR-0016) and has no `⏎` to attach an action to. The mpv
 prototype itself is not carried into the codebase; it answered a design question and is discarded once this ADR
 records the answer.
+
+## Amendment: a drawn still picture joins the walk (ADR-0034)
+
+`Image` no longer stays out of the walk where it is drawn: `⏎` on a walked picture opens it at its original on a
+**Picture screen** inside the TUI, rather than outside it as a video is. A picture that cannot be drawn is unchanged;
+ADR-0034 records why.

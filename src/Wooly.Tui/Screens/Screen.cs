@@ -36,6 +36,12 @@ public abstract class Screen
     /// </remarks>
     private readonly HashSet<int> _chosen = [];
 
+    /// <summary>
+    ///     The attachment references the rows <see cref="LaidOut" /> last laid out carry, a still picture's among them
+    ///     only where its box was drawn.
+    /// </summary>
+    private HashSet<Reference> _boxed = [];
+
     /// <summary>A screen with nothing for the shell to say over it.</summary>
     protected Screen()
     {
@@ -372,6 +378,37 @@ public abstract class Screen
     public abstract IReadOnlyList<Line> Lines(Drawing drawing);
 
     /// <summary>
+    ///     The rows the content region draws, as it lays them out on every frame and between frames for a key or a
+    ///     click: <see cref="Lines" />, with the attachment references the rows carry written down as they are laid out
+    ///     — which is what settles whether a post's still pictures are walked, since only one in a box is a
+    ///     <b>Reference</b> (ADR-0034, #515).
+    /// </summary>
+    /// <remarks>
+    ///     Written down here, by the one call that lays the rows out, rather than told to the screen beside it, so that
+    ///     no caller can lay the rows out and forget to say what they drew. Read off the rows rather than worked out
+    ///     again from the terminal and the width, because whether a picture's box is drawn turns on the room each screen
+    ///     leaves a post, and that is the rows' to know: a terminal that cannot draw links every picture, and a region
+    ///     too narrow for a box draws a picture's description alone. A layout made by <see cref="Lines" /> directly —
+    ///     a test's, with no terminal in the room — says nothing about the terminal the reader has, and writes nothing
+    ///     down. Nothing written down on a screen nobody has drawn: every picture on it linked.
+    /// </remarks>
+    /// <param name="drawing">What this screen is being drawn in and under.</param>
+    internal IReadOnlyList<Line> LaidOut(Drawing drawing)
+    {
+        var lines = Lines(drawing);
+
+        _boxed =
+        [
+            .. lines.SelectMany(line => line.Spans)
+                    .Select(span => span.Reference)
+                    .OfType<Reference>()
+                    .Where(reference => reference.Role is Role.Media),
+        ];
+
+        return lines;
+    }
+
+    /// <summary>
     ///     The things on this screen with one of them picked out, or <see langword="null" /> where there is nothing on
     ///     it to walk — the compose editor, the keymap, a notice.
     /// </summary>
@@ -403,7 +440,28 @@ public abstract class Screen
     ///     </para>
     /// </remarks>
     protected virtual IReferring? Referring =>
-        Referencing is { } post ? new PostReferences(post, Revealed.Has(post)) : null;
+        Referencing is { } post ? new PostReferences(post, Revealed.Has(post), _boxed) : null;
+
+    /// <summary>
+    ///     The <b>Picture screen</b> the walked still picture opens onto, or <see langword="null" /> where what is walked
+    ///     is anything else or nothing is — what <c>⏎</c> keeps inside the terminal rather than handing the browser
+    ///     (ADR-0034, #516). Asked before the reference is let go, as opening lets go of every reference (#474, review
+    ///     of #514): the screen it answers holds the picture it opens on itself, so nothing need stay walked for it.
+    /// </summary>
+    public PictureScreen? OpenWalkedPicture() =>
+        Reference is { } walked && Pictured(walked) is var (post, picture)
+            ? new PictureScreen(post, picture)
+            : null;
+
+    /// <summary>
+    ///     The post being read and the still picture of its that <paramref name="reference" /> was made of, or
+    ///     <see langword="null" /> where it was made of none — the one place a reference is asked whether it is a
+    ///     picture's.
+    /// </summary>
+    private (Post Post, PostMedia Picture)? Pictured(Reference reference) =>
+        Referring is PostReferences { Post: var post } && AttachmentReferences.Picture(post, reference) is { } picture
+            ? (post, picture)
+            : null;
 
     /// <summary>
     ///     The references inside it, in the order they are drawn — which is the order they are walked in, and the
