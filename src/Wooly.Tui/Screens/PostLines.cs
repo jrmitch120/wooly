@@ -107,7 +107,7 @@ public static class PostLines
                 Body(show, drawing, reading, saysHowToAskPast),
                 .. Media(show, drawing, Inset.FeedRows, reading, saysHowToAskPast),
                 LinkPreview(show, drawing, Inset.FeedRows, reading),
-                Poll(show, width, reading),
+                Poll(show, drawing, reading),
             ],
             [Counts(shown, spelledOut: false)]);
     }
@@ -157,7 +157,7 @@ public static class PostLines
                 Body(show, drawing, reading, saysHowToAskPast: true),
                 .. Media(show, drawing, Inset.WholeRows, reading, saysHowToAskPast: true),
                 LinkPreview(show, drawing, Inset.WholeRows, reading),
-                Poll(show, width, reading),
+                Poll(show, drawing, reading),
             ],
             [Counts(shown, spelledOut: true)]);
     }
@@ -186,8 +186,8 @@ public static class PostLines
 
     /// <summary>The rows <see cref="Preview" /> draws, with nothing marked on them.</summary>
     /// <remarks>
-    ///     Its custom emoji are drawn as the post's own words draw them, and held whole by the cut as by the wrap
-    ///     (ADR-0035).
+    ///     Its custom emoji are drawn as the post's own words draw them, and held whole by the cut as by the wrap — a
+    ///     warning's in place of the words alike (ADR-0035).
     /// </remarks>
     private static IReadOnlyList<Line> Previewed(Post post, Drawing drawing)
     {
@@ -196,7 +196,7 @@ public static class PostLines
 
         if (shown.ContentWarning is { } warning)
         {
-            return [Line.Of(TextWrap.Clip($"{WarningMark}{warning}", width), Role.Muted)];
+            return [CustomEmojiBox.Name($"{WarningMark}{warning}", shown.CustomEmoji, width, Role.Muted, drawing)];
         }
 
         // The custom emoji written in text, found as the post's own words find them.
@@ -424,10 +424,10 @@ public static class PostLines
         {
             if (!show.Words)
             {
-                return Hiding(warning, width, saysHowToAskPast);
+                return Hiding(warning, post.CustomEmoji, drawing, saysHowToAskPast);
             }
 
-            lines.Add(Warning(warning, width));
+            lines.Add(Warning(warning, post.CustomEmoji, drawing));
         }
 
         // Nothing at all rather than the one empty row wrapping an empty string gives back. A post whose whole content
@@ -466,19 +466,36 @@ public static class PostLines
     ///     sensitive post's attachments are being kept — so a warning cannot come to look like two different things on
     ///     one post.
     /// </summary>
-    private static Line Warning(string said, int width) => Line.Of([
-        new Span(WarningMark, Role.ContentWarning),
-        new Span(TextWrap.Clip(said, width - Glyphs.Columns(WarningMark)), Role.ContentWarning),
-    ]);
+    /// <remarks>
+    ///     Its custom emoji are drawn as the post's words draw them, off the post's own list, which the instance keeps
+    ///     for the warning and the words alike — and held whole by the clip, a warning being one row however long.
+    ///     They are drawn whether the warning is hiding the words or not, being part of the warning rather than of what
+    ///     it hides (ADR-0035, #526).
+    /// </remarks>
+    /// <param name="said">What is being warned about.</param>
+    /// <param name="listed">The custom emoji the post lists, or none for a warning this client writes.</param>
+    /// <param name="drawing">How the screen draws, and how wide the row is.</param>
+    private static Line Warning(string said, IReadOnlyList<CustomEmoji> listed, Drawing drawing) =>
+        CustomEmojiBox.Name(
+                said,
+                listed,
+                drawing.Width - Glyphs.Columns(WarningMark),
+                Role.ContentWarning,
+                drawing)
+            .After(new Span(WarningMark, Role.ContentWarning));
 
     /// <summary>
     ///     What stands in place of what a post is hiding: the warning, and under it the row naming the key that would
     ///     show it — where there is a key that can act. Both of the things a post hides behind go up this way, so that
     ///     what asks and whether it is asked at all cannot come to differ between them (#120).
     /// </summary>
-    private static Line[] Hiding(string said, int width, bool saysHowToAskPast) => saysHowToAskPast
-        ? [Warning(said, width), Line.Of(AskPastIt, Role.Muted)]
-        : [Warning(said, width)];
+    private static Line[] Hiding(
+        string said,
+        IReadOnlyList<CustomEmoji> listed,
+        Drawing drawing,
+        bool saysHowToAskPast) => saysHowToAskPast
+        ? [Warning(said, listed, drawing), Line.Of(AskPastIt, Role.Muted)]
+        : [Warning(said, listed, drawing)];
 
     /// <summary>
     ///     What is attached: a picture drawn in place or the address to reach an undrawn one at, and for everything
@@ -554,7 +571,7 @@ public static class PostLines
             // things rather than a prompt for each (#113, #116).
             if (show.Words)
             {
-                yield return Hiding(SensitiveMedia, width, saysHowToAskPast);
+                yield return Hiding(SensitiveMedia, [], drawing, saysHowToAskPast);
             }
 
             yield break;
@@ -984,8 +1001,10 @@ public static class PostLines
     ///         <see cref="Media" /> prints its own only where no warning is already asking (#113, #116).
     ///     </para>
     /// </remarks>
-    private static IEnumerable<Line> Poll(OnShow show, int width, Reading reading)
+    private static IEnumerable<Line> Poll(OnShow show, Drawing drawing, Reading reading)
     {
+        var width = drawing.Width;
+
         if (show.Shown.Poll is not { } poll || !show.Words)
         {
             yield break;
@@ -1005,7 +1024,17 @@ public static class PostLines
                 ? PollBar.RowOf(poll, option)
                 : PollBar.RowOf(poll, option, chosen.Contains(at) ? "[x] " : "[ ] ");
 
-            yield return Line.Of(TextWrap.Clip(row, width), Role.Poll);
+            // The option's text is the row's last part and nothing before it has a colon in it, so the custom emoji
+            // it is written with are found on the row whole: the bar, the share and the count keep the columns they
+            // take on a row without one, and only what is after them is drawn as a post's words are (ADR-0035).
+            var text = row.Length - option.Text.Length;
+
+            yield return CustomEmojiBox.Name(
+                row,
+                [.. Shortcode.In(row, option.CustomEmoji).Where(shortcode => shortcode.At >= text)],
+                width,
+                Role.Poll,
+                drawing);
         }
 
         if (chosen is not null)

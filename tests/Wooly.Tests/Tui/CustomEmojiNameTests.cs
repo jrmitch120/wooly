@@ -318,7 +318,7 @@ public class CustomEmojiNameTests
     private const int ToNotifications = 5;
 
     /// <summary>The columns from <paramref name="from" /> on that a row draws placeholder cells in.</summary>
-    private static int[] EmojiColumns(DrawnShell drawn, int row, int from) =>
+    internal static int[] EmojiColumns(DrawnShell drawn, int row, int from) =>
     [
         .. Placeholders(drawn).Where(cell => cell.Row == row && cell.Column >= from)
                               .Select(cell => cell.Column)
@@ -329,7 +329,7 @@ public class CustomEmojiNameTests
     ///     The column <paramref name="text" /> starts at on a row, read cell by cell — so that a placeholder cell before
     ///     it, which is one column however many characters it is written in, counts as the one column it is.
     /// </summary>
-    private static int ColumnOf(DrawnShell drawn, int row, string text)
+    internal static int ColumnOf(DrawnShell drawn, int row, string text)
     {
         var contents = drawn.Application.Driver!.Contents!;
         var columns = contents.GetLength(1);

@@ -88,8 +88,8 @@ public static class AccountLines
         // itself and room for all five facts.
         var lines = new List<Line>(Block(account, drawing));
 
-        Section(lines, Bio(account, width, picked));
-        Section(lines, account.Fields.SelectMany((_, which) => Field(account, which, width, picked)));
+        Section(lines, Bio(account, drawing, picked));
+        Section(lines, account.Fields.SelectMany((_, which) => Field(account, which, drawing, picked)));
 
         if (!isOwnAccount)
         {
@@ -345,7 +345,10 @@ public static class AccountLines
     ///     What they wrote about themselves, wrapped whole, with the hashtags, handles and addresses in it drawn as
     ///     the references they are — the same rows a post's own text takes, off the same flattened plain text.
     /// </summary>
-    private static IEnumerable<Line> Bio(Account account, int width, Reference? picked)
+    /// <remarks>
+    ///     Its custom emoji the same way too, off the account's one list, which its name and fields share (ADR-0035).
+    /// </remarks>
+    private static IEnumerable<Line> Bio(Account account, Drawing drawing, Reference? picked)
     {
         var bio = account.Bio;
 
@@ -355,8 +358,12 @@ public static class AccountLines
         }
 
         var references = HeaderReferences.InBio(account);
+        var shortcodes = BodyText.CustomEmoji(bio, references, account.CustomEmoji);
 
-        return TextWrap.Rows(bio, width).Select(row => new Line(BodyText.Spans(row, references, picked)));
+        return TextWrap.Rows(bio, drawing.Width, CustomEmojiBox.Held(shortcodes, drawing))
+                       .Select(row => CustomEmojiBox.Boxed(
+                           new Line(BodyText.Spans(row, references, picked, shortcodes)),
+                           drawing));
     }
 
     /// <summary>
@@ -368,8 +375,13 @@ public static class AccountLines
     ///     the break cuts in two one reference across both rows — <see cref="TextWrap.Row" />'s offsets already do
     ///     this for a post's text, and the references are found on the value alone and moved along by the label, so
     ///     nothing in a label a reader chose to call <c>https</c> is ever painted as a link.
+    ///     <para>
+    ///         Its custom emoji are the account's, which the instance draws in a label as in a value: found on the
+    ///         whole text, but for any inside an address in the value, held whole by the wrap and set as their boxes,
+    ///         a label's muted with the rest of the label where nothing draws (ADR-0035).
+    ///     </para>
     /// </remarks>
-    private static IEnumerable<Line> Field(Account account, int which, int width, Reference? picked)
+    private static IEnumerable<Line> Field(Account account, int which, Drawing drawing, Reference? picked)
     {
         var field = account.Fields[which];
         var label = HeaderReferences.Label(field);
@@ -382,15 +394,26 @@ public static class AccountLines
 
         var value = HeaderReferences.Value(account, which);
 
-        return Hanging(said, width).Select((row, at) =>
+        // Found on the field's own text, where the wrap reads them, and moved into the block's numbering, where the
+        // references are and the rows are placed.
+        var written = BodyText.CustomEmoji(
+            said,
+            [.. references.Select(reference => reference with { At = reference.At - place })],
+            account.CustomEmoji);
+        IReadOnlyList<Shortcode> shortcodes =
+            [.. written.Select(shortcode => shortcode with { At = shortcode.At + place })];
+
+        return Hanging(said, drawing.Width, CustomEmojiBox.Held(written, drawing)).Select((row, at) =>
         {
             var placed = row with { At = row.At + place };
 
-            var line = new Line(MutedOutside(
-                BodyText.Spans(placed, references, picked),
-                placed.At,
-                value,
-                value + field.Said.Length));
+            var line = CustomEmojiBox.Boxed(
+                new Line(MutedOutside(
+                    BodyText.Spans(placed, references, picked, shortcodes),
+                    placed.At,
+                    value,
+                    value + field.Said.Length)),
+                drawing);
 
             return at == 0 ? line : line.After(new Span(new string(' ', FieldIndent), Role.Body));
         });
@@ -408,9 +431,13 @@ public static class AccountLines
     /// </remarks>
     /// <param name="text">The whole field, label and value together.</param>
     /// <param name="width">How much room the first row gets.</param>
-    private static IReadOnlyList<TextWrap.Row> Hanging(string text, int width)
+    /// <param name="held">
+    ///     The custom emoji in <paramref name="text" /> the wrap holds whole (<see cref="TextWrap.Rows" />), moved
+    ///     along with the second pass.
+    /// </param>
+    private static IReadOnlyList<TextWrap.Row> Hanging(string text, int width, IReadOnlyList<Shortcode> held)
     {
-        var rows = TextWrap.Rows(text, width);
+        var rows = TextWrap.Rows(text, width, held);
 
         if (rows.Count < 2)
         {
@@ -435,7 +462,13 @@ public static class AccountLines
         [
             rows[0],
             .. TextWrap
-                .Rows(text[rest..], Math.Max(1, width - FieldIndent))
+                .Rows(
+                    text[rest..],
+                    Math.Max(1, width - FieldIndent),
+                    [
+                        .. held.Where(shortcode => shortcode.At >= rest)
+                               .Select(shortcode => shortcode with { At = shortcode.At - rest }),
+                    ])
                 .Select(row => row with { At = row.At + rest }),
         ];
     }

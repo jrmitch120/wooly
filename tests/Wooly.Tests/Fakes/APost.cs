@@ -140,6 +140,10 @@ internal static class APost
     };
 
     /// <summary>One answer on a poll, with its vote count — or none, for an answer whose count is withheld.</summary>
-    public static PostPollOption AnAnswer(string text, long? votes, bool picked = false) =>
-        new() { Text = text, Votes = votes, Picked = picked };
+    public static PostPollOption AnAnswer(
+        string text,
+        long? votes,
+        bool picked = false,
+        IReadOnlyList<CustomEmoji>? customEmoji = null) =>
+        new() { Text = text, Votes = votes, Picked = picked, CustomEmoji = customEmoji ?? [] };
 }
