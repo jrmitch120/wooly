@@ -32,9 +32,9 @@ not, so that nothing moves when a picture is walked to and so that a video's box
 The tall brackets are the ones that read as brackets without colour, the corners saying where a box starts and ends
 where a pair of thin bars says only that something stands beside it; and they are one column wide everywhere, being
 neutral in Unicode's East Asian widths where the block elements `▏` and `▕` are ambiguous and are drawn two wide by a
-terminal set for CJK. They were settled on without being looked at (#519): drawing them beside a box in Ghostty and
-macOS Terminal is still to be checked by eye, and if they draw badly there — broken between rows, or off the cell's
-centre — `▏` and `▕` replace them.
+terminal set for CJK. They were looked at beside a box in Ghostty and drew well there (#519). macOS Terminal draws no
+pictures, so it has no walked picture to bracket and never shows them. Were they ever to draw badly in a terminal that
+does draw pictures — broken between rows, or off the cell's centre — `▏` and `▕` would replace them.
 
 **The Picture screen shows one picture over the whole window at its original.** Its box is settled from the original's
 shape (`PostMedia.OriginalShape`, the smaller copy's standing in where the instance said none), fitted whole and
