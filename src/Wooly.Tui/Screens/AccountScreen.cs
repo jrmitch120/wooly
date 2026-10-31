@@ -76,9 +76,12 @@ public sealed class AccountScreen : Screen, IReadsOn<Post>
     /// <remarks>
     ///     The widened run says so, the way a follow list's crumb says its side: two screens that draw different runs
     ///     under one crumb would leave the breadcrumb unable to say where the reader is (#229). Posts alone keeps the
-    ///     bare handle, being what the screen is about before it is about anything they wrote.
+    ///     bare name, being what the screen is about before it is about anything they wrote — the name as one line of
+    ///     plain text holds it (<see cref="PlainName" />), the shortcodes it lists taken out and the handle where nothing
+    ///     else is left (#525).
     /// </remarks>
-    public override string Crumb => WithReplies ? $"@{Account.Address} posts and replies" : $"@{Account.Address}";
+    public override string Crumb =>
+        WithReplies ? $"{PlainName.Of(Account)} posts and replies" : PlainName.Of(Account);
 
     /// <inheritdoc />
     /// <remarks>

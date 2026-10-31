@@ -44,9 +44,11 @@ drawn is a sixel of its own, about five kilobytes of a busy one, so the page sen
 did and a notch back to back costs ~6 ms more — the protocol (ADR-0023), and what drawing them there costs at all.
 
 Static only: an animated custom emoji is drawn at its still, as nothing else in Wooly moves on its own. Where a line
-cannot hold a picture at all — the **crumb**, the follows filter, the mention list — the shortcodes are taken out of
-the name, as mention matching already did, and the handle stands in where nothing is left. The CLI writes the shortcode
-as the instance wrote it, text and JSON alike.
+cannot hold a picture at all — the **crumb**, the follows filter, the mention list — one rule takes the shortcodes the
+account lists out of the name and closes up the spaces they leave, where mention matching took out anything shaped
+like one, and the handle stands in where nothing is left (#525). So the crumb names a post's author and an account by
+that name, where from #216 it spelled their handle. The CLI writes the shortcode as the instance wrote it, text and
+JSON alike.
 
 ## Considered options
 

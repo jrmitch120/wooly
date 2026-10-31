@@ -46,7 +46,12 @@ public sealed class PostScreen : Screen
     }
 
     /// <inheritdoc />
-    public override string Crumb => $"Post by @{(Post.Boosted ?? Post).Account}";
+    /// <remarks>
+    ///     Naming whoever wrote it rather than whoever boosted it, by their name as one line of plain text holds it
+    ///     (<see cref="PlainName" />) — the shortcodes it lists taken out, and the handle where nothing else is left
+    ///     (#525).
+    /// </remarks>
+    public override string Crumb => $"Post by {PlainName.OfAuthor(Post.Boosted ?? Post)}";
 
     /// <inheritdoc />
     /// <remarks>

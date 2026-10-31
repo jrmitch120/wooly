@@ -497,10 +497,14 @@ public sealed class ComposeScreen : Screen, IDraft
             || (Purpose == ComposeFor.Reply && string.Equals(Text.Trim(), Opening.Trim(), StringComparison.Ordinal)));
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     A reply names whoever it answers as the crumb of the post it answers names them (<see cref="PlainName" />,
+    ///     #525).
+    /// </remarks>
     public override string Crumb => Purpose switch
     {
         ComposeFor.Post => "Compose",
-        ComposeFor.Reply => $"Reply to @{About?.Account}",
+        ComposeFor.Reply when About is { } answered => $"Reply to {PlainName.OfAuthor(answered)}",
         ComposeFor.Edit => "Edit",
         _ => "Compose",
     };

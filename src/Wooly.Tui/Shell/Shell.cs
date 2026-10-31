@@ -265,7 +265,7 @@ public sealed class Shell
     public IReadOnlyList<string> Crumbs => [.. _stack.Select(screen => screen.Crumb)];
 
     /// <summary>
-    ///     Where you are, as one line: <c>Home › Post by @ben › @ben@hachyderm.io</c>. The trail as a reader reads it
+    ///     Where you are, as one line: <c>Home › Post by Ben › Ben</c>. The trail as a reader reads it
     ///     off the row, which is what the shell is asked where it is — the row itself is drawn from
     ///     <see cref="Crumbs" />, a crumb at a time, since each takes a role of its own (#216).
     /// </summary>

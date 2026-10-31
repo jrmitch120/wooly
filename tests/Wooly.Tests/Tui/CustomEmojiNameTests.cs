@@ -185,7 +185,7 @@ public class CustomEmojiNameTests
         drawn.Settle();
 
         var by = RowOf(drawn, "boosted by Maria ");
-        var name = RowOf(drawn, "Jeff ");
+        var name = RowOf(drawn, "Jeff ", after: 0);
 
         Assert.Equal(
             [ColumnOf(drawn, by, "Maria ") + 6, ColumnOf(drawn, by, "Maria ") + 7],
@@ -217,7 +217,7 @@ public class CustomEmojiNameTests
 
         using (var drawn = await Notified(group, ARaster.Placeholders()))
         {
-            var row = RowOf(drawn, "Alice ");
+            var row = RowOf(drawn, "Alice ", after: 0);
             var at = ColumnOf(drawn, row, "Alice ") + "Alice ".Length;
 
             Assert.Equal([at, at + 1], EmojiColumns(drawn, row, RailLines.Width));
@@ -286,10 +286,50 @@ public class CustomEmojiNameTests
         built.Host.Drain();
         drawn.Redraw();
 
-        var row = RowOf(drawn, "Alice ");
+        var row = RowOf(drawn, "Alice ", after: 0);
         var at = ColumnOf(drawn, row, "Alice ") + "Alice ".Length;
 
         Assert.Equal([at, at + 1], EmojiColumns(drawn, row, at));
+    }
+
+    /// <summary>
+    ///     The breadcrumb, which can hold one line of plain text and no picture, names a post's author and then the
+    ///     account opened off it by their name with the shortcodes it lists taken out, on a terminal that draws them as
+    ///     well — and by the handle where the name is nothing but shortcodes, so that a crumb always names somebody
+    ///     (#525).
+    /// </summary>
+    [Theory]
+    [InlineData(":verified: Jeff :US_AZ:", "Jeff")]
+    [InlineData(":verified: :US_AZ:", "@jeff@mastodon.social")]
+    public async Task TheCrumbNamesThePostsAuthorAndTheirAccountWithTheShortcodesTakenOut(string author, string named)
+    {
+        var jeff = AnAccount.With(address: "jeff@mastodon.social", author: author, customEmoji: [Verified, Arizona]);
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "220", account: jeff.Address, author: author, authorCustomEmoji: [Verified, Arizona])),
+            Accounts = FakeAccountRelationships.Holding(jeff),
+        };
+
+        using var drawn = await DrawnShell.Of(
+            120,
+            Tall,
+            Themes.Plain,
+            built,
+            pictures: new FakePictures().HoldingCustomEmoji(Verified).HoldingCustomEmoji(Arizona),
+            drawsPlaceholders: true,
+            raster: ARaster.Placeholders());
+
+        drawn.Press(Key.Enter);
+        drawn.Settle();
+        await drawn.Shell.OpenAuthor();
+        built.Host.Drain();
+        drawn.Redraw();
+
+        var crumbs = drawn.Rows()[0];
+
+        Assert.Contains($"Post by {named} › {named}", crumbs, StringComparison.Ordinal);
+        Assert.DoesNotContain(":", crumbs.Replace(named, string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
     }
 
     /// <summary>The notifications screen holding <paramref name="group" />, drawn in the dark theme and wide enough for two names.</summary>

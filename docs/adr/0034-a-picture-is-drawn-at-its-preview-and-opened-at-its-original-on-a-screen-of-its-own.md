@@ -50,8 +50,8 @@ description is: `The original is too large to show.` or `The original could not 
 for as long as it is shown, and blank otherwise. It is kept whether anything is said there or not, so that nothing moves
 when it is. Nothing is drawn under it: the status row lists the keys, `esc back` and, where the post has several
 pictures, `←→ picture`, which step through them in the order they are drawn, stopping at either end, and it goes on
-listing them whatever the screen says of an original. The crumb counts them, `Picture 2 of 4 by @author`, and a post
-with one picture has `Picture by @author`.
+listing them whatever the screen says of an original. The crumb counts them, `Picture 2 of 4 by Maria`, and a post
+with one picture has `Picture by Maria`, the author named as the post's own crumb names them (ADR-0035).
 
 **The screen holds the originals of all the post's pictures while it is open.** The one shown is sent for first, and the
 rest from the first frame one of them has landed or been refused, so that they do not share the line with the picture

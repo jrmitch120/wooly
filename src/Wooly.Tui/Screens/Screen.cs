@@ -50,12 +50,13 @@ public abstract class Screen
     /// <summary>A screen with <paramref name="notice" /> said over its list (<see cref="Notice" />).</summary>
     protected Screen(string? notice) => Notice = notice;
 
-    /// <summary>What this screen is called on the breadcrumb, e.g. <c>Post by @ben</c>.</summary>
+    /// <summary>What this screen is called on the breadcrumb, e.g. <c>Post by Ben</c>.</summary>
     /// <remarks>
-    ///     Sentence case, except a crumb that opens with a handle or a hashtag, which is spelled the way that thing is
-    ///     spelled — <c>@maria</c>, <c>#cats</c>. Nobody's username is capitalised. The rail's ten labels are already
-    ///     sentence case, so a crumb that is one of them matches the rail by construction, which is what #160's
-    ///     complaint was about (#216).
+    ///     Sentence case, except where it names somebody or a hashtag, which is spelled the way that thing is spelled —
+    ///     <c>maria following</c>, <c>#cats</c>. Nobody's name is capitalised. Somebody is named as one line of plain
+    ///     text holds their name (<see cref="PlainName" />, #525), the handle where that leaves nothing. The
+    ///     rail's ten labels are already sentence case, so a crumb that is one of them matches the rail by
+    ///     construction, which is what #160's complaint was about (#216).
     /// </remarks>
     public abstract string Crumb { get; }
 

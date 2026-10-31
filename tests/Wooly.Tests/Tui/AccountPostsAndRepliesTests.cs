@@ -36,7 +36,7 @@ public class AccountPostsAndRepliesTests
         var screen = Assert.IsType<AccountScreen>(shell.Screen);
 
         Assert.False(screen.WithReplies);
-        Assert.Equal($"@{Whose}", screen.Crumb);
+        Assert.Equal("Ben", screen.Crumb);
         Assert.DoesNotContain(fakes.Timelines.Reads, read => read.Timeline.Scope == TimelineScope.WithReplies);
     }
 
@@ -56,7 +56,7 @@ public class AccountPostsAndRepliesTests
         var screen = Assert.IsType<AccountScreen>(shell.Screen);
 
         Assert.True(screen.WithReplies);
-        Assert.Equal($"@{Whose} posts and replies", screen.Crumb);
+        Assert.Equal("Ben posts and replies", screen.Crumb);
         Assert.Equal(depth, shell.Depth);
         Assert.Equal(TimelineScope.WithReplies, LastRun(fakes).Scope);
         Assert.Equal(Whose, LastRun(fakes).Account?.Address.Text);
@@ -79,7 +79,7 @@ public class AccountPostsAndRepliesTests
         var screen = Assert.IsType<AccountScreen>(shell.Screen);
 
         Assert.False(screen.WithReplies);
-        Assert.Equal($"@{Whose}", screen.Crumb);
+        Assert.Equal("Ben", screen.Crumb);
         Assert.Equal(depth, shell.Depth);
         Assert.Equal(TimelineScope.Account, LastRun(fakes).Scope);
         Assert.Equal(["220"], screen.Posts.Select(post => post.Id));
@@ -139,7 +139,7 @@ public class AccountPostsAndRepliesTests
         var screen = Assert.IsType<AccountScreen>(shell.Screen);
 
         Assert.True(screen.WithReplies);
-        Assert.Equal($"@{Whose} posts and replies", screen.Crumb);
+        Assert.Equal("Ben posts and replies", screen.Crumb);
         Assert.Contains(
             fakes.Timelines.Reads.Skip(reads),
             read => read.Timeline.Scope == TimelineScope.WithReplies);
@@ -200,7 +200,7 @@ public class AccountPostsAndRepliesTests
                 TimelineScope.WithReplies => Fetch<Post>.Complete([Reply, APost.With(id: "220", account: Whose)]),
                 _ => Fetch<Post>.Complete([APost.With(id: "110", account: Whose)]),
             }),
-            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: Whose)),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: Whose, author: "Ben")),
         };
 
         var shell = await fakes.Opened();

@@ -522,6 +522,9 @@ public class ShellCrumbClickTests
         return drawn;
     }
 
+    /// <summary>A name long enough that three crumbs spelling it overrun an 80-column trail, and two do not.</summary>
+    private const string Ben = "Benjamin Adams";
+
     /// <summary>
     ///     The shell drilled deep enough that the trail is elided: into a post, its author, and who they follow.
     /// </summary>
@@ -529,9 +532,9 @@ public class ShellCrumbClickTests
     {
         var built = new AShell
         {
-            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io", author: Ben)),
             Accounts = FakeAccountRelationships.Holding(
-                AnAccount.With(address: "ben@hachyderm.io"),
+                AnAccount.With(address: "ben@hachyderm.io", author: Ben),
                 [AnAccount.With(address: "maria@here.social")]),
         };
 

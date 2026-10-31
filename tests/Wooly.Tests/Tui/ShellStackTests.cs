@@ -19,7 +19,7 @@ public class ShellStackTests
     {
         var shell = new AShell
         {
-            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io", author: "Ben")),
             Engagement = FakePostEngagement.Answered(APost.With(id: "110"), APost.With(id: "111", content: "Yes")),
         };
 
@@ -40,8 +40,8 @@ public class ShellStackTests
     {
         var shell = new AShell
         {
-            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
-            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "ben@hachyderm.io")),
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io", author: "Ben")),
+            Accounts = FakeAccountRelationships.Holding(AnAccount.With(address: "ben@hachyderm.io", author: "Ben")),
         };
 
         var opened = await shell.Opened();
@@ -51,12 +51,12 @@ public class ShellStackTests
         await opened.Enter();
         shell.Host.Drain();
 
-        Assert.Equal("Home › Post by @ben@hachyderm.io", opened.Breadcrumb);
+        Assert.Equal("Home › Post by Ben", opened.Breadcrumb);
 
         await opened.OpenAuthor();
         shell.Host.Drain();
 
-        Assert.Equal("Home › Post by @ben@hachyderm.io › @ben@hachyderm.io", opened.Breadcrumb);
+        Assert.Equal("Home › Post by Ben › Ben", opened.Breadcrumb);
     }
 
     /// <summary><c>a</c> opens whoever wrote it: who they are, where you stand with them, and what they have posted.</summary>
@@ -486,7 +486,7 @@ public class ShellStackTests
     {
         var shell = new AShell
         {
-            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io")),
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", account: "ben@hachyderm.io", author: "Ben")),
             Engagement = FakePostEngagement.Answered(APost.With(id: "110"), APost.With(id: "111")),
         };
 
@@ -503,7 +503,7 @@ public class ShellStackTests
         shell.Host.Drain();
 
         Assert.Equal(2, opened.Depth);
-        Assert.Equal("Home › Post by @ben@hachyderm.io", opened.Breadcrumb);
+        Assert.Equal("Home › Post by Ben", opened.Breadcrumb);
 
         // One read, which is the one that opened the screen: a ⏎ with nothing to open asks the instance for nothing.
         Assert.Single(shell.Engagement.ThreadsRead);

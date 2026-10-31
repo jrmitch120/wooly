@@ -92,7 +92,7 @@ public sealed class PictureScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Counting the pictures where the post has several — <c>Picture 2 of 4 by @author</c>, which of how many is
+    ///     Counting the pictures where the post has several — <c>Picture 2 of 4 by Maria</c>, which of how many is
     ///     showing — since the status row says the keys that step but not where they have got to; and not where it has
     ///     the one, there being nothing to count.
     /// </remarks>
@@ -157,8 +157,11 @@ public sealed class PictureScreen : Screen
         ];
     }
 
-    /// <summary>Who the crumb names, the author of the post the picture is on rather than whoever boosted it.</summary>
-    private string Author => $"@{(_post.Boosted ?? _post).Account}";
+    /// <summary>
+    ///     Who the crumb names, the author of the post the picture is on rather than whoever boosted it, by their name as
+    ///     one line of plain text holds it, as the post's own crumb names them (#525).
+    /// </summary>
+    private string Author => PlainName.OfAuthor(_post.Boosted ?? _post);
 
     /// <summary>
     ///     How <paramref name="picture" /> is laid out on this screen in <paramref name="drawing" />: its description,

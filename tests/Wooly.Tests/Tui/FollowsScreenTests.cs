@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Relationships;
 using Wooly.Tests.Fakes;
@@ -15,8 +16,8 @@ public class FollowsScreenTests
 {
     /// <summary>The breadcrumb says whose list this is and which side of it, since one screen draws both.</summary>
     [Theory]
-    [InlineData(FollowSide.Following, "@maria@fosstodon.org following")]
-    [InlineData(FollowSide.Followers, "@maria@fosstodon.org followers")]
+    [InlineData(FollowSide.Following, "Maria following")]
+    [InlineData(FollowSide.Followers, "Maria followers")]
     public void Crumb_SaysWhoseListAndWhichSide(FollowSide side, string crumb) =>
         Assert.Equal(crumb, Of(side).Crumb);
 
@@ -128,6 +129,51 @@ public class FollowsScreenTests
         screen.Type('a');
 
         Assert.Equal(["Ben"], screen.Shown.Select(person => person.Author));
+    }
+
+    /// <summary>
+    ///     Against the name with the shortcodes the account lists taken out, so that typing <c>verified</c> finds the
+    ///     person whose name says it rather than everybody wearing a <c>:verified:</c> badge (#525).
+    /// </summary>
+    [Fact]
+    public void Filter_PassesOverTheShortcodesANameLists()
+    {
+        var screen = Of();
+        var badged = AnAccount.With(
+            author: ":verified: Jeff :US_AZ:",
+            address: "jeff@here.social",
+            id: "jeff",
+            customEmoji: [Emoji("verified"), Emoji("US_AZ")]);
+
+        screen.Arrived([badged, Person("Verified Vera", "vera@here.social")], more: false);
+        screen.Filtering();
+
+        foreach (var letter in "verified")
+        {
+            screen.Type(letter);
+        }
+
+        Assert.Equal(["Verified Vera"], screen.Shown.Select(person => person.Author));
+    }
+
+    /// <summary>
+    ///     But a <c>:word:</c> the account does not list is the words they chose to be called, and is matched as
+    ///     the rest of their name is (#525).
+    /// </summary>
+    [Fact]
+    public void Filter_MatchesAWordBetweenColonsTheAccountDoesNotList()
+    {
+        var screen = Of();
+
+        screen.Arrived([Person(":verified: Jeff", "jeff@here.social"), Person("Ben", "ben@hachyderm.io")], more: false);
+        screen.Filtering();
+
+        foreach (var letter in "verified")
+        {
+            screen.Type(letter);
+        }
+
+        Assert.Equal([":verified: Jeff"], screen.Shown.Select(person => person.Author));
     }
 
     /// <summary>⏎ hands the screen back to walking with what was typed still narrowing it.</summary>
@@ -514,6 +560,9 @@ public class FollowsScreenTests
     /// <summary>Somebody on the list, named so a test can tell them apart.</summary>
     private static Account Person(string author, string? address = null) =>
         AnAccount.With(author: author, address: address ?? $"{author.ToLowerInvariant()}@here.social", id: author);
+
+    /// <summary>A custom emoji an account lists, written as <paramref name="shortcode" />.</summary>
+    private static CustomEmoji Emoji(string shortcode) => new(shortcode, $"https://here.social/emoji/{shortcode}.png");
 
     /// <summary>Maria's list, of the side named, read by somebody who is not her.</summary>
     private static FollowsScreen Of(FollowSide side = FollowSide.Following) =>
