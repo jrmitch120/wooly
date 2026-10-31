@@ -90,7 +90,7 @@ public class PictureClickTests
         drawn.Settle();
 
         Assert.Contains(drawn.Rows(), row => row.Contains("Picture by @maria@fosstodon.org", StringComparison.Ordinal));
-        Assert.Contains(drawn.Rows(), row => row.Contains("esc back", StringComparison.Ordinal));
+        Assert.IsType<PictureScreen>(drawn.Shell.Screen);
         Assert.Empty(drawn.Built.Browser.Opened);
     }
 
