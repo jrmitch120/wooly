@@ -27,14 +27,14 @@ namespace Wooly.Tui.Screens;
 ///     </para>
 ///     <para>
 ///         Nothing on it is walked, and nothing is picked: the first press of <c>esc</c> goes back, to the screen
-///         underneath with its pick and its walked picture as they were — which is why opening the picture is the one
-///         opening that leaves its reference walked (<see cref="Shell.Shell.OpenReference" />).
+///         underneath with its pick as it was and nothing walked, opening the picture having let go of its reference as
+///         opening any reference does (<see cref="Shell.Shell.OpenReference" />, #474, review of #514).
 ///     </para>
 ///     <para>
 ///         <c>←</c> and <c>→</c> step along the post's other still pictures in the order they are drawn, stopping at
 ///         either end (#518): verbs of the screen's own rather than a walk of references, which <c>esc</c> would let go
-///         of before going back, and kept here alone, so that what is walked underneath is the picture it was opened on,
-///         whichever was stepped to.
+///         of before going back, stepping from the picture it was opened on, which it holds itself rather than reading
+///         off a walk underneath.
 ///     </para>
 /// </remarks>
 public sealed class PictureScreen : Screen

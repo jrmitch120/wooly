@@ -15,7 +15,7 @@ than seventy. Scrolling back would be a decode or a fetch far more often, for a 
 **The original is one key away instead, on a Picture screen.** A drawn still picture joins the walk: `←`/`→` reach it
 after the post's text references, in the order the pictures are drawn, and `⏎` opens it over the whole window at its
 original, its description and a hint row beneath it (amended below), `←`/`→` stepping through the post's other pictures
-and `esc` going back. The preview, already held, is drawn there at once and the original replaces it when it lands
+and `esc` going back (amended below). The preview, already held, is drawn there at once and the original replaces it when it lands
 (amended below), in a box settled from the original's shape so that nothing moves. One picture is held only while it is
 looked at (amended below), so the screen may read a download past the 8 MB `Pictures.MostBytes` allows the timeline —
 up to 32 MB, decoded straight to the window's size — and an original past even that leaves the preview standing with a
@@ -90,3 +90,15 @@ pixels, and its file is held beside it: a few megabytes for most photographs, an
 `Pictures.MostBytesHeldApart` reads. None of it counts against the timeline's two budgets, which are unchanged, and all
 of it is let go the first frame after the screen goes, the smaller copies staying held for the timeline. A Kitty
 terminal is told to forget every one it was sent, and those encoded ahead and never sent are dropped with them.
+
+## Amendment: opening a picture lets go of it, as opening any reference does (review of #514)
+
+The decision above has `esc` going back from the Picture screen, and #516 went back to the picture still walked: the
+one reference `⏎` left walked as it opened, so that a reader looking at a post's pictures one by one carried on from
+the one opened. That was an exception to the rule every other reference keeps, that `⏎` or a double click lets the
+walked reference go as part of opening it (#474), and once the Picture screen stepped through the post's pictures
+itself (#518) there was nothing left for it to buy. In use, the selection outlived what it had been opened for, and a
+picture should follow the same rule as every other reference. It is reversed: opening a picture, by `⏎` or by a double click, lets go of the walked reference
+exactly as opening a link does, and `esc` from the Picture screen comes back to the same post picked and nothing
+walked, with no brackets drawn. The Picture screen keeps for itself which picture it was opened on, and steps from
+there. This supersedes "`esc` going back" above where #516 read it as going back to the picture walked.

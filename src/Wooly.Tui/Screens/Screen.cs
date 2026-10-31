@@ -445,7 +445,8 @@ public abstract class Screen
     /// <summary>
     ///     The <b>Picture screen</b> the walked still picture opens onto, or <see langword="null" /> where what is walked
     ///     is anything else or nothing is — what <c>⏎</c> keeps inside the terminal rather than handing the browser
-    ///     (ADR-0034, #516).
+    ///     (ADR-0034, #516). Asked before the reference is let go, as opening lets go of every reference (#474, review
+    ///     of #514): the screen it answers holds the picture it opens on itself, so nothing need stay walked for it.
     /// </summary>
     /// <param name="saying">
     ///     How the Picture screen puts a word on the status row, or takes it off: the row is the shell's, which is what

@@ -748,8 +748,7 @@ picture, having no text to click, answers a click anywhere on its box or beside 
 **Picked**, which is which thing on the screen the reader has walked to; a reference is walked *inside* whatever is
 picked, one level in. What carries them is asked of the picked thing rather than assumed to be a post, a bio being the
 first thing here that is not one. A walked-to reference is let go once none of its rows are on the **Page**, and once
-`⏎` has opened it — but for a picture, which stays walked under its **Picture screen** so that `esc` comes back to it
-(ADR-0034). Widened past the post's own text on purpose: a video is walked to and opened exactly the way a link is,
+`⏎` or a double click has opened it. Widened past the post's own text on purpose: a video is walked to and opened exactly the way a link is,
 because placing, picking and opening several things on one screen was already solved for the three that live in the
 text, and a second copy of that solve for the ones that do not would be a second place for it to disagree with the
 first. Replaces what `BodyText` used to call a "mark," a word this project had already spent on `Post.Marks`

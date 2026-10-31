@@ -905,7 +905,8 @@ public sealed class Shell
     ///     account a mention names, an address in the platform's own browser, or a <c>Video</c>/<c>Animation</c>/
     ///     <c>Audio</c>/<c>Unknown</c> attachment's own address and a link preview's alike — in that same browser, the
     ///     exact way a picked link already reaches it (#85, ADR-0017, ADR-0018). A walked picture is none of the four,
-    ///     and opens on a <b>Picture screen</b> instead (ADR-0034, #516).
+    ///     and opens on a <b>Picture screen</b> instead (ADR-0034, #516). Every one of them lets the walked reference go
+    ///     as it opens, a picture's included (#474, review of #514).
     /// </summary>
     /// <remarks>
     ///     Which of the four it is, is the role the reference draws in — one vocabulary rather than two, which is the
@@ -925,25 +926,29 @@ public sealed class Shell
         }
 
         // A walked picture opens inside the terminal rather than in the browser, on a Picture screen pushed over this
-        // one — and is the one reference left walked as it opens, so that esc comes back to it as it was rather than to
-        // the walk starting over (ADR-0034, #516). Asked ahead of the roles, a picture's address sharing Media with a
-        // video's.
-        // It says on the status row why an original will not come, which only a frame drawing it learns (#517).
-        if (Screen.OpenWalkedPicture(notice => StatusRow.Say(notice, isError: true)) is { } picture)
-        {
-            Push(picture);
-
-            return Task.CompletedTask;
-        }
+        // one (ADR-0034, #516). Asked ahead of the roles, a picture's address sharing Media with a video's, and before
+        // the reference is let go, because which picture it is is read off the reference held; the screen keeps the
+        // picture it opened on itself. It says on the status row why an original will not come, which only a frame
+        // drawing it learns (#517).
+        var picture = Screen.OpenWalkedPicture(notice => StatusRow.Say(notice, isError: true));
 
         // Asked before the reference is let go, because who a mention names is read off the reference held.
         var mentioned = Screen.Mentioned;
 
         // Let go as part of opening, before the outcome is known, so every outcome lets it go the same way: a screen
         // pushed comes back to nothing held and its first esc goes back, an address handed to the browser leaves the
-        // next → starting again at the first reference, and a refusal is no exception (#474).
+        // next → starting again at the first reference, and a refusal is no exception (#474). A picture is no
+        // exception either: esc from its Picture screen comes back to the same post picked and nothing walked (review
+        // of #514).
         Screen.ClearReference();
         Changed?.Invoke();
+
+        if (picture is not null)
+        {
+            Push(picture);
+
+            return Task.CompletedTask;
+        }
 
         switch (reference.Role)
         {

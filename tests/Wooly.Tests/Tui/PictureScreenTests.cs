@@ -9,9 +9,9 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     <c>⏎</c> on a walked picture opens it on a <b>Picture screen</b>: the one picture fitted whole inside the window,
-///     its description centred beneath it, and <c>esc</c> back to where it was opened from with the
-///     same picture walked (#516, ADR-0034). Read back off the whole shell drawn headless in the no-colour theme, its
-///     cells pinned at 10×20 so that a box's size can be worked out by hand.
+///     its description centred beneath it, and <c>esc</c> back to where it was opened from with the same post picked and
+///     nothing walked (#516, ADR-0034, review of #514). Read back off the whole shell drawn headless in the no-colour
+///     theme, its cells pinned at 10×20 so that a box's size can be worked out by hand.
 /// </summary>
 public class PictureScreenTests
 {
@@ -26,6 +26,9 @@ public class PictureScreenTests
 
     /// <summary>Wider than any content region, so that the region's width is what bounds the box.</summary>
     private static readonly PictureShape Wide = new(4000, 400);
+
+    /// <summary>Every glyph a walked picture's brackets are drawn in, either side, a one-row box's included.</summary>
+    private static readonly char[] Brackets = "⎡⎢⎣⎤⎥⎦".ToCharArray();
 
     [Fact]
     public async Task EnterOnAWalkedPictureOpensItsPictureScreenCrumbedByThePostsAuthor()
@@ -141,11 +144,12 @@ public class PictureScreenTests
     }
 
     /// <summary>
-    ///     <c>esc</c> goes back at its first press, to the feed as it was left: the same post picked, the same picture
-    ///     walked between its brackets, the same page and the same status row.
+    ///     <c>esc</c> goes back at its first press, to the feed with the same post picked and nothing walked: opening the
+    ///     picture let go of it as opening a link does (#474), so no brackets are drawn and the page and status row are
+    ///     as they were before the walk began (review of #514).
     /// </summary>
     [Fact]
-    public async Task EscGoesBackToTheScreenUnderneathWithItsPickAndWalkedPictureUnchanged()
+    public async Task EscGoesBackToTheScreenUnderneathWithThePostPickedAndNothingWalked()
     {
         using var drawn = await Reading(APost.With(
             id: "110",
@@ -156,11 +160,13 @@ public class PictureScreenTests
                 APost.APicture("m2", description: "The second sheep", shape: Wide),
             ]));
 
+        var unwalked = drawn.Rows();
+
         drawn.Press(Key.CursorRight);
         drawn.Press(Key.CursorRight);
         drawn.Press(Key.CursorRight);
 
-        var walked = drawn.Rows();
+        Assert.Contains(drawn.Rows(), row => row[ContentLeft + 1] == '⎡');
 
         drawn.Press(Key.Enter);
         drawn.Settle();
@@ -171,8 +177,9 @@ public class PictureScreenTests
         drawn.Press(Key.Esc);
 
         Assert.Equal(1, drawn.Shell.Depth);
-        Assert.Equal(walked, drawn.Rows());
-        Assert.Contains(walked, row => row[ContentLeft + 1] == '⎡');
+        Assert.Equal("110", drawn.Shell.Screen.Picked?.Id);
+        Assert.DoesNotContain(drawn.Rows(), row => row.IndexOfAny(Brackets) >= 0);
+        Assert.Equal(unwalked, drawn.Rows());
     }
 
     /// <summary>
@@ -219,7 +226,7 @@ public class PictureScreenTests
 
     /// <summary>
     ///     A picture walked to on the post screen opens as one walked to in a feed does, and <c>esc</c> comes back to the
-    ///     post screen with it still walked.
+    ///     post screen with nothing walked, as it was before the walk began.
     /// </summary>
     [Fact]
     public async Task APictureOpensFromThePostScreenAsFromAFeed()
@@ -234,11 +241,11 @@ public class PictureScreenTests
 
         Assert.IsType<PostScreen>(drawn.Shell.Screen);
 
+        var unwalked = drawn.Rows();
+
         drawn.Press(Key.CursorRight);
 
-        var walked = drawn.Rows();
-
-        Assert.Contains(walked, row => row.Contains('⎡'));
+        Assert.Contains(drawn.Rows(), row => row.Contains('⎡'));
 
         drawn.Press(Key.Enter);
         drawn.Settle();
@@ -249,7 +256,9 @@ public class PictureScreenTests
         drawn.Press(Key.Esc);
 
         Assert.IsType<PostScreen>(drawn.Shell.Screen);
-        Assert.Equal(walked, drawn.Rows());
+        Assert.Equal("110", drawn.Shell.Screen.Picked?.Id);
+        Assert.DoesNotContain(drawn.Rows(), row => row.IndexOfAny(Brackets) >= 0);
+        Assert.Equal(unwalked, drawn.Rows());
     }
 
     /// <summary>A picture its author gave no description says so where the description would be.</summary>

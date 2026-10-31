@@ -9,13 +9,16 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     <c>←</c> and <c>→</c> on a <b>Picture screen</b> step to the post's previous and next drawn still picture, in the
 ///     order they are drawn, stopping at either end; the crumb says which of how many is showing, and <c>esc</c> comes
-///     back with the picture it was opened on still walked, whichever was stepped to (#518, ADR-0034). Read back off the
-///     whole shell drawn headless in the no-colour theme.
+///     back to the post picked and nothing walked, whichever was stepped to (#518, ADR-0034, review of #514). Read back
+///     off the whole shell drawn headless in the no-colour theme.
 /// </summary>
 public class PictureSteppingTests
 {
     /// <summary>Wider than any content region, so that each box is a few rows tall and the post fits on the page.</summary>
     private static readonly PictureShape Wide = new(4000, 400);
+
+    /// <summary>Every glyph a walked picture's brackets are drawn in, either side, a one-row box's included.</summary>
+    private static readonly char[] Brackets = "⎡⎢⎣⎤⎥⎦".ToCharArray();
 
     /// <summary>Three pictures with a video between the first two, which the walk passes over as a picture.</summary>
     private static Post ThreePicturesAndAVideo => APost.With(
@@ -135,21 +138,21 @@ public class PictureSteppingTests
     }
 
     /// <summary>
-    ///     <c>esc</c> after stepping goes back at its first press, to the feed with the picture the screen was opened on
-    ///     still walked — the second here, the walk having passed the video's label to reach it — rather than the one
-    ///     stepped to.
+    ///     The screen steps from the picture it was opened on — the second here, the walk having passed the video's label
+    ///     to reach it — though opening it let go of the walk underneath; and <c>esc</c> after stepping goes back at its
+    ///     first press, to the feed with the post picked and nothing walked, neither the picture opened on nor the one
+    ///     stepped to, as opening a link leaves it (#474, review of #514).
     /// </summary>
     [Fact]
-    public async Task EscAfterSteppingComesBackWithThePictureOpenedStillWalked()
+    public async Task EscAfterSteppingComesBackWithThePostPickedAndNothingWalked()
     {
         using var drawn = await Reading(ThreePicturesAndAVideo);
 
-        drawn.Press(Key.CursorRight);
-        drawn.Press(Key.CursorRight);
-        drawn.Press(Key.CursorRight);
+        var unwalked = drawn.Rows();
 
-        var walked = drawn.Rows();
-        var reference = drawn.Shell.Screen.Reference;
+        drawn.Press(Key.CursorRight);
+        drawn.Press(Key.CursorRight);
+        drawn.Press(Key.CursorRight);
 
         drawn.Press(Key.Enter);
         drawn.Settle();
@@ -163,9 +166,9 @@ public class PictureSteppingTests
         drawn.Press(Key.Esc);
 
         Assert.Equal(1, drawn.Shell.Depth);
-        Assert.NotNull(reference);
-        Assert.Equal(reference, drawn.Shell.Screen.Reference);
-        Assert.Equal(walked, drawn.Rows());
+        Assert.Equal("110", drawn.Shell.Screen.Picked?.Id);
+        Assert.DoesNotContain(drawn.Rows(), row => row.IndexOfAny(Brackets) >= 0);
+        Assert.Equal(unwalked, drawn.Rows());
     }
 
     /// <summary>

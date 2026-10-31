@@ -295,7 +295,7 @@ Feed and post:
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `w` | Who favorited it, or who boosted it: the actors screen, one side at a time | On a boost, the post boosted. Opens "Favorited by" where the post's count of favorites is above zero, else "Boosted by" where its boosts are, else says `Nobody has favorited or boosted this.` and opens nothing — settled from the counts before anything is read, and always the list, never a shortcut to one account (#489). On Notifications `w` is who did what the row reports, and on an account screen's header block their follows (below, #490) |
 | `x` | Show what the post is hiding | Its warned text and poll, its sensitive attachments and link preview, or both halves at once (#113, #116, #119). What it showed belongs to the screen it was pressed on (#121, below) |
-| `←` `→` | Walk the references (hashtag, mention, link, attachment, drawn picture) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below), a walked picture on its Picture screen, inside the TUI, and left walked there so that `esc` comes back to it (#516). A walked picture is drawn between `⎡⎢⎣` and `⎤⎥⎦` beside its box (`[` `]` for a box one row tall) (#515), and a click anywhere on its box walks to it and a double click there opens it (review of #514) |
+| `←` `→` | Walk the references (hashtag, mention, link, attachment, drawn picture) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below), a walked picture on its Picture screen, inside the TUI (#516), letting the reference go as every opening does, so that `esc` comes back to the post picked and nothing walked (review of #514). A walked picture is drawn between `⎡⎢⎣` and `⎤⎥⎦` beside its box (`[` `]` for a box one row tall) (#515), and a click anywhere on its box walks to it and a double click there opens it (review of #514) |
 | `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll is on screen and would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
 | `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. Only where the poll is on screen and would still take a vote — and on a poll already voted in or closed, says which rather than asking |
 
@@ -319,7 +319,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Choose avatar / Choose header | the Attach browser's keys, but it lists only pictures, `ctrl-a` shows no other files, one file may be chosen, and `⏎` takes the file chosen, else the one under the cursor, back to the form's row as its picture (#407) · `esc` back to the form unchanged |
 | Attach | type to filter, fuzzily (#376) · `space` choose the file under the cursor, or let it go — up to what the post has room for · `⏎` attach what is chosen, wherever the cursor is, else the file under the cursor, else open the folder under it · `→` open a folder · `←` up a folder · `↑`/`↓` walk the list · `ctrl-a` every file, and again only the accepted types · `backspace`/`delete` only ever the filter, stopping at empty · `esc` clear the filter, then back to the draft unchanged |
 | Media (the attachments screen) | `↑`/`↓` walk the rows · `⏎` describe the row · `del`/`backspace` take it off · `ctrl-z` bring back the last one taken off · `shift-↑`/`shift-↓` move it · `r` retry it where a retry can help · `s` the sensitive toggle · `ctrl-o` the file browser, attaching onto the compose under it · `ctrl-v`/`alt-v` attach from the clipboard onto it · `esc` back to the draft (story 58) |
-| Picture | `←`/`→` step to the post's previous or next still picture, in the order they are drawn and passing over a video or the like on the same post, each drawn as any is with its own description, stopping at either end rather than coming round; the status row says them only where the post has several, and the crumb counts which this is (`Picture 2 of 4 by @author`), updating with each step (#518, review of #514) · `esc` back at its first press, to the screen it was opened from with the same pick and the picture it was opened on still walked, whichever was stepped to — nothing on the screen is walked or picked for it to let go of first, the steps being the screen's own (#516, #518) |
+| Picture | `←`/`→` step to the post's previous or next still picture, in the order they are drawn and passing over a video or the like on the same post, each drawn as any is with its own description, stopping at either end rather than coming round; the status row says them only where the post has several, and the crumb counts which this is (`Picture 2 of 4 by @author`), updating with each step (#518, review of #514) · `esc` back at its first press, to the screen it was opened from with the same pick and nothing walked, whichever was stepped to — nothing on the screen is walked or picked for it to let go of first, the steps being the screen's own (#516, #518, review of #514) |
 | Home, local, federated, each tag set, Discover, Notifications, Messages, Requests, Post, Account, Follows, Actors | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -754,14 +754,15 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
 - **A walked picture is a fifth, and the one that stays inside the TUI** (#516, ADR-0034). `⏎` on it pushes its
   **Picture screen** rather than handing its address to anything, told apart from a video's address — the two share
   `Media` — by the attachment its reference was made of (`Screen.OpenWalkedPicture`). Nothing is fetched to open it.
-- **`⏎` lets the reference go, on every outcome but a picture's** (#474): a hashtag pushed, a mention opened, an address or an
-  attachment's or link preview's address handed to the browser, and a refusal alike. `Shell.OpenReference` lets it go
-  as part of opening, before the outcome is known, so no outcome is an exception. Walking back out of the hashtag or
-  account it opened, the first `esc` goes back rather than being spent on an old bracket; after a link, the next `→`
-  starts again at the first reference; and the status row leaves reference mode at once. A refused reference costs one
-  `→` to pick again. A walked picture is the exception (#516): it is still walked under its Picture screen, so that
-  `esc` from there comes back to the picture as it was, which is where a reader looking at a post's pictures one by one
-  carries on from.
+- **`⏎` lets the reference go, on every outcome** (#474): a hashtag pushed, a mention opened, a picture's Picture
+  screen pushed, an address or an attachment's or link preview's address handed to the browser, and a refusal alike.
+  `Shell.OpenReference` lets it go as part of opening, before the outcome is known, so no outcome is an exception.
+  Walking back out of the hashtag, account or picture it opened, the first `esc` goes back rather than being spent on
+  an old bracket, to the same post picked and nothing walked; after a link, the next `→` starts again at the first
+  reference; and the status row leaves reference mode at once. A refused reference costs one `→` to pick again. A
+  picture was once the exception, left walked under its Picture screen so that `esc` came back to it (#516); that was
+  reversed for one rule across every reference (review of #514), the Picture screen keeping for itself which picture
+  it opened on and stepping from there.
 - **The launch is decided apart from the act, and outside `ShellPorts`.** This is the first thing in the shell that
   leaves the terminal, so it lives in its own small seam rather than folded into the ports (which are specifically
   "everything the shell reaches an *instance* through" — a browser reaches outside the instance). `BrowserLaunch`
@@ -944,14 +945,15 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   (`Pictures.MostBytesHeldApart`) where an inline picture stays at 8 MB, is decoded no larger than the window, and is
   let go the first frame that does not want it — so once the screen goes, while the smaller copy stays held for the
   timeline. `esc` goes back at its first press, to the screen it was opened from with the same
-  pick and the same picture walked; on the post screen as in a feed.
+  pick and nothing walked, opening it having let the picture go as opening a link does (review of #514); on the post
+  screen as in a feed.
 - **`←`/`→` on the Picture screen step along the post's still pictures** (#518), in the order they are drawn, a video or
   the like on the same post passed over, each drawn as any picture is there with its own description, and stopping at
   either end rather than coming round, as the walk does. The crumb counts them where there are several,
   `Picture 2 of 4 by @author`, and the status row offers `←→`; neither says anything of them where there is one. The
   steps are the screen's own verbs (`Verb.NextPicture`, `Verb.PreviousPicture`) rather than a walk of its references, so
-  the first `esc` still goes back, and what is walked underneath is the picture it was opened on, whichever was stepped
-  to. The screen sends for the originals of all the post's pictures, not only the one shown: that one first, and the
+  the first `esc` still goes back, to nothing walked underneath whichever was stepped to; the screen steps from the
+  picture it was opened on, which it holds itself rather than reading off a walk underneath. The screen sends for the originals of all the post's pictures, not only the one shown: that one first, and the
   rest once it has landed or been refused. It holds every one of them apart until it goes, so a step no longer lets go
   of the picture it leaves (review of #514). A step to a picture whose original has landed draws it at once, with no
   Stand-in, and a step back finds the one left still there. A step to one still on its way shows its Stand-in, or the

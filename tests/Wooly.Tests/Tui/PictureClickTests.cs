@@ -67,12 +67,13 @@ public class PictureClickTests
 
     /// <summary>
     ///     A double click on a picture's box opens it on its Picture screen, in a feed and on the post screen alike, and
-    ///     hands the browser nothing.
+    ///     hands the browser nothing; and lets go of the picture its first click walked to, as <c>⏎</c> does, so that
+    ///     <c>esc</c> comes back to the post picked and no brackets drawn (#474, review of #514).
     /// </summary>
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ADoubleClickOnAPicturesBoxOpensItsPictureScreen(bool onThePostScreen)
+    public async Task ADoubleClickOnAPicturesBoxOpensItsPictureScreenAndLetsItGo(bool onThePostScreen)
     {
         using var drawn = await Drawn(landed: true);
 
@@ -92,6 +93,14 @@ public class PictureClickTests
         Assert.Contains(drawn.Rows(), row => row.Contains("Picture by @maria@fosstodon.org", StringComparison.Ordinal));
         Assert.IsType<PictureScreen>(drawn.Shell.Screen);
         Assert.Empty(drawn.Built.Browser.Opened);
+
+        drawn.Press(Key.Esc);
+        drawn.Redraw();
+
+        Assert.IsType(onThePostScreen ? typeof(PostScreen) : typeof(FeedScreen), drawn.Shell.Screen);
+        Assert.Equal("110", drawn.Shell.Screen.Picked?.Id);
+        Assert.DoesNotContain(drawn.Rows(), row => row.IndexOfAny(['⎡', '⎢', '⎣', '⎤', '⎥', '⎦']) >= 0);
+        Assert.DoesNotContain(drawn.Rows(), row => row.Contains("Open: ⏎", StringComparison.Ordinal));
     }
 
     /// <summary>
