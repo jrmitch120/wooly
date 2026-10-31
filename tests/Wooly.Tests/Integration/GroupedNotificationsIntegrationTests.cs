@@ -63,9 +63,12 @@ public class GroupedNotificationsIntegrationTests
             Assert.NotNull(before);
             await Dismiss(http, tester, GroupKey(before.Value), cancellationToken);
 
-            foreach (var fan in fans)
+            // Each favorite's notification is waited on before the next is given: the instance makes them in background
+            // jobs, so two given back to back can land in either order, and the actors are asserted newest first.
+            for (var given = 1; given <= fans.Count; given++)
             {
-                await engagement.Mark(fan.Profile, post.Id, PostMark.Favorite, wanted: true, cancellationToken);
+                await engagement.Mark(fans[given - 1].Profile, post.Id, PostMark.Favorite, wanted: true, cancellationToken);
+                Assert.NotNull(await GroupAbout(http, tester, post.Id, "favourite", given, cancellationToken));
             }
 
             var group = await GroupAbout(http, tester, post.Id, "favourite", fans.Count, cancellationToken);
