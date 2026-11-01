@@ -93,7 +93,9 @@ public class BoxDrawnCustomEmojiTests
 
         Assert.Equal(Placing.MostCustomEmojiBoxes, drawnAsPictures.Count(EmojiSized));
         Assert.Equal(past, drawn.Rows().Sum(row => row.Count(cell => cell == StandIn.Shade)) / CustomEmojiBox.Columns);
-        Assert.Contains(drawnAsPictures, cells => cells.Size == new Size(Avatar.BylineColumns(ARaster.Sixel()), Avatar.BylineRows));
+        Assert.Contains(
+            drawnAsPictures,
+            cells => cells.Size == new Size(Avatar.BylineColumns(ARaster.Sixel()), Avatar.BylineRows));
         Assert.Contains(drawnAsPictures, cells => cells.Height > Avatar.BylineRows);
     }
 

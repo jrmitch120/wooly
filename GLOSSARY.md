@@ -164,13 +164,14 @@ _Avoid_: image, media (for the avatar half of this)
 **Picture box**:
 The cells a **drawn** picture is painted in, settled before its pixels arrive so that nothing moves when they come or
 go: shaped as the instance said the picture is, for a post's picture and a **Link preview**'s, or a fixed size, for an
-avatar, a **custom emoji**, the small picture on a **pending attachment**'s row and the public profile form's header.
-An avatar's box is as near square as whole columns allow on the terminal's font, so it is the same width for every
-avatar on the screen. An avatar and a custom emoji are fitted whole inside their boxes and centred, as Mastodon's web
-client draws them. The pending attachment's picture and the form's header fill their boxes: a picture of another shape
-is cropped to the box from the middle, as an instance crops one, never stretched. A shaped box fits the picture inside
-it, since the shape it was given can be a guess — a picture the guess got wrong shows whole, with slack beside it. Until the pixels are here the box holds a
-**Stand-in**, whose blur is stretched to the box rather than cropped.
+avatar, a **custom emoji**, the small picture on a **pending attachment**'s row and the public profile form's avatar and
+header. An avatar's box is as near square as whole columns allow on the terminal's font, so every avatar of a size is
+the same width whatever its picture. An avatar and a custom emoji are fitted whole inside their boxes and centred, as
+Mastodon's web client draws them. The pending attachment's picture and the form's header fill their boxes: a picture of
+another shape is cropped to the box from the middle, as an instance crops one, never stretched. A shaped box fits the
+picture inside it, since the shape it was given can be a guess — a picture the guess got wrong shows whole, with slack
+beside it. Until the pixels are here the box holds a **Stand-in**, whose blur is stretched to the box rather than
+cropped.
 _Avoid_: thumbnail (only the smallest of them), frame, slot
 
 **Picture screen**:

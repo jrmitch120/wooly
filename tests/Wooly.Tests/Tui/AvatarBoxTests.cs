@@ -1,4 +1,5 @@
 using System.Drawing;
+using Terminal.Gui.Drivers;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
@@ -26,17 +27,18 @@ public class AvatarBoxTests
     private static readonly Color Transparent = new(0, 0, 0, 0);
 
     /// <summary>
-    ///     The dark theme on a page of its own, so that what sixel lays a fitted avatar's room on is the theme's to say.
+    ///     The dark theme on a page of its own, so that what sixel lays a fitted avatar's room on is the theme's to
+    ///     say.
     /// </summary>
     private static readonly ITheme OnAPage =
         ((Palette)Themes.Dark).Overlaid(new Color(30, 30, 46), new Dictionary<Role, (Color?, Color?)>());
 
     /// <summary>
-    ///     A square avatar is fitted whole into its byline's box and centred, on Kitty's placeholders and on sixel alike,
-    ///     with the rest of the box transparent through the placeholders and laid on the picked post's band on sixel. On
-    ///     a cell of 20 by 45 the box is five columns by two rows, 100 by 90 pixels: the avatar 90 square, five columns of
-    ///     pixels either side of it — where a crop cut its sides off. On a cell of 8 by 17 it is four by two, 32 by 34:
-    ///     the avatar 32 square, a row of pixels above and below it.
+    ///     A square avatar is fitted whole into its byline's box and centred, on Kitty's placeholders and on sixel
+    ///     alike, with the rest of the box transparent through the placeholders and laid on the picked post's band on
+    ///     sixel. On a cell of 20 by 45 the box is five columns by two rows, 100 by 90 pixels: the avatar 90 square,
+    ///     five columns of pixels either side of it — where a crop cut its sides off. On a cell of 8 by 17 it is four
+    ///     by two, 32 by 34: the avatar 32 square, a row of pixels above and below it.
     /// </summary>
     [Theory]
     [InlineData(PictureWay.Placeholders, 20, 45, 5, 0)]
@@ -63,7 +65,7 @@ public class AvatarBoxTests
             terminal);
 
         var avatar = way == PictureWay.Sixel
-            ? new Picture(Assert.Single(drawn.Application.Driver!.GetOutputBuffer().GetRasterImages()).Pixels!)
+            ? new Picture(Assert.Single(Images(drawn)).Pixels!)
             : Assert.Single(terminal.Transmitted).Pixels();
 
         var behind = way == PictureWay.Sixel ? OnAPage.Banded(Role.Body).Background : Transparent;
@@ -85,8 +87,8 @@ public class AvatarBoxTests
 
     /// <summary>
     ///     A byline's avatar takes the number of columns nearest square for its two rows on the cell the Raster knows —
-    ///     four on a cell of 10 by 20, as it always was, five on 20 by 45 (4.5, rounded up) and four on 8 by 17 (4.25) —
-    ///     and the name and the handle start one column after it.
+    ///     four on a cell of 10 by 20, as it always was, five on 20 by 45 (4.5, rounded up) and four on 8 by 17 (4.25)
+    ///     — and the name and the handle start one column after it.
     /// </summary>
     [Theory]
     [InlineData(10, 20, 4)]
@@ -110,8 +112,8 @@ public class AvatarBoxTests
 
     /// <summary>
     ///     An account screen's avatar takes the number of columns nearest square for its four rows: eight on a cell of
-    ///     10 by 20, as it always was, and nine on 20 by 45 — 180 by 180 pixels, exactly square, so a square avatar fills
-    ///     it edge to edge — and the name starts two columns after it.
+    ///     10 by 20, as it always was, and nine on 20 by 45 — 180 by 180 pixels, exactly square, so a square avatar
+    ///     fills it edge to edge — and the name starts two columns after it.
     /// </summary>
     [Theory]
     [InlineData(10, 20, 8)]
@@ -132,7 +134,7 @@ public class AvatarBoxTests
         drawn.Redraw();
 
         var header = Assert.Single(
-            drawn.Application.Driver!.GetOutputBuffer().GetRasterImages(),
+            Images(drawn),
             image => image.DestinationCells.Height == Avatar.HeaderRows);
         var box = header.DestinationCells;
         var name = RowOf(drawn, "Jeff Mitchell", after: 0);
@@ -144,8 +146,8 @@ public class AvatarBoxTests
     }
 
     /// <summary>
-    ///     Where the terminal said it draws sixel but not how big its cells are, the cell is the 10 by 20 assumed, and a
-    ///     byline's avatar is four columns by two as it always was.
+    ///     Where the terminal said it draws sixel but not how big its cells are, the cell is the 10 by 20 assumed, and
+    ///     a byline's avatar is four columns by two as it always was.
     /// </summary>
     [Fact]
     public async Task WhereTheCellIsNotKnownABylinesAvatarIsFourColumnsByTwo()
@@ -162,8 +164,8 @@ public class AvatarBoxTests
     }
 
     /// <summary>
-    ///     Before the avatar lands, its Stand-in's shade fills the whole of its box — five columns on both rows on a cell
-    ///     of 20 by 45 — and the name is where it will be once it has.
+    ///     Before the avatar lands, its Stand-in's shade fills the whole of its box — five columns on both rows on a
+    ///     cell of 20 by 45 — and the name is where it will be once it has.
     /// </summary>
     [Fact]
     public async Task BeforeTheAvatarLandsItsStandInFillsTheBox()
@@ -188,8 +190,8 @@ public class AvatarBoxTests
     }
 
     /// <summary>
-    ///     The feed on <paramref name="way" /> at <paramref name="cell" />, on a page of its own, its one post Jeff's with
-    ///     his avatar named — and picked, so that its rows are on the band.
+    ///     The feed on <paramref name="way" /> at <paramref name="cell" />, on a page of its own, its one post Jeff's
+    ///     with his avatar named — and picked, so that its rows are on the band.
     /// </summary>
     private static Task<DrawnShell> Drawn(
         PictureWay way,
@@ -213,8 +215,11 @@ public class AvatarBoxTests
             raster: way == PictureWay.Sixel ? ARaster.Sixel(cell) : ARaster.Placeholders(cell));
 
     /// <summary>Every picture the terminal was handed through a box, as the cells it was placed over.</summary>
-    private static List<Rectangle> Boxes(DrawnShell drawn) =>
-        [.. drawn.Application.Driver!.GetOutputBuffer().GetRasterImages().Select(image => image.DestinationCells)];
+    private static List<Rectangle> Boxes(DrawnShell drawn) => [.. Images(drawn).Select(image => image.DestinationCells)];
+
+    /// <summary>Every picture the terminal was handed through a box.</summary>
+    private static IEnumerable<RasterImageCommand> Images(DrawnShell drawn) =>
+        drawn.Application.Driver!.GetOutputBuffer().GetRasterImages();
 
     private static (int Width, int Height) Size(Color[,] pixels) => (pixels.GetLength(0), pixels.GetLength(1));
 

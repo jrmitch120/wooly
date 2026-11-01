@@ -205,10 +205,10 @@ internal sealed class SixelPictures(
     /// <summary>
     ///     Whether what is behind <paramref name="picture" />'s box shows through it once it takes the box as
     ///     <paramref name="fill" /> says: where it is fitted to a box <paramref name="width" /> by
-    ///     <paramref name="height" /> pixels that is not its shape, with room round it, or has a pixel less than opaque —
-    ///     which is read off its pixels once for each picture (<see cref="Opaque" />), on the frame that first wants a
-    ///     cut of it. A square avatar fitted to a box that is square leaves no room, and is encoded once whether its post
-    ///     is picked or not.
+    ///     <paramref name="height" /> pixels that is not its shape, with room round it, or where it has a pixel less
+    ///     than opaque, which is read off its pixels once for each picture (<see cref="Opaque" />), on the frame that
+    ///     first wants a cut of it. A square avatar fitted to a box that is square leaves no room, and is encoded once
+    ///     whether its post is picked or not.
     /// </summary>
     private static bool ShowsThrough(Picture picture, BoxFill fill, int width, int height) =>
         (fill is BoxFill.Fitted && (long)picture.Width * height != (long)picture.Height * width)

@@ -60,9 +60,9 @@ public readonly record struct Avatar(PictureBox? Box, int Gap)
     internal static int BylineColumns(Raster? raster) => Columns(BylineRows, raster);
 
     /// <summary>
-    ///     What an account screen's header block spends on the same face: twice the byline's box, beside four rows
-    ///     rather than two, because this is the one screen that is about the person rather than about a post
-    ///     (ADR-0019).
+    ///     What an account screen's header block spends on the same face: four rows rather than the byline's two, as
+    ///     near square as whole columns allow — eight wide on a cell twice as tall as it is wide — because this is the
+    ///     one screen that is about the person rather than about a post (ADR-0019, #532).
     /// </summary>
     /// <inheritdoc cref="Of" path="/param" />
     public static Avatar Header(string account, string? address, IPictures? pictures, Raster? raster) =>
@@ -85,8 +85,8 @@ public readonly record struct Avatar(PictureBox? Box, int Gap)
 
     /// <summary>
     ///     How many columns a box <paramref name="rows" /> tall takes to be nearest square in pixels on
-    ///     <paramref name="raster" />'s cell, a half rounded up — or twice its rows where nobody said how big a cell is,
-    ///     which is square on the cell twice as tall as it is wide that is assumed then (#532).
+    ///     <paramref name="raster" />'s cell, a half rounded up — or twice its rows where nobody said how big a cell
+    ///     is, which is square on the cell twice as tall as it is wide that is assumed then (#532).
     /// </summary>
     /// <remarks>
     ///     The font's to say and never the picture's, so that every avatar on a screen is the same width and nothing

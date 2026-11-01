@@ -95,7 +95,8 @@ public class CustomEmojiNameTests
             pictures);
         Assert.Contains(
             pictures,
-            cells => cells.Y == row && cells.Size == new System.Drawing.Size(Avatar.BylineColumns(ARaster.Sixel()), Avatar.BylineRows));
+            cells => cells.Y == row
+                && cells.Size == new System.Drawing.Size(Avatar.BylineColumns(ARaster.Sixel()), Avatar.BylineRows));
     }
 
     /// <summary>

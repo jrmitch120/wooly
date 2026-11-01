@@ -10,11 +10,11 @@ namespace Wooly.Tui.Screens;
 ///     their own, then a muted <c>+N</c> on the top row counting the rest of the group (layout A7b of #450, #454).
 /// </summary>
 /// <remarks>
-///     Where each face goes depends on the width and the font alone: face <c>n</c> starts <c>n × </c><see cref="Step" />
-///     columns into the strip whatever the group holds, and how many there is room for is <see cref="Fits" /> of the
-///     width — so two groups of different sizes put their faces in the same columns, and nothing jumps as a group
-///     grows. A
-///     group shows as many as fit, up to the sample the instance sent, in the instance's order.
+///     Where each face goes depends on the width and the font alone: face <c>n</c> starts
+///     <c>n × </c><see cref="Step" /> columns into the strip whatever the group holds, and how many there is room for
+///     is <see cref="Fits" /> of the width — so two groups of different sizes put their faces in the same columns, and
+///     nothing jumps as a group grows. A group shows as many as fit, up to the sample the instance sent, in the
+///     instance's order.
 ///     <para>
 ///         Where this terminal draws no pictures the strip takes no rows at all, as a byline's avatar takes no columns
 ///         (ADR-0016): the names line already says who. An actor the instance named no avatar for keeps its slot,
@@ -29,8 +29,8 @@ public static class AvatarStrip
     public const int Gap = 2;
 
     /// <summary>
-    ///     How many columns from one face's left edge to the next's: a byline's box on <paramref name="raster" />'s cell
-    ///     and the gap after it.
+    ///     How many columns from one face's left edge to the next's: a byline's box on <paramref name="raster" />'s
+    ///     cell and the gap after it.
     /// </summary>
     public static int Step(Raster? raster) => Avatar.BylineColumns(raster) + Gap;
 
@@ -57,7 +57,9 @@ public static class AvatarStrip
             : Units.Select(unit => $"+{rest / unit.Of}{unit.Unit}").First(said => said.Length <= Rest);
     }
 
-    /// <summary>How many faces a strip <paramref name="width" /> wide has room for on <paramref name="raster" />'s cell.</summary>
+    /// <summary>
+    ///     How many faces a strip <paramref name="width" /> wide has room for on <paramref name="raster" />'s cell.
+    /// </summary>
     public static int Fits(int width, Raster? raster) => Math.Max(0, (width - Rest) / Step(raster));
 
     /// <summary>

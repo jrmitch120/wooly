@@ -53,8 +53,8 @@ public sealed record Drawn(string Id, string Address)
     public bool IsCustomEmoji { get; init; }
 
     /// <summary>
-    ///     How this takes the box it is drawn in once it is here (<see cref="Rendering.Inset.Fill" />): fitted whole for
-    ///     an avatar and a custom emoji, and cropped from the middle for every other picture.
+    ///     How this takes the box it is drawn in once it is here (<see cref="Rendering.Inset.Fill" />): fitted whole
+    ///     for an avatar and a custom emoji, and cropped from the middle for every other picture.
     /// </summary>
     internal BoxFill Fill { get; init; }
 

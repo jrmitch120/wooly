@@ -1,3 +1,4 @@
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 
 namespace Wooly.Tui.Screens;
@@ -53,20 +54,33 @@ public readonly record struct PublicProfileStop(PublicProfilePart Part, int Row 
 
 /// <summary>
 ///     One of the edit public profile form's two pictures (#407): which place on the form it is, the word its row is
-///     labelled with, and how wide its box is on a terminal that draws.
+///     labelled with, and how its box is drawn on a terminal that draws.
 /// </summary>
 /// <param name="Part">Which place on the form.</param>
 /// <param name="Label">What its row is labelled, and in lower case what the file browser opened for it is crumbed with.</param>
-/// <param name="Columns">How wide its box is.</param>
-public sealed record PublicProfilePicture(PublicProfilePart Part, string Label, int Columns)
+public sealed record PublicProfilePicture(PublicProfilePart Part, string Label)
 {
     /// <summary>The avatar.</summary>
-    public static PublicProfilePicture Avatar { get; } =
-        new(PublicProfilePart.Avatar, "Avatar", PublicProfilePictures.AvatarColumns);
+    public static PublicProfilePicture Avatar { get; } = new(PublicProfilePart.Avatar, "Avatar");
 
     /// <summary>The header.</summary>
-    public static PublicProfilePicture Header { get; } =
-        new(PublicProfilePart.Header, "Header", PublicProfilePictures.HeaderColumns);
+    public static PublicProfilePicture Header { get; } = new(PublicProfilePart.Header, "Header");
+
+    /// <summary>
+    ///     How a picture takes this one's box, whether the instance's or a file chosen for it: the avatar fitted whole,
+    ///     as every avatar is (#532), and the header cropped from the middle, as the instance crops one (#438).
+    /// </summary>
+    internal BoxFill Fill => Part == PublicProfilePart.Avatar ? BoxFill.Fitted : BoxFill.Cropped;
+
+    /// <summary>
+    ///     How wide its box is on <paramref name="raster" />'s cell: the avatar as near square for the form's rows as
+    ///     whole columns allow, as every avatar is (<see cref="Rendering.Avatar.Columns" />), and the header
+    ///     <see cref="PublicProfilePictures.HeaderColumns" /> whatever the font.
+    /// </summary>
+    internal int Columns(Raster? raster) =>
+        Part == PublicProfilePart.Avatar
+            ? Rendering.Avatar.Columns(PublicProfilePictures.Rows, raster)
+            : PublicProfilePictures.HeaderColumns;
 
     /// <summary>Both, in the order the form draws and walks them.</summary>
     public static IReadOnlyList<PublicProfilePicture> Both { get; } = [Avatar, Header];
