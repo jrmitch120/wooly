@@ -18,12 +18,14 @@ namespace Wooly.Tui.Rendering;
 ///         the <see cref="StandIn" />'s shade until they do: a byline that gained five columns on arrival would shove
 ///         the name across the row as the reader was reading it. An attachment's box has been reserved the same way
 ///         since ADR-0025, from the shape the instance reported; an avatar's is a fixed <see cref="PictureBox" />,
-///         filled by the face whatever its shape (#438).
+///         and the face is fitted whole inside it and centred, whatever its shape, as a custom emoji is (#532).
 ///     </para>
 ///     <para>
-///         Said once for the two places that spend them — a post's byline at 4×2 (#62) and an account screen's header
-///         block at 8×4 (ADR-0019) — because when the columns are taken and when they are given back is one decision
-///         at two sizes, and a second copy of it is how one of them comes to hold a gap open that the other reclaims.
+///         Said once for the two places that spend them — a post's byline two rows tall (#62) and an account screen's
+///         header block four (ADR-0019) — because when the columns are taken and when they are given back is one
+///         decision at two sizes, and a second copy of it is how one of them comes to hold a gap open that the other
+///         reclaims. How many columns each takes is the cell's to say (<see cref="Columns" />): 4×2 and 8×4 on a cell
+///         twice as tall as it is wide.
 ///     </para>
 /// </remarks>
 /// <param name="Box">The box the face is drawn in, or <see langword="null" /> where none is drawn.</param>
@@ -34,27 +36,28 @@ public readonly record struct Avatar(PictureBox? Box, int Gap)
     public Drawn? Wanted => Box?.Wanted;
 
     /// <summary>
-    ///     What a post's byline spends on its author's face: four wide and two tall, which is about square in a cell
-    ///     twice as tall as it is wide, and one column of air after it (#62).
+    ///     What a post's byline spends on its author's face: two rows tall and as near square as whole columns allow
+    ///     on this terminal's cell — four wide on a cell twice as tall as it is wide — and one column of air after it
+    ///     (#62, #532).
     /// </summary>
     /// <remarks>
     ///     Fixed rather than worked out from the picture's own proportions the way an attachment's box is
     ///     (<see cref="Inset.For" />), because this box is not sized to a picture: it is a slot in a byline, and a
     ///     byline whose height depended on how square somebody's avatar happened to be would be a feed whose rows
-    ///     moved as it scrolled.
+    ///     moved as it scrolled. Its width is the font's, which is the same for every row.
     /// </remarks>
     /// <inheritdoc cref="Of" path="/param" />
     public static Avatar Byline(string account, string? address, IPictures? pictures, Raster? raster) =>
-        Of(account, address, pictures, raster, BylineColumns, BylineRows, gap: 1);
-
-    /// <summary>
-    ///     How wide a byline's box is — and a notification group's avatar strip's faces, which are the same faces
-    ///     at the same size (#454).
-    /// </summary>
-    internal const int BylineColumns = 4;
+        Of(account, address, pictures, raster, BylineRows, gap: 1);
 
     /// <summary>How tall a byline's box is, and so how many rows an avatar strip takes.</summary>
     internal const int BylineRows = 2;
+
+    /// <summary>
+    ///     How wide a byline's box is on <paramref name="raster" />'s cell — and a notification group's avatar strip's
+    ///     faces, which are the same faces at the same size (#454).
+    /// </summary>
+    internal static int BylineColumns(Raster? raster) => Columns(BylineRows, raster);
 
     /// <summary>
     ///     What an account screen's header block spends on the same face: twice the byline's box, beside four rows
@@ -63,15 +66,44 @@ public readonly record struct Avatar(PictureBox? Box, int Gap)
     /// </summary>
     /// <inheritdoc cref="Of" path="/param" />
     public static Avatar Header(string account, string? address, IPictures? pictures, Raster? raster) =>
-        Of(account, address, pictures, raster, HeaderColumns, HeaderRows, gap: 2);
-
-    /// <summary>
-    ///     How wide the header's box is, which is the largest an avatar is ever drawn (<see cref="Drawn.Largest" />).
-    /// </summary>
-    internal const int HeaderColumns = 8;
+        Of(account, address, pictures, raster, HeaderRows, gap: 2);
 
     /// <summary>How tall the header's box is, which is the largest an avatar is ever drawn.</summary>
     internal const int HeaderRows = 4;
+
+    /// <summary>
+    ///     The most columns a box is given for each of its rows: on a cell three times as tall as it is wide, which no
+    ///     font comes near, a box is square at three columns a row.
+    /// </summary>
+    private const int MostColumnsARow = 3;
+
+    /// <summary>
+    ///     The widest the header's box can be on any cell, which is the largest an avatar is ever decoded to
+    ///     (<see cref="Drawn.Largest" />): a square avatar is decoded to the header's height, whatever the cell.
+    /// </summary>
+    internal const int MostHeaderColumns = HeaderRows * MostColumnsARow;
+
+    /// <summary>
+    ///     How many columns a box <paramref name="rows" /> tall takes to be nearest square in pixels on
+    ///     <paramref name="raster" />'s cell, a half rounded up — or twice its rows where nobody said how big a cell is,
+    ///     which is square on the cell twice as tall as it is wide that is assumed then (#532).
+    /// </summary>
+    /// <remarks>
+    ///     The font's to say and never the picture's, so that every avatar on a screen is the same width and nothing
+    ///     jumps as they land (GLOSSARY.md's <b>Picture box</b>). What whole columns leave over, at most half a column,
+    ///     is the room a fitted avatar is centred in.
+    /// </remarks>
+    internal static int Columns(int rows, Raster? raster)
+    {
+        if (raster?.Cell is not { Width: > 0, Height: > 0 } cell)
+        {
+            return rows * 2;
+        }
+
+        var nearest = ((2L * rows * cell.Height) + cell.Width) / (2L * cell.Width);
+
+        return (int)Math.Clamp(nearest, 1, rows * MostColumnsARow);
+    }
 
     /// <summary>How many columns it costs in all: the box and the gap after it, or none.</summary>
     public int Width => Box is { } box ? box.Columns + Gap : 0;
@@ -90,21 +122,19 @@ public readonly record struct Avatar(PictureBox? Box, int Gap)
     /// <param name="raster">
     ///     How this terminal paints pixels, or <see langword="null" /> where nobody said — which draws no avatar.
     /// </param>
-    /// <param name="columns">How wide the box is.</param>
-    /// <param name="rows">How tall it is, which is how many rows stand beside it.</param>
+    /// <param name="rows">How tall the box is, which is how many rows stand beside it.</param>
     /// <param name="gap">How many columns to leave between the box and those rows.</param>
     private static Avatar Of(
         string account,
         string? address,
         IPictures? pictures,
         Raster? raster,
-        int columns,
         int rows,
         int gap)
     {
         var box = PictureBox.Fixed(
             address is null ? null : Drawn.Avatar(account, address),
-            columns,
+            Columns(rows, raster),
             rows,
             pictures,
             raster);

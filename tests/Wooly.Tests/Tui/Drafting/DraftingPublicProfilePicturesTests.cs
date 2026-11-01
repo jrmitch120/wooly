@@ -222,7 +222,7 @@ public class DraftingPublicProfilePicturesTests : IDisposable
     }
 
     /// <summary>
-    ///     A header narrower than its box fills the box, cropped to it as the feed's avatar is, rather than standing in
+    ///     A header narrower than its box fills the box, cropped to it from the middle as an instance crops one, rather than standing in
     ///     it with slack beside it (#438): under the avatar, starting in its column, and as wide and tall as the box.
     /// </summary>
     [Fact]

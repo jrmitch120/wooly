@@ -1,4 +1,5 @@
 using Wooly.Core.Notifications;
+using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
 
@@ -9,9 +10,10 @@ namespace Wooly.Tui.Screens;
 ///     their own, then a muted <c>+N</c> on the top row counting the rest of the group (layout A7b of #450, #454).
 /// </summary>
 /// <remarks>
-///     Where each face goes depends on the width alone: face <c>n</c> starts <c>n × </c><see cref="Step" /> columns
-///     into the strip whatever the group holds, and how many there is room for is <see cref="Fits" /> of the width —
-///     so two groups of different sizes put their faces in the same columns, and nothing jumps as a group grows. A
+///     Where each face goes depends on the width and the font alone: face <c>n</c> starts <c>n × </c><see cref="Step" />
+///     columns into the strip whatever the group holds, and how many there is room for is <see cref="Fits" /> of the
+///     width — so two groups of different sizes put their faces in the same columns, and nothing jumps as a group
+///     grows. A
 ///     group shows as many as fit, up to the sample the instance sent, in the instance's order.
 ///     <para>
 ///         Where this terminal draws no pictures the strip takes no rows at all, as a byline's avatar takes no columns
@@ -26,8 +28,11 @@ public static class AvatarStrip
     /// <summary>How many columns stand between one face and the next (#450: one was too close).</summary>
     public const int Gap = 2;
 
-    /// <summary>How many columns from one face's left edge to the next's.</summary>
-    public const int Step = Avatar.BylineColumns + Gap;
+    /// <summary>
+    ///     How many columns from one face's left edge to the next's: a byline's box on <paramref name="raster" />'s cell
+    ///     and the gap after it.
+    /// </summary>
+    public static int Step(Raster? raster) => Avatar.BylineColumns(raster) + Gap;
 
     /// <summary>
     ///     The columns held for the <c>+N</c> after the last face, whether or not there is one, so how many faces fit
@@ -52,11 +57,15 @@ public static class AvatarStrip
             : Units.Select(unit => $"+{rest / unit.Of}{unit.Unit}").First(said => said.Length <= Rest);
     }
 
-    /// <summary>How many faces a strip <paramref name="width" /> wide has room for.</summary>
-    public static int Fits(int width) => Math.Max(0, (width - Rest) / Step);
+    /// <summary>How many faces a strip <paramref name="width" /> wide has room for on <paramref name="raster" />'s cell.</summary>
+    public static int Fits(int width, Raster? raster) => Math.Max(0, (width - Rest) / Step(raster));
 
-    /// <summary>How many of <paramref name="group" />'s actors a strip <paramref name="width" /> wide shows.</summary>
-    public static int Shown(NotificationGroup group, int width) => Math.Min(group.Actors.Count, Fits(width));
+    /// <summary>
+    ///     How many of <paramref name="group" />'s actors a strip <paramref name="width" /> wide shows on
+    ///     <paramref name="raster" />'s cell.
+    /// </summary>
+    public static int Shown(NotificationGroup group, int width, Raster? raster) =>
+        Math.Min(group.Actors.Count, Fits(width, raster));
 
     /// <summary>
     ///     The strip's rows, <paramref name="width" /> wide at most, or none where this terminal draws no pictures or
@@ -70,19 +79,20 @@ public static class AvatarStrip
         }
 
         var boxes = group.Actors
-            .Take(Shown(group, width))
+            .Take(Shown(group, width, drawing.Raster))
             .Select(actor => Avatar.Byline(actor.Address, actor.AvatarUrl, drawing.Pictures, drawing.Raster).Box)
             .ToList();
 
-        var wanted = boxes.Select(box => box?.Wanted).OfType<Media.Drawn>().ToList();
+        var wanted = boxes.Select(box => box?.Wanted).OfType<Drawn>().ToList();
 
         if (wanted.Count == 0)
         {
             return [];
         }
 
+        var step = Step(drawing.Raster);
         var gap = new Span(new string(' ', Gap), Role.Body);
-        var blank = new Span(new string(' ', Avatar.BylineColumns), Role.Body);
+        var blank = new Span(new string(' ', step - Gap), Role.Body);
         var rest = group.Count - boxes.Count;
 
         return
@@ -101,12 +111,12 @@ public static class AvatarStrip
 
                 if (rest > 0)
                 {
-                    spans.Add(new Span(TextWrap.Clip(More(rest), Math.Max(0, width - boxes.Count * Step)), Role.Muted));
+                    spans.Add(new Span(TextWrap.Clip(More(rest), Math.Max(0, width - boxes.Count * step)), Role.Muted));
                 }
 
                 return new Line(spans)
                 {
-                    Insets = [.. boxes.SelectMany((box, at) => box?.Insets(row, at * Step) ?? [])],
+                    Insets = [.. boxes.SelectMany((box, at) => box?.Insets(row, at * step) ?? [])],
                     Wants = wanted[0],
                     AlsoWants = [.. wanted.Skip(1)],
                 };

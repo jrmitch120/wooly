@@ -53,7 +53,7 @@ public class CustomEmojiNameTests
 
         Assert.Equal([at, at + 1, at + 3, at + 4], CustomEmojiColumns(drawn, row, at));
         Assert.Equal(
-            [(2, 1), (2, 1), (Avatar.BylineColumns, Avatar.BylineRows)],
+            [(2, 1), (2, 1), (Avatar.BylineColumns(ARaster.Placeholders()), Avatar.BylineRows)],
             terminal.Transmitted.Select(sent => (sent.Columns, sent.Rows)).Order());
     }
 
@@ -95,7 +95,7 @@ public class CustomEmojiNameTests
             pictures);
         Assert.Contains(
             pictures,
-            cells => cells.Y == row && cells.Size == new System.Drawing.Size(Avatar.BylineColumns, Avatar.BylineRows));
+            cells => cells.Y == row && cells.Size == new System.Drawing.Size(Avatar.BylineColumns(ARaster.Sixel()), Avatar.BylineRows));
     }
 
     /// <summary>

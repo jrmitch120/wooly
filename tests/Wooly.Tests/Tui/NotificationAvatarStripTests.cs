@@ -83,6 +83,24 @@ public class NotificationAvatarStripTests
         Assert.True(top.Width <= 38, $"{top.Text} is {top.Width} columns");
     }
 
+    /// <summary>
+    ///     Each face is a byline's box on the terminal's cell, so on a cell of 20 by 45 it is five columns wide, two
+    ///     columns between faces — and in the same 40 columns, room for four faces rather than five (#532).
+    /// </summary>
+    [Fact]
+    public async Task OnAWiderCellEachFaceIsAsWideAsABylinesAndFewerFit()
+    {
+        var screen = await Arrived(ANotification.Group(
+            count: 40,
+            actors: ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]));
+
+        var top = screen.Lines(Drawing(40, raster: ARaster.Sixel(new CellSize(20, 45))))[1];
+        var face = new string(StandIn.Shade, 5);
+
+        Assert.Equal(["a1@hachyderm.io", "a2@hachyderm.io", "a3@hachyderm.io", "a4@hachyderm.io"], Faces(top));
+        Assert.Contains(string.Join("  ", Enumerable.Repeat(face, 4)) + "  +36", top.Text, StringComparison.Ordinal);
+    }
+
     /// <summary>A group of one shows its one face, and no count, since nobody is left over.</summary>
     [Fact]
     public async Task AGroupOfOneShowsOneFaceAndNoCount()
