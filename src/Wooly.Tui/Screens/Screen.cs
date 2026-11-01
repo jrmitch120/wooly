@@ -357,13 +357,13 @@ public abstract class Screen
     {
     }
 
-    /// <summary>Takes the last letter back out of it.</summary>
+    /// <summary>Takes the last character back out of it.</summary>
     public virtual void Backspace()
     {
     }
 
     /// <summary>
-    ///     <paramref name="typed" /> with its last letter taken off, or unchanged where there is none to take. A
+    ///     <paramref name="typed" /> with its last character taken off, or unchanged where there is none to take. A
     ///     backspace at the start of an empty field is nothing at all rather than an exception or a reach into
     ///     whatever is behind it.
     /// </summary>
