@@ -15,7 +15,8 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     Custom emoji in the rest of what an instance writes — a post's content warning, a poll's options, an account's
 ///     bio and its custom fields — read back off the whole shell drawn headless (#526, ADR-0035): drawn as a post's
-///     words draw them, two columns wherever the <b>Raster</b> draws and the shortcode, muted, where nothing does.
+///     words draw them, two columns wherever the <b>Raster</b> draws and the shortcode, in a role of its own, where
+///     nothing does.
 /// </summary>
 public class CustomEmojiElsewhereTests
 {
@@ -51,7 +52,7 @@ public class CustomEmojiElsewhereTests
             var row = RowOf(drawn, "⚠ Spoilers ");
             var at = ColumnOf(drawn, row, "⚠ Spoilers ") + "⚠ Spoilers ".Length;
 
-            Assert.Equal([at, at + 1], EmojiColumns(drawn, row, RailLines.Width));
+            Assert.Equal([at, at + 1], CustomEmojiColumns(drawn, row, RailLines.Width));
             Assert.Equal(" ahead", Text(drawn, row, at + CustomEmojiBox.Columns, " ahead".Length));
 
             return [at, at + 1];
@@ -67,10 +68,11 @@ public class CustomEmojiElsewhereTests
     }
 
     /// <summary>
-    ///     Where nothing draws, a warning's shortcode is its letters, muted, and the rest of it the warning's.
+    ///     Where nothing draws, a warning's shortcode is its letters, in the custom emoji's role, and the rest of it the
+    ///     warning's.
     /// </summary>
     [Fact]
-    public async Task AContentWarningsShortcodeIsMutedWhereNothingDraws()
+    public async Task AContentWarningsShortcodeIsInItsOwnRoleWhereNothingDraws()
     {
         using var drawn = await Shown(
             Warned("Spoilers :php: ahead", "Shearing today"),
@@ -79,7 +81,7 @@ public class CustomEmojiElsewhereTests
 
         var row = RowOf(drawn, "⚠ Spoilers :php: ahead");
 
-        Assert.Equal(Muted, Foreground(drawn, row, ":php:"));
+        Assert.Equal(ShortcodeColour, Foreground(drawn, row, ":php:"));
         Assert.Equal(Warning, Foreground(drawn, row, "ahead"));
     }
 
@@ -119,8 +121,43 @@ public class CustomEmojiElsewhereTests
         var row = RowOf(drawn, "⚠ Spoilers ");
         var at = ColumnOf(drawn, row, "⚠ Spoilers ") + "⚠ Spoilers ".Length;
 
-        Assert.Equal([at, at + 1], EmojiColumns(drawn, row, at));
+        Assert.Equal([at, at + 1], CustomEmojiColumns(drawn, row, at));
         Assert.Equal(" ahead", Text(drawn, row, at + CustomEmojiBox.Columns, " ahead".Length));
+    }
+
+    /// <summary>
+    ///     Where nothing draws, the preview of the reader's own post under a notification, which is muted, writes the
+    ///     post's shortcodes set apart from the muted words around them — the one place a post's words are muted, where
+    ///     a muted shortcode would read as one more of them (story 16).
+    /// </summary>
+    [Fact]
+    public async Task APreviewsShortcodeIsSetApartFromItsMutedWordsWhereNothingDraws()
+    {
+        var mine = APost.With(id: "110", content: "Shearing :php: today", isMine: true, customEmoji: [Php]);
+
+        var built = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(
+                ANotification.With(kind: Wooly.Core.Notifications.NotificationKind.Favorite, post: mine)),
+        };
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            Tall,
+            Themes.Dark,
+            built,
+            pictures: new FakePictures().HoldingCustomEmoji(Php),
+            raster: Raster.None);
+
+        drawn.Shell.Step(ToNotifications);
+        built.Host.Settle();
+        drawn.Redraw();
+
+        var row = RowOf(drawn, "Shearing :php: today");
+
+        Assert.Equal(Muted, Foreground(drawn, row, "today"));
+        Assert.Equal(ShortcodeColour, Foreground(drawn, row, ":php:"));
+        Assert.NotEqual(Muted, ShortcodeColour);
     }
 
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
@@ -175,16 +212,17 @@ public class CustomEmojiElsewhereTests
         var row = RowOf(drawn, "(4)");
 
         Assert.Equal(Text(plain, was, 0, at), Text(drawn, row, 0, at));
-        Assert.Equal([at, at + 1], EmojiColumns(drawn, row, RailLines.Width));
+        Assert.Equal([at, at + 1], CustomEmojiColumns(drawn, row, RailLines.Width));
         Assert.Equal(" Cats", Text(drawn, row, at + CustomEmojiBox.Columns, " Cats".Length));
         Assert.Equal(plain.Rows()[RowOf(plain, "(6)")], drawn.Rows()[RowOf(drawn, "(6)")]);
     }
 
     /// <summary>
-    ///     Where nothing draws, a poll option's shortcode is its letters, muted, and the rest of it the poll's.
+    ///     Where nothing draws, a poll option's shortcode is its letters, in the custom emoji's role, and the rest of it
+    ///     the poll's.
     /// </summary>
     [Fact]
-    public async Task APollOptionsShortcodeIsMutedWhereNothingDraws()
+    public async Task APollOptionsShortcodeIsInItsOwnRoleWhereNothingDraws()
     {
         using var drawn = await Shown(
             Polling(APost.AnAnswer(":cat: Cats", 4, customEmoji: [Cat]), APost.AnAnswer("Dogs", 6)),
@@ -193,7 +231,7 @@ public class CustomEmojiElsewhereTests
 
         var row = RowOf(drawn, ":cat: Cats");
 
-        Assert.Equal(Muted, Foreground(drawn, row, ":cat:"));
+        Assert.Equal(ShortcodeColour, Foreground(drawn, row, ":cat:"));
         Assert.Equal(Polled, Foreground(drawn, row, "Cats"));
     }
 
@@ -209,40 +247,43 @@ public class CustomEmojiElsewhereTests
         var bio = RowOf(drawn, "Shepherd ");
         var after = ColumnOf(drawn, bio, "Shepherd ") + "Shepherd ".Length;
 
-        Assert.Equal([after, after + 1], EmojiColumns(drawn, bio, RailLines.Width));
+        Assert.Equal([after, after + 1], CustomEmojiColumns(drawn, bio, RailLines.Width));
         Assert.Equal(" in Arizona", Text(drawn, bio, after + 2, " in Arizona".Length));
 
         var field = RowOf(drawn, " Site: ");
         var label = ColumnOf(drawn, field, " Site: ") - CustomEmojiBox.Columns;
         var value = ColumnOf(drawn, field, "https://maria.example ") + "https://maria.example ".Length;
 
-        Assert.Equal([label, label + 1, value, value + 1], EmojiColumns(drawn, field, RailLines.Width));
+        Assert.Equal([label, label + 1, value, value + 1], CustomEmojiColumns(drawn, field, RailLines.Width));
     }
 
     /// <summary>
-    ///     Where nothing draws, a bio's and a field's shortcodes are their letters, muted, and the rest of each what it
-    ///     is drawn as.
+    ///     Where nothing draws, a bio's and a field's shortcodes are their letters, in the custom emoji's role, and the
+    ///     rest of each what it is drawn as — a label's muted around its shortcode rather than over it.
     /// </summary>
     [Fact]
-    public async Task ABiosAndAFieldsShortcodesAreMutedWhereNothingDraws()
+    public async Task ABiosAndAFieldsShortcodesAreInTheirOwnRoleWhereNothingDraws()
     {
         using var drawn = await Profiled(Raster.None);
 
         var bio = RowOf(drawn, "Shepherd :php: in Arizona");
 
-        Assert.Equal(Muted, Foreground(drawn, bio, ":php:"));
+        Assert.Equal(ShortcodeColour, Foreground(drawn, bio, ":php:"));
         Assert.Equal(Body, Foreground(drawn, bio, "Arizona"));
 
         var field = RowOf(drawn, ":php: Site: https://maria.example :php:");
 
-        Assert.Equal(Muted, Foreground(drawn, field, ":php: Site:"));
+        // The label is muted, so its shortcode is set apart from it rather than muted with it (story 16).
+        Assert.Equal(Muted, Foreground(drawn, field, " Site:"));
+        Assert.Equal(ShortcodeColour, Foreground(drawn, field, ":php:"));
+        Assert.NotEqual(Muted, ShortcodeColour);
         Assert.Equal(Themes.Dark.For(Role.Link).Foreground, Foreground(drawn, field, "https://maria.example"));
-        // The value's own, the second on the row: the label's is muted with the rest of the label.
+        // The value's own, the second on the row.
         var value = drawn.Rows()[field].LastIndexOf(":php:", StringComparison.Ordinal);
 
         Assert.All(
             Enumerable.Range(value, ":php:".Length),
-            column => Assert.Equal(Muted, drawn.Cell(field, column).Foreground));
+            column => Assert.Equal(ShortcodeColour, drawn.Cell(field, column).Foreground));
     }
 
     /// <summary>A post warned with <paramref name="warning" />, listing every emoji here for both.</summary>

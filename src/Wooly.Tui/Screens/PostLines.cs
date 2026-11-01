@@ -142,7 +142,7 @@ public static class PostLines
                 // an age — and stepped in with the other two though the avatar's box has run out below it, because two
                 // rows starting in one column and a third starting in another would read as two things.
                 .. avatar.Across(
-                    CustomEmojiBox.Name(shown.Author, shown.AuthorCustomEmoji, room, Role.BylineName, drawing),
+                    CustomEmojiBox.Clipped(shown.Author, shown.AuthorCustomEmoji, room, Role.BylineName, drawing),
                     Line.Of(TextWrap.Clip($"@{shown.Account}", room), Role.BylineHandle),
                     Line.Of([
                         new Span(Elapsed.Moment(shown.PostedAt), Role.Muted),
@@ -196,7 +196,7 @@ public static class PostLines
 
         if (shown.ContentWarning is { } warning)
         {
-            return [CustomEmojiBox.Name($"{WarningMark}{warning}", shown.CustomEmoji, width, Role.Muted, drawing)];
+            return [CustomEmojiBox.Clipped($"{WarningMark}{warning}", shown.CustomEmoji, width, Role.Muted, drawing)];
         }
 
         // The custom emoji written in text, found as the post's own words find them.
@@ -205,7 +205,7 @@ public static class PostLines
 
         // A row of the preview, muted, its custom emoji set as their boxes.
         Line Muted(string text, IReadOnlyList<Shortcode> written, int at = 0) =>
-            CustomEmojiBox.Boxed(new Line([.. CustomEmojiBox.Written(text, Role.Muted, written, at)]), drawing);
+            CustomEmojiBox.Boxed(CustomEmojiBox.Written(text, Role.Muted, written, at), drawing);
 
         var shortcodes = Written(shown.Content);
 
@@ -310,7 +310,7 @@ public static class PostLines
     {
         if (post.Boosted is not null)
         {
-            yield return CustomEmojiBox.Name(said, post.AuthorCustomEmoji, drawing.Width - 2, Role.Muted, drawing)
+            yield return CustomEmojiBox.Clipped(said, post.AuthorCustomEmoji, drawing.Width - 2, Role.Muted, drawing)
                                        .After(new Span(
                                            $"{BoostMark(post.Marks.Boosted)} ",
                                            post.Marks.Boosted ? Role.BoostMine : Role.Boost));
@@ -381,7 +381,7 @@ public static class PostLines
 
         // Measured as drawn, its custom emoji two columns each where the Raster draws, so the tail is pushed to the
         // same column whatever the name holds (#524).
-        var name = CustomEmojiBox.Name(
+        var name = CustomEmojiBox.Clipped(
             post.Author,
             post.AuthorCustomEmoji,
             Math.Max(0, room - tail.Width - 1),
@@ -413,7 +413,6 @@ public static class PostLines
     /// </param>
     private static IEnumerable<Line> Body(OnShow show, Drawing drawing, Reading reading, bool saysHowToAskPast)
     {
-        var width = drawing.Width;
         var post = show.Shown;
         var lines = new List<Line>();
 
@@ -452,10 +451,7 @@ public static class PostLines
         var references = BodyText.References(post.Content);
         var shortcodes = BodyText.CustomEmoji(post.Content, references, post.CustomEmoji);
 
-        lines.AddRange(TextWrap.Rows(post.Content, width, CustomEmojiBox.Held(shortcodes, drawing))
-                               .Select(row => CustomEmojiBox.Boxed(
-                                   new Line(BodyText.Spans(row, references, reading.Reference, shortcodes)),
-                                   drawing)));
+        lines.AddRange(BodyText.Lines(post.Content, references, reading.Reference, shortcodes, drawing));
 
         return lines;
     }
@@ -476,7 +472,7 @@ public static class PostLines
     /// <param name="listed">The custom emoji the post lists, or none for a warning this client writes.</param>
     /// <param name="drawing">How the screen draws, and how wide the row is.</param>
     private static Line Warning(string said, IReadOnlyList<CustomEmoji> listed, Drawing drawing) =>
-        CustomEmojiBox.Name(
+        CustomEmojiBox.Clipped(
                 said,
                 listed,
                 drawing.Width - Glyphs.Columns(WarningMark),
@@ -1024,14 +1020,17 @@ public static class PostLines
                 ? PollBar.RowOf(poll, option)
                 : PollBar.RowOf(poll, option, chosen.Contains(at) ? "[x] " : "[ ] ");
 
-            // The option's text is the row's last part and nothing before it has a colon in it, so the custom emoji
-            // it is written with are found on the row whole: the bar, the share and the count keep the columns they
-            // take on a row without one, and only what is after them is drawn as a post's words are (ADR-0035).
+            // The option's text is the row's last part, so the custom emoji it is written with are found in it alone
+            // and moved along by what comes before it: the bar, the share and the count keep the columns they take on
+            // a row without one, and only the option is drawn as a post's words are (ADR-0035).
             var text = row.Length - option.Text.Length;
 
-            yield return CustomEmojiBox.Name(
+            yield return CustomEmojiBox.Clipped(
                 row,
-                [.. Shortcode.In(row, option.CustomEmoji).Where(shortcode => shortcode.At >= text)],
+                [
+                    .. Shortcode.In(option.Text, option.CustomEmoji)
+                                .Select(shortcode => shortcode with { At = shortcode.At + text }),
+                ],
                 width,
                 Role.Poll,
                 drawing);

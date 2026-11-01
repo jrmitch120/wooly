@@ -78,6 +78,10 @@ public static class Themes
             [Role.ContentWarning] = "#fab387",
             [Role.Media] = "#94e2d5",
             [Role.StandIn] = "#45475a",
+
+            // Catppuccin's Flamingo: soft, as a muted thing is, but an accent no muted text is drawn in, so a shortcode
+            // reads as a picture that was meant inside a muted line as well as beside the body (story 16).
+            [Role.CustomEmoji] = "#f2cdcd",
             [Role.Poll] = "#cba6f7",
             [Role.ReferencePicked] = "#f2f0f7",
             [Role.Boost] = "#a6e3a1",
@@ -127,6 +131,7 @@ public static class Themes
             [Role.ContentWarning] = "#fe640b",
             [Role.Media] = "#179299",
             [Role.StandIn] = "#bcc0cc",
+            [Role.CustomEmoji] = "#dd7878",
             [Role.Poll] = "#8839ef",
             [Role.ReferencePicked] = "#100e18",
             [Role.Boost] = "#40a02b",

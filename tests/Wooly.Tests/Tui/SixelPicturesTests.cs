@@ -209,7 +209,7 @@ public class SixelPicturesTests
 
         for (var at = 0; at <= SixelPictures.MostHeld; at++)
         {
-            sixels.Of(Emoji($"e{at}"), picture, Cell, new SixelCrop(0, 1, 2), colours: 64);
+            sixels.Of(CustomEmoji($"e{at}"), picture, Cell, new SixelCrop(0, 1, 2), colours: 64);
         }
 
         sixels.Of(Box("m1", 2, 1), picture, Cell, new SixelCrop(0, 1, 2), colours: 64);
@@ -281,7 +281,7 @@ public class SixelPicturesTests
         new(new Drawn(id, $"https://files.example/{id}.png"), Column: 0, columns, rows);
 
     /// <summary>The box of the custom emoji <paramref name="shortcode" />, two columns by one.</summary>
-    private static Inset Emoji(string shortcode) =>
+    private static Inset CustomEmoji(string shortcode) =>
         new(
             Drawn.CustomEmoji(new Wooly.Core.CustomEmoji(shortcode, $"https://files.example/emoji/{shortcode}.png")),
             Column: 0,

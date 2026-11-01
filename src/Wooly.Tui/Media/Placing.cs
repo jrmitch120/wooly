@@ -38,7 +38,7 @@ internal sealed class Placing
     ///     next, so a screen could only ever hold a handful — but every post wants a box now, and a tall terminal
     ///     shows a dozen posts before it shows a single photograph. A screen wanting more pictures than there are
     ///     boxes draws what it can and drops the rest, which is a picture silently missing. Custom emoji are not drawn
-    ///     from these but from <see cref="MostEmojiBoxes" /> of their own, so a page of them never decides whether an
+    ///     from these but from <see cref="MostCustomEmojiBoxes" /> of their own, so a page of them never decides whether an
     ///     attachment or an avatar is drawn (ADR-0035).
     ///     <para>
     ///         Fixed, and every one of them built as this is, before anything is drawn, because the alternative is
@@ -60,7 +60,7 @@ internal sealed class Placing
     ///     words held 58 on most frames and 64 at most. A taller page of them leaves its last few shaded, never an
     ///     attachment below them undrawn.
     /// </remarks>
-    public const int MostEmojiBoxes = 64;
+    public const int MostCustomEmojiBoxes = 64;
 
     /// <summary>How many rows of a scroll the cuts of a sixel are encoded ahead of it (ADR-0023).</summary>
     private const int Ahead = 4;
@@ -96,7 +96,7 @@ internal sealed class Placing
     /// <param name="box">
     ///     What makes a box a picture is drawn through: one added to the view in the program
     ///     (<see cref="PictureView" />), and a fake in a test. Asked <see cref="MostBoxes" /> times, here, and then
-    ///     <see cref="MostEmojiBoxes" /> times for the custom emoji's.
+    ///     <see cref="MostCustomEmojiBoxes" /> times for the custom emoji's.
     /// </param>
     /// <param name="sixels">What encodes a sixel's cuts, laid on the page's backdrop.</param>
     /// <param name="placeholders">
@@ -109,7 +109,7 @@ internal sealed class Placing
         _sixels = sixels;
         _placeholders = placeholders;
 
-        for (var at = 0; at < MostBoxes + MostEmojiBoxes; at++)
+        for (var at = 0; at < MostBoxes + MostCustomEmojiBoxes; at++)
         {
             _boxes.Add(box());
         }
@@ -512,11 +512,11 @@ internal sealed class Placing
         // apart, so that however many custom emoji a page holds, none is given a box another picture would have had.
         var drawing = new int?[wanted.Count];
 
-        foreach (var (emoji, from, count) in (ReadOnlySpan<(bool, int, int)>)
-                 [(false, 0, MostBoxes), (true, MostBoxes, MostEmojiBoxes)])
+        foreach (var (customEmoji, from, count) in (ReadOnlySpan<(bool, int, int)>)
+                 [(false, 0, MostBoxes), (true, MostBoxes, MostCustomEmojiBoxes)])
         {
             List<int> theirs =
-                [.. Enumerable.Range(0, wanted.Count).Where(at => wanted[at].Inset.Drawn.IsCustomEmoji == emoji)];
+                [.. Enumerable.Range(0, wanted.Count).Where(at => wanted[at].Inset.Drawn.IsCustomEmoji == customEmoji)];
 
             var given = Boxes(
                 [.. _boxes.Skip(from).Take(count).Select(box => box.PictureId)],

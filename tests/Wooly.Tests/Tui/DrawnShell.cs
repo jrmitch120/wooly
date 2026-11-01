@@ -44,6 +44,10 @@ internal sealed class DrawnShell : IDisposable
     ///     so, for a shell with nobody to act as.
     /// </summary>
     /// <param name="pictures">A terminal that draws pictures, where a test is about them; one that draws none if not.</param>
+    /// <param name="picturesOff">
+    ///     Whether the shell has nowhere at all for pictures' pixels to come from — pictures off — which links every
+    ///     picture and writes every custom emoji as its shortcode, whatever the terminal could draw.
+    /// </param>
     /// <param name="drawsPictures">
     ///     Whether the headless terminal says it draws sixel, which is what puts a picture's box on screen at all — a
     ///     box on a terminal drawing neither protocol is never shown.
@@ -77,6 +81,7 @@ internal sealed class DrawnShell : IDisposable
         AShell? built = null,
         bool launch = false,
         IPictures? pictures = null,
+        bool picturesOff = false,
         bool drawsPictures = false,
         FakeTerminalImages? kittyImages = null,
         bool drawsPlaceholders = false,
@@ -117,7 +122,7 @@ internal sealed class DrawnShell : IDisposable
             theme,
             built.Clock,
             quit ?? (() => { }),
-            pictures ?? new FakePictures(),
+            picturesOff ? null : pictures ?? new FakePictures(),
             placeholders: placeholders,
             blurs: new Blurs(),
             frames: frames,

@@ -6,12 +6,12 @@ namespace Wooly.Tui.Rendering;
 ///     A <b>custom emoji</b> written into some text as its <b>shortcode</b>, and where: one the text's owner lists,
 ///     since a <c>:word:</c> it does not list is the words someone wrote (ADR-0035).
 /// </summary>
-/// <param name="Emoji">The custom emoji written.</param>
+/// <param name="CustomEmoji">The custom emoji written.</param>
 /// <param name="At">Where its opening colon is in the text.</param>
-public readonly record struct Shortcode(CustomEmoji Emoji, int At)
+public readonly record struct Shortcode(CustomEmoji CustomEmoji, int At)
 {
     /// <summary>Where it stops in the text, one past its closing colon.</summary>
-    public int End => At + Emoji.Written.Length;
+    public int End => At + CustomEmoji.Written.Length;
 
     /// <summary>
     ///     The shortcodes of <paramref name="listed" /> written in <paramref name="text" />, left to right.
@@ -32,9 +32,9 @@ public readonly record struct Shortcode(CustomEmoji Emoji, int At)
         // The first of a shortcode listed twice, which is the same name for what can only be one picture.
         var named = new Dictionary<string, CustomEmoji>(StringComparer.Ordinal);
 
-        foreach (var emoji in listed)
+        foreach (var customEmoji in listed)
         {
-            named.TryAdd(emoji.Shortcode, emoji);
+            named.TryAdd(customEmoji.Shortcode, customEmoji);
         }
 
         var lookup = named.GetAlternateLookup<ReadOnlySpan<char>>();
@@ -50,9 +50,9 @@ public readonly record struct Shortcode(CustomEmoji Emoji, int At)
                 break;
             }
 
-            if (lookup.TryGetValue(text.AsSpan(at + 1, end - at - 1), out var emoji))
+            if (lookup.TryGetValue(text.AsSpan(at + 1, end - at - 1), out var customEmoji))
             {
-                found.Add(new Shortcode(emoji, at));
+                found.Add(new Shortcode(customEmoji, at));
                 at = text.IndexOf(':', end + 1);
             }
             else

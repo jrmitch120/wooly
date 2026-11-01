@@ -112,7 +112,7 @@ public class PeopleToMentionTests
             id: "1",
             account: "mg@x.social",
             author: "Maria :blobcat: Gonzalez :verified:",
-            authorCustomEmoji: [Emoji("blobcat"), Emoji("verified")]));
+            authorCustomEmoji: [Listed("blobcat"), Listed("verified")]));
 
         var maria = Assert.Single(opened.PeopleMatching("go"));
 
@@ -131,7 +131,7 @@ public class PeopleToMentionTests
             id: "1",
             account: "mg@x.social",
             author: "Maria :blobcat: :verified:",
-            authorCustomEmoji: [Emoji("verified")]));
+            authorCustomEmoji: [Listed("verified")]));
 
         var maria = Assert.Single(opened.PeopleMatching("ma"));
 
@@ -149,7 +149,7 @@ public class PeopleToMentionTests
             id: "1",
             account: "mg@x.social",
             author: ":verified: :US_AZ:",
-            authorCustomEmoji: [Emoji("verified"), Emoji("US_AZ")]));
+            authorCustomEmoji: [Listed("verified"), Listed("US_AZ")]));
 
         var maria = Assert.Single(opened.PeopleMatching("mg"));
 
@@ -244,7 +244,7 @@ public class PeopleToMentionTests
         Assert.NotEmpty(opened.PeopleMatching("sam"));
     }
 
-    private static CustomEmoji Emoji(string shortcode) => new(shortcode, $"https://x.social/emoji/{shortcode}.png");
+    private static CustomEmoji Listed(string shortcode) => new(shortcode, $"https://x.social/emoji/{shortcode}.png");
 
     private static async Task<Shell> Showing(params Post[] posts) =>
         await new AShell { Timelines = FakeTimelineReader.Holding(posts) }.Opened();

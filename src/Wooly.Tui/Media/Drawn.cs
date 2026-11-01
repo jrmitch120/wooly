@@ -102,12 +102,13 @@ public sealed record Drawn(string Id, string Address)
     };
 
     /// <summary>
-    ///     A custom emoji, at its still picture (ADR-0035): named by that address alone, so that one emoji is one
-    ///     picture, fetched and decoded once, for every post and name that uses it — under whichever shortcode — and
+    ///     A custom emoji, at its still picture (ADR-0035): named by that address alone, so that one custom emoji is
+    ///     one picture, fetched and decoded once, for every post and name that uses it — under whichever shortcode — and
     ///     held no larger than the two cells by one it is drawn in.
     /// </summary>
-    /// <param name="emoji">The custom emoji, as whatever uses it lists it.</param>
-    public static Drawn CustomEmoji(Core.CustomEmoji emoji) => new($"emoji:{emoji.StaticUrl}", emoji.StaticUrl)
+    /// <param name="customEmoji">The custom emoji, as whatever uses it lists it.</param>
+    public static Drawn CustomEmoji(Core.CustomEmoji customEmoji) =>
+        new($"custom-emoji:{customEmoji.StaticUrl}", customEmoji.StaticUrl)
     {
         Largest = (Rendering.CustomEmojiBox.Columns, Rendering.CustomEmojiBox.Rows),
         IsCustomEmoji = true,

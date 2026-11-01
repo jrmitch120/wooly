@@ -48,7 +48,7 @@ internal sealed class SixelPictures(
     ///     wide page — and its sixel besides, so this is bounded by memory rather than by what might be scrolled back
     ///     to. A page holds a handful of pictures, those at its edges a few crops each as it scrolls and is encoded
     ///     ahead, and every crop on the page is used again each frame, so it is never the one let go of. Custom emoji's
-    ///     crops are not counted here but in <see cref="MostEmojiHeld" />.
+    ///     crops are not counted here but in <see cref="MostCustomEmojiHeld" />.
     /// </summary>
     public const int MostHeld = 32;
 
@@ -58,7 +58,7 @@ internal sealed class SixelPictures(
     ///     ahead for on every step. A custom emoji's crop is two cells by one, a few kilobytes with its sixel, so this
     ///     is bounded by what a page and the rows either side of it hold rather than by memory.
     /// </summary>
-    public const int MostEmojiHeld = 128;
+    public const int MostCustomEmojiHeld = 128;
 
     private readonly Func<Color[,], int, string> _encode = encode ?? Encoded;
     private readonly Func<Color?> _backdrop = backdrop ?? (() => null);
@@ -70,7 +70,7 @@ internal sealed class SixelPictures(
     private readonly LinkedList<(Key Key, Sixel Sixel)> _used = new();
 
     /// <summary>Every custom emoji's crop held, the one used last first.</summary>
-    private readonly LinkedList<(Key Key, Sixel Sixel)> _usedEmoji = new();
+    private readonly LinkedList<(Key Key, Sixel Sixel)> _usedCustomEmoji = new();
     private readonly Dictionary<Key, TaskCompletionSource<Sixel>> _preparing = [];
     private readonly Dictionary<Scale, Picture> _scaled = [];
 
@@ -196,7 +196,7 @@ internal sealed class SixelPictures(
             return;
         }
 
-        var (used, most) = key.Scale.CustomEmoji ? (_usedEmoji, MostEmojiHeld) : (_used, MostHeld);
+        var (used, most) = key.Scale.CustomEmoji ? (_usedCustomEmoji, MostCustomEmojiHeld) : (_used, MostHeld);
 
         _held[key] = used.AddFirst((key, sixel));
 
@@ -207,7 +207,7 @@ internal sealed class SixelPictures(
         }
 
         // The scaled pictures go with the last of their crops, so that what is held is bounded by the crops.
-        if (_scaled.Count > MostHeld + MostEmojiHeld)
+        if (_scaled.Count > MostHeld + MostCustomEmojiHeld)
         {
             var wanted = _held.Keys.Select(held => held.Scale).ToHashSet();
 
@@ -340,7 +340,7 @@ internal sealed class SixelPictures(
     ///     One picture at one box size, on one size of cell, laid on one backdrop, from pixels decoded at one size
     ///     (<see cref="DecodedSize" />), stretched to the box where it is a Stand-in's blur and cropped to it where it
     ///     is not (<see cref="PictureDecoder.Filled" />) — and whether it is a custom emoji, whose crops are held in
-    ///     room of their own (<see cref="MostEmojiHeld" />).
+    ///     room of their own (<see cref="MostCustomEmojiHeld" />).
     /// </summary>
     private readonly record struct Scale(
         string Drawn,

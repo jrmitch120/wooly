@@ -5,7 +5,7 @@ choice was between an editor pushed onto the stack like any other screen, and a 
 that the thing being replied to stays visible.
 
 **Compose is a screen.** `c`, `r` and `e` push one, `esc` pops it and throws away what was written, `ctrl-s` sends it
-and pops. The breadcrumb says which of the three it is — `Home › Post by Ben › Reply to Ben` — the same
+and pops. The breadcrumb says which of the three it is — `Home › Post by @ben › Reply to @ben@hachyderm.io` — the same
 way it says where everything else is.
 
 The case for the split region is real and it is one thing: you can see what you are answering while you answer it. The
@@ -395,3 +395,10 @@ reported (`MouseButtons`, ADR-0005's amendment says how this is tested). And
 two quick clicks on an `x` take two rows off: Terminal.Gui reports the second only as a double click, which
 anywhere else on a row opens the description editor, and on `x` or `retry (r)` is now a click there. A press on a row
 of the attachments screen picks it, as a press under the header does, so the row being dragged carries the bar.
+
+## Amendment: the breadcrumb names a person by their name (#525)
+
+The trail above is the one this ADR was written with, which named people by handle. Since #525 a crumb names a person
+by their display name, with the shortcodes their account lists taken out and the handle standing in where nothing is
+left (ADR-0035), so the same trail now reads `Home › Post by Ben › Reply to Ben`. Compose is still a screen, and the
+crumb still says which of the three it is.

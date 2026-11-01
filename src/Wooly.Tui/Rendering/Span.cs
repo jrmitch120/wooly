@@ -67,5 +67,5 @@ public readonly record struct Span(string Text, Role Role)
     ///     Never a <see cref="Reference" /> as well: a custom emoji is not walked to, clicked open, or shown on the
     ///     Picture screen.
     /// </remarks>
-    public Core.CustomEmoji? Emoji { get; init; }
+    public Core.CustomEmoji? CustomEmoji { get; init; }
 }

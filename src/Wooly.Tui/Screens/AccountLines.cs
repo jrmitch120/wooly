@@ -146,7 +146,7 @@ public static class AccountLines
         return
         [
             .. avatar.Across(
-                CustomEmojiBox.Name(account.Author, account.CustomEmoji, room, Role.BylineName, drawing),
+                CustomEmojiBox.Clipped(account.Author, account.CustomEmoji, room, Role.BylineName, drawing),
                 Line.Of(TextWrap.Clip($"@{account.Address}", room), Role.BylineHandle),
                 Presence(account, room),
                 Line.Of(TextWrap.Clip(Facts(facts, said, room), room), Role.Muted)),
@@ -360,10 +360,7 @@ public static class AccountLines
         var references = HeaderReferences.InBio(account);
         var shortcodes = BodyText.CustomEmoji(bio, references, account.CustomEmoji);
 
-        return TextWrap.Rows(bio, drawing.Width, CustomEmojiBox.Held(shortcodes, drawing))
-                       .Select(row => CustomEmojiBox.Boxed(
-                           new Line(BodyText.Spans(row, references, picked, shortcodes)),
-                           drawing));
+        return BodyText.Lines(bio, references, picked, shortcodes, drawing);
     }
 
     /// <summary>
@@ -378,7 +375,8 @@ public static class AccountLines
     ///     <para>
     ///         Its custom emoji are the account's, which the instance draws in a label as in a value: found on the
     ///         whole text, but for any inside an address in the value, held whole by the wrap and set as their boxes,
-    ///         a label's muted with the rest of the label where nothing draws (ADR-0035).
+    ///         and where nothing draws a label's shortcode in its own role rather than muted with the rest of the
+    ///         label, so that it still reads as a picture that was meant (ADR-0035, story 16).
     ///     </para>
     /// </remarks>
     private static IEnumerable<Line> Field(Account account, int which, Drawing drawing, Reference? picked)
@@ -408,11 +406,11 @@ public static class AccountLines
             var placed = row with { At = row.At + place };
 
             var line = CustomEmojiBox.Boxed(
-                new Line(MutedOutside(
+                MutedOutside(
                     BodyText.Spans(placed, references, picked, shortcodes),
                     placed.At,
                     value,
-                    value + field.Said.Length)),
+                    value + field.Said.Length),
                 drawing);
 
             return at == 0 ? line : line.After(new Span(new string(' ', FieldIndent), Role.Body));
@@ -475,7 +473,8 @@ public static class AccountLines
 
     /// <summary>
     ///     <paramref name="spans" /> with everything outside <c>[from, to)</c> — the label, and the <c>✓</c> after the
-    ///     value — put back into <see cref="Role.Muted" />, whatever role the text they were read out of took.
+    ///     value — put back into <see cref="Role.Muted" />, whatever role the text they were read out of took, but for
+    ///     a custom emoji's shortcode, which keeps its own.
     /// </summary>
     /// <param name="spans">The runs across one row, as the text's own references made them.</param>
     /// <param name="at">Where that row starts in the text it was wrapped out of.</param>
@@ -497,6 +496,16 @@ public static class AccountLines
             }
 
             var end = at + span.Text.Length;
+
+            // A custom emoji's shortcode keeps its own role too, so that it reads as a picture that was meant in a
+            // muted label as in a value (story 16) — but it is written in the text, so it takes its place there.
+            if (span.Role == Role.CustomEmoji)
+            {
+                roled.Add(span);
+                at = end;
+
+                continue;
+            }
 
             (int From, int To, Role Role)[] pieces =
             [

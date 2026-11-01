@@ -40,7 +40,7 @@ at its box's size in pixels, and a sixel for each cut drawn — the rows of the 
 — keyed by the picture, the box, the cell, the cut and the colours. Scrolling back over a cut is free. 32 cuts are kept,
 the one used longest ago going first. A cut holds its pixels as well as its sixel, a megabyte or so for a photograph
 across a wide page, so the bound is memory; every cut on the page is used again each frame, so it is never the one
-let go of. Custom emoji's cuts are kept apart from these, in room of their own (ADR-0035).
+let go of.
 
 **A box is framed to the part of it on the page.** `PaintedView` frames a straddling box to the rows still on it and
 asks for that cut, so the driver is handed exactly what it draws and never cuts anything itself.
@@ -198,3 +198,9 @@ The guarantees above stand: a sixel is encoded once for each cut and handed over
 on the page again, which it must. Kitty through a box was never sent this way and is untouched. This leans further on
 how Terminal.Gui 2.5 treats a clean raster image — kept, its cells left unwritten — so an upgrade of the library is one
 more reason to run the smoke test.
+
+## Amendment: custom emoji's cuts are kept apart (#527)
+
+The 32 cuts above are every picture's but custom emoji's. A page holds dozens of those, and counted with the rest they
+would let go of the cuts a photograph at the page's edge was encoded ahead for on every step, so they are kept apart, in
+a cache of their own of 128 cuts (`SixelPictures.MostCustomEmojiHeld`, ADR-0035).

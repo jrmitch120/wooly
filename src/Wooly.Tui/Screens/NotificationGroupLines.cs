@@ -101,7 +101,7 @@ public static class NotificationGroupLines
         var room = Math.Max(0, width - Glyphs.Columns(age) - Glyphs.Columns(mark) - Glyphs.Columns(did) - 2);
 
         var (who, shortcodes) = Who(group);
-        var name = CustomEmojiBox.Name(who, shortcodes, room, Role.BylineName, drawing);
+        var name = CustomEmojiBox.Clipped(who, shortcodes, room, Role.BylineName, drawing);
         var used = name.Width + Glyphs.Columns(did) + Glyphs.Columns(mark);
 
         return name.Respanned([

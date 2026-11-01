@@ -547,6 +547,39 @@ public class PicturesTests
     }
 
     /// <summary>
+    ///     Custom emoji wait their turn with every other picture, nearest the screen first, in one queue: one the page
+    ///     has come near goes ahead of an attachment wanted far ahead before it, and one far ahead goes after an
+    ///     avatar nearer (#523).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_StartsTheNearestFetchFirstCustomEmojiAmongTheRest()
+    {
+        var fetch = new Gated();
+
+        using var pictures = new Pictures(fetch.Fetch, () => { });
+
+        var busy = Busy();
+        var near = Drawn.CustomEmoji(new CustomEmoji("php", "https://files.example/emoji/php.png"));
+        var far = Drawn.CustomEmoji(new CustomEmoji("US_AZ", "https://files.example/emoji/US_AZ.png"));
+
+        pictures.Want([.. busy, Near(Picture("attachment")), Near(far)], ADrawingTerminal, Wide);
+        pictures.Want(
+            [.. busy, Near(near), Near(Picture("attachment")), Near(Picture("avatar")), Near(far)],
+            ADrawingTerminal,
+            Wide);
+
+        for (var at = 0; at < busy.Count; at++)
+        {
+            fetch.Answer($"b{at}");
+            await fetch.Until(Pictures.AtATime + at + 1);
+        }
+
+        Assert.Equal(
+            [near.Address, "attachment", "avatar", far.Address],
+            fetch.Asked.Skip(Pictures.AtATime));
+    }
+
+    /// <summary>
     ///     A picture still waiting for its turn when a frame stops wanting it is never fetched: the page has left it
     ///     behind, and fetching it would hold up what the page is now near. Wanted again later, it is sent for then.
     /// </summary>

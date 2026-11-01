@@ -70,7 +70,7 @@ public class BoxDrawnCustomEmojiTests
             pictures,
             APost.With(
                 id: "220",
-                content: string.Join(' ', Enumerable.Repeat(":php:", Placing.MostEmojiBoxes + past)),
+                content: string.Join(' ', Enumerable.Repeat(":php:", Placing.MostCustomEmojiBoxes + past)),
                 customEmoji: [Php]),
             APost.With(
                 id: "330",
@@ -80,7 +80,7 @@ public class BoxDrawnCustomEmojiTests
 
         var drawnAsPictures = Pictures(drawn);
 
-        Assert.Equal(Placing.MostEmojiBoxes, drawnAsPictures.Count(EmojiSized));
+        Assert.Equal(Placing.MostCustomEmojiBoxes, drawnAsPictures.Count(EmojiSized));
         Assert.Equal(past, drawn.Rows().Sum(row => row.Count(cell => cell == StandIn.Shade)) / CustomEmojiBox.Columns);
         Assert.Contains(drawnAsPictures, cells => cells.Size == new Size(Avatar.BylineColumns, Avatar.BylineRows));
         Assert.Contains(drawnAsPictures, cells => cells.Height > Avatar.BylineRows);

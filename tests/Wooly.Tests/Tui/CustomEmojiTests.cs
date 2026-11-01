@@ -13,7 +13,7 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     Custom emoji in a post's words, read back off the whole shell drawn headless (#523, ADR-0035): two columns and
 ///     one row wherever the <b>Raster</b> draws, shaded until the picture lands and drawn as placeholder cells once it
-///     has, and the shortcode as written, muted, where nothing draws.
+///     has, and the shortcode as written, in a role of its own, where nothing draws.
 /// </summary>
 public class CustomEmojiTests
 {
@@ -22,12 +22,12 @@ public class CustomEmojiTests
     private static readonly CustomEmoji Arizona = new("US_AZ", "https://files.mastodon.social/emoji/US_AZ.png");
 
     /// <summary>
-    ///     Where the terminal draws no pictures the shortcode stays as written, its letters in the muted role, so it
-    ///     reads as a picture that was meant rather than as words someone typed — and the words around it are the
-    ///     body's.
+    ///     Where the terminal draws no pictures the shortcode stays as written, its letters in the custom emoji's own
+    ///     role, so it reads as a picture that was meant rather than as words someone typed — and the words around it
+    ///     are the body's.
     /// </summary>
     [Fact]
-    public async Task ACustomEmojiIsItsShortcodeMutedWhereNothingDraws()
+    public async Task ACustomEmojiIsItsShortcodeInItsOwnRoleWhereNothingDraws()
     {
         using var drawn = await Shown(
             APost.With(id: "220", content: "I write :php: daily", customEmoji: [Php]),
@@ -36,8 +36,37 @@ public class CustomEmojiTests
 
         var row = RowOf(drawn, "I write :php: daily");
 
-        Assert.Equal(Muted, Foreground(drawn, row, ":php:"));
+        Assert.Equal(ShortcodeColour, Foreground(drawn, row, ":php:"));
         Assert.Equal(Body, Foreground(drawn, row, "write"));
+    }
+
+    /// <summary>
+    ///     With pictures off — nowhere for their pixels to come from, on a terminal that would draw them — the shortcode
+    ///     is as it is on a terminal that draws nothing: its letters as written, in their own role, taking no room
+    ///     beyond them and wanting no picture (#523, story 37).
+    /// </summary>
+    [Fact]
+    public async Task ACustomEmojiIsItsShortcodeInItsOwnRoleWithPicturesOff()
+    {
+        using var drawn = await DrawnShell.Of(
+            80,
+            Tall,
+            Themes.Dark,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110"),
+                    APost.With(id: "220", content: "I write :php: daily", customEmoji: [Php])),
+            },
+            picturesOff: true,
+            drawsPlaceholders: true,
+            raster: ARaster.Placeholders());
+
+        var row = RowOf(drawn, "I write :php: daily");
+
+        Assert.Equal(ShortcodeColour, Foreground(drawn, row, ":php:"));
+        Assert.Equal(Body, Foreground(drawn, row, "write"));
+        Assert.Empty(Placeholders(drawn));
     }
 
     /// <summary>
@@ -207,14 +236,14 @@ public class CustomEmojiTests
             raster: ARaster.Placeholders());
 
         // Where the emoji is drawn on the first row reading the post's words.
-        (int Column, int Row) Emoji()
+        (int Column, int Row) CustomEmojiAt()
         {
             var row = RowOf(drawn, "I write");
 
             return (drawn.Rows()[row].IndexOf("I write", StringComparison.Ordinal) + "I write ".Length, row);
         }
 
-        drawn.Click(Emoji().Column, Emoji().Row);
+        drawn.Click(CustomEmojiAt().Column, CustomEmojiAt().Row);
 
         Assert.Equal("220", drawn.Shell.Screen.Picked?.Id);
         Assert.Null(drawn.Shell.Screen.Reference);
@@ -224,7 +253,7 @@ public class CustomEmojiTests
 
         Assert.IsType<PostScreen>(drawn.Shell.Screen);
 
-        drawn.DoubleClick(Emoji().Column, Emoji().Row);
+        drawn.DoubleClick(CustomEmojiAt().Column, CustomEmojiAt().Row);
         drawn.Settle();
 
         Assert.IsType<PostScreen>(drawn.Shell.Screen);
@@ -321,7 +350,8 @@ public class CustomEmojiTests
 
     private static readonly Terminal.Gui.Drawing.Color Shade = Themes.Dark.For(Role.StandIn).Foreground;
 
-    private static readonly Terminal.Gui.Drawing.Color Muted = Themes.Dark.For(Role.Muted).Foreground;
+    /// <summary>What a custom emoji's shortcode is drawn in where nothing draws, in the dark theme.</summary>
+    internal static readonly Terminal.Gui.Drawing.Color ShortcodeColour = Themes.Dark.For(Role.CustomEmoji).Foreground;
 
     private static readonly Terminal.Gui.Drawing.Color Body = Themes.Dark.For(Role.Body).Foreground;
 

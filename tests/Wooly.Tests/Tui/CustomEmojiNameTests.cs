@@ -16,7 +16,8 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     Custom emoji in display names, read back off the whole shell drawn headless (#524, ADR-0035): wherever a name is
 ///     drawn, the same as in a post's words — two columns and one row wherever the <b>Raster</b> draws, placeholder
-///     cells once landed on Kitty's placeholders, and the shortcode as written, muted, where nothing draws.
+///     cells once landed on Kitty's placeholders, and the shortcode as written, in a role of its own, where nothing
+///     draws.
 /// </summary>
 public class CustomEmojiNameTests
 {
@@ -50,7 +51,7 @@ public class CustomEmojiNameTests
         var row = RowOf(drawn, "Jeff ");
         var at = ColumnOf(drawn, row, "Jeff ") + "Jeff ".Length;
 
-        Assert.Equal([at, at + 1, at + 3, at + 4], EmojiColumns(drawn, row, at));
+        Assert.Equal([at, at + 1, at + 3, at + 4], CustomEmojiColumns(drawn, row, at));
         Assert.Equal(
             [(2, 1), (2, 1), (Avatar.BylineColumns, Avatar.BylineRows)],
             terminal.Transmitted.Select(sent => (sent.Columns, sent.Rows)).Order());
@@ -98,11 +99,11 @@ public class CustomEmojiNameTests
     }
 
     /// <summary>
-    ///     Where nothing draws, a byline's custom emoji are their shortcodes as written, muted beside the name's words —
-    ///     and a <c>:word:</c> the account does not list is part of the name.
+    ///     Where nothing draws, a byline's custom emoji are their shortcodes as written, in the custom emoji's role
+    ///     beside the name's words — and a <c>:word:</c> the account does not list is part of the name.
     /// </summary>
     [Fact]
-    public async Task AFeedBylineWritesTheNamesShortcodesMutedWhereNothingDraws()
+    public async Task AFeedBylineWritesTheNamesShortcodesInTheirOwnRoleWhereNothingDraws()
     {
         using var drawn = await Shown(
             APost.With(id: "220", author: "Jeff :verified: :wave:", authorCustomEmoji: [Verified]),
@@ -111,7 +112,7 @@ public class CustomEmojiNameTests
 
         var row = RowOf(drawn, "Jeff :verified: :wave:");
 
-        Assert.Equal(Muted, Foreground(drawn, row, ":verified:"));
+        Assert.Equal(ShortcodeColour, Foreground(drawn, row, ":verified:"));
         Assert.Equal(Name, Foreground(drawn, row, "Jeff"));
         Assert.Equal(Name, Foreground(drawn, row, ":wave:"));
     }
@@ -178,7 +179,7 @@ public class CustomEmojiNameTests
 
         Assert.Equal(
             [ColumnOf(drawn, feed, "Maria ") + 6, ColumnOf(drawn, feed, "Maria ") + 7],
-            EmojiColumns(drawn, feed, RailLines.Width));
+            CustomEmojiColumns(drawn, feed, RailLines.Width));
         Assert.Equal(ColumnOf(drawn, feed, "Maria ") + 8, ColumnOf(drawn, feed, " boosted"));
 
         drawn.Press(Key.Enter);
@@ -189,10 +190,40 @@ public class CustomEmojiNameTests
 
         Assert.Equal(
             [ColumnOf(drawn, by, "Maria ") + 6, ColumnOf(drawn, by, "Maria ") + 7],
-            EmojiColumns(drawn, by, RailLines.Width));
+            CustomEmojiColumns(drawn, by, RailLines.Width));
         Assert.Equal(
             [ColumnOf(drawn, name, "Jeff ") + 5, ColumnOf(drawn, name, "Jeff ") + 6],
-            EmojiColumns(drawn, name, RailLines.Width));
+            CustomEmojiColumns(drawn, name, RailLines.Width));
+    }
+
+    /// <summary>
+    ///     Where nothing draws, the booster's shortcode on the feed's "boosted" line is set apart from the muted words
+    ///     around it, as it is from a byline's — the line being muted, a muted shortcode would be lost in it (story 16).
+    /// </summary>
+    [Fact]
+    public async Task TheBoostedLinesShortcodeIsSetApartFromItsMutedWordsWhereNothingDraws()
+    {
+        var boost = APost.With(
+            id: "220",
+            account: "maria@hachyderm.io",
+            author: "Maria :verified:",
+            authorCustomEmoji: [Verified],
+            content: "",
+            boosted: APost.With(id: "99", author: "Jeff Mitchell"));
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            Tall,
+            Themes.Dark,
+            new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "110"), boost) },
+            pictures: new FakePictures().HoldingCustomEmoji(Verified),
+            raster: Raster.None);
+
+        var row = RowOf(drawn, "Maria :verified: boosted");
+
+        Assert.Equal(Muted, Foreground(drawn, row, "boosted"));
+        Assert.Equal(ShortcodeColour, Foreground(drawn, row, ":verified:"));
+        Assert.NotEqual(Muted, ShortcodeColour);
     }
 
     private static readonly Terminal.Gui.Drawing.Color Muted = Themes.Dark.For(Role.Muted).Foreground;
@@ -201,7 +232,8 @@ public class CustomEmojiNameTests
 
     /// <summary>
     ///     A notification group's names line draws each actor's custom emoji from that actor's own list, the words
-    ///     after them where two columns leave them — and where nothing draws, the same names with the shortcodes muted.
+    ///     after them where two columns leave them — and where nothing draws, the same names with the shortcodes in
+    ///     their own role.
     /// </summary>
     [Fact]
     public async Task ANotificationsActorNamesDrawTheirCustomEmoji()
@@ -220,7 +252,7 @@ public class CustomEmojiNameTests
             var row = RowOf(drawn, "Alice ", after: 0);
             var at = ColumnOf(drawn, row, "Alice ") + "Alice ".Length;
 
-            Assert.Equal([at, at + 1], EmojiColumns(drawn, row, RailLines.Width));
+            Assert.Equal([at, at + 1], CustomEmojiColumns(drawn, row, RailLines.Width));
             Assert.Equal(at + 2, ColumnOf(drawn, row, " and Bob :verified:"));
         }
 
@@ -228,7 +260,7 @@ public class CustomEmojiNameTests
         {
             var row = RowOf(drawn, "Alice :verified: and Bob :verified:");
 
-            Assert.Equal(Muted, Foreground(drawn, row, ":verified:"));
+            Assert.Equal(ShortcodeColour, Foreground(drawn, row, ":verified:"));
             Assert.Equal(Name, Foreground(drawn, row, "Bob :verified:"));
         }
     }
@@ -289,7 +321,7 @@ public class CustomEmojiNameTests
         var row = RowOf(drawn, "Alice ", after: 0);
         var at = ColumnOf(drawn, row, "Alice ") + "Alice ".Length;
 
-        Assert.Equal([at, at + 1], EmojiColumns(drawn, row, at));
+        Assert.Equal([at, at + 1], CustomEmojiColumns(drawn, row, at));
     }
 
     /// <summary>
@@ -358,7 +390,7 @@ public class CustomEmojiNameTests
     private const int ToNotifications = 5;
 
     /// <summary>The columns from <paramref name="from" /> on that a row draws placeholder cells in.</summary>
-    internal static int[] EmojiColumns(DrawnShell drawn, int row, int from) =>
+    internal static int[] CustomEmojiColumns(DrawnShell drawn, int row, int from) =>
     [
         .. Placeholders(drawn).Where(cell => cell.Row == row && cell.Column >= from)
                               .Select(cell => cell.Column)

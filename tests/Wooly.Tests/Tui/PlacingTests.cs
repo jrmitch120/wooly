@@ -276,7 +276,7 @@ public class PlacingTests
     {
         var frame = new AFrame(new FakePictures());
 
-        Assert.Equal(Placing.MostBoxes + Placing.MostEmojiBoxes, frame.Boxes.Count);
+        Assert.Equal(Placing.MostBoxes + Placing.MostCustomEmojiBoxes, frame.Boxes.Count);
         Assert.Empty(frame.Log);
     }
 

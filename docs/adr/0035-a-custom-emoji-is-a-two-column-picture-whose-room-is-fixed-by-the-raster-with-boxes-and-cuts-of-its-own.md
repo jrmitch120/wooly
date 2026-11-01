@@ -9,7 +9,8 @@ drawn in the line like a Unicode emoji and broken and clipped as one: never cut 
 fit. It is drawn wherever the **Raster** draws pictures at all: through Kitty's placeholders, Kitty through a box and
 sixel alike. Its static picture is fetched through the picture cache like any other, one picture for every post that
 uses it, keyed by its address. Where the Raster draws nothing, the shortcode stays as written, set apart so it reads as
-a picture that was meant. A `:word:` the post or account does not list is the words someone wrote.
+a picture that was meant: in a role of its own (`custom-emoji`) rather than muted, since it is written in muted text
+too — the "boosted" line, a notification's preview, a custom field's label (review of #522). A `:word:` the post or account does not list is the words someone wrote.
 
 **The room is the Raster's, not the picture's.** On a terminal that draws, a custom emoji takes its two shaded columns
 from the first frame, whether or not its picture has landed, and keeps them if the picture is refused or never comes.

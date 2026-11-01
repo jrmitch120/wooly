@@ -97,11 +97,11 @@ public class ScrollMeasure(ITestOutputHelper output)
     public async Task AWheelNotchOverSixelCustomEmoji()
     {
         var pictures = new FakePictures();
-        var emoji = Enumerable.Range(0, 40)
+        var customEmoji = Enumerable.Range(0, 40)
             .Select(at => new Wooly.Core.CustomEmoji($"e{at}", $"https://files.example/emoji/e{at}.png"))
             .ToArray();
 
-        foreach (var each in emoji)
+        foreach (var each in customEmoji)
         {
             pictures.HoldingPhotograph(Wooly.Tui.Media.Drawn.CustomEmoji(each).Id, 36, 36);
         }
@@ -109,7 +109,7 @@ public class ScrollMeasure(ITestOutputHelper output)
         var posts = Enumerable.Range(1, 40)
             .Select(at =>
             {
-                var used = Enumerable.Range(0, 16).Select(nth => emoji[((at * 7) + nth) % emoji.Length]).ToArray();
+                var used = Enumerable.Range(0, 16).Select(nth => customEmoji[((at * 7) + nth) % customEmoji.Length]).ToArray();
                 var content = $"Post {at}: " + string.Join(' ', used.Select(each => $"so {each.Written} it goes"));
 
                 if (at % 4 != 0)
@@ -136,7 +136,7 @@ public class ScrollMeasure(ITestOutputHelper output)
             drawn.Wheel(RailLines.Width + 4, 3);
         }
 
-        var boxes = new List<(int Emoji, int Others, int Shaded)>();
+        var boxes = new List<(int CustomEmoji, int Others, int Shaded)>();
 
         var paced = TimeSpan.FromMilliseconds(16);
 
@@ -145,7 +145,7 @@ public class ScrollMeasure(ITestOutputHelper output)
         Report("sixel emoji, up, back to back", await Notches(drawn, false, TimeSpan.Zero, boxes: boxes));
 
         output.WriteLine(
-            $"Boxes a frame: emoji {Spread(boxes.Select(each => each.Emoji))}; "
+            $"Boxes a frame: emoji {Spread(boxes.Select(each => each.CustomEmoji))}; "
             + $"photographs {Spread(boxes.Select(each => each.Others))}; "
             + $"emoji left shaded {Spread(boxes.Select(each => each.Shaded))}.");
 
@@ -164,13 +164,13 @@ public class ScrollMeasure(ITestOutputHelper output)
     ///     How many boxes the last frame drew — the 2×1 boxes of custom emoji and the rest apart — and how many emoji
     ///     on the page were drawn as their shade, two shaded cells to each.
     /// </summary>
-    private static (int Emoji, int Others, int Shaded) Boxed(DrawnShell drawn)
+    private static (int CustomEmoji, int Others, int Shaded) Boxed(DrawnShell drawn)
     {
         var images = drawn.Application.Driver!.GetOutputBuffer().GetRasterImages();
-        var emoji = images.Count(image => image.DestinationCells is { Width: 2, Height: 1 });
+        var customEmoji = images.Count(image => image.DestinationCells is { Width: 2, Height: 1 });
         var shaded = drawn.Rows().Sum(row => row.Count(cell => cell == '░')) / 2;
 
-        return (emoji, images.Count - emoji, shaded);
+        return (customEmoji, images.Count - customEmoji, shaded);
     }
 
     /// <summary>
@@ -201,7 +201,7 @@ public class ScrollMeasure(ITestOutputHelper output)
         bool down,
         TimeSpan apart,
         int count = Count,
-        List<(int Emoji, int Others, int Shaded)>? boxes = null)
+        List<(int CustomEmoji, int Others, int Shaded)>? boxes = null)
     {
         var times = new List<double>();
         var bytes = new List<long>();

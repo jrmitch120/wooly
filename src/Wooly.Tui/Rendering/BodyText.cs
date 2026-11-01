@@ -77,6 +77,27 @@ public static partial class BodyText
     ];
 
     /// <summary>
+    ///     The rows <paramref name="text" /> wraps into at <paramref name="drawing" />'s width, drawn as a post's words
+    ///     are — a post's words and a bio alike: its references in their roles (<see cref="Spans" />), and its custom
+    ///     emoji held whole by the wrap and set as their boxes wherever the <b>Raster</b> draws, so the rows are laid
+    ///     out for the room it gives them from the first frame rather than for whether the pictures have landed
+    ///     (ADR-0035).
+    /// </summary>
+    /// <param name="text">The whole text.</param>
+    /// <param name="references">The references in it, as <see cref="References" /> found them.</param>
+    /// <param name="picked">The one the reader has walked to, if any.</param>
+    /// <param name="shortcodes">The custom emoji written in it, as <see cref="CustomEmoji" /> found them.</param>
+    /// <param name="drawing">How the screen draws, and how wide the rows are.</param>
+    public static IEnumerable<Line> Lines(
+        string text,
+        IReadOnlyList<Reference> references,
+        Reference? picked,
+        IReadOnlyList<Shortcode> shortcodes,
+        Drawing drawing) =>
+        TextWrap.Rows(text, drawing.Width, CustomEmojiBox.Held(shortcodes, drawing))
+                .Select(row => CustomEmojiBox.Boxed(Spans(row, references, picked, shortcodes), drawing));
+
+    /// <summary>
     ///     The runs across <paramref name="row" />, left to right, with what each one is — the plain text, and
     ///     whichever of <paramref name="references" /> are written on this row.
     /// </summary>
@@ -95,9 +116,10 @@ public static partial class BodyText
     /// </param>
     /// <param name="shortcodes">
     ///     The custom emoji written in that whole text, as <see cref="CustomEmoji" /> found them: each written on this
-    ///     row is a run of its own, its shortcode muted (<see cref="CustomEmojiBox.Shortcode" />) until
-    ///     <see cref="CustomEmojiBox.Boxed" /> sets it as its box. One the wrap cut across two rows — which it does
-    ///     only where nothing draws, and so it is letters — is muted on both and is no custom emoji on either.
+    ///     row is a run of its own, its shortcode in the custom emoji's role (<see cref="CustomEmojiBox.Shortcode" />)
+    ///     until <see cref="CustomEmojiBox.Boxed(Line, Drawing)" /> sets it as its box. One the wrap cut across two
+    ///     rows — which it does only where nothing draws, and so it is letters — takes that role on both and is no
+    ///     custom emoji to box on either.
     /// </param>
     public static IReadOnlyList<Span> Spans(
         TextWrap.Row row,
