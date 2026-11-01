@@ -8,7 +8,7 @@
 # scheme Mastonet insists on.
 services:
   db:
-    image: postgres:14-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: mastodon
@@ -23,7 +23,7 @@ services:
       - internal
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

@@ -15,7 +15,7 @@ namespace Wooly.Cli.Commands;
 internal sealed class PostShowCommand(IAnsiConsole console, IProfileRegistry profiles, IPostEngagement posts)
     : AsyncCommand<SinglePostSettings>
 {
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         SinglePostSettings settings,
         CancellationToken cancellationToken)

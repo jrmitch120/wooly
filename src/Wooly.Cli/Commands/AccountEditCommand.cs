@@ -22,7 +22,7 @@ internal sealed class AccountEditCommand(
     IPublicProfileEditor editor,
     StandardInput standardInput) : AsyncCommand<AccountEditSettings>
 {
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         AccountEditSettings settings,
         CancellationToken cancellationToken)

@@ -34,7 +34,7 @@ internal abstract class PostComposeCommand<TSettings>(
     /// </remarks>
     protected virtual void Report(TSettings settings, Post published) => PostReport.Published(console, published);
 
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         TSettings settings,
         CancellationToken cancellationToken)
