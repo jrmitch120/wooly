@@ -10,7 +10,7 @@ namespace Wooly.Cli.Commands;
 /// </summary>
 internal sealed class ProfileListCommand(IAnsiConsole console, IProfileRegistry profiles) : Command
 {
-    protected override int Execute(CommandContext context, CancellationToken cancellationToken)
+    public override int Execute(CommandContext context, CancellationToken cancellationToken)
     {
         var summaries = profiles.List();
 

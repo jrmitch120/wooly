@@ -41,9 +41,9 @@ jobs:
             extension: ".exe"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
@@ -114,7 +114,7 @@ jobs:
             tar --create --gzip --file "release/$ASSET.tar.gz" --directory package "$PRODUCT"
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.product.asset }}-${{ matrix.target.label }}
           path: release/*
@@ -142,7 +142,7 @@ jobs:
             asset: wooly-cli-windows-x64.exe
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: wooly-cli-${{ matrix.platform.label }}
           path: release
@@ -201,7 +201,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: release
           merge-multiple: true
