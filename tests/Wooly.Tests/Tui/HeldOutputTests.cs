@@ -81,6 +81,30 @@ public partial class HeldOutputTests
         Assert.IsType<HeldOutput>(application.Driver!.GetOutput());
     }
 
+    /// <summary>
+    ///     A frame whose first changed cell on a row is the one the caret sits on is written whole, rows after it
+    ///     included (#553). Terminal.Gui's own writer takes the caret's cell for a cursor it need not move and gives up
+    ///     on the rest of the frame there, so nothing after it reached the terminal until the caret moved.
+    /// </summary>
+    [Fact]
+    public void AFrameChangingTheCellUnderTheCaretIsWrittenWhole()
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(Columns, 2);
+        var output = new Recording();
+        output.Write(buffer);
+
+        buffer.Move(5, 0);
+        buffer.AddStr("x");
+        buffer.Move(0, 1);
+        buffer.AddStr("yz");
+        output.SetCursor(new Cursor { Position = new System.Drawing.Point(5, 0), Style = CursorStyle.BlinkingBar });
+        output.Writes.Clear();
+        output.Write(buffer);
+
+        Assert.Equal("xyz", Drawn(output));
+    }
+
     private static Terminal Played(string row, int drawnIn)
     {
         var terminal = new Terminal(drawnIn);
@@ -92,6 +116,10 @@ public partial class HeldOutputTests
 
         return terminal;
     }
+
+    /// <summary>The text <paramref name="output" /> wrote, without its escapes or blanks.</summary>
+    private static string Drawn(Recording output) =>
+        Terminal.Plain(string.Concat(output.Writes.Select(write => write.Text))).Replace(" ", string.Empty);
 
     private static Recording Written(string row)
     {
@@ -151,7 +179,7 @@ public partial class HeldOutputTests
         {
             _cursor = place ?? _cursor;
 
-            var plain = Escapes().Replace(text, string.Empty);
+            var plain = Plain(text);
             var characters = StringInfo.GetTextElementEnumerator(plain);
 
             while (characters.MoveNext())
@@ -192,6 +220,9 @@ public partial class HeldOutputTests
                 _owner[column] = column;
             }
         }
+
+        /// <summary><paramref name="text" /> with every escape sequence taken out.</summary>
+        public static string Plain(string text) => Escapes().Replace(text, string.Empty);
 
         [GeneratedRegex(@"\u001b(\[[0-9;?]*[A-Za-z]|\][^\u0007\u001b]*(\u0007|\u001b\\))")]
         private static partial Regex Escapes();

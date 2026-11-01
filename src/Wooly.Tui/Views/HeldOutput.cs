@@ -81,6 +81,27 @@ internal class HeldOutput : AnsiOutput
     }
 
     /// <summary>
+    ///     Puts the cursor at <paramref name="col" /> of <paramref name="row" />, always, and says it did (#553).
+    /// </summary>
+    /// <remarks>
+    ///     Terminal.Gui 2.5.0's <see cref="AnsiOutput" /> moves nothing and answers <see langword="false" /> where the place
+    ///     asked for is the caret's — a move it takes to be unneeded — and its frame writer reads that answer as a
+    ///     failure and gives up on the rest of the frame: every row after the caret's cell was left unwritten until the
+    ///     caret moved, and a hyperlink it had opened on that row was never closed, so a terminal underlined the blanks
+    ///     written later inside it. The terminal's cursor is wherever the last write left it, not at the caret, so the
+    ///     move is made here instead.
+    /// </remarks>
+    protected override bool SetCursorPositionImpl(int col, int row)
+    {
+        if (!base.SetCursorPositionImpl(col, row))
+        {
+            Write(EscSeqUtils.CSI_SetCursorPosition(row + 1, col + 1));
+        }
+
+        return true;
+    }
+
+    /// <summary>
     ///     Every cell waiting to be written that holds a character carrying a spacing mark, set aside — marked as
     ///     written, so that Terminal.Gui's pass over the rest breaks its run there.
     /// </summary>
