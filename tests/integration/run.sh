@@ -19,4 +19,4 @@ trap cleanup EXIT
 eval "$(./seed.sh)"
 export WOOLY_INTEGRATION_INSTANCE WOOLY_INTEGRATION_TOKEN WOOLY_INTEGRATION_VOTER_TOKEN WOOLY_INTEGRATION_FAN_TOKENS
 
-dotnet test ../Wooly.Tests/Wooly.Tests.csproj --filter "Category=Integration"
+dotnet test --project ../Wooly.Tests/Wooly.Tests.csproj --filter "Category=Integration"
