@@ -69,6 +69,9 @@ internal sealed class Placing
     private readonly SixelPictures _sixels;
     private readonly Placeholders? _placeholders;
 
+    /// <summary>The pictures Kitty through a box is handed, each at its box's size in pixels (#533).</summary>
+    private readonly KittyBoxPictures _kittyBoxes;
+
     /// <summary>
     ///     Every box: the first <see cref="MostBoxes" /> for every picture but custom emoji, and the rest theirs.
     /// </summary>
@@ -103,11 +106,21 @@ internal sealed class Placing
     ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box
     ///     (ADR-0022), or <see langword="null" /> where there is no such terminal to hold them.
     /// </param>
-    public Placing(IPictures pictures, Func<IPictureBox> box, SixelPictures sixels, Placeholders? placeholders = null)
+    /// <param name="kittyBoxes">
+    ///     What takes a picture to its box for Kitty through a box, ahead of the frame off the UI thread unless a test
+    ///     says otherwise.
+    /// </param>
+    public Placing(
+        IPictures pictures,
+        Func<IPictureBox> box,
+        SixelPictures sixels,
+        Placeholders? placeholders = null,
+        KittyBoxPictures? kittyBoxes = null)
     {
         _pictures = pictures;
         _sixels = sixels;
         _placeholders = placeholders;
+        _kittyBoxes = kittyBoxes ?? new KittyBoxPictures();
 
         for (var at = 0; at < MostBoxes + MostCustomEmojiBoxes; at++)
         {
@@ -147,6 +160,9 @@ internal sealed class Placing
     public IReadOnlyList<Placement> Frame(IReadOnlyList<Line> lines, int top, int width, int height, Raster raster)
     {
         var page = new Page(lines, top, width, height);
+
+        // Whatever the last frame did not hand a Kitty box, before this one hands them anything.
+        _kittyBoxes.LetGoOfWhatWasNotAsked();
 
         // What pictures are drawn as this frame, if they are drawn as placeholders at all: the one place the Raster's
         // way is asked about them. Anywhere else nothing is sent that way, so nothing sent is near to be held.
@@ -217,11 +233,29 @@ internal sealed class Placing
                 return shaded;
 
             case PictureWay.Kitty:
-                // Through Kitty the image view draws the whole box, which it sends once and moves (ADR-0016).
-                return Place(page, (box, inset, at, picture) => Shown(
+                // Through Kitty the image view draws the whole box, which it sends once and moves (ADR-0016) — handed
+                // the picture already at the box's size, so that the terminal has nothing to stretch (#533).
+                var boxed = Place(page, (box, inset, at, picture) => Shown(
                     box,
                     new Rectangle(inset.Column, at, inset.Columns, inset.Rows),
-                    () => box.Show(inset.Drawn.Id, picture)));
+                    () => box.Show(inset.Drawn.Id, _kittyBoxes.Of(inset, picture, cell))));
+
+                // And a screen either side of the page taken to their boxes ahead, as Kitty's placeholders are encoded
+                // ahead, so that a picture scrolled to is usually ready rather than scaled on the frame it comes on.
+                foreach (var (inset, at, picture) in Wanted(page, near: page.Height))
+                {
+                    if (at + inset.Rows <= 0 || at >= page.Height)
+                    {
+                        _kittyBoxes.Prepare(inset, picture, cell);
+                    }
+                }
+
+                foreach (var (inset, _, picture) in AheadOfAKeypress(page))
+                {
+                    _kittyBoxes.Prepare(inset, picture, cell);
+                }
+
+                return boxed;
 
             default:
                 ReleaseAll();

@@ -151,9 +151,9 @@ internal static class PictureDecoder
     /// <summary>
     ///     <paramref name="picture" /> taking a box <paramref name="width" /> by <paramref name="height" /> pixels as
     ///     <paramref name="fill" /> says: its middle cropped to the box's shape and resized to the box (#438), stretched
-    ///     to it, or fitted whole inside it. The one step both raster paths take a picture to its box by — Kitty's PNG
-    ///     (<see cref="PictureEncoder.Png" />) and sixel's pixels (<see cref="Scaled" />) — so that the two cannot come
-    ///     to draw one picture in one box differently.
+    ///     to it, or fitted whole inside it. The one step every raster way takes a picture to its box by — the PNG for
+    ///     Kitty's placeholders (<see cref="PictureEncoder.Png" />), and sixel's pixels and Kitty through a box's
+    ///     (<see cref="Scaled" />, #533) — so that no two of them can come to draw one picture in one box differently.
     /// </summary>
     /// <remarks>
     ///     A picture is cropped from the middle, as an instance crops an avatar, because a fixed box — a Media row's,
