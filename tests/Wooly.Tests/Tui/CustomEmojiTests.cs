@@ -183,11 +183,11 @@ public class CustomEmojiTests
     }
 
     /// <summary>
-    ///     A custom emoji is fitted whole into its box, centred, as Mastodon's web client draws one — never cropped from
-    ///     the middle as an avatar is. On a cell of 20 by 45 its box is 40 by 45, narrower than square, and a crop cut the
-    ///     sides off a square <c>:ubuntu:</c> and a wide <c>:php:</c> alike: sent as a PNG, the square one is its colour
-    ///     edge to edge in the middle forty rows, with two transparent above and three below, and the wide one, twice as
-    ///     wide as it is tall, in the middle twenty, with twelve above and thirteen below.
+    ///     A custom emoji is fitted whole into its box, centred, as Mastodon's web client draws one — never cropped
+    ///     from the middle as a pending attachment is. On a cell of 20 by 45 its box is 40 by 45, narrower than square,
+    ///     and a crop cut the sides off a square <c>:ubuntu:</c> and a wide <c>:php:</c> alike: sent as a PNG, the
+    ///     square one is its colour edge to edge in the middle forty rows, with two transparent above and three below,
+    ///     and the wide one, twice as wide as it is tall, in the middle twenty, with twelve above and thirteen below.
     /// </summary>
     [Theory]
     [InlineData(36, 36, 2, 42)]

@@ -8,7 +8,7 @@ internal enum BoxFill
 {
     /// <summary>
     ///     Its middle cropped to the box's shape, then resized to it, as an instance crops an avatar — every picture
-    ///     but the two below (GLOSSARY.md's <b>Picture box</b>, #438).
+    ///     but the ones below (GLOSSARY.md's <b>Picture box</b>, #438).
     /// </summary>
     Cropped,
 
@@ -20,7 +20,7 @@ internal enum BoxFill
 
     /// <summary>
     ///     Fitted whole inside the box and centred, the rest of the box transparent: a custom emoji, as Mastodon's web
-    ///     client draws one (ADR-0035).
+    ///     client draws one (ADR-0035), and an avatar, whose box is square only to within a column (#532).
     /// </summary>
     Fitted,
 }

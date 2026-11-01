@@ -26,7 +26,10 @@ public sealed record Drawn(string Id, string Address)
     /// <remarks>
     ///     What <see cref="Pictures" /> decodes it to, so that a picture is never held larger than it can be drawn
     ///     (ADR-0025). An avatar's box is fixed, and an instance serves it at hundreds of pixels square: decoded to
-    ///     the window instead, each one would cost hundreds of kilobytes to draw a few dozen pixels.
+    ///     the window instead, each one would cost hundreds of kilobytes to draw a few dozen pixels. Its columns are
+    ///     the cell's to say, so it is held as wide as the header's box can be on any cell
+    ///     (<see cref="Rendering.Avatar.MostHeaderColumns" />), which costs a square avatar nothing: fitted, it is held
+    ///     at the header's height.
     /// </remarks>
     public (int Columns, int Rows)? Largest { get; init; }
 
@@ -48,6 +51,12 @@ public sealed record Drawn(string Id, string Address)
     ///     pictures they would leave an attachment undrawn and its cuts thrown away.
     /// </summary>
     public bool IsCustomEmoji { get; init; }
+
+    /// <summary>
+    ///     How this takes the box it is drawn in once it is here (<see cref="Rendering.Inset.Fill" />): fitted whole
+    ///     for an avatar and a custom emoji, and cropped from the middle for every other picture.
+    /// </summary>
+    internal BoxFill Fill { get; init; }
 
     /// <summary>
     ///     An attachment on a post, at the smaller copy where the instance offered one: a feed holds dozens of
@@ -98,7 +107,8 @@ public sealed record Drawn(string Id, string Address)
     /// <param name="address">Where to fetch it.</param>
     public static Drawn Avatar(string account, string address) => new($"avatar:{account} {address}", address)
     {
-        Largest = (Rendering.Avatar.HeaderColumns, Rendering.Avatar.HeaderRows),
+        Largest = (Rendering.Avatar.MostHeaderColumns, Rendering.Avatar.HeaderRows),
+        Fill = BoxFill.Fitted,
     };
 
     /// <summary>
@@ -112,6 +122,7 @@ public sealed record Drawn(string Id, string Address)
     {
         Largest = (Rendering.CustomEmojiBox.Columns, Rendering.CustomEmojiBox.Rows),
         IsCustomEmoji = true,
+        Fill = BoxFill.Fitted,
     };
 
     /// <summary>

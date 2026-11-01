@@ -47,13 +47,10 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
 
     /// <summary>
     ///     How what this sets into its box takes it, on both raster paths (<see cref="PictureDecoder.Filled" />):
-    ///     stretched where it is a Stand-in's blur, fitted where it is a custom emoji, and cropped where it is anything
-    ///     else.
+    ///     stretched where it is a Stand-in's blur, and otherwise as the picture says (<see cref="Drawn.Fill" />) —
+    ///     fitted where it is an avatar or a custom emoji, and cropped where it is anything else.
     /// </summary>
-    internal BoxFill Fill =>
-        Blur is not null ? BoxFill.Stretched
-        : Drawn.IsCustomEmoji ? BoxFill.Fitted
-        : BoxFill.Cropped;
+    internal BoxFill Fill => Blur is not null ? BoxFill.Stretched : Drawn.Fill;
 
     /// <summary>
     ///     What a box is reserved at where the instance reported no shape: sixteen wide by nine tall, the shape most

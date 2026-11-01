@@ -100,6 +100,46 @@ public class DraftingPublicProfilePicturesTests : IDisposable
     }
 
     /// <summary>
+    ///     The form's avatar is an avatar as the feed's is (#532): on a cell of 20 by 45 its box is five columns by
+    ///     two, as near square as whole columns allow, and the picture in it fitted whole — the instance's and a file
+    ///     chosen for it alike — while the header's box stays twelve columns and its picture cropped. The words beside
+    ///     both still start after the header's box.
+    /// </summary>
+    [Fact]
+    public void OnAWiderCell_TheAvatarsBoxIsNearSquareAndItsPictureFitted()
+    {
+        var cat = _files.WriteFile("cat.png");
+        var (drafting, form) = Editing();
+        var avatar = Drawn.Avatar("jeff@mastodon.social", "https://files.example/avatar.png");
+        var header = Drawn.HeaderPicture("jeff@mastodon.social", "https://files.example/header.png");
+        var pictures = new FakePictures().Holding(avatar.Id, 96, 96).Holding(header.Id, 1500, 500);
+
+        var lines = WiderCellLines(form, pictures);
+        var current = Assert.Single(Row(lines, "Avatar").Insets);
+        var headed = Assert.Single(Row(lines, "Header").Insets);
+
+        Assert.Equal((5, PublicProfilePictures.Rows, BoxFill.Fitted), (current.Columns, current.Rows, current.Fill));
+        Assert.Equal((PublicProfilePictures.HeaderColumns, BoxFill.Cropped), (headed.Columns, headed.Fill));
+
+        WalkTo(drafting, form, PublicProfilePart.Avatar);
+        drafting.Drafting.Edit<PublicProfileScreen>(editing => editing.Pick(cat));
+
+        var chosen = WiderCellLines(form, pictures.Holding(Drawn.OnDisk(cat).Id, 300, 100));
+        var drawn = Assert.Single(Row(chosen, "Avatar").Insets);
+
+        Assert.Equal((Drawn.OnDisk(cat).Id, 5, BoxFill.Fitted), (drawn.Drawn.Id, drawn.Columns, drawn.Fill));
+        Assert.Equal(
+            Row(lines, "Avatar").Text.IndexOf("change…", StringComparison.Ordinal),
+            Row(chosen, "Avatar").Text.IndexOf("cat.png", StringComparison.Ordinal));
+        Assert.Equal(
+            Row(lines, "Header").Text.IndexOf("change…", StringComparison.Ordinal),
+            Row(chosen, "Avatar").Text.IndexOf("cat.png", StringComparison.Ordinal));
+    }
+
+    private static IReadOnlyList<Line> WiderCellLines(PublicProfileScreen form, FakePictures pictures) =>
+        form.Lines(new Drawing(61, AShell.Now, pictures, ARaster.Sixel(new CellSize(20, 45)), Height: 24));
+
+    /// <summary>
     ///     <c>ctrl-v</c> or <c>alt-v</c> on a picture's row with a picture on the clipboard writes it to a file of its own
     ///     and takes it as that picture — sent on <c>ctrl-s</c>, not before.
     /// </summary>
@@ -222,8 +262,9 @@ public class DraftingPublicProfilePicturesTests : IDisposable
     }
 
     /// <summary>
-    ///     A header narrower than its box fills the box, cropped to it as the feed's avatar is, rather than standing in
-    ///     it with slack beside it (#438): under the avatar, starting in its column, and as wide and tall as the box.
+    ///     A header narrower than its box fills the box, cropped to it from the middle as an instance crops one, rather
+    ///     than standing in it with slack beside it (#438): under the avatar, starting in its column, and as wide and
+    ///     tall as the box.
     /// </summary>
     [Fact]
     public void OnATerminalThatDraws_ANarrowHeaderFillsItsBoxUnderTheAvatar()
@@ -275,8 +316,11 @@ public class DraftingPublicProfilePicturesTests : IDisposable
         var row = Row(after, "Avatar");
 
         Assert.Equal(before.Count, after.Count);
-        Assert.Equal(Drawn.OnDisk(cat), row.Wants);
-        Assert.Equal(Drawn.OnDisk(cat), Assert.Single(row.Insets).Drawn);
+        // Fitted, as the instance's avatar is (#532).
+        var fitted = Drawn.OnDisk(cat) with { Fill = BoxFill.Fitted };
+
+        Assert.Equal(fitted, row.Wants);
+        Assert.Equal(fitted, Assert.Single(row.Insets).Drawn);
         Assert.Equal(
             Row(before, "Avatar").Text.IndexOf("change…", StringComparison.Ordinal),
             row.Text.IndexOf("cat.png", StringComparison.Ordinal));

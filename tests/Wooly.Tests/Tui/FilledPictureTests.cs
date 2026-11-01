@@ -10,7 +10,7 @@ namespace Wooly.Tests.Tui;
 ///     The one step that takes a picture to its box's pixels, on the sixel path and the Kitty path alike (#438): the
 ///     picture's middle cropped to the box's shape, then resized — so a picture of another shape fills its box rather
 ///     than being stretched to it, and one already the box's shape comes out as a plain resize. A Stand-in's blur is
-///     stretched to its box instead, and a custom emoji fitted whole inside it.
+///     stretched to its box instead, and an avatar and a custom emoji fitted whole inside it (<c>AvatarBoxTests</c>).
 /// </summary>
 public class FilledPictureTests
 {
@@ -89,51 +89,6 @@ public class FilledPictureTests
     }
 
     /// <summary>
-    ///     An avatar's fixed box is still filled by its picture's middle, as an instance crops one, on Kitty's
-    ///     placeholders and sixel alike — only a custom emoji is fitted whole. On a cell of 20 by 45 a byline's avatar is
-    ///     80 by 90 pixels, and a portrait one, red along its top quarter and blue along its bottom, shows only the green
-    ///     between, edge to edge: fitted, it would have left the sides of the box empty, and stretched, shown the red
-    ///     and the blue.
-    /// </summary>
-    [Theory]
-    [InlineData(PictureWay.Placeholders)]
-    [InlineData(PictureWay.Sixel)]
-    public async Task APortraitAvatarFillsItsBoxWithItsMiddle(PictureWay way)
-    {
-        var terminal = new FakeTerminalImages();
-        var cell = new CellSize(20, 45);
-
-        using var drawn = await DrawnShell.Of(
-            80,
-            30,
-            Themes.Dark,
-            new AShell
-            {
-                Timelines = FakeTimelineReader.Holding(
-                    APost.With(id: "110", avatarUrl: "https://files.mastodon.social/avatars/jeff.png")),
-            },
-            pictures: new FakePictures().HoldingAvatarOf("jeff@mastodon.social", PortraitAvatar()),
-            drawsPictures: way == PictureWay.Sixel,
-            kittyImages: terminal,
-            drawsPlaceholders: way == PictureWay.Placeholders,
-            raster: way == PictureWay.Sixel ? ARaster.Sixel(cell) : ARaster.Placeholders(cell));
-
-        var avatar = way == PictureWay.Sixel
-            ? new Picture(Assert.Single(drawn.Application.Driver!.GetOutputBuffer().GetRasterImages()).Pixels!)
-            : Assert.Single(terminal.Transmitted).Pixels();
-
-        Assert.Equal((80, 90), (avatar.Width, avatar.Height));
-
-        for (var x = 0; x < avatar.Width; x++)
-        {
-            for (var y = 0; y < avatar.Height; y++)
-            {
-                Assert.Equal((x, y, APicture.Rgba(Green)), (x, y, APicture.Rgba(avatar.Pixels[x, y])));
-            }
-        }
-    }
-
-    /// <summary>
     ///     A blur set into a shaped box eight columns by two rows: 80 by 40 pixels, twice as wide as it is tall.
     /// </summary>
     private static Inset WideBlur()
@@ -194,24 +149,6 @@ public class FilledPictureTests
                     : y >= 250 ? Blue
                     : x is >= 30 and < 70 && y is >= 180 and < 220 ? White
                     : Green;
-            }
-        }
-
-        return new Picture(pixels);
-    }
-
-    /// <summary>
-    ///     A portrait avatar, 50 by 200: red along its top fifty rows, blue along its bottom fifty, and green between.
-    /// </summary>
-    private static Picture PortraitAvatar()
-    {
-        var pixels = new Color[50, 200];
-
-        for (var x = 0; x < 50; x++)
-        {
-            for (var y = 0; y < 200; y++)
-            {
-                pixels[x, y] = y < 50 ? Red : y >= 150 ? Blue : Green;
             }
         }
 

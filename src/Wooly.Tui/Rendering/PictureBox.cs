@@ -17,10 +17,10 @@ namespace Wooly.Tui.Rendering;
 ///     for good where the rest would draw nothing. Callers decide only where the box sits: beside a name, at a row's
 ///     column, across the full width, beside a label.
 ///     <para>
-///         Two kinds. A <see cref="Fixed" /> box is filled: a picture of another shape is cropped to it from the middle
-///         by the raster paths (<see cref="PictureDecoder.Filled" />), never stretched, so the box is the inset. A
-///         custom emoji's fixed box is the one exception: its picture is fitted whole inside it and centred, as
-///         Mastodon's web client draws one (<see cref="BoxFill.Fitted" />, ADR-0035). A <see cref="Shaped" /> box is
+///         Two kinds. A <see cref="Fixed" /> box is the inset, and the raster paths take the picture to it as the
+///         picture says (<see cref="PictureDecoder.Filled" />): an avatar and a custom emoji fitted whole inside it and
+///         centred, as Mastodon's web client draws one (<see cref="BoxFill.Fitted" />, ADR-0035, #532), and anything
+///         else filled, cropped to it from the middle, never stretched. A <see cref="Shaped" /> box is
 ///         the shape the instance reported, which can be a guess, so the picture is fitted inside it and centred, with
 ///         slack where the guess was wrong (ADR-0025).
 ///     </para>
@@ -69,8 +69,9 @@ public sealed record PictureBox
 
     /// <summary>
     ///     A box <paramref name="columns" /> by <paramref name="rows" /> for <paramref name="wanted" />, the same size
-    ///     whatever the picture's own shape, and filled by it once it is here: an avatar, a pending attachment's
-    ///     picture, the public profile form's avatar and header.
+    ///     whatever the picture's own shape, and taken to it as the picture says once it is here
+    ///     (<see cref="Drawn.Fill" />): an avatar, a pending attachment's picture, the public profile form's avatar and
+    ///     header.
     /// </summary>
     /// <param name="wanted">The picture, or <see langword="null" /> where there is none to draw.</param>
     /// <param name="columns">How wide the box is.</param>

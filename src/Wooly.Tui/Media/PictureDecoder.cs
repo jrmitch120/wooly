@@ -156,11 +156,11 @@ internal static class PictureDecoder
     ///     to draw one picture in one box differently.
     /// </summary>
     /// <remarks>
-    ///     A picture is cropped from the middle, as an instance crops an avatar, because a fixed box — an avatar's, a
-    ///     Media row's — is not the picture's shape, and a picture stretched to one is squashed (GLOSSARY.md's
-    ///     <b>Picture box</b>). A picture fitted to a shaped box (<see cref="Rendering.Inset.Fit" />) already has the
-    ///     box's shape to within a cell's rounding, so the crop takes nothing there worth seeing, and nothing has to say
-    ///     which kind of box this is.
+    ///     A picture is cropped from the middle, as an instance crops an avatar, because a fixed box — a Media row's,
+    ///     the public profile form's header — is not the picture's shape, and a picture stretched to one is squashed
+    ///     (GLOSSARY.md's <b>Picture box</b>). A picture fitted to a shaped box (<see cref="Rendering.Inset.Fit" />)
+    ///     already has the box's shape to within a cell's rounding, so the crop takes nothing there worth seeing, and
+    ///     nothing has to say which kind of box this is.
     ///     <para>
     ///         A <b>Stand-in</b>'s blur is stretched instead (<see cref="BoxFill.Stretched" />). It is decoded square
     ///         whatever the picture's shape (<see cref="Blurs" />), so stretching it to its shaped box is what gives it
@@ -169,9 +169,11 @@ internal static class PictureDecoder
     ///     </para>
     ///     <para>
     ///         A <b>custom emoji</b> is fitted whole instead (<see cref="BoxFill.Fitted" />), centred, the rest of its
-    ///         box transparent, as Mastodon's web client draws one. Its two cells by one are narrower than square on most
-    ///         terminals — 40 by 45 pixels on a cell of 20 by 45 — and a custom emoji is a logo or a badge drawn to its
-    ///         edges, so a crop cut the sides off a square <c>:ubuntu:</c> and a wide <c>:php:</c> alike (ADR-0035).
+    ///         box transparent, as Mastodon's web client draws one. Its two cells by one are narrower than square on
+    ///         most terminals — 40 by 45 pixels on a cell of 20 by 45 — and a custom emoji is a logo or a badge drawn
+    ///         to its edges, so a crop cut the sides off a square <c>:ubuntu:</c> and a wide <c>:php:</c> alike
+    ///         (ADR-0035). An avatar is fitted the same way: its box is as near square as whole columns allow, and a
+    ///         crop took what the columns left over off its sides (#532).
     ///     </para>
     /// </remarks>
     /// <param name="picture">The picture, or the blur.</param>

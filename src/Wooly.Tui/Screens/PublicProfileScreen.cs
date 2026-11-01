@@ -588,7 +588,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
         Raster? raster,
         IPictures? pictures)
     {
-        var (label, columns, chosen) = (picture.Label, picture.Columns, PickedFor(picture));
+        var (label, columns, chosen) = (picture.Label, picture.Columns(raster), PickedFor(picture));
 
         var named = !draws ? at : Math.Min(at + PublicProfilePictures.HeaderColumns + Gap, width);
         var room = Math.Max(0, width - named - Pad);
@@ -625,8 +625,8 @@ public sealed class PublicProfileScreen : Screen, IDraft
             yield break;
         }
 
-        // Filled as the feed's avatar is, whatever the picture's shape, so the avatar and the header start in one
-        // column and end at their boxes' edges (#438).
+        // A fixed box whatever the picture's shape, so the avatar and the header start in one column and the words
+        // after the header's box (#438), the avatar fitted inside it as the feed's is and the header cropped (#532).
         var box = PictureBox.Fixed(Wanted(picture), columns, pictureRows, pictures, raster);
 
         for (var row = 0; row < pictureRows; row++)
@@ -650,7 +650,7 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// </summary>
     private Drawn? Wanted(PublicProfilePicture picture) =>
         PickedFor(picture) is { } chosen
-            ? AttachmentPicture.Decodes(chosen) ? Drawn.OnDisk(chosen) : null
+            ? AttachmentPicture.Decodes(chosen) ? Drawn.OnDisk(chosen) with { Fill = picture.Fill } : null
             : Current(picture);
 
     /// <summary>The file chosen or pasted for <paramref name="picture" />, or <see langword="null" /> where none has been.</summary>

@@ -174,7 +174,7 @@ public class PictureResendTests : IDisposable
         static (RasterImageCommand Avatar, RasterImageCommand Photograph) Boxes(DrawnShell drawn)
         {
             var images = drawn.Application.Driver!.GetOutputBuffer().GetRasterImages().ToList();
-            var byline = new Size(Avatar.BylineColumns, Avatar.BylineRows);
+            var byline = new Size(Avatar.BylineColumns(ARaster.Sixel()), Avatar.BylineRows);
 
             return (
                 Assert.Single(images, image => image.DestinationCells.Size == byline),

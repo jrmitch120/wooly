@@ -181,3 +181,19 @@ The amendment above says a fixed box is filled and never fitted with slack. A cu
 fixed, two cells by one, but its picture is fitted whole inside it and centred, as Mastodon's web client draws one,
 because a crop cut the sides off a logo drawn to its edges. ADR-0035's amendment for the review of #522 says why. Every
 other fixed box is still filled.
+
+## Amendment: an avatar is fitted, in a box as near square as the font allows (#532)
+
+An avatar's box was four columns by two rows on a byline and eight by four on an account screen, which is square only on
+a cell twice as tall as it is wide. On a cell of 20 by 45 the account screen's box is 160 by 180 pixels, and the first
+amendment's crop took the sides off a square avatar and flattened a round one. So an avatar is now fitted whole inside
+its box and centred, as a custom emoji is (the amendment above), and is no longer filled. The box's height is still
+fixed. Its width is now the number of columns nearest square for those rows on the cell the terminal reports, with a
+half rounded up: five on a byline and nine on an account screen on a cell of 20 by 45, and four and eight on a cell of
+10 by 20. Where the terminal reports no cell size, the 10 by 20 assumed gives the old sizes. What the whole columns
+leave over, at most half a column, is the room the avatar is centred in. The width depends on the font only and never on
+the picture, so every avatar on a screen is the same width and nothing moves when one lands. A notification group's
+avatar strip steps by the byline's width. The public profile form's avatar is sized and fitted the same way, two rows
+tall, a file chosen for it as well as the instance's; the words beside the form's pictures still start after the
+header's twelve columns, so the font moves nothing there either. The pending attachment's picture and the form's header
+are still filled.
