@@ -1395,7 +1395,7 @@ public sealed class Shell
         return true;
     }
 
-    /// <summary>Takes the last letter back out of it.</summary>
+    /// <summary>Takes the last character back out of it.</summary>
     public void Backspace()
     {
         if (!Screen.IsTyping)

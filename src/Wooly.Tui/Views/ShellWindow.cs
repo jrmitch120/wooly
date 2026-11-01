@@ -1107,7 +1107,12 @@ internal sealed class ShellWindow : Window
             return false;
         }
 
-        _shell.Type((char)key.AsRune.Value);
+        // A char at a time, as a paste is, so that a character past U+FFFF goes in as both halves of its pair rather
+        // than as the one half a char holds (#534).
+        foreach (var half in key.AsRune.ToString())
+        {
+            _shell.Type(half);
+        }
 
         return true;
     }
