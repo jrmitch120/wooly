@@ -26,8 +26,9 @@ internal interface IPictureBox
     bool Visible { get; set; }
 
     /// <summary>
-    ///     Shows the whole of <paramref name="picture" />, as the one <paramref name="pictureId" /> names, to be drawn
-    ///     through Kitty. Only ever called on a box holding this picture already or holding nothing at all.
+    ///     Shows <paramref name="picture" />, the one <paramref name="pictureId" /> names already at this box's size in
+    ///     pixels, to be drawn through Kitty. Only ever called on a box holding this picture already, at whatever size,
+    ///     or holding nothing at all.
     /// </summary>
     void Show(string pictureId, Picture picture);
 

@@ -34,17 +34,19 @@ public class AvatarBoxTests
         ((Palette)Themes.Dark).Overlaid(new Color(30, 30, 46), new Dictionary<Role, (Color?, Color?)>());
 
     /// <summary>
-    ///     A square avatar is fitted whole into its byline's box and centred, on Kitty's placeholders and on sixel
-    ///     alike, with the rest of the box transparent through the placeholders and laid on the picked post's band on
-    ///     sixel. On a cell of 20 by 45 the box is five columns by two rows, 100 by 90 pixels: the avatar 90 square,
+    ///     A square avatar is fitted whole into its byline's box and centred, on Kitty's placeholders, on sixel and on
+    ///     Kitty through a box alike (#533), with the rest of the box transparent through Kitty and laid on the picked
+    ///     post's band on sixel. On a cell of 20 by 45 the box is five columns by two rows, 100 by 90 pixels: the avatar 90 square,
     ///     five columns of pixels either side of it — where a crop cut its sides off. On a cell of 8 by 17 it is four
     ///     by two, 32 by 34: the avatar 32 square, a row of pixels above and below it.
     /// </summary>
     [Theory]
     [InlineData(PictureWay.Placeholders, 20, 45, 5, 0)]
     [InlineData(PictureWay.Sixel, 20, 45, 5, 0)]
+    [InlineData(PictureWay.Kitty, 20, 45, 5, 0)]
     [InlineData(PictureWay.Placeholders, 8, 17, 4, 1)]
     [InlineData(PictureWay.Sixel, 8, 17, 4, 1)]
+    [InlineData(PictureWay.Kitty, 8, 17, 4, 1)]
     public async Task ASquareAvatarIsFittedWholeIntoItsBylinesBox(
         PictureWay way,
         int cellWidth,
@@ -64,9 +66,9 @@ public class AvatarBoxTests
             new FakePictures().HoldingAvatarOf(Jeff, APicture.Solid(60, 60, AvatarColour)),
             terminal);
 
-        var avatar = way == PictureWay.Sixel
-            ? new Picture(Assert.Single(Images(drawn)).Pixels!)
-            : Assert.Single(terminal.Transmitted).Pixels();
+        var avatar = way == PictureWay.Placeholders
+            ? Assert.Single(terminal.Transmitted).Pixels()
+            : new Picture(Assert.Single(Images(drawn)).Pixels!);
 
         var behind = way == PictureWay.Sixel ? OnAPage.Banded(Role.Body).Background : Transparent;
 
@@ -83,6 +85,41 @@ public class AvatarBoxTests
                     (x, y, APicture.Rgba(avatar.Pixels[x, y])));
             }
         }
+    }
+
+    /// <summary>
+    ///     On Kitty through a box one avatar in two sizes of box — the account screen's header and the byline of a post
+    ///     of theirs below it — is handed over at each box's own size in pixels, not the first one's (#533).
+    /// </summary>
+    [Fact]
+    public async Task OnKittyThroughABoxOneAvatarInTwoSizesOfBoxIsHandedOverAtEach()
+    {
+        var cell = new CellSize(20, 45);
+
+        using var drawn = await Drawn(
+            PictureWay.Kitty,
+            cell,
+            new FakePictures().HoldingAvatarOf(Jeff, APicture.Solid(60, 60, AvatarColour)),
+            accounts: FakeAccountRelationships.Holding(
+                AnAccount.With(address: Jeff, author: "Jeff Mitchell", avatarUrl: JeffsAvatar)));
+
+        await drawn.Shell.OpenAuthor();
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        var avatars = Images(drawn).OrderBy(image => image.DestinationCells.Y).ToList();
+
+        Assert.Equal(
+            [
+                new Size(Avatar.Columns(Avatar.HeaderRows, ARaster.Kitty(cell)), Avatar.HeaderRows),
+                new Size(Avatar.Columns(Avatar.BylineRows, ARaster.Kitty(cell)), Avatar.BylineRows),
+            ],
+            avatars.Select(image => image.DestinationCells.Size));
+        Assert.All(
+            avatars,
+            image => Assert.Equal(
+                (image.DestinationCells.Width * cell.Width, image.DestinationCells.Height * cell.Height),
+                Size(image.Pixels!)));
     }
 
     /// <summary>
@@ -212,7 +249,13 @@ public class AvatarBoxTests
             drawsPictures: way == PictureWay.Sixel,
             kittyImages: terminal,
             drawsPlaceholders: way == PictureWay.Placeholders,
-            raster: way == PictureWay.Sixel ? ARaster.Sixel(cell) : ARaster.Placeholders(cell));
+            answersKitty: way == PictureWay.Kitty,
+            raster: way switch
+            {
+                PictureWay.Sixel => ARaster.Sixel(cell),
+                PictureWay.Kitty => ARaster.Kitty(cell),
+                _ => ARaster.Placeholders(cell),
+            });
 
     /// <summary>Every picture the terminal was handed through a box, as the cells it was placed over.</summary>
     private static List<Rectangle> Boxes(DrawnShell drawn) => [.. Images(drawn).Select(image => image.DestinationCells)];

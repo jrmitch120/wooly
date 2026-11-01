@@ -1014,21 +1014,22 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   A shaped box — a post's picture, a link preview's — is the shape the instance reported, 16:9 where it reported none,
   and the picture is fitted inside it, centred, with slack beside it or above and below where the shape was a guess. A
   fixed box — a pending attachment's picture, 3×1; the edit public profile form's header, 12×2 — is filled: a picture of
-  another shape is cropped to it from the middle, as an instance crops an avatar, and never stretched. Kitty and sixel
-  take a picture to its box by the one step (`PictureDecoder.Filled`), so the two cannot crop differently. A Stand-in's
-  blur is one exception: decoded square, it is stretched to its box, which gives it back the picture's proportions
-  (ADR-0025's amendment for #438). A custom emoji's fixed box, 2×1, is another: its picture is fitted whole inside it
-  and centred, as Mastodon's web client draws one, the rest of the box transparent through Kitty's placeholders and on
-  sixel laid on what is behind it, the band on the picked post and the page anywhere else — a logo drawn to its edges in
-  a box narrower than square, cropped, lost its sides (ADR-0035's amendment, review of #522). On sixel every picture
-  with transparency is laid the same way, a transparent avatar included (ADR-0023's amendment, review of #522). An
-  avatar's fixed box is the last: its picture is fitted whole and centred in it too (ADR-0025's amendment for #532), and
-  the box is two rows on a byline and four on an account header, each as many columns as come nearest square on the cell
-  the terminal reports, a half rounded up (`Avatar.Columns`) — 4×2 and 8×4 on a cell of 10×20, 5×2 and 9×4 on 20×45 — so
-  the bands the fit leaves are at most half a column, and the width is the font's, never the picture's, so nothing
-  jumps. Where no cell size is reported the 10×20 assumed keeps 4×2 and 8×4. The edit public profile form's avatar is
-  sized and fitted the same way, two rows tall, a file chosen for it as well as the instance's, the words beside the
-  form's pictures still starting after the header's twelve columns.
+  another shape is cropped to it from the middle, as an instance crops an avatar, and never stretched. Kitty's
+  placeholders, Kitty through a box and sixel take a picture to its box by the one step (`PictureDecoder.Filled`), so no
+  two of them crop differently: through a box the image view is handed the picture at its box's size in pixels, and has
+  nothing left to stretch (#533). A Stand-in's blur is one exception: decoded square, it is stretched to its box, which
+  gives it back the picture's proportions (ADR-0025's amendment for #438). A custom emoji's fixed box, 2×1, is another:
+  its picture is fitted whole inside it and centred, as Mastodon's web client draws one, the rest of the box transparent
+  through Kitty and on sixel laid on what is behind it, the band on the picked post and the page anywhere else — a logo
+  drawn to its edges in a box narrower than square, cropped, lost its sides (ADR-0035's amendment, review of #522). On
+  sixel every picture with transparency is laid the same way, a transparent avatar included (ADR-0023's amendment,
+  review of #522). An avatar's fixed box is the last: its picture is fitted whole and centred in it too (ADR-0025's
+  amendment for #532), and the box is two rows on a byline and four on an account header, each as many columns as come
+  nearest square on the cell the terminal reports, a half rounded up (`Avatar.Columns`) — 4×2 and 8×4 on a cell of
+  10×20, 5×2 and 9×4 on 20×45 — so the bands the fit leaves are at most half a column, and the width is the font's,
+  never the picture's, so nothing jumps. Where no cell size is reported the 10×20 assumed keeps 4×2 and 8×4. The edit
+  public profile form's avatar is sized and fitted the same way, two rows tall, a file chosen for it as well as the
+  instance's, the words beside the form's pictures still starting after the header's twelve columns.
 - **A custom emoji is a picture two columns wide and one row tall, in the line** (#523, ADR-0035). A shortcode the post
   lists — `:php:`, `:US_AZ:` — is drawn in a post's words, and in the preview of the reader's own post under a
   notification, as a Unicode emoji sits: wrapped as one character two columns wide, so `:US_AZ:Phoenix` breaks before

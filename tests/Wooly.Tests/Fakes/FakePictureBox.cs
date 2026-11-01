@@ -40,10 +40,17 @@ internal sealed class FakePictureBox(int number, List<FakePictureBox.Call> log) 
     /// <inheritdoc />
     public bool Visible { get; set; }
 
+    /// <summary>
+    ///     The picture this was last shown to draw through Kitty, or <see langword="null" /> where it was never shown
+    ///     one.
+    /// </summary>
+    public Picture? Shown { get; private set; }
+
     /// <inheritdoc />
     public void Show(string pictureId, Picture picture)
     {
         PictureId = pictureId;
+        Shown = picture;
         log.Add(new Call(number, Kind.ShownWhole, pictureId));
     }
 
