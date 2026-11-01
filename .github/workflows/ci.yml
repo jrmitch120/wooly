@@ -27,7 +27,7 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Run the fast suite
-        run: dotnet test tests/Wooly.Tests/Wooly.Tests.csproj --filter "Category!=Integration"
+        run: dotnet test --project tests/Wooly.Tests/Wooly.Tests.csproj --filter "Category!=Integration"
 
   # Its own stage rather than a step in the job above: a dockerized Mastodon instance takes long enough to boot that
   # bundling it with the fast suite would make every contributor wait on it, which is exactly what ADR-0005 keeps the
@@ -49,7 +49,7 @@ jobs:
         run: tests/integration/seed.sh >> "$GITHUB_ENV"
 
       - name: Run the integration suite
-        run: dotnet test tests/Wooly.Tests/Wooly.Tests.csproj --filter "Category=Integration"
+        run: dotnet test --project tests/Wooly.Tests/Wooly.Tests.csproj --filter "Category=Integration"
 
       - name: Tear down the instance
         if: always()

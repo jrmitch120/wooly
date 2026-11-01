@@ -11,7 +11,7 @@ namespace Wooly.Tests.Tui;
 ///     test — the numbers are what #292 asks to be compared before and after — so it is skipped unless asked for.
 /// </summary>
 /// <remarks>
-///     Run with <c>WOOLY_MEASURE=1 dotnet test -c Release --filter ScrollMeasure --logger "console;verbosity=detailed"</c>.
+///     Run with <c>WOOLY_MEASURE=1 dotnet test -c Release --filter ScrollMeasure --show-live-output on</c>.
 ///     The terminal is 120×50 and the photographs are busy ones at the size <c>PictureDecoder</c> holds them, as #287's
 ///     were measured.
 /// </remarks>
