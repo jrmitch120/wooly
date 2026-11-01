@@ -25,8 +25,13 @@ updates:
       xunit:
         patterns:
           - "xunit*"
-      # Everything else's minor and patch updates in one pull request. A major update arrives on its own.
+      # Everything else's minor and patch updates in one pull request. A major update arrives on its own. The families
+      # above are excluded by name: left out, Spectre.Console and Microsoft.Extensions arrived in this group.
       minor-and-patch:
+        exclude-patterns:
+          - "Spectre.Console*"
+          - "Microsoft.Extensions.*"
+          - "xunit*"
         update-types:
           - minor
           - patch
@@ -60,6 +65,8 @@ updates:
         patterns:
           - "*mastodon*"
       minor-and-patch:
+        exclude-patterns:
+          - "*mastodon*"
         update-types:
           - minor
           - patch
