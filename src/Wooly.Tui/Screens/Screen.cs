@@ -1,3 +1,4 @@
+using System.Globalization;
 using Wooly.Core.Posts;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Shell;
@@ -366,7 +367,13 @@ public abstract class Screen
     ///     backspace at the start of an empty field is nothing at all rather than an exception or a reach into
     ///     whatever is behind it.
     /// </summary>
-    protected static string Backspaced(string typed) => typed.Length > 0 ? typed[..^1] : typed;
+    /// <remarks>
+    ///     The last whole character, as a reader sees one, rather than the last <see cref="char" />: an emoji is two of
+    ///     those, and one of them alone is no character at all, which the terminal refuses to draw (#534) — and 👩‍💻 is
+    ///     one character to the reader however many it is written in.
+    /// </remarks>
+    protected static string Backspaced(string typed) =>
+        typed.Length > 0 ? typed[..StringInfo.ParseCombiningCharacters(typed)[^1]] : typed;
 
     /// <summary>The rows to draw, in the room and under the conditions <paramref name="drawing" /> names.</summary>
     /// <remarks>
