@@ -34,7 +34,7 @@ services:
       - internal
 
   web:
-    image: ghcr.io/mastodon/mastodon:v4.6.5
+    image: ghcr.io/mastodon/mastodon:v4.6.10
     restart: unless-stopped
     env_file: mastodon.env
     command: bundle exec puma -C config/puma.rb
@@ -54,7 +54,7 @@ services:
       - internal
 
   sidekiq:
-    image: ghcr.io/mastodon/mastodon:v4.6.5
+    image: ghcr.io/mastodon/mastodon:v4.6.10
     restart: unless-stopped
     env_file: mastodon.env
     command: bundle exec sidekiq
@@ -74,7 +74,7 @@ services:
   # deployment nobody runs. Caddy routes /api/v1/streaming to it, and web advertises it at Caddy's port
   # (STREAMING_API_BASE_URL in mastodon.env).
   streaming:
-    image: ghcr.io/mastodon/mastodon-streaming:v4.6.5
+    image: ghcr.io/mastodon/mastodon-streaming:v4.6.10
     restart: unless-stopped
     env_file: mastodon.env
     command: node ./streaming/index.js
