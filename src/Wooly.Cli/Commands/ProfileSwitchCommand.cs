@@ -19,7 +19,7 @@ internal sealed class ProfileSwitchCommand(IAnsiConsole console, IProfileRegistr
         public string Name { get; init; } = string.Empty;
     }
 
-    protected override int Execute(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    public override int Execute(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         profiles.Switch(settings.Name);
 

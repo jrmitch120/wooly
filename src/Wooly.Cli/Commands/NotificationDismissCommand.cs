@@ -24,7 +24,7 @@ internal sealed class NotificationDismissCommand(
         public string NotificationId { get; init; } = string.Empty;
     }
 
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         Settings settings,
         CancellationToken cancellationToken)
