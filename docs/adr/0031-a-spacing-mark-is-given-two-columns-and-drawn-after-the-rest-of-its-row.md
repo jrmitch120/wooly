@@ -38,7 +38,11 @@ The rule is about the character, not the terminal: nothing asks which terminal t
   rest of the frame — later rows unwritten, and a hyperlink it had opened (it links every URL it draws) left open for the
   next blanks written, which Windows Terminal underlines on hover. `HeldOutput` makes the move itself, and ends every
   frame by closing any link, so one left open by any other way never reaches the next frame. Report it upstream; when
-  Terminal.Gui moves the cursor there, take the override out.
+  Terminal.Gui moves the cursor there, take the override out. It also erases the cells under each sixel it is about to
+  send: Terminal.Gui leaves those cells unwritten so as not to erase the picture, and a terminal draws a sixel without
+  erasing the text under it, so the screen before's text stayed there out of sight — and Windows Terminal, which finds
+  URLs in a screen's text by itself, linked one hidden there and underlined it on hover, out past the picture and on
+  into the next screen. Only a picture being sent is erased under; one left on the screen would go with the text.
 - Terminal.app is beyond any of this: probed, it drew a border placed by an explicit cursor move one or two columns
   left after `सिन्धी`, `தமிழ்`, `తెలుగు` and `हिन्दी` — it lays such text out off its own cells, and what follows with it.
   Probing all 214 language names showed no Unicode property that predicts it: Bengali, full of spacing marks, drew in

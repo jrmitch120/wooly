@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Reflection;
 using System.Text;
 using Terminal.Gui.App;
@@ -22,9 +23,10 @@ namespace Wooly.Tui.Views;
 ///     first left off.
 ///     <para>
 ///         Handed to the application as its <c>ansi</c> driver's output (<see cref="Into" />). A frame with no such
-///         character is written as Terminal.Gui writes it, in one pass, but for two things (#553): it is never cut
-///         short where its first change on a row is the caret's cell, as Terminal.Gui's own writer cuts it
-///         (<see cref="SetCursorPositionImpl" />), and it ends by closing any hyperlink left open. Not sealed, so that
+///         character is written as Terminal.Gui writes it, in one pass, but for three things (#553): a sixel is sent
+///         over cells first erased (<see cref="EraseUnderPictures" />); the frame is never cut short where its first
+///         change on a row is the caret's cell, as Terminal.Gui's own writer cuts it
+///         (<see cref="SetCursorPositionImpl" />); and it ends by closing any hyperlink left open. Not sealed, so that
 ///         a test can read what it writes at the terminal's edge, which headless Terminal.Gui writes nowhere.
 ///     </para>
 /// </remarks>
@@ -62,6 +64,8 @@ internal class HeldOutput : AnsiOutput
     /// <inheritdoc />
     public override void Write(IOutputBuffer buffer)
     {
+        EraseUnderPictures(buffer);
+
         var held = Hold(buffer);
 
         base.Write(buffer);
@@ -85,6 +89,70 @@ internal class HeldOutput : AnsiOutput
         // No link is left open past a frame, whatever Terminal.Gui wrote (#553). It links every URL it draws, and a
         // link it failed to close takes in whatever is written next — blanks a terminal then underlines on hover.
         Write(new StringBuilder(EscSeqUtils.OSC_EndHyperlink()));
+    }
+
+    /// <summary>
+    ///     Erases, at the terminal, every cell a sixel this frame sends is drawn over — just before Terminal.Gui sends it
+    ///     (#553).
+    /// </summary>
+    /// <remarks>
+    ///     Terminal.Gui never writes the blank cells under a sixel, since text written there would erase the picture;
+    ///     and a terminal draws a sixel over the text in its cells without erasing it. So the text the screen before
+    ///     had there stayed under the picture, out of sight — a URL included, which Windows Terminal finds by itself
+    ///     and takes for a link: hovered, it underlined the row out past the picture and offered to open it, and the
+    ///     link it had found outlived the screen. Erased first, the cells hold nothing but blanks for the picture to
+    ///     be drawn over. Only a picture sent this frame, as Terminal.Gui decides it: one already on the screen and
+    ///     not sent again would be taken off with the text. Any link left open is closed first and the colours reset,
+    ///     so that the blanks are plain ones; on a Kitty terminal a picture is placed under the text, and nothing is
+    ///     erased.
+    /// </remarks>
+    private void EraseUnderPictures(IOutputBuffer buffer)
+    {
+        if (IsLegacyConsole || UseKittyGraphics)
+        {
+            return;
+        }
+
+        var screen = new Rectangle(0, 0, buffer.Cols, buffer.Rows);
+        StringBuilder? erase = null;
+
+        foreach (var picture in buffer.GetRasterImages())
+        {
+            if (picture.Pixels is null || (!picture.IsDirty && !picture.AlwaysRender))
+            {
+                continue;
+            }
+
+            foreach (var part in CellsUnder(picture, screen))
+            {
+                erase ??= new StringBuilder(EscSeqUtils.OSC_EndHyperlink()).Append(EscSeqUtils.CSI_ResetAttributes);
+
+                for (var row = part.Top; row < part.Bottom; row++)
+                {
+                    erase.Append(EscSeqUtils.CSI_SetCursorPosition(row + 1, part.Left + 1))
+                        .Append(EscSeqUtils.CSI)
+                        .Append(part.Width)
+                        .Append('X');
+                }
+            }
+        }
+
+        if (erase is not null)
+        {
+            Write(erase);
+        }
+    }
+
+    /// <summary>
+    ///     The parts of the screen <paramref name="picture" /> is drawn over: its cells, inside what it was let draw in
+    ///     and on the screen — as Terminal.Gui cuts it.
+    /// </summary>
+    private static IEnumerable<Rectangle> CellsUnder(RasterImageCommand picture, Rectangle screen)
+    {
+        var cells = Rectangle.Intersect(picture.DestinationCells, screen);
+        var parts = picture.Clip is { } clip ? clip.GetRectangles() : [cells];
+
+        return parts.Select(part => Rectangle.Intersect(cells, part)).Where(part => part is { Width: > 0, Height: > 0 });
     }
 
     /// <summary>

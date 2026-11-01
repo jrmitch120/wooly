@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using Terminal.Gui.App;
 using Terminal.Gui.Drivers;
 using Wooly.Tui.Rendering;
+using Attribute = Terminal.Gui.Drawing.Attribute;
+using Color = Terminal.Gui.Drawing.Color;
 using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
@@ -13,7 +15,7 @@ namespace Wooly.Tests.Tui;
 ///     What reaches a terminal for a row holding a character carrying a spacing mark (ADR-0031): written by the
 ///     client's own output, and played on a terminal that draws such a character one, two or three columns wide — as
 ///     WezTerm, herdr and GNU screen were measured to. Whatever the width, nothing after it on the row moves. And a
-///     frame reaching the terminal whole wherever the caret is (#553).
+///     frame reaching the terminal whole wherever the caret is, with no text left out of sight under a picture (#553).
 /// </summary>
 public partial class HeldOutputTests
 {
@@ -149,11 +151,55 @@ public partial class HeldOutputTests
         Assert.EndsWith(EscSeqUtils.OSC_EndHyperlink(), string.Concat(output.Writes.Select(write => write.Text)));
     }
 
+    /// <summary>
+    ///     A picture is drawn over nothing the terminal still holds as text (#553). Terminal.Gui never writes the blank
+    ///     cells a sixel covers, since text written there would erase it, so what the screen before had there stayed in
+    ///     the terminal under the picture: out of sight, but still text. Windows Terminal finds a URL in it all the same
+    ///     and takes it for a link, underlined as the pointer passes over the row and still there on the next screen.
+    /// </summary>
+    [Fact]
+    public void APictureLeavesNoTextUnderIt()
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(Columns, 3);
+        buffer.Move(0, 1);
+        buffer.AddStr("http://a.io");
+        var output = new Recording();
+        output.Write(buffer);
+
+        Picture(buffer, new Rectangle(0, 0, 8, 2));
+        output.Write(buffer);
+
+        // And only what the picture covers: the rest of the row was left as it was, and is.
+        Assert.Equal("        .io ", Shown(output).Row(1));
+    }
+
+    /// <summary>
+    ///     A picture already on the screen, and not sent again, has nothing erased under it: erasing there would take
+    ///     the picture off with the text, and nothing put it back.
+    /// </summary>
+    [Fact]
+    public void APictureNotSentAgainHasNothingErasedUnderIt()
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(Columns, 3);
+        var output = new Recording();
+        var picture = Picture(buffer, new Rectangle(0, 0, 8, 2));
+        output.Write(buffer);
+
+        output.Writes.Clear();
+        output.Write(buffer);
+
+        Assert.False(picture.IsDirty);
+        Assert.Equal(new string(' ', Columns), Shown(output).Row(1));
+        Assert.DoesNotContain(output.Writes, write => Erases().IsMatch(write.Text));
+    }
+
     private static Terminal Played(string row, int drawnIn)
     {
         var terminal = new Terminal(drawnIn);
 
-        foreach (var (place, text) in Written(row).Writes)
+        foreach (var (place, _, text) in Written(row).Writes)
         {
             terminal.Write(place, text);
         }
@@ -170,6 +216,10 @@ public partial class HeldOutputTests
     [GeneratedRegex(@"\u001b\]8;[^;\u0007\u001b]*;(?<url>[^\u0007\u001b]*)")]
     private static partial Regex Links();
 
+    /// <summary>An erase of some cells, from the cursor on.</summary>
+    [GeneratedRegex(@"\u001b\[\d*X")]
+    private static partial Regex Erases();
+
     /// <summary>Every escape sequence a terminal reads and draws nothing for.</summary>
     [GeneratedRegex(@"\u001b(\[[0-9;?]*[A-Za-z]|\][^\u0007\u001b]*(\u0007|\u001b\\))")]
     private static partial Regex Escapes();
@@ -177,6 +227,50 @@ public partial class HeldOutputTests
     /// <summary>The text <paramref name="output" /> wrote, without its escapes or blanks.</summary>
     private static string Drawn(Recording output) =>
         Escapes().Replace(string.Concat(output.Writes.Select(write => write.Text)), string.Empty).Replace(" ", string.Empty);
+
+    /// <summary>
+    ///     A sixel over <paramref name="cells" />, to be sent: the cells under it painted blank and of no colour, as a
+    ///     picture paints them.
+    /// </summary>
+    private static RasterImageCommand Picture(OutputBufferImpl buffer, Rectangle cells)
+    {
+        buffer.CurrentAttribute = new Attribute(Color.None, Color.None);
+
+        for (var row = cells.Top; row < cells.Bottom; row++)
+        {
+            buffer.Move(cells.Left, row);
+            buffer.AddStr(new string(' ', cells.Width));
+        }
+
+        var picture = new RasterImageCommand
+        {
+            Id = "picture",
+            Pixels = new Color[cells.Height * 2, cells.Width],
+            EncodedSixel = "\u001bPq#0~\u001b\\",
+            DestinationCells = cells,
+            IsDirty = true,
+        };
+
+        buffer.AddRasterImage(picture);
+
+        return picture;
+    }
+
+    /// <summary>
+    ///     Everything <paramref name="output" /> wrote, played on a terminal that keeps text under a sixel, as Windows
+    ///     Terminal does.
+    /// </summary>
+    private static Screen Shown(Recording output)
+    {
+        var screen = new Screen();
+
+        foreach (var (column, row, text) in output.Writes)
+        {
+            screen.Write(column, row, text);
+        }
+
+        return screen;
+    }
 
     private static Recording Written(string row)
     {
@@ -199,13 +293,16 @@ public partial class HeldOutputTests
     {
         private int? _place;
 
-        public List<(int? Place, string Text)> Writes { get; } = [];
+        private int? _row;
+
+        public List<(int? Place, int? Row, string Text)> Writes { get; } = [];
 
         public List<int> Places { get; } = [];
 
         protected override bool SetCursorPositionImpl(int col, int row)
         {
             _place = col;
+            _row = row;
             Places.Add(col);
 
             return base.SetCursorPositionImpl(col, row);
@@ -213,10 +310,84 @@ public partial class HeldOutputTests
 
         protected override void Write(StringBuilder output)
         {
-            Writes.Add((_place, output.ToString()));
+            Writes.Add((_place, _row, output.ToString()));
             _place = null;
+            _row = null;
             base.Write(output);
         }
+    }
+
+    /// <summary>
+    ///     A whole terminal, a few rows of <see cref="Columns" />, that draws every character one column wide, moves the
+    ///     cursor where it is put, erases where it is told to — and draws a sixel without touching the text under it,
+    ///     as Windows Terminal does.
+    /// </summary>
+    private sealed partial class Screen
+    {
+        private readonly char[,] _cells = new char[3, Columns];
+
+        private int _row;
+
+        private int _column;
+
+        public Screen()
+        {
+            for (var row = 0; row < _cells.GetLength(0); row++)
+            {
+                for (var column = 0; column < Columns; column++)
+                {
+                    _cells[row, column] = ' ';
+                }
+            }
+        }
+
+        public string Row(int row) => new([.. Enumerable.Range(0, Columns).Select(column => _cells[row, column])]);
+
+        public void Write(int? column, int? row, string text)
+        {
+            _column = column ?? _column;
+            _row = row ?? _row;
+
+            for (var at = 0; at < text.Length;)
+            {
+                if (Sequence().Match(text, at) is { Success: true } sequence && sequence.Index == at)
+                {
+                    if (sequence.Groups["place"].Success)
+                    {
+                        _row = int.Parse(sequence.Groups["row"].Value, CultureInfo.InvariantCulture) - 1;
+                        _column = int.Parse(sequence.Groups["column"].Value, CultureInfo.InvariantCulture) - 1;
+                    }
+                    else if (sequence.Groups["erase"].Success)
+                    {
+                        var count = int.Parse(sequence.Groups["count"].Value, CultureInfo.InvariantCulture);
+
+                        for (var cell = _column; cell < Math.Min(Columns, _column + count); cell++)
+                        {
+                            _cells[_row, cell] = ' ';
+                        }
+                    }
+
+                    at += sequence.Length;
+
+                    continue;
+                }
+
+                if (_column < Columns)
+                {
+                    _cells[_row, _column] = text[at];
+                }
+
+                _column++;
+                at++;
+            }
+        }
+
+        /// <summary>
+        ///     A sequence the terminal draws nothing for: a place for the cursor, an erase of some cells, a sixel, or any
+        ///     other.
+        /// </summary>
+        [GeneratedRegex(@"\u001b(?:(?<place>\[(?<row>\d+);(?<column>\d+)H)|(?<erase>\[(?<count>\d+)X)|P[^\u001b]*\u001b\\|\[[0-9;?]*[A-Za-z]|\][^\u0007\u001b]*(?:\u0007|\u001b\\))")]
+        private static partial Regex Sequence();
     }
 
     /// <summary>
