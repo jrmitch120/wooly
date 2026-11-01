@@ -78,6 +78,14 @@ public partial class RoleTests
         ));
         Collect(PostLines.Whole(mine, new Drawing(61, Now), revealed));
 
+        // A custom emoji where nothing draws, which is the only place its shortcode's own role is drawn (ADR-0035).
+        Collect(PostLines.Feed(
+            APost.With(
+                content: "I write :php: daily",
+                customEmoji: [new Wooly.Core.CustomEmoji("php", "https://files.example/emoji/php.png")]),
+            new Drawing(61, Now),
+            default));
+
         // With the first reference in the text picked out, which is the only thing that draws the brackets (#83).
         Collect(PostLines.Feed(
             mine,
@@ -202,6 +210,7 @@ public partial class RoleTests
     [InlineData(Role.Gauge, "gauge")]
     [InlineData(Role.GaugeEmpty, "gauge-empty")]
     [InlineData(Role.StandIn, "stand-in")]
+    [InlineData(Role.CustomEmoji, "custom-emoji")]
     [InlineData(Role.Replies, "replies")]
     [InlineData(Role.Spinner, "spinner")]
     [InlineData(Role.SelectedText, "selected-text")]

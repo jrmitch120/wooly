@@ -9,8 +9,8 @@ namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     How a crumb is spelled, asked of every screen in the shell rather than of the ones somebody remembered: every
-///     crumb is sentence case, except one that opens with a handle or a hashtag, which is spelled the way that thing
-///     is spelled (#216).
+///     crumb is sentence case, except where it names somebody — by name, or by handle where their name is nothing but
+///     shortcodes (#525) — or a hashtag, which is spelled the way that thing is spelled (#216).
 /// </summary>
 /// <remarks>
 ///     The complaint that started #160 was that the sidebar said <c>Home</c> and the breadcrumb said <c>home</c>, so
@@ -31,18 +31,18 @@ public class CrumbTests
         ("search-cats", "Search cats"),
         ("discover", "Discover"),
         ("help", "Keys"),
-        ("post", "Post by @ben@hachyderm.io"),
-        ("picture", "Picture by @ben@hachyderm.io"),
-        ("pictures", "Picture 2 of 3 by @ben@hachyderm.io"),
+        ("post", "Post by Ben"),
+        ("picture", "Picture by Ben"),
+        ("pictures", "Picture 2 of 3 by Ben"),
         ("conversation", "With @alice@hachyderm.io"),
         ("compose", "Compose"),
         ("describe", "Describe cat.png"),
-        ("reply", "Reply to @ben@hachyderm.io"),
+        ("reply", "Reply to Ben"),
         ("edit", "Edit"),
         ("public-profile", "Edit public profile"),
-        ("account", "@maria@fosstodon.org"),
-        ("following", "@maria@fosstodon.org following"),
-        ("followers", "@maria@fosstodon.org followers"),
+        ("account", "Maria"),
+        ("following", "Maria following"),
+        ("followers", "Maria followers"),
         ("actors", "Favorited by"),
         ("favorited-by", "Favorited by"),
         ("boosted-by", "Boosted by"),
@@ -76,8 +76,8 @@ public class CrumbTests
 
     /// <summary>
     ///     And the rule underneath those, said once so that the eighteenth screen inherits it: a crumb opens with a
-    ///     capital and goes on in prose, unless the word it opens with is a handle or a hashtag — which is spelled
-    ///     the way that thing is spelled, whatever its own case, because nobody's username is ours to capitalise.
+    ///     capital and goes on in prose, unless the word is somebody's name, a handle or a hashtag — which is spelled
+    ///     the way that thing is spelled, whatever its own case, because nobody's name is ours to capitalise.
     /// </summary>
     /// <remarks>
     ///     Word by word rather than first letter only, which is what tells sentence case from title case:
@@ -87,7 +87,7 @@ public class CrumbTests
     /// </remarks>
     [Theory]
     [MemberData(nameof(HowEachIsSpelled))]
-    public void Crumb_IsSentenceCaseUnlessTheWordIsAHandleOrAHashtag(string state, string _)
+    public void Crumb_IsSentenceCaseUnlessTheWordIsANameAHandleOrAHashtag(string state, string _)
     {
         var crumb = Of(state).Crumb;
 
@@ -106,8 +106,18 @@ public class CrumbTests
         }
     }
 
-    /// <summary>Whether <paramref name="word" /> is somebody's own — a handle or a hashtag — rather than ours.</summary>
-    private static bool Theirs(string word) => word.StartsWith('@') || word.StartsWith('#');
+    /// <summary>
+    ///     Whether <paramref name="word" /> is somebody's own — a word of a name the screens are built with, a handle or a
+    ///     hashtag — rather than ours.
+    /// </summary>
+    private static bool Theirs(string word) =>
+        word.StartsWith('@') || word.StartsWith('#') || word is Ben or Maria;
+
+    /// <summary>The name of the author of the post the screens are built over.</summary>
+    private const string Ben = "Ben";
+
+    /// <summary>The name of the account the screens are built over.</summary>
+    private const string Maria = "Maria";
 
     /// <summary>
     ///     And every screen there is was asked, so that a screen added later cannot quietly be the one whose crumb
@@ -131,8 +141,8 @@ public class CrumbTests
     /// <summary>The screen the <paramref name="state" /> names, built with no terminal and no shell around it.</summary>
     private static Screen Of(string state)
     {
-        var post = APost.With(id: "110", account: "ben@hachyderm.io");
-        var maria = AnAccount.With(address: "maria@fosstodon.org");
+        var post = APost.With(id: "110", account: "ben@hachyderm.io", author: Ben);
+        var maria = AnAccount.With(address: "maria@fosstodon.org", author: Maria);
 
         switch (state)
         {

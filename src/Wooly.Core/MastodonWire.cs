@@ -30,6 +30,18 @@ internal static class MastodonWire
     /// </summary>
     public static string? SaidOrNothing(string? said) => string.IsNullOrWhiteSpace(said) ? null : said;
 
+    /// <summary>
+    ///     The custom emoji a status, account or poll lists, each at its still picture. Mastonet reads a list the wire
+    ///     sent as <c>null</c> as no list at all, and an emoji with no shortcode or no picture is nothing that could be
+    ///     drawn, so both come out as nothing listed.
+    /// </summary>
+    public static IReadOnlyList<CustomEmoji> CustomEmoji(IEnumerable<Emoji>? emojis) =>
+        emojis?.Where(emoji =>
+                   !string.IsNullOrWhiteSpace(emoji.Shortcode) && !string.IsNullOrWhiteSpace(emoji.StaticUrl))
+               .Select(emoji => new CustomEmoji(emoji.Shortcode, emoji.StaticUrl))
+               .ToList()
+        ?? [];
+
     /// <summary>The name an account chose to be shown as, falling back to its username where it chose none.</summary>
     public static string DisplayName(Account account) =>
         string.IsNullOrWhiteSpace(account.DisplayName) ? account.UserName : account.DisplayName;

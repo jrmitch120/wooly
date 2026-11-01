@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
@@ -100,16 +101,59 @@ public class PeopleToMentionTests
         Assert.Equal(["ben@hachyderm.io", "maria@fosstodon.org"], Addresses(opened, string.Empty));
     }
 
-    /// <summary>Custom-emoji shortcodes come out of a name, so <c>:blobcat:</c> neither matches nor crowds it.</summary>
+    /// <summary>
+    ///     The shortcodes a name's account lists come out of it, so <c>:blobcat:</c> neither matches nor crowds it
+    ///     (#525).
+    /// </summary>
     [Fact]
     public async Task ShortcodesAreTakenOutOfNames()
     {
-        var opened = await Showing(APost.With(id: "1", account: "mg@x.social", author: "Maria :blobcat: Gonzalez :verified:"));
+        var opened = await Showing(APost.With(
+            id: "1",
+            account: "mg@x.social",
+            author: "Maria :blobcat: Gonzalez :verified:",
+            authorCustomEmoji: [Listed("blobcat"), Listed("verified")]));
 
         var maria = Assert.Single(opened.PeopleMatching("go"));
 
         Assert.Equal("Maria Gonzalez", maria.Name);
         Assert.Empty(opened.PeopleMatching("blob"));
+    }
+
+    /// <summary>
+    ///     A <c>:word:</c> the account does not list is the words they chose to be called and stays in the name, as it
+    ///     does where the name is drawn, rather than anything shaped like a shortcode coming out (#525).
+    /// </summary>
+    [Fact]
+    public async Task AWordBetweenColonsTheAccountDoesNotListStaysInTheName()
+    {
+        var opened = await Showing(APost.With(
+            id: "1",
+            account: "mg@x.social",
+            author: "Maria :blobcat: :verified:",
+            authorCustomEmoji: [Listed("verified")]));
+
+        var maria = Assert.Single(opened.PeopleMatching("ma"));
+
+        Assert.Equal("Maria :blobcat:", maria.Name);
+    }
+
+    /// <summary>
+    ///     A name that is nothing but listed shortcodes leaves the handle alone on the row, which is how the list already
+    ///     shows somebody it knows no name for, rather than the handle spelled twice (#525).
+    /// </summary>
+    [Fact]
+    public async Task ANameThatIsNothingButShortcodesLeavesTheHandleAlone()
+    {
+        var opened = await Showing(APost.With(
+            id: "1",
+            account: "mg@x.social",
+            author: ":verified: :US_AZ:",
+            authorCustomEmoji: [Listed("verified"), Listed("US_AZ")]));
+
+        var maria = Assert.Single(opened.PeopleMatching("mg"));
+
+        Assert.Equal(string.Empty, maria.Name);
     }
 
     /// <summary>
@@ -199,6 +243,8 @@ public class PeopleToMentionTests
         Assert.Empty(opened.PeopleMatching("mark"));
         Assert.NotEmpty(opened.PeopleMatching("sam"));
     }
+
+    private static CustomEmoji Listed(string shortcode) => new(shortcode, $"https://x.social/emoji/{shortcode}.png");
 
     private static async Task<Shell> Showing(params Post[] posts) =>
         await new AShell { Timelines = FakeTimelineReader.Holding(posts) }.Opened();

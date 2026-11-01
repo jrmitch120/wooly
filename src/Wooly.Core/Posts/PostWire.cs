@@ -30,8 +30,15 @@ internal static class PostWire
             // accounts bare — and the reader's own account is always one of those.
             IsMine = reader.SignsInAs(account),
             Author = MastodonWire.DisplayName(status.Account),
+
+            // Listed on the account, not the post: the emoji a name uses are the account's (ADR-0035).
+            AuthorCustomEmoji = MastodonWire.CustomEmoji(status.Account.Emojis),
             PostedAt = MastodonWire.AsUtc(status.CreatedAt),
             Content = InstanceHtml.ToPlainText(status.Content),
+
+            // The shortcodes stay in the content as written, which is what the CLI prints; these say which of them are
+            // pictures (ADR-0035).
+            CustomEmoji = MastodonWire.CustomEmoji(status.Emojis),
 
             // The wire says "no warning" with an empty string, which is not the same thing as a warning to print.
             ContentWarning = MastodonWire.SaidOrNothing(status.SpoilerText),
@@ -150,6 +157,7 @@ internal static class PostWire
     public static PostPoll ToPoll(Poll poll)
     {
         var picked = poll.OwnVotes.ToHashSet();
+        var listed = MastodonWire.CustomEmoji(poll.Emojis);
 
         return new PostPoll
         {
@@ -159,6 +167,9 @@ internal static class PostWire
                 Text = option.Title,
                 Votes = option.VotesCount,
                 Picked = picked.Contains(index),
+
+                // Listed on the poll, not the post nor the answer (ADR-0035).
+                CustomEmoji = listed,
             }).ToList(),
             Votes = poll.VotesCount,
             Voters = poll.VotersCount,

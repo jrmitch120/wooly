@@ -198,3 +198,25 @@ The guarantees above stand: a sixel is encoded once for each cut and handed over
 on the page again, which it must. Kitty through a box was never sent this way and is untouched. This leans further on
 how Terminal.Gui 2.5 treats a clean raster image — kept, its cells left unwritten — so an upgrade of the library is one
 more reason to run the smoke test.
+
+## Amendment: custom emoji's cuts are kept apart (#527)
+
+The 32 cuts above are every picture's but custom emoji's. A page holds dozens of those, and counted with the rest they
+would let go of the cuts a photograph at the page's edge was encoded ahead for on every step, so they are kept apart, in
+a cache of their own of 128 cuts (`SixelPictures.MostCustomEmojiHeld`, ADR-0035).
+
+## Amendment: a picture is laid on what is behind its box, the band on a picked post (review of #522)
+
+The amendment for #342 lays a sixel's transparent pixels on the page. But a picked post is drawn on the band from edge to
+edge (#269), and Kitty's placeholders show the band through a picture there, so on sixel a custom emoji fitted into its
+box (ADR-0035) showed page-coloured strips above and below it on the picked post, and an avatar with a transparent
+background a page-coloured square. A picture is now laid on what is behind its box: the band where the row its box
+starts on is picked, short of where that row's band stops, and the page anywhere else, each the theme's or the
+terminal's as before (`Line.BandedAt`).
+
+Which backdrop a cut was laid on is part of what names it, so picking a post would encode its pictures again on the band,
+and the one it left again on the page the first time either is drawn there. A photograph has nothing to show through, and
+a sixel cut of one across a wide page is the costly encode this ADR is about, so a cut names a backdrop only where its
+picture has a pixel less than opaque or is fitted with room round it (`SixelPictures.KeyOf`): moving the pick encodes no
+photograph or blur again, only the avatars and custom emoji that show through, each a few cells. Whether a picture is
+opaque is worked out once for each picture, by reading its pixels the first time it is drawn.

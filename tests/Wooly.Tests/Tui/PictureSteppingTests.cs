@@ -45,7 +45,7 @@ public class PictureSteppingTests
         Assert.Equal(Original("m2"), Showing(drawn));
         Assert.Contains(drawn.Rows(), row => row.Contains("The second sheep", StringComparison.Ordinal));
         Assert.DoesNotContain(drawn.Rows(), row => row.Contains("The first sheep", StringComparison.Ordinal));
-        Assert.Equal("Picture 2 of 3 by @jeff@mastodon.social", Crumb(drawn));
+        Assert.Equal("Picture 2 of 3 by Jeff", Crumb(drawn));
     }
 
     /// <summary>
@@ -62,13 +62,13 @@ public class PictureSteppingTests
 
         Assert.Equal(Original("m2"), Showing(drawn));
         Assert.Contains(drawn.Rows(), row => row.Contains("The second sheep", StringComparison.Ordinal));
-        Assert.Equal("Picture 2 of 3 by @jeff@mastodon.social", Crumb(drawn));
+        Assert.Equal("Picture 2 of 3 by Jeff", Crumb(drawn));
 
         drawn.Press(Key.CursorLeft);
 
         Assert.Equal(Original("m1"), Showing(drawn));
         Assert.Contains(drawn.Rows(), row => row.Contains("The first sheep", StringComparison.Ordinal));
-        Assert.Equal("Picture 1 of 3 by @jeff@mastodon.social", Crumb(drawn));
+        Assert.Equal("Picture 1 of 3 by Jeff", Crumb(drawn));
     }
 
     /// <summary>
@@ -92,7 +92,7 @@ public class PictureSteppingTests
 
         var last = drawn.Rows();
 
-        Assert.Equal("Picture 3 of 3 by @jeff@mastodon.social", Crumb(drawn));
+        Assert.Equal("Picture 3 of 3 by Jeff", Crumb(drawn));
 
         drawn.Press(Key.CursorRight);
 
@@ -117,7 +117,7 @@ public class PictureSteppingTests
 
         var rows = drawn.Rows();
 
-        Assert.Equal("Picture by @jeff@mastodon.social", Crumb(drawn));
+        Assert.Equal("Picture by Jeff", Crumb(drawn));
         Assert.DoesNotContain(rows, row => row.Contains('←') || row.Contains('→'));
         Assert.DoesNotContain(rows, row => row.Contains("of 1", StringComparison.Ordinal));
     }

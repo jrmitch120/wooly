@@ -46,6 +46,9 @@ public sealed record Line
     /// </remarks>
     public IReadOnlyList<Drawn> AlsoWants { get; init; } = [];
 
+    /// <summary>Every picture this row stands in for, left to right: <see cref="Wants" />, then <see cref="AlsoWants" />.</summary>
+    public IReadOnlyList<Drawn> Wanted => Wants is { } first ? [first, .. AlsoWants] : AlsoWants;
+
     /// <summary>
     ///     Pictures a keypress would put on screen in place of what is there now, each in the box it would be set in
     ///     and with how far under this row that is, which are not drawn — the Picture screen's other pictures whose
@@ -114,6 +117,13 @@ public sealed record Line
     ///     preview pane — picks out only the first.
     /// </summary>
     public int? BandsTo { get; init; }
+
+    /// <summary>
+    ///     Whether column <paramref name="column" /> of this row is on the band rather than the page: on a
+    ///     <see cref="Picked" /> row, short of where <see cref="BandsTo" /> stops it. What a picture's box on this row
+    ///     shows through its transparent pixels, on Kitty's placeholders and sixel alike.
+    /// </summary>
+    public bool BandedAt(int column) => Picked && column < (BandsTo ?? int.MaxValue);
 
     /// <summary>
     ///     Whether this row is a rule (<see cref="Rule" />): its one span repeated by the view that paints it from the
@@ -201,6 +211,20 @@ public sealed record Line
             BandsTo = BandsTo + shift,
         };
     }
+
+    /// <summary>
+    ///     This row standing in for <paramref name="pictures" />, left to right, in place of what it stood in for: the
+    ///     first its <see cref="Wants" /> and the rest its <see cref="AlsoWants" /> — so that a row adding pictures to
+    ///     the ones it already wants says only which come first (<see cref="Wanted" />).
+    /// </summary>
+    public Line Wanting(IReadOnlyList<Drawn> pictures) => this with
+    {
+        Wants = pictures.Count > 0 ? pictures[0] : null,
+        AlsoWants = [.. pictures.Skip(1)],
+    };
+
+    /// <summary>This row with <paramref name="spans" /> put after it, everything already on it kept where it is.</summary>
+    public Line Then(params Span[] spans) => Respanned([.. Spans, .. spans]);
 
     /// <summary>
     ///     This row with <paramref name="spans" /> in place of its own, and everything else about it kept — the one place

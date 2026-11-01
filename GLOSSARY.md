@@ -151,23 +151,25 @@ _Avoid_: spoilered, blurred, NSFW, hidden (which is what a warning does, not wha
 **Drawn**:
 A picture the TUI paints in place, said as the thing rather than the adjective: which one it is, and where its pixels
 are fetched from (`Drawn`). What the TUI's whole picture path turns on — what is held, what is sent for, and what a box
-on a row stands in for — because three different things are painted and only one of them is an **Attachment**. A post's
+on a row stands in for — because four different things are painted and only one of them is an **Attachment**. A post's
 picture hangs off the post; an author's avatar hangs off the author, and calling the second one an attachment would
 have made "something on a post besides its text" mean something else wherever an avatar went. The third is the picture
 an instance chose for a **Link preview**, named by the link's own address the way an avatar is named by its handle, so
-that the same article shared twice is fetched once (#116). Nothing outside a TUI has one: the CLI **links** everything
-(ADR-0016). Its box is settled before its pixels arrive, from what the instance says of its shape, so a picture
-arriving or being let go of never moves the rows around it.
+that the same article shared twice is fetched once (#116). The fourth is a **custom emoji**, named by the address of its
+still, so that one emoji is one picture however many posts use it (ADR-0035). Nothing outside a TUI has one: the CLI
+**links** everything (ADR-0016). Its box is settled before its pixels arrive, from what the instance says of its shape,
+so a picture arriving or being let go of never moves the rows around it.
 _Avoid_: image, media (for the avatar half of this)
 
 **Picture box**:
 The cells a **drawn** picture is painted in, settled before its pixels arrive so that nothing moves when they come or
 go: shaped as the instance said the picture is, for a post's picture and a **Link preview**'s, or a fixed size, for an
-avatar, the small picture on a **pending attachment**'s row and the public profile form's avatar and header. A fixed box
-is filled: a picture of another shape is cropped to it from the middle, as an instance crops an avatar, never stretched.
-A shaped box fits the picture inside it, since the shape it was given can be a guess — a picture the guess got wrong
-shows whole, with slack beside it. Until the pixels are here the box holds a **Stand-in**, whose blur is stretched to
-the box rather than cropped.
+avatar, a **custom emoji**, the small picture on a **pending attachment**'s row and the public profile form's avatar
+and header. A fixed box is filled: a picture of another shape is cropped to it from the middle, as an instance crops an
+avatar, never stretched. A custom emoji's box is the one exception: its picture is fitted whole inside it and centred,
+as Mastodon's web client draws one. A shaped box fits the picture inside it, since the shape it was given can be a
+guess — a picture the guess got wrong shows whole, with slack beside it. Until the pixels are here the box holds a
+**Stand-in**, whose blur is stretched to the box rather than cropped.
 _Avoid_: thumbnail (only the smallest of them), frame, slot
 
 **Picture screen**:
@@ -221,6 +223,18 @@ Text carrying one is given two columns and drawn after the rest of its row, so w
 after it on the row moves (ADR-0031). Distinct from the marks that take no room — an accent, Arabic's vowels, a virama —
 which every terminal counts alike.
 _Avoid_: combining mark (most of those take no room), wide character, complex script
+
+**Custom emoji**:
+A small picture an **instance** defines for itself and its people write as a **shortcode**, in a post's words, its
+warning, a display name, a **bio**, a **custom field**, a poll's options. Every post and account carries the ones it
+uses. Where nothing can be drawn, the shortcode stays as written, set apart so it reads as a picture that was meant.
+Distinct from a Unicode emoji, which is a character every terminal draws as text.
+_Avoid_: emoji (on its own), emote, sticker
+
+**Shortcode**:
+The `:name:` a **custom emoji** is written as — `:php:`, `:US_AZ:` — meaning a picture only on the instance that
+defines it, and nothing more than its own letters to the CLI or anything else that cannot draw.
+_Avoid_: emoji code, tag (a tag is `#name`)
 
 **Boost**:
 Re-sharing another account's post to your own followers. The API calls this a `reblog`. This project always says "boost" in user-facing language and domain code; `reblog` may still appear as the literal API field name at the wire layer.

@@ -5,6 +5,7 @@ using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
+using Wooly.Core;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
@@ -446,6 +447,42 @@ public class PicturesTests
     }
 
     /// <summary>
+    ///     A custom emoji is one picture for every post that uses it, named by the address of its still: a timeline of
+    ///     fifty posts carrying <c>:verified:</c> fetches and decodes it once (ADR-0035) — and holds it no larger than
+    ///     the two cells by one it is drawn in, rather than at the window's width.
+    /// </summary>
+    [Fact]
+    public async Task Pictures_FetchesACustomEmojiManyPostsUseOnceAndHoldsItAtItsBox()
+    {
+        var asked = new List<string>();
+
+        using var pictures = APictures(_ => APng(128, 128), out var landings, asked: asked);
+
+        var emoji = new CustomEmoji("verified", "https://files.example/emoji/verified.png");
+
+        // Three posts using it in one frame, and an account's name using it under another shortcode the next.
+        pictures.Want(
+            [Near(Drawn.CustomEmoji(emoji)), Near(Drawn.CustomEmoji(emoji)), Near(Drawn.CustomEmoji(emoji))],
+            ADrawingTerminal,
+            Wide);
+
+        await landings.Landed(1);
+
+        pictures.Want(
+            [Near(Drawn.CustomEmoji(emoji with { Shortcode = "checked" }))],
+            ADrawingTerminal,
+            Wide);
+
+        Assert.Equal(["https://files.example/emoji/verified.png"], asked);
+
+        var picture = pictures.Of(Drawn.CustomEmoji(emoji));
+
+        Assert.NotNull(picture);
+        Assert.Equal(20, picture.Width);
+        Assert.Equal(20, picture.Height);
+    }
+
+    /// <summary>
     ///     Pixels are held to a budget in bytes, not a count of pictures: past it the picture wanted longest ago is let
     ///     go of, and said to be. Its downloaded bytes are still held, so wanting it again decodes it again from those,
     ///     and the network is not asked twice (ADR-0025).
@@ -507,6 +544,39 @@ public class PicturesTests
         await fetch.Until(Pictures.AtATime + 2);
 
         Assert.Equal(["near", "far"], fetch.Asked.Skip(Pictures.AtATime));
+    }
+
+    /// <summary>
+    ///     Custom emoji wait their turn with every other picture, nearest the screen first, in one queue: one the page
+    ///     has come near goes ahead of an attachment wanted far ahead before it, and one far ahead goes after an
+    ///     avatar nearer (#523).
+    /// </summary>
+    [Fact]
+    public async Task Pictures_StartsTheNearestFetchFirstCustomEmojiAmongTheRest()
+    {
+        var fetch = new Gated();
+
+        using var pictures = new Pictures(fetch.Fetch, () => { });
+
+        var busy = Busy();
+        var near = Drawn.CustomEmoji(new CustomEmoji("php", "https://files.example/emoji/php.png"));
+        var far = Drawn.CustomEmoji(new CustomEmoji("US_AZ", "https://files.example/emoji/US_AZ.png"));
+
+        pictures.Want([.. busy, Near(Picture("attachment")), Near(far)], ADrawingTerminal, Wide);
+        pictures.Want(
+            [.. busy, Near(near), Near(Picture("attachment")), Near(Picture("avatar")), Near(far)],
+            ADrawingTerminal,
+            Wide);
+
+        for (var at = 0; at < busy.Count; at++)
+        {
+            fetch.Answer($"b{at}");
+            await fetch.Until(Pictures.AtATime + at + 1);
+        }
+
+        Assert.Equal(
+            [near.Address, "attachment", "avatar", far.Address],
+            fetch.Asked.Skip(Pictures.AtATime));
     }
 
     /// <summary>

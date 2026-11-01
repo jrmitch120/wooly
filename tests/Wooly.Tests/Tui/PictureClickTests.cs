@@ -114,7 +114,7 @@ public class PictureClickTests
         drawn.DoubleClick((Left + Right) / 2, (top + foot) / 2);
         drawn.Settle();
 
-        Assert.Contains(drawn.Rows(), row => row.Contains("Picture by @maria@fosstodon.org", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("Picture by Maria", StringComparison.Ordinal));
         Assert.IsType<PictureScreen>(drawn.Shell.Screen);
         Assert.Empty(drawn.Built.Browser.Opened);
 
@@ -147,7 +147,7 @@ public class PictureClickTests
         drawn.DoubleClick(Left + 4, text);
         drawn.Settle();
 
-        Assert.Contains(drawn.Rows(), row => row.Contains("Post by @maria@fosstodon.org", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("Post by Maria", StringComparison.Ordinal));
         Assert.DoesNotContain(drawn.Rows(), row => row.Contains("Picture by", StringComparison.Ordinal));
     }
 
@@ -166,6 +166,7 @@ public class PictureClickTests
                     APost.With(
                         id: "110",
                         account: "maria@fosstodon.org",
+                        author: "Maria",
                         content: "Shearing day",
                         media: [APost.APicture("m1", description: "A sheep", shape: Wide)]),
                     APost.With(id: "220")),

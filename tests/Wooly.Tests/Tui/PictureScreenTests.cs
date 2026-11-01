@@ -36,6 +36,7 @@ public class PictureScreenTests
         using var drawn = await Reading(APost.With(
             id: "110",
             account: "maria@fosstodon.org",
+            author: "Maria",
             media: [APost.APicture("m1", shape: Wide)]));
 
         drawn.Press(Key.CursorRight);
@@ -44,7 +45,7 @@ public class PictureScreenTests
 
         Assert.IsType<PictureScreen>(drawn.Shell.Screen);
         Assert.Equal(2, drawn.Shell.Depth);
-        Assert.Equal("Picture by @maria@fosstodon.org", drawn.Shell.Crumbs[^1]);
+        Assert.Equal("Picture by Maria", drawn.Shell.Crumbs[^1]);
         Assert.Empty(drawn.Built.Browser.Opened);
     }
 
@@ -238,6 +239,7 @@ public class PictureScreenTests
         using var drawn = await Reading(APost.With(
             id: "110",
             account: "maria@fosstodon.org",
+            author: "Maria",
             media: [APost.APicture("m1", shape: Wide)]));
 
         drawn.Press(Key.Enter);
@@ -255,7 +257,7 @@ public class PictureScreenTests
         drawn.Settle();
 
         Assert.IsType<PictureScreen>(drawn.Shell.Screen);
-        Assert.Equal("Picture by @maria@fosstodon.org", drawn.Shell.Crumbs[^1]);
+        Assert.Equal("Picture by Maria", drawn.Shell.Crumbs[^1]);
 
         drawn.Press(Key.Esc);
 

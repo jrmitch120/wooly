@@ -1,5 +1,8 @@
+using System.Drawing;
+using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
@@ -126,6 +129,57 @@ public class PictureResendTests : IDisposable
         drawn.Redraw();
 
         Assert.Equal(1, drawn.SixelsSent());
+    }
+
+    /// <summary>
+    ///     Picking a post moves its rows from the page to the band, and a picture that shows what it is on through its
+    ///     transparent pixels is laid on the band instead (#269) — its avatar, here — while a photograph, opaque to its
+    ///     every pixel, is handed over as the very sixel it was: the pick costs no encoding of a picture it cannot change.
+    /// </summary>
+    [Fact]
+    public async Task PickingAPostLaysItsSeeThroughPicturesOnTheBandAndEncodesNoPhotographAgain()
+    {
+        using var drawn = await DrawnShell.Of(
+            80,
+            40,
+            Themes.Dark,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110"),
+                    APost.With(
+                        id: "220",
+                        avatarUrl: "https://files.mastodon.social/avatars/jeff.png",
+                        media: [APost.APicture("m1", shape: new PictureShape(160, 40))])),
+            },
+            pictures: new FakePictures().HoldingPhotograph("m1", 160, 40).HoldingAvatarOf("jeff@mastodon.social"),
+            drawsPictures: true,
+            raster: ARaster.Sixel());
+
+        var band = Themes.Dark.Banded(Role.Body).Background;
+        var (avatar, photograph) = Boxes(drawn);
+
+        Assert.NotEqual(band, avatar.Pixels![0, 0]);
+
+        drawn.Press(Key.K);
+
+        Assert.Equal("220", drawn.Shell.Screen.Picked?.Id);
+
+        var (picked, same) = Boxes(drawn);
+
+        Assert.Equal(band, picked.Pixels![0, 0]);
+        Assert.Same(photograph.EncodedSixel, same.EncodedSixel);
+
+        // The avatar is the box a byline's is; the photograph the other.
+        static (RasterImageCommand Avatar, RasterImageCommand Photograph) Boxes(DrawnShell drawn)
+        {
+            var images = drawn.Application.Driver!.GetOutputBuffer().GetRasterImages().ToList();
+            var byline = new Size(Avatar.BylineColumns, Avatar.BylineRows);
+
+            return (
+                Assert.Single(images, image => image.DestinationCells.Size == byline),
+                Assert.Single(images, image => image.DestinationCells.Size != byline));
+        }
     }
 
     /// <summary>The description editor opened on a picture dropped onto a fresh post, in the window, drawn.</summary>

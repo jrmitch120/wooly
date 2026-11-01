@@ -1,3 +1,4 @@
+using System.Text;
 using Wooly.Core.Notifications;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
@@ -39,18 +40,43 @@ public static class NotificationGroupLines
     ///     Who did it, the way a reader would say it: one name; two joined by "and"; two and a count of everyone else,
     ///     by the instance's count rather than by how many actors it sent.
     /// </summary>
-    public static string Who(NotificationGroup group)
+    /// <returns>
+    ///     What is written, and the custom emoji written in it: each actor's own, found in that actor's name alone
+    ///     from the list its account sends, since one account's <c>:verified:</c> is not another's (#524).
+    /// </returns>
+    private static (string Text, IReadOnlyList<Shortcode> Shortcodes) Who(NotificationGroup group)
     {
-        var named = group.Actors.Take(Named).Select(actor => actor.Author).ToList();
+        var named = group.Actors.Take(Named).ToList();
         var others = Math.Max(0, group.Count - named.Count);
 
-        return (named.Count, others) switch
+        if (named.Count == 0)
         {
-            (0, _) => group.Count == 1 ? "Somebody" : $"{group.Count} accounts",
-            (_, 0) => string.Join(" and ", named),
-            (_, 1) => $"{string.Join(", ", named)} and 1 other",
-            _ => $"{string.Join(", ", named)} and {others} others",
-        };
+            return (group.Count == 1 ? "Somebody" : $"{group.Count} accounts", []);
+        }
+
+        var text = new StringBuilder();
+        var shortcodes = new List<Shortcode>();
+
+        for (var at = 0; at < named.Count; at++)
+        {
+            text.Append(at == 0 ? string.Empty : others == 0 ? " and " : ", ");
+
+            // Where this actor's name starts in the whole line, which is where its shortcodes are moved along to.
+            var starts = text.Length;
+
+            shortcodes.AddRange(Shortcode.In(named[at].Author, named[at].CustomEmoji)
+                                         .Select(shortcode => shortcode with { At = shortcode.At + starts }));
+            text.Append(named[at].Author);
+        }
+
+        text.Append(others switch
+        {
+            0 => string.Empty,
+            1 => " and 1 other",
+            _ => $" and {others} others",
+        });
+
+        return (text.ToString(), shortcodes);
     }
 
     /// <summary>
@@ -58,9 +84,14 @@ public static class NotificationGroupLines
     ///     group's newest notification. The names give way first where the row is narrow. The who and the what stand
     ///     for the group's actors (<see cref="NamesPart" />); the space, the mark and the age for nothing.
     /// </summary>
-    public static Line Names(NotificationGroup group, bool unread, int width, DateTimeOffset now)
+    /// <remarks>
+    ///     The names' custom emoji drawn as each actor's byline draws them, and the row measured as drawn, so the
+    ///     sentence follows the last name and the age keeps its column whatever the names hold (#524).
+    /// </remarks>
+    public static Line Names(NotificationGroup group, bool unread, Drawing drawing)
     {
-        var age = Elapsed.Since(group.NewestAt, now);
+        var width = drawing.Width;
+        var age = Elapsed.Since(group.NewestAt, drawing.Now);
 
         // The word, as an unread conversation carries it, and for the same reason (ConversationLines.With) — and so
         // that it reads with no colour (ADR-0014).
@@ -69,11 +100,12 @@ public static class NotificationGroupLines
         var did = $" {look.Icon} {group.Kind.Does}";
         var room = Math.Max(0, width - Glyphs.Columns(age) - Glyphs.Columns(mark) - Glyphs.Columns(did) - 2);
 
-        var name = new Span(TextWrap.Clip(Who(group), room), Role.BylineName) { Item = NamesPart };
+        var (who, shortcodes) = Who(group);
+        var name = CustomEmojiBox.Clipped(who, shortcodes, room, Role.BylineName, drawing);
         var used = name.Width + Glyphs.Columns(did) + Glyphs.Columns(mark);
 
-        return Line.Of([
-            name,
+        return name.Respanned([
+            .. name.Spans.Select(span => span with { Item = NamesPart }),
             new Span(did, look.Role) { Item = NamesPart },
             new Span(new string(' ', Math.Max(1, width - used - Glyphs.Columns(age))), Role.Muted),
             .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),

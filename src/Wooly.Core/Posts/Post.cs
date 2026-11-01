@@ -15,6 +15,13 @@ public sealed record Post
     /// <summary>The name that account chose to be shown as, which is not unique and may be anything at all.</summary>
     public required string Author { get; init; }
 
+    /// <summary>
+    ///     The custom emoji <see cref="Author" /> uses, as the instance listed them on the account, and empty where it
+    ///     uses none: the account's list rather than <see cref="CustomEmoji" />, which is the post's words' own
+    ///     (ADR-0035). The shortcodes stay in <see cref="Author" /> as written.
+    /// </summary>
+    public IReadOnlyList<CustomEmoji> AuthorCustomEmoji { get; init; } = [];
+
     /// <summary>When it was posted, as UTC.</summary>
     public required DateTimeOffset PostedAt { get; init; }
 
@@ -95,6 +102,13 @@ public sealed record Post
     ///     <c>@maria</c> a bare <c>@maria</c> is (#85).
     /// </summary>
     public IReadOnlyList<string> Mentions { get; init; } = [];
+
+    /// <summary>
+    ///     The custom emoji <see cref="Content" /> uses, as the instance listed them, and empty where it uses none. The
+    ///     shortcodes themselves stay in <see cref="Content" /> as written; this is what says which of them are
+    ///     pictures, since a <c>:word:</c> the post does not list is only words (ADR-0035).
+    /// </summary>
+    public IReadOnlyList<CustomEmoji> CustomEmoji { get; init; } = [];
 
     /// <summary>
     ///     The post this one boosts, or <see langword="null" /> if it is not a boost. A boost carries no text of its

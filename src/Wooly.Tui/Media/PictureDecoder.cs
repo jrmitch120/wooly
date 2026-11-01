@@ -130,55 +130,56 @@ internal static class PictureDecoder
     /// <summary>
     ///     <paramref name="picture" /> at exactly <paramref name="width" /> by <paramref name="height" /> pixels — the
     ///     box it is drawn in, so that the terminal is handed pixels it has nothing left to do to. Through
-    ///     <see cref="Filled" />, so a picture of another shape is cropped to the box rather than stretched to it, and
-    ///     a Stand-in's blur is stretched.
+    ///     <see cref="Filled" />, so the picture takes its box as <paramref name="fill" /> says.
     /// </summary>
     /// <param name="picture">The picture, or the blur.</param>
     /// <param name="width">How wide the box is, in pixels.</param>
     /// <param name="height">How tall the box is, in pixels.</param>
-    /// <param name="stretched">
-    ///     Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.
-    /// </param>
-    public static Picture Scaled(Picture picture, int width, int height, bool stretched)
+    /// <param name="fill">How the picture takes its box (<see cref="Rendering.Inset.Fill" />).</param>
+    public static Picture Scaled(Picture picture, int width, int height, BoxFill fill)
     {
         if (picture.Width == width && picture.Height == height)
         {
             return picture;
         }
 
-        using var image = Filled(picture, width, height, stretched);
+        using var image = Filled(picture, width, height, fill);
 
         return new Picture(Pixels(image));
     }
 
     /// <summary>
-    ///     <paramref name="picture" /> filling a box <paramref name="width" /> by <paramref name="height" /> pixels:
-    ///     its middle cropped to the box's shape, then resized to the box (#438). The one step both raster paths take a
-    ///     picture to its box by — Kitty's PNG (<see cref="PictureEncoder.Png" />) and sixel's pixels
-    ///     (<see cref="Scaled" />) — so that the two cannot come to draw one picture in one box differently.
+    ///     <paramref name="picture" /> taking a box <paramref name="width" /> by <paramref name="height" /> pixels as
+    ///     <paramref name="fill" /> says: its middle cropped to the box's shape and resized to the box (#438), stretched
+    ///     to it, or fitted whole inside it. The one step both raster paths take a picture to its box by — Kitty's PNG
+    ///     (<see cref="PictureEncoder.Png" />) and sixel's pixels (<see cref="Scaled" />) — so that the two cannot come
+    ///     to draw one picture in one box differently.
     /// </summary>
     /// <remarks>
-    ///     Cropped from the middle, as an instance crops an avatar, because a fixed box — an avatar's, a Media row's —
-    ///     is not the picture's shape, and a picture stretched to one is squashed (GLOSSARY.md's <b>Picture box</b>).
-    ///     A picture fitted to a shaped box (<see cref="Rendering.Inset.Fit" />) already has the box's shape to within
-    ///     a cell's rounding, so the crop takes nothing there worth seeing, and nothing has to say which kind of box
-    ///     this is.
+    ///     A picture is cropped from the middle, as an instance crops an avatar, because a fixed box — an avatar's, a
+    ///     Media row's — is not the picture's shape, and a picture stretched to one is squashed (GLOSSARY.md's
+    ///     <b>Picture box</b>). A picture fitted to a shaped box (<see cref="Rendering.Inset.Fit" />) already has the
+    ///     box's shape to within a cell's rounding, so the crop takes nothing there worth seeing, and nothing has to say
+    ///     which kind of box this is.
     ///     <para>
-    ///         A <b>Stand-in</b>'s blur is the one thing stretched instead (<paramref name="stretched" />). It is
-    ///         decoded square whatever the picture's shape (<see cref="Blurs" />), so stretching it to its shaped box
-    ///         is what gives it back the picture's proportions and lines it up with the picture that replaces it, where
-    ///         cropping it would show only its middle band; and a blur has no detail to lose by being stretched
-    ///         (ADR-0025).
+    ///         A <b>Stand-in</b>'s blur is stretched instead (<see cref="BoxFill.Stretched" />). It is decoded square
+    ///         whatever the picture's shape (<see cref="Blurs" />), so stretching it to its shaped box is what gives it
+    ///         back the picture's proportions and lines it up with the picture that replaces it, where cropping it would
+    ///         show only its middle band; and a blur has no detail to lose by being stretched (ADR-0025).
+    ///     </para>
+    ///     <para>
+    ///         A <b>custom emoji</b> is fitted whole instead (<see cref="BoxFill.Fitted" />), centred, the rest of its
+    ///         box transparent, as Mastodon's web client draws one. Its two cells by one are narrower than square on most
+    ///         terminals — 40 by 45 pixels on a cell of 20 by 45 — and a custom emoji is a logo or a badge drawn to its
+    ///         edges, so a crop cut the sides off a square <c>:ubuntu:</c> and a wide <c>:php:</c> alike (ADR-0035).
     ///     </para>
     /// </remarks>
     /// <param name="picture">The picture, or the blur.</param>
     /// <param name="width">How wide the box is, in pixels.</param>
     /// <param name="height">How tall the box is, in pixels.</param>
-    /// <param name="stretched">
-    ///     Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.
-    /// </param>
+    /// <param name="fill">How the picture takes its box (<see cref="Rendering.Inset.Fill" />).</param>
     /// <returns>The image, which the caller disposes of.</returns>
-    internal static Image<Rgba32> Filled(Picture picture, int width, int height, bool stretched)
+    internal static Image<Rgba32> Filled(Picture picture, int width, int height, BoxFill fill)
     {
         var image = new Image<Rgba32>(picture.Width, picture.Height);
 
@@ -199,12 +200,24 @@ internal static class PictureDecoder
 
         if (image.Width != width || image.Height != height)
         {
-            image.Mutate(context => context.Resize(new ResizeOptions
+            var resize = fill switch
             {
-                Size = new Size(width, height),
-                Mode = stretched ? ResizeMode.Stretch : ResizeMode.Crop,
-                Position = AnchorPositionMode.Center,
-            }));
+                BoxFill.Cropped => new ResizeOptions { Mode = ResizeMode.Crop },
+                BoxFill.Stretched => new ResizeOptions { Mode = ResizeMode.Stretch },
+
+                // The room round it left transparent, for whatever is behind the box to show through.
+                BoxFill.Fitted => new ResizeOptions
+                {
+                    Mode = ResizeMode.Pad,
+                    PadColor = SixLabors.ImageSharp.Color.Transparent,
+                },
+                _ => throw new ArgumentOutOfRangeException(nameof(fill), fill, "Not a way this client fills a box."),
+            };
+
+            resize.Size = new Size(width, height);
+            resize.Position = AnchorPositionMode.Center;
+
+            image.Mutate(context => context.Resize(resize));
         }
 
         return image;

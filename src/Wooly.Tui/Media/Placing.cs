@@ -37,7 +37,9 @@ internal sealed class Placing
     ///     than a count of attachments: an attachment is a few rows tall and a post's text stands between one and the
     ///     next, so a screen could only ever hold a handful — but every post wants a box now, and a tall terminal
     ///     shows a dozen posts before it shows a single photograph. A screen wanting more pictures than there are
-    ///     boxes draws what it can and drops the rest, which is a picture silently missing.
+    ///     boxes draws what it can and drops the rest, which is a picture silently missing. Custom emoji are not drawn
+    ///     from these but from <see cref="MostCustomEmojiBoxes" /> of their own, so a page of them never decides whether an
+    ///     attachment or an avatar is drawn (ADR-0035).
     ///     <para>
     ///         Fixed, and every one of them built as this is, before anything is drawn, because the alternative is
     ///         adding a subview from inside a draw — which mutates the tree the draw is walking, and leaves the release
@@ -48,12 +50,28 @@ internal sealed class Placing
     /// </remarks>
     public const int MostBoxes = 24;
 
+    /// <summary>
+    ///     How many custom emoji can be drawn through a box at once, from a pool of their own built as the other is,
+    ///     before anything is drawn (ADR-0035). One that finds none left is painted as the shaded room it was before it
+    ///     landed (<see cref="Placement" />), so only a custom emoji ever goes without, and nothing moves.
+    /// </summary>
+    /// <remarks>
+    ///     From <c>ScrollMeasure</c> over a timeline full of them on sixel: a 120×50 page of posts writing one every few
+    ///     words held 58 on most frames and 64 at most. A taller page of them leaves its last few shaded, never an
+    ///     attachment below them undrawn.
+    /// </remarks>
+    public const int MostCustomEmojiBoxes = 64;
+
     /// <summary>How many rows of a scroll the cuts of a sixel are encoded ahead of it (ADR-0023).</summary>
     private const int Ahead = 4;
 
     private readonly IPictures _pictures;
     private readonly SixelPictures _sixels;
     private readonly Placeholders? _placeholders;
+
+    /// <summary>
+    ///     Every box: the first <see cref="MostBoxes" /> for every picture but custom emoji, and the rest theirs.
+    /// </summary>
     private readonly List<IPictureBox> _boxes = [];
 
     /// <summary>
@@ -77,9 +95,10 @@ internal sealed class Placing
     /// <param name="pictures">Where the pixels for a drawn picture come from.</param>
     /// <param name="box">
     ///     What makes a box a picture is drawn through: one added to the view in the program
-    ///     (<see cref="PictureView" />), and a fake in a test. Asked <see cref="MostBoxes" /> times, here.
+    ///     (<see cref="PictureView" />), and a fake in a test. Asked <see cref="MostBoxes" /> times, here, and then
+    ///     <see cref="MostCustomEmojiBoxes" /> times for the custom emoji's.
     /// </param>
-    /// <param name="sixels">What encodes a sixel's cuts, laid on the page's backdrop.</param>
+    /// <param name="sixels">What encodes a sixel's cuts, laid on what is behind each box.</param>
     /// <param name="placeholders">
     ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box
     ///     (ADR-0022), or <see langword="null" /> where there is no such terminal to hold them.
@@ -90,7 +109,7 @@ internal sealed class Placing
         _sixels = sixels;
         _placeholders = placeholders;
 
-        for (var at = 0; at < MostBoxes; at++)
+        for (var at = 0; at < MostBoxes + MostCustomEmojiBoxes; at++)
         {
             _boxes.Add(box());
         }
@@ -120,7 +139,11 @@ internal sealed class Placing
     ///     left showing from the last size there was over whatever replaces it.
     /// </param>
     /// <param name="raster">How this terminal paints pixels, as the frame was settled under.</param>
-    /// <returns>The pictures to paint as placeholder cells — none but where the terminal draws placeholders.</returns>
+    /// <returns>
+    ///     What the view paints over the rows itself: where the terminal draws placeholders, the pictures to paint as
+    ///     placeholder cells, and where it draws through boxes, the custom emoji on the page no box was left for, to
+    ///     paint as their shade.
+    /// </returns>
     public IReadOnlyList<Placement> Frame(IReadOnlyList<Line> lines, int top, int width, int height, Raster raster)
     {
         var page = new Page(lines, top, width, height);
@@ -164,7 +187,7 @@ internal sealed class Placing
                 return drawing is null ? [] : Sent(drawing, page, cell);
 
             case PictureWay.Sixel:
-                Place(page, (box, inset, at, picture) =>
+                var shaded = Place(page, (box, inset, at, picture) =>
                 {
                     // Only the part of the box on the page: a box straddling the top or bottom is framed to the rows
                     // still on it, so the picture is cut here, once per cut, rather than by the driver on every
@@ -178,7 +201,7 @@ internal sealed class Placing
 
                     Shown(box, frame, () => box.Show(
                         inset.Drawn.Id,
-                        _sixels.Of(inset, picture, cell, crop, raster.SixelColours)));
+                        _sixels.Of(inset, picture, cell, crop, raster.SixelColours, page.Banded(inset, at))));
                 });
 
                 Prepare(page, moving, cell, raster.SixelColours);
@@ -187,20 +210,18 @@ internal sealed class Placing
                 {
                     if (OnPage(inset, at, page) is { Crop: var crop })
                     {
-                        _sixels.Prepare(inset, picture, cell, crop, raster.SixelColours);
+                        _sixels.Prepare(inset, picture, cell, crop, raster.SixelColours, page.Banded(inset, at));
                     }
                 }
 
-                break;
+                return shaded;
 
             case PictureWay.Kitty:
                 // Through Kitty the image view draws the whole box, which it sends once and moves (ADR-0016).
-                Place(page, (box, inset, at, picture) => Shown(
+                return Place(page, (box, inset, at, picture) => Shown(
                     box,
                     new Rectangle(inset.Column, at, inset.Columns, inset.Rows),
                     () => box.Show(inset.Drawn.Id, picture)));
-
-                break;
 
             default:
                 ReleaseAll();
@@ -478,17 +499,34 @@ internal sealed class Placing
 
     /// <summary>
     ///     Gives each picture on the page a box and lets go of every other, all of them released before any is placed,
-    ///     and <paramref name="show" /> putting each picture in the box it was given.
+    ///     and <paramref name="show" /> putting each picture in the box it was given — a custom emoji in one of its own
+    ///     pool's, every other picture in one of the rest.
     /// </summary>
-    private void Place(Page page, Action<IPictureBox, Inset, int, Picture> show)
+    /// <returns>The custom emoji on the page no box was left for, to be painted as their shade.</returns>
+    private List<Placement> Place(Page page, Action<IPictureBox, Inset, int, Picture> show)
     {
         var wanted = Wanted(page);
 
         // Who draws what, settled for the whole frame before anything moves — see Boxes. Asking box by box is what
-        // this used to do, and it could not see that one picture was wanted once and held twice.
-        var drawing = Boxes(
-            [.. _boxes.Select(box => box.PictureId)],
-            [.. wanted.Select(want => want.Inset.Drawn.Id)]);
+        // this used to do, and it could not see that one picture was wanted once and held twice. Each pool is settled
+        // apart, so that however many custom emoji a page holds, none is given a box another picture would have had.
+        var drawing = new int?[wanted.Count];
+
+        foreach (var (customEmoji, from, count) in (ReadOnlySpan<(bool, int, int)>)
+                 [(false, 0, MostBoxes), (true, MostBoxes, MostCustomEmojiBoxes)])
+        {
+            List<int> theirs =
+                [.. Enumerable.Range(0, wanted.Count).Where(at => wanted[at].Inset.Drawn.IsCustomEmoji == customEmoji)];
+
+            var given = Boxes(
+                [.. _boxes.Skip(from).Take(count).Select(box => box.PictureId)],
+                [.. theirs.Select(at => wanted[at].Inset.Drawn.Id)]);
+
+            for (var nth = 0; nth < theirs.Count; nth++)
+            {
+                drawing[theirs[nth]] = from + given[nth];
+            }
+        }
 
         // Which boxes are already holding the picture they have been given, and so have nothing to be told.
         var keeping = new HashSet<int>();
@@ -512,15 +550,23 @@ internal sealed class Placing
             }
         }
 
+        var shaded = new List<Placement>();
+
         for (var at = 0; at < wanted.Count; at++)
         {
+            var (inset, from, picture) = wanted[at];
+
             if (drawing[at] is { } which)
             {
-                var (inset, from, picture) = wanted[at];
-
                 show(_boxes[which], inset, from, picture);
             }
+            else if (inset.Drawn.IsCustomEmoji)
+            {
+                shaded.Add(new Placement(inset, from, Id: null));
+            }
         }
+
+        return shaded;
     }
 
     /// <summary>
@@ -571,9 +617,10 @@ internal sealed class Placing
                     continue;
                 }
 
+                // On the row it is on whichever row of the page that comes to.
                 if (OnPage(inset, at + rows, page) is { Crop: var next } && next != now)
                 {
-                    _sixels.Prepare(inset, picture, cell, next, colours);
+                    _sixels.Prepare(inset, picture, cell, next, colours, page.Banded(inset, at));
                 }
             }
         }
@@ -601,6 +648,13 @@ internal sealed class Placing
     {
         /// <summary>Whether there is a page at all — none where the window has shrunk to nothing.</summary>
         public bool HasRoom => Width > 0 && Height > 0;
+
+        /// <summary>
+        ///     Whether <paramref name="inset" />'s box, its top on row <paramref name="at" /> of the page, is on the band
+        ///     of a picked row rather than on the page (<see cref="Line.BandedAt" />): what shows through it.
+        /// </summary>
+        public bool Banded(Inset inset, int at) =>
+            Top + at is var row && row >= 0 && row < Lines.Count && Lines[row].BandedAt(inset.Column);
     }
 
     /// <summary>

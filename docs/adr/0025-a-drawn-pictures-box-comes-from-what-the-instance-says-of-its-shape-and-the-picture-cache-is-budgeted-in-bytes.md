@@ -174,3 +174,10 @@ The fitted inset already has the picture's shape to within a cell's rounding, so
 what gives it the picture's proportions back and lines it up with the picture that replaces it, and it has no detail to
 lose. Cropping it would show only its middle band. `PictureDecoder.Filled` stretches it instead of cropping it, told so
 by the inset carrying a blur.
+
+## Amendment: a custom emoji's fixed box is fitted, not filled (review of #522)
+
+The amendment above says a fixed box is filled and never fitted with slack. A custom emoji's box is the exception: it is
+fixed, two cells by one, but its picture is fitted whole inside it and centred, as Mastodon's web client draws one,
+because a crop cut the sides off a logo drawn to its edges. ADR-0035's amendment for the review of #522 says why. Every
+other fixed box is still filled.

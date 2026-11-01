@@ -128,7 +128,8 @@ public sealed class FollowsScreen : Screen, IReadsOn<Account>
     public Account? PickedPerson => _walking.Out;
 
     /// <inheritdoc />
-    public override string Crumb => $"@{Whose.Address} {Called}";
+    /// <remarks>Whose list by the name their account's crumb gives them, <see cref="PlainName" /> (#525).</remarks>
+    public override string Crumb => $"{PlainName.Of(Whose)} {Called}";
 
     /// <inheritdoc />
     public override bool Refreshes => true;
@@ -464,11 +465,13 @@ public sealed class FollowsScreen : Screen, IReadsOn<Account>
     /// <remarks>
     ///     Their handle as well as their display name, since a reader half-remembering somebody may have either in
     ///     mind — and neither is what the other is: a display name is not unique and a handle is not what anybody
-    ///     calls them.
+    ///     calls them. The name as one line of plain text holds it (<see cref="PlainName" />), the shortcodes the
+    ///     account lists taken out, so that <c>verified</c> passes over a <c>:verified:</c> badge (#525).
     /// </remarks>
     private bool Matches(Account person) =>
         Filter.Length == 0
-        || person.Author.Contains(Filter, StringComparison.CurrentCultureIgnoreCase)
+        || PlainName.Without(person.Author, person.CustomEmoji)
+                    .Contains(Filter, StringComparison.CurrentCultureIgnoreCase)
         || person.Address.Contains(Filter, StringComparison.CurrentCultureIgnoreCase);
 
     /// <summary>

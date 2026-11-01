@@ -1,4 +1,5 @@
 using Terminal.Gui.Drawing;
+using Wooly.Core;
 using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 
@@ -57,6 +58,29 @@ internal sealed class FakePictures : IPictures
     public FakePictures HoldingAvatarOf(string account, int width = 96, int height = 96)
     {
         _avatars[account] = new Picture(new Color[width, height]);
+
+        return this;
+    }
+
+    /// <summary>Says that <paramref name="account" />'s avatar has arrived as <paramref name="picture" />.</summary>
+    public FakePictures HoldingAvatarOf(string account, Picture picture)
+    {
+        _avatars[account] = picture;
+
+        return this;
+    }
+
+    /// <summary>
+    ///     Says that <paramref name="emoji" />'s still picture has arrived, at the given size in pixels — one picture
+    ///     for every post and name that uses it.
+    /// </summary>
+    public FakePictures HoldingCustomEmoji(CustomEmoji emoji, int width = 36, int height = 36) =>
+        Held(Drawn.CustomEmoji(emoji).Id, width, height);
+
+    /// <summary>Says that <paramref name="emoji" />'s still picture has arrived as <paramref name="picture" />.</summary>
+    public FakePictures HoldingCustomEmoji(CustomEmoji emoji, Picture picture)
+    {
+        _held[Drawn.CustomEmoji(emoji).Id] = picture;
 
         return this;
     }

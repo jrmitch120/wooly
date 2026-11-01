@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Posts;
 
 namespace Wooly.Tests.Fakes;
@@ -25,11 +26,14 @@ internal static class APost
         PostReplyTarget? inReplyTo = null,
         PostPoll? poll = null,
         LinkPreview? linkPreview = null,
-        bool isMine = false) => new()
+        bool isMine = false,
+        IReadOnlyList<CustomEmoji>? customEmoji = null,
+        IReadOnlyList<CustomEmoji>? authorCustomEmoji = null) => new()
     {
         Id = id,
         Account = account,
         Author = author,
+        AuthorCustomEmoji = authorCustomEmoji ?? [],
         PostedAt = new DateTimeOffset(2026, 7, 29, 12, 0, 0, TimeSpan.Zero),
         Content = content,
         ContentWarning = contentWarning,
@@ -42,6 +46,7 @@ internal static class APost
         IsMine = isMine,
         Media = media ?? [],
         Mentions = mentions ?? [],
+        CustomEmoji = customEmoji ?? [],
         Boosted = boosted,
         Url = $"https://mastodon.social/@jeff/{id}",
         AvatarUrl = avatarUrl,
@@ -135,6 +140,10 @@ internal static class APost
     };
 
     /// <summary>One answer on a poll, with its vote count — or none, for an answer whose count is withheld.</summary>
-    public static PostPollOption AnAnswer(string text, long? votes, bool picked = false) =>
-        new() { Text = text, Votes = votes, Picked = picked };
+    public static PostPollOption AnAnswer(
+        string text,
+        long? votes,
+        bool picked = false,
+        IReadOnlyList<CustomEmoji>? customEmoji = null) =>
+        new() { Text = text, Votes = votes, Picked = picked, CustomEmoji = customEmoji ?? [] };
 }

@@ -243,6 +243,29 @@ public class PostEngagementTests
     }
 
     /// <summary>
+    ///     A vote's answer is the poll alone, its custom emoji list with it, and the options grafted onto the post keep
+    ///     the emoji they are written with (ADR-0035).
+    /// </summary>
+    [Fact]
+    public async Task Vote_KeepsTheCustomEmojiThePollListsOnItsOptions()
+    {
+        var network = Answering(PollJson(
+            "7",
+            [4, 7],
+            ownVotes: [1],
+            emojis: WireEmojis.Json(("cat", "https://files.example/emoji/cat.gif"))));
+        var post = APost.With(id: "110", poll: APost.APoll(id: "7", voted: false));
+
+        var voted = await NewEngagement(network).Vote(Profile, post, [1], TestContext.Current.CancellationToken);
+
+        Assert.All(
+            voted.Poll!.Options,
+            option => Assert.Equal(
+                [new CustomEmoji("cat", "https://files.example/emoji/cat-static.png")],
+                option.CustomEmoji));
+    }
+
+    /// <summary>
     ///     An instance refuses a second vote outright rather than replacing the first, and that refusal is something
     ///     the reader is told rather than something this client falls over on.
     /// </summary>
@@ -450,7 +473,12 @@ public class PostEngagementTests
         """;
 
     /// <summary>What an instance answers a vote with: the whole poll as it now stands, and nothing of the post on it.</summary>
-    private static string PollJson(string id, IReadOnlyList<long> votes, IReadOnlyList<int> ownVotes)
+    /// <param name="emojis">The custom emoji the poll lists, as <see cref="WireEmojis.Json" /> writes them.</param>
+    private static string PollJson(
+        string id,
+        IReadOnlyList<long> votes,
+        IReadOnlyList<int> ownVotes,
+        string emojis = "[]")
     {
         var options = votes.Select((count, at) => $$"""{"title": "Option {{at}}", "votes_count": {{count}}}""");
 
@@ -465,7 +493,7 @@ public class PostEngagementTests
                    "voted": true,
                    "own_votes": [{{string.Join(", ", ownVotes)}}],
                    "options": [{{string.Join(", ", options)}}],
-                   "emojis": []
+                   "emojis": {{emojis}}
                  }
                  """;
     }

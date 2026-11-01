@@ -55,6 +55,44 @@ public class NotificationGroupReadTests
     }
 
     /// <summary>
+    ///     A group's actors and the author of its post come with the custom emoji their names use, read off the raw
+    ///     grouped answer through the same account and post mapping as everywhere else (ADR-0032, ADR-0035).
+    /// </summary>
+    [Fact]
+    public async Task ReadGroups_ReadsTheCustomEmojiTheActorsAndThePostsAuthorList()
+    {
+        var network = new ScriptedHttpMessageHandler(GroupedResponse(Grouped(
+            [Group("favourite-110-493000", "favourite", count: 1, newest: 340, samples: ["2"], status: "110")],
+            accounts:
+            [
+                AccountJson(
+                    "2",
+                    "alice@hachyderm.io",
+                    displayName: "Alice :verified:",
+                    emojis: WireEmojis.Json(("verified", "https://files.hachyderm.io/emoji/verified.png"))),
+            ],
+            statuses:
+            [
+                PostJson(
+                    "110",
+                    author: "Jeff :US_AZ:",
+                    emojis: WireEmojis.Json(("US_AZ", "https://files.mastodon.social/emoji/US_AZ.png"))),
+            ])));
+
+        var fetch = await NewInbox(network).ReadGroups(Profile, 40, TestContext.Current.CancellationToken);
+
+        var group = Assert.Single(fetch.Items);
+        var actor = Assert.Single(group.Actors);
+        Assert.Equal("Alice :verified:", actor.Author);
+        Assert.Equal(
+            [new CustomEmoji("verified", "https://files.hachyderm.io/emoji/verified-static.png")],
+            actor.CustomEmoji);
+        Assert.Equal(
+            [new CustomEmoji("US_AZ", "https://files.mastodon.social/emoji/US_AZ-static.png")],
+            group.Post?.AuthorCustomEmoji);
+    }
+
+    /// <summary>
     ///     The grouped read is sent as the instance's own grouping, with no <c>grouped_types</c>: which kinds group is
     ///     the instance's call, never this client's (ADR-0032).
     /// </summary>
@@ -442,13 +480,14 @@ public class NotificationGroupReadTests
           }
           """;
 
-    private static string AccountJson(string id, string acct) =>
+    private static string AccountJson(string id, string acct, string? displayName = null, string emojis = "[]") =>
         $$"""
           {
             "id": "{{id}}",
             "username": "{{acct.Split('@')[0]}}",
             "acct": "{{acct}}",
-            "display_name": "{{char.ToUpperInvariant(acct[0]) + acct.Split('@')[0][1..]}}",
+            "display_name": "{{displayName ?? char.ToUpperInvariant(acct[0]) + acct.Split('@')[0][1..]}}",
+            "emojis": {{emojis}},
             "avatar": "https://files.example/{{id}}.png",
             "avatar_static": "https://files.example/{{id}}.png",
             "created_at": "2024-01-01T00:00:00.000Z"
@@ -467,7 +506,9 @@ public class NotificationGroupReadTests
           }
           """;
 
-    private static string PostJson(string id) =>
+    /// <param name="author">The name its author chose to be shown as.</param>
+    /// <param name="emojis">The custom emoji the author's account lists.</param>
+    private static string PostJson(string id, string author = "Jeff", string emojis = "[]") =>
         $$"""
           {
             "id": "{{id}}",
@@ -478,7 +519,8 @@ public class NotificationGroupReadTests
               "id": "1",
               "username": "jeff",
               "acct": "jeff",
-              "display_name": "Jeff"
+              "display_name": "{{author}}",
+              "emojis": {{emojis}}
             },
             "content": "<p>Hello world</p>",
             "spoiler_text": "",

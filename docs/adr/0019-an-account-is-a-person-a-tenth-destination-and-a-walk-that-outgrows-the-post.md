@@ -265,3 +265,11 @@ run by id, as a pinned normal post always was, so it is still drawn in the pinne
 Discover keeps its place on the rail and its cost argument, but not its neighbours. ADR-0021 splits the five
 "places you go" by what each is for: **Explore** (Discover, then Search) and **Inbox** (Notifications, Direct messages,
 Follow requests). The rail's order is now Timelines, Explore, Inbox, You.
+
+## Amendment: `TextWrap` measures columns, and holds a custom emoji whole (#523)
+
+**No new `Role`, and no emoji** above was right when it was decided: `TextWrap.Clip` cut by `char` then, and every
+glyph the TUI had was BMP and one column wide. The change it waited for came with #207: `TextWrap` measures in the
+columns a terminal draws in, and `TextWrap.Clip` cuts between graphemes by those columns, never inside one
+(`Glyphs.Cut`). The flags keep their words all the same, which carry where a glyph only decorates. A custom emoji is
+held whole at two columns by the same wrap and clip (ADR-0035).

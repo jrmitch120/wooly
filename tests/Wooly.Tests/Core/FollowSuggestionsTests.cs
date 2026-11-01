@@ -28,6 +28,30 @@ public class FollowSuggestionsTests
     };
 
     /// <summary>
+    ///     A suggested account comes with the custom emoji its name uses, read raw off <c>v2</c> through the same
+    ///     account mapping as everywhere else (ADR-0035).
+    /// </summary>
+    [Fact]
+    public async Task Read_ReadsTheCustomEmojiASuggestedAccountLists()
+    {
+        var network = Answering(Offered(SuggestionJson(
+            AccountJson(
+                "jon@hachyderm.io",
+                id: "7",
+                displayName: "Jon :verified:",
+                emojis: WireEmojis.Json(("verified", "https://files.hachyderm.io/emoji/verified.png"))),
+            "most_followed")));
+
+        var suggestions = await Suggestions(network).Read(Profile, limit: 40, TestContext.Current.CancellationToken);
+
+        var jon = Assert.Single(suggestions).Account;
+        Assert.Equal("Jon :verified:", jon.Author);
+        Assert.Equal(
+            [new CustomEmoji("verified", "https://files.hachyderm.io/emoji/verified-static.png")],
+            jon.CustomEmoji);
+    }
+
+    /// <summary>
     ///     The call this port was built for: <c>v2</c>, over the same named client and carrying the same token as every
     ///     Mastonet call, because <c>v1</c> answers with the accounts and throws the reasons away.
     /// </summary>
@@ -281,13 +305,14 @@ public class FollowSuggestionsTests
     ///     The wire's <c>acct</c>: bare for an account on the instance being read, <c>username@instance</c> for one
     ///     anywhere else.
     /// </param>
-    private static string AccountJson(string account, string id) =>
+    private static string AccountJson(string account, string id, string displayName = "Alice", string emojis = "[]") =>
         $$"""
           {
             "id": "{{id}}",
             "username": "{{account.Split('@')[0]}}",
             "acct": "{{account}}",
-            "display_name": "Alice",
+            "display_name": "{{displayName}}",
+            "emojis": {{emojis}},
             "url": "https://{{(account.Contains('@') ? account.Split('@')[1] : "mastodon.social")}}/@{{account.Split('@')[0]}}",
             "note": "<p>Hello</p>",
             "avatar": "https://hachyderm.io/avatars/default.png",

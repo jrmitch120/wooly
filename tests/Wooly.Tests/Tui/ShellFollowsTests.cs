@@ -25,7 +25,7 @@ public class ShellFollowsTests
         var follows = Assert.IsType<FollowsScreen>(opened.Screen);
 
         Assert.Equal(FollowSide.Following, follows.Side);
-        Assert.Equal("@ben@hachyderm.io following", follows.Crumb);
+        Assert.Equal("Ben following", follows.Crumb);
 
         var listed = Assert.Single(Listed(fakes));
         Assert.Equal(FollowSide.Following, listed.Side);
@@ -63,7 +63,7 @@ public class ShellFollowsTests
         var follows = Assert.IsType<FollowsScreen>(opened.Screen);
 
         Assert.Equal(FollowSide.Followers, follows.Side);
-        Assert.Equal("@ben@hachyderm.io followers", follows.Crumb);
+        Assert.Equal("Ben followers", follows.Crumb);
         Assert.Equal(depth, opened.Depth);
         Assert.Equal(FollowSide.Followers, Listed(fakes)[^1].Side);
     }
@@ -519,7 +519,7 @@ public class ShellFollowsTests
         Account? whose = null,
         Action<FakeAccountRelationships>? configure = null)
     {
-        var fakes = Fakes(whose ?? AnAccount.With(address: "ben@hachyderm.io"), listing ?? [AnAccount.With()]);
+        var fakes = Fakes(whose ?? AnAccount.With(address: "ben@hachyderm.io", author: "Ben"), listing ?? [AnAccount.With()]);
 
         configure?.Invoke(fakes.Accounts);
 

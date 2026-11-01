@@ -15,7 +15,7 @@ public class PanelsPaletteTests
     private const string Text = "#cdd6f4", Subtext = "#a6adc8", Overlay = "#6c7086", Surface0 = "#313244";
     private const string Surface1 = "#45475a", Surface2 = "#585b70", Mauve = "#cba6f7", Blue = "#89b4fa";
     private const string Sapphire = "#74c7ec", Teal = "#94e2d5", Green = "#a6e3a1", Yellow = "#f9e2af";
-    private const string Peach = "#fab387", Red = "#f38ba8";
+    private const string Peach = "#fab387", Red = "#f38ba8", Flamingo = "#f2cdcd";
 
     /// <summary>The pick mark's near-white.</summary>
     private const string PickMark = "#f2f0f7";
@@ -40,6 +40,10 @@ public class PanelsPaletteTests
         [Role.ContentWarning] = (Peach, null),
         [Role.Media] = (Teal, null),
         [Role.StandIn] = (Surface1, null),
+
+        // Not the prototype's, which wrote no custom emoji: Mocha's Flamingo, an accent no muted text is drawn in, so a
+        // shortcode reads as a picture that was meant inside muted text as well (review of #522).
+        [Role.CustomEmoji] = (Flamingo, null),
         [Role.Poll] = (Mauve, null),
         [Role.ReferencePicked] = (PickMark, null),
         [Role.Boost] = (Green, null),

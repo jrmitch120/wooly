@@ -1,8 +1,7 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Theme;
 using Color = Terminal.Gui.Drawing.Color;
 
 namespace Wooly.Tests.Tui;
@@ -10,7 +9,8 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     The one step that takes a picture to its box's pixels, on the sixel path and the Kitty path alike (#438): the
 ///     picture's middle cropped to the box's shape, then resized — so a picture of another shape fills its box rather
-///     than being stretched to it, and one already the box's shape comes out as a plain resize.
+///     than being stretched to it, and one already the box's shape comes out as a plain resize. A Stand-in's blur is
+///     stretched to its box instead, and a custom emoji fitted whole inside it.
 /// </summary>
 public class FilledPictureTests
 {
@@ -26,7 +26,7 @@ public class FilledPictureTests
     [Fact]
     public void Scaled_KeepsAPortraitPicturesMiddleRatherThanSquashingIt()
     {
-        var filled = PictureDecoder.Scaled(Portrait(), 3 * Cell.Width, 1 * Cell.Height, stretched: false);
+        var filled = PictureDecoder.Scaled(Portrait(), 3 * Cell.Width, 1 * Cell.Height, BoxFill.Cropped);
 
         AssertTheMiddleKept(filled);
     }
@@ -40,7 +40,7 @@ public class FilledPictureTests
 
         placeholders.Ready(box, Portrait(), Cell);
 
-        AssertTheMiddleKept(Pixels(Assert.Single(terminal.Transmitted).Png));
+        AssertTheMiddleKept(Assert.Single(terminal.Transmitted).Pixels());
     }
 
     /// <summary>
@@ -50,7 +50,7 @@ public class FilledPictureTests
     [Fact]
     public void Scaled_ResizesAPictureAlreadyTheBoxsShapeWhole()
     {
-        var filled = PictureDecoder.Scaled(Quartered(60, 40), 30, 20, stretched: false);
+        var filled = PictureDecoder.Scaled(Quartered(60, 40), 30, 20, BoxFill.Cropped);
 
         Assert.Equal((30, 20), (filled.Width, filled.Height));
         Assert.Equal(Red, filled.Pixels[0, 0]);
@@ -74,7 +74,7 @@ public class FilledPictureTests
 
         placeholders.Ready(WideBlur(), Banded(), Cell);
 
-        AssertNothingCropped(Pixels(Assert.Single(terminal.Transmitted).Png));
+        AssertNothingCropped(Assert.Single(terminal.Transmitted).Pixels());
     }
 
     /// <inheritdoc cref="Placeholders_StretchABlurToAWideBoxRatherThanCroppingIt" />
@@ -86,6 +86,51 @@ public class FilledPictureTests
         var sixel = sixels.Of(WideBlur(), Banded(), Cell, new SixelCrop(Top: 0, Rows: 2, Columns: 8), colours: 256);
 
         AssertNothingCropped(new Picture(sixel.Pixels));
+    }
+
+    /// <summary>
+    ///     An avatar's fixed box is still filled by its picture's middle, as an instance crops one, on Kitty's
+    ///     placeholders and sixel alike — only a custom emoji is fitted whole. On a cell of 20 by 45 a byline's avatar is
+    ///     80 by 90 pixels, and a portrait one, red along its top quarter and blue along its bottom, shows only the green
+    ///     between, edge to edge: fitted, it would have left the sides of the box empty, and stretched, shown the red
+    ///     and the blue.
+    /// </summary>
+    [Theory]
+    [InlineData(PictureWay.Placeholders)]
+    [InlineData(PictureWay.Sixel)]
+    public async Task APortraitAvatarFillsItsBoxWithItsMiddle(PictureWay way)
+    {
+        var terminal = new FakeTerminalImages();
+        var cell = new CellSize(20, 45);
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            30,
+            Themes.Dark,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110", avatarUrl: "https://files.mastodon.social/avatars/jeff.png")),
+            },
+            pictures: new FakePictures().HoldingAvatarOf("jeff@mastodon.social", PortraitAvatar()),
+            drawsPictures: way == PictureWay.Sixel,
+            kittyImages: terminal,
+            drawsPlaceholders: way == PictureWay.Placeholders,
+            raster: way == PictureWay.Sixel ? ARaster.Sixel(cell) : ARaster.Placeholders(cell));
+
+        var avatar = way == PictureWay.Sixel
+            ? new Picture(Assert.Single(drawn.Application.Driver!.GetOutputBuffer().GetRasterImages()).Pixels!)
+            : Assert.Single(terminal.Transmitted).Pixels();
+
+        Assert.Equal((80, 90), (avatar.Width, avatar.Height));
+
+        for (var x = 0; x < avatar.Width; x++)
+        {
+            for (var y = 0; y < avatar.Height; y++)
+            {
+                Assert.Equal((x, y, APicture.Rgba(Green)), (x, y, APicture.Rgba(avatar.Pixels[x, y])));
+            }
+        }
     }
 
     /// <summary>
@@ -156,6 +201,24 @@ public class FilledPictureTests
     }
 
     /// <summary>
+    ///     A portrait avatar, 50 by 200: red along its top fifty rows, blue along its bottom fifty, and green between.
+    /// </summary>
+    private static Picture PortraitAvatar()
+    {
+        var pixels = new Color[50, 200];
+
+        for (var x = 0; x < 50; x++)
+        {
+            for (var y = 0; y < 200; y++)
+            {
+                pixels[x, y] = y < 50 ? Red : y >= 150 ? Blue : Green;
+            }
+        }
+
+        return new Picture(pixels);
+    }
+
+    /// <summary>
     ///     Red at the top left, green at the top right, blue at the bottom left, white at the bottom right.
     /// </summary>
     private static Picture Quartered(int width, int height)
@@ -202,23 +265,5 @@ public class FilledPictureTests
         Assert.InRange(across, 10, 14);
         Assert.InRange(down, 10, 14);
         Assert.InRange(across - down, -2, 2);
-    }
-
-    private static Picture Pixels(byte[] png)
-    {
-        using var image = Image.Load<Rgba32>(png);
-        var pixels = new Color[image.Width, image.Height];
-
-        for (var x = 0; x < image.Width; x++)
-        {
-            for (var y = 0; y < image.Height; y++)
-            {
-                var pixel = image[x, y];
-
-                pixels[x, y] = new Color(pixel.R, pixel.G, pixel.B);
-            }
-        }
-
-        return new Picture(pixels);
     }
 }

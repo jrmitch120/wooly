@@ -13,7 +13,7 @@ Panels, since ADR-0021. The rail and the content are each a rounded frame with a
 the dividing, so there is no breadcrumb row, no blank row under it and no gutter column.
 
 ```
-╭ Timelines ───────╮╭ Home › Post by @ben  ✱ ──────────────────────────────────╮
+╭ Timelines ───────╮╭ Home › Post by Ben  ✱ ───────────────────────────────────╮
 │Home             3││ content                                                  │
 │Local             ││ (feed · post · account · conversation · search)          │
 │Federated         ││                                                          │
@@ -251,7 +251,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Media — the attachments screen, a row for each thing attached to a compose or a reply | `⏎` on the Media header, or a click on its line, where a short terminal folded the rows into it | story 58 |
 | Profiles — every profile on this machine, marked `acting as` and `default` | `ctrl-p` | #240 (ADR-0020) |
 | Add a profile — the instance, a sign-in through the browser or a pasted token, the token checked, a name | `a` on the profiles screen, or launching with nobody to act as | #245, #247 (ADR-0020) |
-| Picture — one still picture on a post over the whole window at its original, fitted whole, its description wrapped and centred beneath it, crumbed `Picture by @author`, or `Picture 2 of 4 by @author` where the post has several | `⏎` on a walked picture, in a feed or on the post screen | #516, #517 (ADR-0034) |
+| Picture — one still picture on a post over the whole window at its original, fitted whole, its description wrapped and centred beneath it, crumbed `Picture by Maria`, or `Picture 2 of 4 by Maria` where the post has several, naming the author as the post screen's crumb does | `⏎` on a walked picture, in a feed or on the post screen | #516, #517 (ADR-0034) |
 | Media inside a post or feed item | Drawn in place | #31 (ADR-0016) |
 
 Every screen owes three things: it reads at 57 columns (58 for a screen with widgets of its own — compose, the
@@ -319,7 +319,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Choose avatar / Choose header | the Attach browser's keys, but it lists only pictures, `ctrl-a` shows no other files, one file may be chosen, and `⏎` takes the file chosen, else the one under the cursor, back to the form's row as its picture (#407) · `esc` back to the form unchanged |
 | Attach | type to filter, fuzzily (#376) · `space` choose the file under the cursor, or let it go — up to what the post has room for · `⏎` attach what is chosen, wherever the cursor is, else the file under the cursor, else open the folder under it · `→` open a folder · `←` up a folder · `↑`/`↓` walk the list · `ctrl-a` every file, and again only the accepted types · `backspace`/`delete` only ever the filter, stopping at empty · `esc` clear the filter, then back to the draft unchanged |
 | Media (the attachments screen) | `↑`/`↓` walk the rows · `⏎` describe the row · `del`/`backspace` take it off · `ctrl-z` bring back the last one taken off · `shift-↑`/`shift-↓` move it · `r` retry it where a retry can help · `s` the sensitive toggle · `ctrl-o` the file browser, attaching onto the compose under it · `ctrl-v`/`alt-v` attach from the clipboard onto it · `esc` back to the draft (story 58) |
-| Picture | `←`/`→` step to the post's previous or next still picture, in the order they are drawn and passing over a video or the like on the same post, each drawn as any is with its own description, stopping at either end rather than coming round; the status row says them only where the post has several, and the crumb counts which this is (`Picture 2 of 4 by @author`), updating with each step (#518, review of #514) · `esc` back at its first press, to the screen it was opened from with the same pick and nothing walked, whichever was stepped to — nothing on the screen is walked or picked for it to let go of first, the steps being the screen's own (#516, #518, review of #514) |
+| Picture | `←`/`→` step to the post's previous or next still picture, in the order they are drawn and passing over a video or the like on the same post, each drawn as any is with its own description, stopping at either end rather than coming round; the status row says them only where the post has several, and the crumb counts which this is (`Picture 2 of 4 by Maria`), updating with each step (#518, review of #514) · `esc` back at its first press, to the screen it was opened from with the same pick and nothing walked, whichever was stepped to — nothing on the screen is walked or picked for it to let go of first, the steps being the screen's own (#516, #518, review of #514) |
 | Home, local, federated, each tag set, Discover, Notifications, Messages, Requests, Post, Account, Follows, Actors | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
@@ -927,7 +927,7 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   picture's description alone, and either way the picture is not walked. A video's or animation's preview box, a link
   preview's picture and avatars are never walked to as pictures.
 - **`⏎` on a walked picture opens its Picture screen** (#516, ADR-0034), a screen pushed onto the stack and crumbed
-  `Picture by @author` (`Picture 2 of 4 by @author` where the post has several): the one picture fitted whole into the
+  `Picture by Maria` (`Picture 2 of 4 by Maria` where the post has several): the one picture fitted whole into the
   window less the description's rows and one more, at its shape and centred across, never cropped or stretched out of
   shape; what its author said it shows (`PostMedia.Shows`, so `a picture, undescribed` where they said nothing) wrapped
   and centred beneath it, row by row, shown as written, markup and all, and cut at a quarter of the content region's
@@ -953,7 +953,7 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
 - **`←`/`→` on the Picture screen step along the post's still pictures** (#518), in the order they are drawn, a video or
   the like on the same post passed over, each drawn as any picture is there with its own description, and stopping at
   either end rather than coming round, as the walk does. The crumb counts them where there are several,
-  `Picture 2 of 4 by @author`, and the status row offers `←→`; neither says anything of them where there is one. The
+  `Picture 2 of 4 by Maria`, and the status row offers `←→`; neither says anything of them where there is one. The
   steps are the screen's own verbs (`Verb.NextPicture`, `Verb.PreviousPicture`) rather than a walk of its references, so
   the first `esc` still goes back, to nothing walked underneath whichever was stepped to; the screen steps from the
   picture it was opened on, which it holds itself rather than reading off a walk underneath. The screen sends for the
@@ -1015,8 +1015,48 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   on a byline and 8×4 on an account header; a pending attachment's picture, 3×1; the edit public profile form's avatar,
   4×2, and header, 12×2 — is filled: a picture of another shape is cropped to it from the middle, as an instance crops
   an avatar, and never stretched. Kitty and sixel take a picture to its box by the one step (`PictureDecoder.Filled`),
-  so the two cannot crop differently. A Stand-in's blur is the exception: decoded square, it is stretched to its box,
-  which gives it back the picture's proportions (ADR-0025's amendment for #438).
+  so the two cannot crop differently. A Stand-in's blur is one exception: decoded square, it is stretched to its box,
+  which gives it back the picture's proportions (ADR-0025's amendment for #438). A custom emoji's fixed box, 2×1, is
+  the other: its picture is fitted whole inside it and centred, as Mastodon's web client draws one, the rest of the box
+  transparent through Kitty's placeholders and on sixel laid on what is behind it, the band on the picked post and the
+  page anywhere else — a logo drawn to its edges in a box narrower than square, cropped, lost its sides (ADR-0035's
+  amendment, review of #522). On sixel every picture with transparency is laid the same way, a transparent avatar
+  included (ADR-0023's amendment, review of #522).
+- **A custom emoji is a picture two columns wide and one row tall, in the line** (#523, ADR-0035). A shortcode the post
+  lists — `:php:`, `:US_AZ:` — is drawn in a post's words, and in the preview of the reader's own post under a
+  notification, as a Unicode emoji sits: wrapped as one character two columns wide, so `:US_AZ:Phoenix` breaks before
+  it where it does not fit and never inside it, and dropped whole where a row is clipped. Whether it takes those two
+  columns or its shortcode's letters is the Raster's alone: on any terminal that draws, the two columns are held from
+  the first frame, shaded as a Stand-in until its still picture lands and for good where it is refused or never comes,
+  so nothing rewraps. Through Kitty's placeholders it is then two placeholder cells, its picture fetched and decoded
+  once for every post that uses it, keyed by its static address, and sent to the terminal once per box size. Through a
+  box, sixel and Kitty's, it is drawn from a pool of boxes of its own (`Placing.MostCustomEmojiBoxes`, 64), built before
+  anything is drawn as the other 24 are, and on sixel cut into a cache of its own (`SixelPictures.MostCustomEmojiHeld`, 128
+  cuts), so a page of them never leaves an attachment or an avatar undrawn nor throws away the cuts a photograph was
+  encoded ahead for; one that finds no box left is painted as its shaded room again, and nothing moves (#527). Where
+  nothing draws, the shortcode is written as the instance wrote it, in `custom-emoji`, a role of its own, so it reads as
+  a picture that was meant — in muted text as well as in a post's words (review of #522).
+  A `:word:` the post does not list — a time like `10:30:45`, an emoji since deleted — is the words someone wrote, in
+  `body`, and so is one written inside an address or a tag. An animated custom emoji is drawn at its still. A custom
+  emoji is no **reference**: it is not walked to, a click on it picks the post, and it is never on the Picture screen.
+  A warned post's are not sent for until its words are shown. The CLI writes the shortcodes as written, text and JSON.
+- **A display name draws its custom emoji the same way** (#524, ADR-0035): `Jeff :verified: :US_AZ:` shows its pictures
+  in the feed's two-row byline and the post screen's three-row one, the `boosted` and `boosted by` line, a
+  notification's names line, and every Account block — a follow list, follow requests, search results, Discover's
+  suggestions, a post's or a notification's actors, and the account screen's header. The emoji are the ones the account
+  lists, the author's own rather than the post's, and each actor's own on a names line naming two. A name clipped to
+  its room holds each emoji whole and drops one that does not fit with the rest of what is cut. The row is measured as
+  drawn, two columns an emoji, so a byline's audience and age keep their column, and a names line's sentence follows
+  the last name with its age kept at the right. Familiar followers are named by handle on the account screen, so they
+  draw none.
+- **So do a content warning, a poll's options, a bio and custom fields** (#526, ADR-0035). A warning draws the emoji the
+  post lists, which the instance keeps for the warning and the words alike, while it hides the words and once they are
+  shown, and in place of the words in a notification's preview; it is one row, clipped with each emoji held whole. A
+  warned post's own words want none of their pictures until `x` shows them. A poll option draws the emoji the poll
+  lists, its own list apart from the post's, after the bar, share and count, which keep the columns they take on an
+  option written without one. An account screen's bio and each custom field draw the emoji the account lists, a field's
+  label as well as its value, the label's shortcode in `custom-emoji` where nothing draws, the rest of the label muted
+  around it.
 - **The description stands above the picture**, so it does not move when the pixels land under it. Until they do, the
   box under it holds its Stand-in, the size the picture will be, so nothing moves when the picture replaces it.
 - **Nothing about a picture is ever an error,** but one. A fetch that fails and a file that will not decode both leave
@@ -1707,8 +1747,11 @@ typing one in the edit public profile form's bio (#408):
   somebody in the store answers to closes the list.
 - **Matching** is in three tiers — a handle starting with the query, then any word of the display name starting with
   it, then a handle containing it — and within a tier the people seen first, most recently seen first, a screen's top
-  row counting as the one met last, then the follows by name. Case is ignored, five at most, and custom-emoji
-  shortcodes come out of names before matching and drawing.
+  row counting as the one met last, then the follows by name. Case is ignored, five at most, and the shortcodes a
+  name's account lists come out of it before matching and drawing (#525), by the rule the crumb and the follows filter
+  use too (`PlainName`). A `:word:` the account does not list is part of the name, as it is where the name is drawn,
+  rather than anything shaped like a shortcode coming out as it once did; and a name that is nothing but shortcodes
+  leaves its row the handle alone.
 - **The list is its own painted view over the editor**, every cell a role: a rounded box in `panel-border`, the picked
   row marked `▌` in `selection` with its name in `reference-picked` and its handle in `byline-handle`, other rows in
   `body` and `muted`, the matched letters in `mention`, and its keys along the bottom edge. At least 40 columns, never
@@ -1817,7 +1860,7 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
 - **`s` swaps their posts for their posts and replies, in place** (#229), and a second `s` swaps back. It is the follow
   list's `s` made over one account's timeline: the whole screen re-read with `Timeline.WithReplies` in place of
   `Timeline.By`, standing where the screen stood — new crumb, pick back on the header block, stack no deeper. The
-  crumb reads `@maria posts and replies`, the heading `── their posts and replies ──`, and the status row says which
+  crumb reads `Maria posts and replies`, the heading `── their posts and replies ──`, and the status row says which
   run the key swaps to. **The screen still opens on posts alone**, for ADR-0019's screen-reader reasons: only the
   reader's own press widens it, and nothing remembers the widened choice on the next visit. `g` re-asks whichever run
   is showing. A verb of its own, `SwapPostsAndReplies`, rather than `SwapSide` again — a timeline has no sides — and bound on
@@ -1832,7 +1875,7 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   keys, so `f` is favorite and `b` is boost, and its capitals are spoken for by the three ties. `s` re-asks in place
   with a new crumb, the pick reset and the filter cleared, because a toggle that pushed would grow the stack on every
   flip. Someone else's followers therefore costs `w` then `s`, which is the less-asked side from someone else's
-  profile. The crumb reads `@maria following` / `@maria followers`.
+  profile. The crumb reads `Maria following` / `Maria followers`, named as the account screen's crumb names them.
 - **The mode is picked from the count before the first fetch.** An `Account` already carries both counts, so the screen
   knows how large the list is before asking for anything rather than discovering the problem hundreds of calls in.
   Under the threshold it holds the whole list, walkable from the first page of 80 with the rest landing behind a pick
@@ -1872,7 +1915,10 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   the full compact standing shows.
 - **The screen arrives walkable, not typing.** The search screen opens typing only because it has nothing to show yet.
   `f` opens the prompt, drawn with the search screen's exact construction — `Filter: ` label, typed text, `▌` caret.
-  Typing narrows on every keystroke, `⏎` returns to walking with the filter still applied, `esc` clears it. `/` was
+  Typing narrows on every keystroke, `⏎` returns to walking with the filter still applied, `esc` clears it. It
+  matches a handle or a display name, the name with the shortcodes its account lists taken out (`PlainName`, #525),
+  so that `verified` passes over everybody wearing a `:verified:` badge; a `:word:` the account does not list is
+  matched as the rest of the name is. `/` was
   never available: it is a frame key meaning "go to search" everywhere. It reuses `IsTyping`, so the status row swaps
   to the letters-are-text keymap and the filter is a fact about the shell a test can set and read (ADR-0015).
 - **What it has to say about the list goes on the screen, not the status row.** The row holds either a notice or the
@@ -2129,11 +2175,18 @@ The trail said where you are and drew itself as one `Role.Chrome` span, so it sa
 and #213 settled the row; #216 and #217 build it:
 
 - **Every crumb is sentence case** — `Home`, `Notifications`, `Direct messages`, `Follow requests`, `Search cats`,
-  `Post by @maria`, `With maria and joe`, `Keys`, `Compose`, `Reply to @maria`, `Edit` — **except a crumb that opens
-  with a handle or a hashtag**, which is spelled the way that thing is spelled: `@maria`, `@maria following`,
-  `@maria followers`, `#cats`. Nobody's username is capitalised. One rule rather than two: the rail's ten labels are
-  already sentence case, so a rail-label crumb matches the rail by construction and `.ToLowerInvariant()` is deleted
-  rather than replaced by a rule about rail labels.
+  `Post by Maria`, `With maria and joe`, `Keys`, `Compose`, `Reply to Maria`, `Edit` — **except where it names
+  somebody or a hashtag**, which is spelled the way that thing is spelled: `Maria`, `maria following` for somebody
+  who goes by `maria`, `Maria followers`, `#cats`. Nobody's name is capitalised. One rule rather than two: the rail's
+  ten labels are already sentence case, so a rail-label crumb matches the rail by construction and
+  `.ToLowerInvariant()` is deleted rather than replaced by a rule about rail labels.
+- **A crumb names somebody by their name, as one line of plain text holds it** (#525, ADR-0035): a post's author, an
+  account and whose follow list it is, the shortcodes their account lists taken out — `:verified: Maria :US_AZ:` reads
+  `Maria` — and the spaces either side of one closed up, by the one rule the mention list and the follows filter use
+  (`PlainName`). A crumb is a title and draws no picture, so a custom emoji spelled out there is noise. Where the name
+  is nothing but shortcodes, the handle stands in, `Post by @maria@fosstodon.org`, so that a crumb always names
+  somebody. From #216 until #525 these crumbs spelled the handle whatever the name; a conversation's still does, the
+  instance saying who one is with by address alone.
 - **The crumb you are standing on is told from its ancestors by foreground alone**, in one new role,
   `crumb-current` — named to pair with `rail-current`, the same *and this is the one you are at* relationship. The
   ancestors take `crumb`, and **the `›` separator keeps no role of its own**: the trail reads as structure because
@@ -2745,7 +2798,8 @@ is drawn reversed instead (#316).
 | `audience` | The visibility mark | `○ ◌ ● ✉` |
 | `content-warning` | A warning and its text | `⚠` |
 | `media` | Image placeholders, attachment links, a link preview's title, and the columns a byline holds for an avatar | `▒▒▒▒`, `⏵` |
-| `stand-in` | A drawn picture's box while the picture is not here: the shaded fill standing in for it, at its size, under the blur where the instance sent a blurhash (ADR-0025, #349) | `░` |
+| `stand-in` | A drawn picture's box while the picture is not here: the shaded fill standing in for it, at its size, under the blur where the instance sent a blurhash (ADR-0025, #349), and a custom emoji's two columns until its picture lands (ADR-0035) | `░` |
+| `custom-emoji` | A custom emoji's shortcode where nothing draws, as the instance wrote it — a role of its own rather than `muted`, so that it reads as a picture that was meant in muted text too: the `boosted` line, a notification's preview, a custom field's label (ADR-0035, review of #522) | the shortcode's colons |
 | *(none — a picture's own pixels)* | A drawn picture | it is the picture |
 | `poll` | Options and their bars | the bar itself, and `✓ `/`[x]` marking a picked one |
 | `reference-picked` | The brackets around a picked reference | `‹ ›`, always drawn |

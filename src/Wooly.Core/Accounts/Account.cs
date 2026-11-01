@@ -25,6 +25,13 @@ public sealed record Account
     /// <summary>The name that account chose to be shown as, which is not unique and may be anything at all.</summary>
     public required string Author { get; init; }
 
+    /// <summary>
+    ///     The custom emoji the account lists, which its <see cref="Author" />, <see cref="Bio" /> and
+    ///     <see cref="Fields" /> draw from — one list on the wire for all three — and empty where it lists none. The
+    ///     shortcodes stay in each as written; this is what says which of them are pictures (ADR-0035).
+    /// </summary>
+    public IReadOnlyList<CustomEmoji> CustomEmoji { get; init; } = [];
+
     /// <summary>How many accounts follow it.</summary>
     public required long Followers { get; init; }
 

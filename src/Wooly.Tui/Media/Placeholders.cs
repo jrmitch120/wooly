@@ -209,7 +209,7 @@ public sealed class Placeholders(
             inset.Rows,
             cell,
             DecodedSize.Of(picture),
-            Stretched: inset.Blur is not null);
+            inset.Fill);
         Image image;
 
         lock (_gate)
@@ -240,7 +240,7 @@ public sealed class Placeholders(
                 picture,
                 sized.Columns * sized.Cell.Width,
                 sized.Rows * sized.Cell.Height,
-                sized.Stretched);
+                sized.Fill);
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)
         {
@@ -264,8 +264,8 @@ public sealed class Placeholders(
 
     /// <summary>
     ///     One picture at one box size, on one size of cell, from pixels decoded at one size
-    ///     (<see cref="DecodedSize" />), stretched to the box where it is a Stand-in's blur and cropped to it where it
-    ///     is not (<see cref="PictureDecoder.Filled" />) — which is what one image id means.
+    ///     (<see cref="DecodedSize" />), taking the box as <see cref="BoxFill" /> says
+    ///     (<see cref="PictureDecoder.Filled" />) — which is what one image id means.
     /// </summary>
     private sealed record Sized(
         string Drawn,
@@ -273,7 +273,7 @@ public sealed class Placeholders(
         int Rows,
         CellSize Cell,
         DecodedSize Decoded,
-        bool Stretched);
+        BoxFill Fill);
 
     /// <summary>Where one image has got to: being encoded, encoded and waiting to be sent, or sent.</summary>
     private sealed class Image(int id)

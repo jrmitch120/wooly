@@ -20,6 +20,7 @@ public static class RoleName
         [Role.ContentWarning] = "content-warning",
         [Role.Media] = "media",
         [Role.StandIn] = "stand-in",
+        [Role.CustomEmoji] = "custom-emoji",
         [Role.Poll] = "poll",
         [Role.ReferencePicked] = "reference-picked",
         [Role.Boost] = "boost",

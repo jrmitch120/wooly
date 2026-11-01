@@ -172,7 +172,10 @@ internal sealed class ShellWindow : Window
     ///     What <c>ctrl-q</c> does. Passed in rather than reached for, because the application is the thing that owns
     ///     the run loop and this window is one of the things running in it.
     /// </param>
-    /// <param name="pictures">Where a drawn attachment's pixels come from.</param>
+    /// <param name="pictures">
+    ///     Where a drawn attachment's pixels come from, or <see langword="null" /> for pictures off: every picture
+    ///     linked and every custom emoji its shortcode, whatever the terminal could draw (<see cref="Drawing.Draws" />).
+    /// </param>
     /// <param name="hideDrawnCaption">
     ///     The reader's <c>hide_drawn_caption</c> preference (#71): whether a picture's caption hides once it is
     ///     actually drawn.
@@ -198,7 +201,7 @@ internal sealed class ShellWindow : Window
         ITheme theme,
         TimeProvider clock,
         Action quit,
-        IPictures pictures,
+        IPictures? pictures,
         bool hideDrawnCaption = false,
         Placeholders? placeholders = null,
         Blurs? blurs = null,

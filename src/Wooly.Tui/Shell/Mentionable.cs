@@ -1,7 +1,8 @@
-using System.Text.RegularExpressions;
+using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Notifications;
 using Wooly.Core.Posts;
+using Wooly.Tui.Rendering;
 
 namespace Wooly.Tui.Shell;
 
@@ -10,17 +11,24 @@ namespace Wooly.Tui.Shell;
 ///     where all a screen knew of them was an address, as it is for the accounts a post mentions.
 /// </summary>
 /// <param name="Address">Where they are addressed, as <c>username@instance</c>.</param>
-/// <param name="Name">Their display name, with any custom-emoji shortcodes taken out.</param>
-public sealed partial record Mentionable(string Address, string Name)
+/// <param name="Name">
+///     Their display name as one line of plain text holds it (<see cref="PlainName.Without" />), the shortcodes their
+///     account lists taken out — and empty where that leaves nothing, the row then saying the handle alone.
+/// </param>
+public sealed record Mentionable(string Address, string Name)
 {
-    /// <summary>Somebody named <paramref name="name" />, the name's shortcodes taken out on the way in.</summary>
-    public static Mentionable Of(string address, string name) => new(address, Plain(name));
+    /// <summary>
+    ///     Somebody named <paramref name="name" />, the shortcodes of <paramref name="listed" /> taken out on the way
+    ///     in, so that <c>:blobcat:</c> neither matches a query nor crowds the name in the list (#525).
+    /// </summary>
+    public static Mentionable Of(string address, string name, IReadOnlyList<CustomEmoji> listed) =>
+        new(address, PlainName.Without(name, listed));
 
     /// <summary>Somebody known only by <paramref name="address" />, as the accounts a post mentions are.</summary>
     public static Mentionable Addressed(string address) => new(address, string.Empty);
 
     /// <summary>Who an account is.</summary>
-    public static Mentionable Of(Account account) => Of(account.Address, account.Author);
+    public static Mentionable Of(Account account) => Of(account.Address, account.Author, account.CustomEmoji);
 
     /// <summary>
     ///     Everybody <paramref name="post" /> names: who wrote it, then whatever it boosted, then everyone it mentions —
@@ -28,7 +36,7 @@ public sealed partial record Mentionable(string Address, string Name)
     /// </summary>
     public static IEnumerable<Mentionable> In(Post post)
     {
-        yield return Of(post.Account, post.Author);
+        yield return Of(post.Account, post.Author, post.AuthorCustomEmoji);
 
         if (post.Boosted is { } boosted)
         {
@@ -54,17 +62,4 @@ public sealed partial record Mentionable(string Address, string Name)
 
     /// <summary>Everybody <paramref name="posts" /> name, top to bottom.</summary>
     public static IEnumerable<Mentionable> In(IEnumerable<Post> posts) => posts.SelectMany(In);
-
-    /// <summary>
-    ///     <paramref name="name" /> with its custom-emoji shortcodes taken out, so that <c>:blobcat:</c> neither matches
-    ///     a query nor crowds the name in the list — and the spaces either side of one closed up.
-    /// </summary>
-    private static string Plain(string name) =>
-        Spaces().Replace(Shortcode().Replace(name, " "), " ").Trim();
-
-    [GeneratedRegex(@":[A-Za-z0-9_]+:")]
-    private static partial Regex Shortcode();
-
-    [GeneratedRegex(@"\s+")]
-    private static partial Regex Spaces();
 }

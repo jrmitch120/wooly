@@ -85,6 +85,20 @@ public class ThemeTests
     }
 
     /// <summary>
+    ///     A custom emoji's shortcode, where nothing draws, is drawn in a colour of its own in both built-ins, apart
+    ///     from muted text and from the body's — so that it reads as a picture that was meant in the muted "boosted"
+    ///     line, a notification's preview and a custom field's label as in a post's words (story 16, ADR-0035).
+    /// </summary>
+    [Theory]
+    [InlineData(Role.Muted)]
+    [InlineData(Role.Body)]
+    public void AShortcodeIsDrawnApartFromTheTextAroundIt(Role around)
+    {
+        Assert.NotEqual(Themes.Dark.For(around).Foreground, Themes.Dark.For(Role.CustomEmoji).Foreground);
+        Assert.NotEqual(Themes.Light.For(around).Foreground, Themes.Light.For(Role.CustomEmoji).Foreground);
+    }
+
+    /// <summary>
     ///     And with no colour it is drawn reversed — the one role the plain theme draws differently, since a selection
     ///     is the one thing on screen with no glyph to carry it (#316).
     /// </summary>

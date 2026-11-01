@@ -10,9 +10,8 @@ namespace Wooly.Tui.Media;
 internal static class PictureEncoder
 {
     /// <summary>
-    ///     <paramref name="picture" /> filling exactly <paramref name="width" /> by <paramref name="height" /> pixels,
-    ///     cropped to that shape — or, for a Stand-in's blur, stretched to it (<see cref="PictureDecoder.Filled" />) —
-    ///     as a PNG.
+    ///     <paramref name="picture" /> at exactly <paramref name="width" /> by <paramref name="height" /> pixels, taking
+    ///     that box as <paramref name="fill" /> says (<see cref="PictureDecoder.Filled" />), as a PNG.
     /// </summary>
     /// <remarks>
     ///     Exactly, because a picture sent at any other size is one the terminal scales again. Fast compression rather
@@ -21,12 +20,10 @@ internal static class PictureEncoder
     /// <param name="picture">The picture, or the blur.</param>
     /// <param name="width">How wide the box is, in pixels.</param>
     /// <param name="height">How tall the box is, in pixels.</param>
-    /// <param name="stretched">
-    ///     Whether this is a Stand-in's blur, which is stretched to the box rather than cropped.
-    /// </param>
-    public static byte[] Png(Picture picture, int width, int height, bool stretched)
+    /// <param name="fill">How the picture takes its box (<see cref="Rendering.Inset.Fill" />).</param>
+    public static byte[] Png(Picture picture, int width, int height, BoxFill fill)
     {
-        using var image = PictureDecoder.Filled(picture, width, height, stretched);
+        using var image = PictureDecoder.Filled(picture, width, height, fill);
         using var png = new MemoryStream();
 
         image.SaveAsPng(png, new PngEncoder { CompressionLevel = PngCompressionLevel.BestSpeed });

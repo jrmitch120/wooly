@@ -64,6 +64,14 @@ public enum Role
     /// </summary>
     StandIn,
 
+    /// <summary>
+    ///     A <b>custom emoji</b>'s shortcode where nothing draws, written as the instance wrote it (ADR-0035). Its own
+    ///     role rather than <see cref="Muted" />, so that it reads as a picture that was meant wherever it is written —
+    ///     in the muted "boosted" line, a notification's preview and a custom field's label as much as in a post's
+    ///     words or a name. Carried without colour by the shortcode's colons.
+    /// </summary>
+    CustomEmoji,
+
     /// <summary>A poll's options and their bars. Carried without colour by the bar itself.</summary>
     Poll,
 

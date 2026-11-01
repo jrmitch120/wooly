@@ -19,8 +19,10 @@ namespace Wooly.Tui.Rendering;
 ///     <para>
 ///         Two kinds. A <see cref="Fixed" /> box is filled: a picture of another shape is cropped to it from the middle
 ///         by the raster paths (<see cref="PictureDecoder.Filled" />), never stretched, so the box is the inset. A
-///         <see cref="Shaped" /> box is the shape the instance reported, which can be a guess, so the picture is fitted
-///         inside it and centred, with slack where the guess was wrong (ADR-0025).
+///         custom emoji's fixed box is the one exception: its picture is fitted whole inside it and centred, as
+///         Mastodon's web client draws one (<see cref="BoxFill.Fitted" />, ADR-0035). A <see cref="Shaped" /> box is
+///         the shape the instance reported, which can be a guess, so the picture is fitted inside it and centred, with
+///         slack where the guess was wrong (ADR-0025).
 ///     </para>
 /// </remarks>
 public sealed record PictureBox

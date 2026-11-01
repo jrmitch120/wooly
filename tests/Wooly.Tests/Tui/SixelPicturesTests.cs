@@ -135,7 +135,7 @@ public class SixelPicturesTests
 
                 return "";
             },
-            backdrop: () => new Color(0, 0, 200));
+            backdrop: _ => new Color(0, 0, 200));
         var pixels = new Color[80, 80];
 
         for (var x = 0; x < 80; x++)
@@ -191,6 +191,29 @@ public class SixelPicturesTests
         Assert.Equal(SixelPictures.MostHeld + 1, encodes);
 
         sixels.Of(Box("m0", 2, 1), picture, Cell, new SixelCrop(0, 1, 2), colours: 64);
+        Assert.Equal(SixelPictures.MostHeld + 2, encodes);
+    }
+
+    /// <summary>
+    ///     Custom emoji are cut into room of their own (ADR-0035): a page of more of them than there is room for every
+    ///     other picture's cuts lets go of none of those, so a photograph's cut is not encoded again for them.
+    /// </summary>
+    [Fact]
+    public void Of_KeepsCustomEmojiCutsApartFromEveryOtherPictures()
+    {
+        var encodes = 0;
+        var sixels = new SixelPictures((_, _) => $"{++encodes}");
+        var picture = APicture(20, 20);
+
+        sixels.Of(Box("m1", 2, 1), picture, Cell, new SixelCrop(0, 1, 2), colours: 64);
+
+        for (var at = 0; at <= SixelPictures.MostHeld; at++)
+        {
+            sixels.Of(CustomEmoji($"e{at}"), picture, Cell, new SixelCrop(0, 1, 2), colours: 64);
+        }
+
+        sixels.Of(Box("m1", 2, 1), picture, Cell, new SixelCrop(0, 1, 2), colours: 64);
+
         Assert.Equal(SixelPictures.MostHeld + 2, encodes);
     }
 
@@ -256,6 +279,14 @@ public class SixelPicturesTests
 
     private static Inset Box(string id, int columns, int rows) =>
         new(new Drawn(id, $"https://files.example/{id}.png"), Column: 0, columns, rows);
+
+    /// <summary>The box of the custom emoji <paramref name="shortcode" />, two columns by one.</summary>
+    private static Inset CustomEmoji(string shortcode) =>
+        new(
+            Drawn.CustomEmoji(new Wooly.Core.CustomEmoji(shortcode, $"https://files.example/emoji/{shortcode}.png")),
+            Column: 0,
+            CustomEmojiBox.Columns,
+            CustomEmojiBox.Rows);
 
     private static Picture APicture(int width, int height) => new(new Color[width, height]);
 }

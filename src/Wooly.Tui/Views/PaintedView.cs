@@ -36,7 +36,10 @@ internal sealed class PaintedView : View
     private readonly SynchronizedFrames? _frames;
     private readonly Func<Raster> _raster;
 
-    /// <summary>The pictures drawn as placeholders this frame, with the row each starts on and its image id.</summary>
+    /// <summary>
+    ///     What this paints over the rows this frame: the pictures drawn as placeholders, and the custom emoji no box
+    ///     was left for, with the row each starts on and, for a placeholder, its image id.
+    /// </summary>
     private IReadOnlyList<Placement> _placed = [];
 
     private IReadOnlyList<Line>? _settled;
@@ -699,7 +702,7 @@ internal sealed class PaintedView : View
             Paint(at >= 0 && at < lines.Count ? lines[at] : null, 0, row, width);
         }
 
-        PaintPlaceholders(lines, width, height, pinned);
+        PaintPlacements(lines, width, height, pinned);
 
         return true;
     }
@@ -707,13 +710,13 @@ internal sealed class PaintedView : View
     /// <summary>
     ///     Every row of every picture placed this frame that is on the page, as placeholder cells over the rows its post
     ///     reserved — including the lower rows of a box whose top has been scrolled off, which the terminal crops
-    ///     (ADR-0022).
+    ///     (ADR-0022) — and a custom emoji no box was left for as its shade (ADR-0035).
     /// </summary>
     /// <remarks>
     ///     Never over the <paramref name="pinned" /> rows, which are drawn over what has scrolled under them — a picture
     ///     there is cropped at their foot as one scrolled off the top is at the page's.
     /// </remarks>
-    private void PaintPlaceholders(IReadOnlyList<Line> lines, int width, int height, int pinned)
+    private void PaintPlacements(IReadOnlyList<Line> lines, int width, int height, int pinned)
     {
         foreach (var (inset, top, id) in _placed)
         {
@@ -728,10 +731,19 @@ internal sealed class PaintedView : View
             for (var row = Math.Max(0, pinned - top); row < inset.Rows && top + row < height; row++)
             {
                 var at = _top + top + row;
-                var picked = at < lines.Count && lines[at].Picked && inset.Column < (lines[at].BandsTo ?? int.MaxValue);
+                var picked = at < lines.Count && lines[at].BandedAt(inset.Column);
+
+                if (id is not { } named)
+                {
+                    SetAttribute(picked ? _theme.Banded(Role.StandIn) : _theme.For(Role.StandIn));
+                    AddStr(inset.Column, top + row, StandIn.Row(columns).Text);
+
+                    continue;
+                }
 
                 // On the band where the post is picked, so a picture with transparency in it shows what the row is on.
-                SetAttribute(KittyPlaceholder.Painted(id, picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body)));
+                SetAttribute(
+                    KittyPlaceholder.Painted(named, picked ? _theme.Banded(Role.Body) : _theme.For(Role.Body)));
                 AddStr(inset.Column, top + row, KittyPlaceholder.Row(row, columns));
             }
         }
@@ -969,18 +981,20 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     The page a sixel's transparent pixels are laid on: the theme's, where it names one, and otherwise the
-    ///     terminal's own background as it answered when asked at startup — every built-in theme draws on that. Nothing
-    ///     where neither is known, which leaves them transparent.
+    ///     What a sixel's transparent pixels are laid on: what is behind its box, as Kitty's placeholders show through
+    ///     to it — the band on a picked row where <paramref name="banded" /> says so (#269), and the page anywhere else.
+    ///     Each the theme's, where it names one, and otherwise the terminal's own background as it answered when asked
+    ///     at startup — every built-in theme draws its page on that. Nothing where neither is known, which leaves them
+    ///     transparent.
     /// </summary>
-    private Terminal.Gui.Drawing.Color? Backdrop()
+    private Terminal.Gui.Drawing.Color? Backdrop(bool banded)
     {
         var none = Terminal.Gui.Drawing.Color.None;
-        var page = _theme.For(Role.Body).Background;
+        var behind = (banded ? _theme.Banded(Role.Body) : _theme.For(Role.Body)).Background;
 
-        if (_theme.DrawsColour && page != none && page != Terminal.Gui.Drawing.Attribute.Default.Background)
+        if (_theme.DrawsColour && behind != none && behind != Terminal.Gui.Drawing.Attribute.Default.Background)
         {
-            return page;
+            return behind;
         }
 
         return App?.Driver?.DefaultAttribute?.Background is { } terminal && terminal != none ? terminal : null;

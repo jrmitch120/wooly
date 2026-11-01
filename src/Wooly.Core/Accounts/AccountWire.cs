@@ -24,6 +24,9 @@ internal static class AccountWire
         Id = account.Id,
         Address = MastodonWire.Qualify(account, instance),
         Author = MastodonWire.DisplayName(account),
+
+        // One list for the name, the bio and the fields alike, the shortcodes left in each as written (ADR-0035).
+        CustomEmoji = MastodonWire.CustomEmoji(account.Emojis),
         Followers = account.FollowersCount,
         Following = account.FollowingCount,
         Posts = account.StatusesCount,

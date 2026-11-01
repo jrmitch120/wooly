@@ -111,3 +111,9 @@ cannot be drawn keeps its `⏵`, description and address as before. A **warned**
 is asked past, as nothing on it is.
 
 Spec #514's user stories 11 and 12, which drew the smaller copy on the Picture screen first, are superseded.
+
+## Amendment: the crumb names the author by name (#525)
+
+The crumb above counts the pictures `by @author`. Since #525 it names the author as the post's own crumb does, by
+display name with the shortcodes their account lists taken out and the handle where nothing is left (ADR-0035):
+`Picture 2 of 4 by Maria`, and `Picture by Maria` on a post with one picture.

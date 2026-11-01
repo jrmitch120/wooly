@@ -140,7 +140,11 @@ public readonly record struct Avatar(PictureBox? Box, int Gap)
         {
             var beside = row.After(box.Cells(at), gap);
 
-            return at > 0 ? beside : beside with { Insets = box.Insets(at, column: 0), Wants = wanted };
+            // The row's own boxes kept beside the avatar's — the name's custom emoji (#524) — and wanted after it.
+            return at > 0
+                ? beside
+                : (beside with { Insets = [.. box.Insets(at, column: 0), .. beside.Insets] }).Wanting(
+                    [wanted, .. beside.Wanted]);
         });
     }
 }

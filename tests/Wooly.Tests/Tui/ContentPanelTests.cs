@@ -357,7 +357,7 @@ public class ContentPanelTests
         Assert.StartsWith("      ↳  ", rows[inside.Y + 4][inside.X..], StringComparison.Ordinal);
         Assert.StartsWith(ComposeRows.NoWarning, rows[inside.Y + 6][inside.X..], StringComparison.Ordinal);
         Assert.Equal(compose.EditorAt(inside.Size).Y, editor.FrameToScreen().Y - inside.Y);
-        Assert.StartsWith("╭ Home › Reply to @", rows[0][RailLines.Width..], StringComparison.Ordinal);
+        Assert.StartsWith("╭ Home › Reply to Jeff ", rows[0][RailLines.Width..], StringComparison.Ordinal);
         Assert.All(rows[1..(height - 2)], row => Assert.Equal('│', row[RailLines.Width]));
         Assert.True(compose.HasWidgetsOfItsOwn);
         Assert.All(rows[1..(height - 2)], row => Assert.Equal('│', row[^1]));
