@@ -109,8 +109,9 @@ internal sealed class KittyBoxPictures(Action<Action>? elsewhere = null)
 
                 lock (_gate)
                 {
-                    // Let go of while it was being taken to its box, in which case it is nobody's to hold.
-                    if (_preparing.Remove(sized))
+                    // Let go of while it was being taken to its box, in which case it is nobody's to hold — nor to
+                    // take off the list, where it has been asked for again since and is being taken there afresh.
+                    if (Settled(sized, preparing))
                     {
                         _held.TryAdd(sized, scaled);
                     }
@@ -122,7 +123,7 @@ internal sealed class KittyBoxPictures(Action<Action>? elsewhere = null)
             {
                 lock (_gate)
                 {
-                    _preparing.Remove(sized);
+                    Settled(sized, preparing);
                 }
 
                 preparing.SetException(failure);
@@ -159,7 +160,16 @@ internal sealed class KittyBoxPictures(Action<Action>? elsewhere = null)
         _asked.Clear();
     }
 
-    /// <summary>What names <paramref name="picture" /> in <paramref name="inset" />'s box, counted as asked for.</summary>
+    /// <summary>
+    ///     Takes <paramref name="preparing" /> off the list where it is still the one there for
+    ///     <paramref name="sized" />, and says whether it was. Under the lock.
+    /// </summary>
+    private bool Settled(Sized sized, TaskCompletionSource<Picture> preparing) =>
+        _preparing.TryGetValue(sized, out var listed) && listed == preparing && _preparing.Remove(sized);
+
+    /// <summary>
+    ///     What names <paramref name="picture" /> in <paramref name="inset" />'s box, counted as asked for.
+    /// </summary>
     private Sized Asked(Inset inset, Picture picture, CellSize cell)
     {
         var sized = new Sized(

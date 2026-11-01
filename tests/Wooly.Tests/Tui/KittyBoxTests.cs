@@ -112,7 +112,9 @@ public class KittyBoxTests
     private static List<(byte, byte, byte, byte)> Colours(Color[,] pixels) =>
         [.. pixels.Cast<Color>().Select(APicture.Rgba)];
 
-    /// <summary>Red at the top left, green at the top right, blue at the bottom left, white at the bottom right.</summary>
+    /// <summary>
+    ///     Red at the top left, green at the top right, blue at the bottom left, white at the bottom right.
+    /// </summary>
     private static Picture Quartered(int width, int height)
     {
         var pixels = new Color[width, height];

@@ -37,7 +37,10 @@ internal sealed class FakePictures : IPictures
     /// <summary>Says that the picture for the attachment <paramref name="mediaId" /> has arrived, at the given size in pixels.</summary>
     public FakePictures Holding(string mediaId, int width, int height) => Held(mediaId, width, height);
 
-    /// <summary>Says that the picture for the attachment <paramref name="mediaId" /> has arrived as <paramref name="picture" />.</summary>
+    /// <summary>
+    ///     Says that the picture for the attachment <paramref name="mediaId" /> has arrived as
+    ///     <paramref name="picture" />.
+    /// </summary>
     public FakePictures Holding(string mediaId, Picture picture)
     {
         _held[mediaId] = picture;

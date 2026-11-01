@@ -207,9 +207,11 @@ a picture whose shape was not its box's in pixels came out distorted: a wide cus
 an avatar stretched to a box not square in pixels, an attachment stretched by its rounding to cells. Now the image view
 is handed the picture already at its box's size in pixels, through the same step and the same `BoxFill`
 (`KittyBoxPictures`), and all three ways draw one picture in one box the same way. The image view still sends it once
-and places a crop of it as the box moves (ADR-0023). Each size is kept by box size, so a window resized, or one picture
-in boxes of two sizes, is handed over at each size. Pictures within a screen of the page are taken to their boxes ahead,
-off the UI thread, as Kitty's placeholders are encoded ahead. Measured with `ScrollMeasure` over twelve photographs at
+and places a crop of it as the box moves (ADR-0016, ADR-0023). Each size is kept by box size, so a window resized, or
+one picture in boxes of two sizes, is handed over at each size. Pictures within a screen of the page are taken to their
+boxes ahead, off the UI thread, as Kitty's placeholders are encoded ahead. Those copies are held outside the cache's
+budget, as a sixel's scaled pictures and Kitty's PNGs are: each is a picture at its box's size, kept only while a frame
+asks for it, so what they hold is bounded by about three screens of boxes rather than by what has been fetched. Measured with `ScrollMeasure` over twelve photographs at
 120×50, a notch costs what it did (a median of 16 to 18 ms down and 13 to 14 ms up over five runs, against 15 to 23 ms
 and 13 to 15 ms before), and sends about a third of the bytes (67 KB on average, against 209 KB), because a box is
 smaller than the picture as decoded.

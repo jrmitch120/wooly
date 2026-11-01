@@ -88,6 +88,41 @@ public class AvatarBoxTests
     }
 
     /// <summary>
+    ///     On Kitty through a box one avatar in two sizes of box — the account screen's header and the byline of a post
+    ///     of theirs below it — is handed over at each box's own size in pixels, not the first one's (#533).
+    /// </summary>
+    [Fact]
+    public async Task OnKittyThroughABoxOneAvatarInTwoSizesOfBoxIsHandedOverAtEach()
+    {
+        var cell = new CellSize(20, 45);
+
+        using var drawn = await Drawn(
+            PictureWay.Kitty,
+            cell,
+            new FakePictures().HoldingAvatarOf(Jeff, APicture.Solid(60, 60, AvatarColour)),
+            accounts: FakeAccountRelationships.Holding(
+                AnAccount.With(address: Jeff, author: "Jeff Mitchell", avatarUrl: JeffsAvatar)));
+
+        await drawn.Shell.OpenAuthor();
+        drawn.Built.Host.Drain();
+        drawn.Redraw();
+
+        var avatars = Images(drawn).OrderBy(image => image.DestinationCells.Y).ToList();
+
+        Assert.Equal(
+            [
+                new Size(Avatar.Columns(Avatar.HeaderRows, ARaster.Kitty(cell)), Avatar.HeaderRows),
+                new Size(Avatar.Columns(Avatar.BylineRows, ARaster.Kitty(cell)), Avatar.BylineRows),
+            ],
+            avatars.Select(image => image.DestinationCells.Size));
+        Assert.All(
+            avatars,
+            image => Assert.Equal(
+                (image.DestinationCells.Width * cell.Width, image.DestinationCells.Height * cell.Height),
+                Size(image.Pixels!)));
+    }
+
+    /// <summary>
     ///     A byline's avatar takes the number of columns nearest square for its two rows on the cell the Raster knows —
     ///     four on a cell of 10 by 20, as it always was, five on 20 by 45 (4.5, rounded up) and four on 8 by 17 (4.25)
     ///     — and the name and the handle start one column after it.
