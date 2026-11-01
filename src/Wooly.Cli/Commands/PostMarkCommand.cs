@@ -20,7 +20,7 @@ internal abstract class PostMarkCommand(
     PostMark mark,
     bool wanted) : AsyncCommand<SinglePostSettings>
 {
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         SinglePostSettings settings,
         CancellationToken cancellationToken)

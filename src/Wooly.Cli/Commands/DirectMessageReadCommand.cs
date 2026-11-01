@@ -15,7 +15,7 @@ internal sealed class DirectMessageReadCommand(
     IProfileRegistry profiles,
     IDirectMessages messages) : AsyncCommand<SingleConversationSettings>
 {
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         SingleConversationSettings settings,
         CancellationToken cancellationToken)

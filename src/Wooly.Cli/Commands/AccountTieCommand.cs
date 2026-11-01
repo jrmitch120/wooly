@@ -20,7 +20,7 @@ internal abstract class AccountTieCommand(
     AccountTie tie,
     bool wanted) : AsyncCommand<SingleAccountSettings>
 {
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         SingleAccountSettings settings,
         CancellationToken cancellationToken)
