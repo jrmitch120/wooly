@@ -147,20 +147,10 @@ pre .c { color: var(--muted); }
   color: var(--text);
   text-decoration: none;
 }
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1.5px solid var(--border);
-  border-radius: 6px;
-  color: var(--mint);
-  font-size: 1rem;
-  line-height: 1;
-}
+.brand-logo { width: 30px; height: 30px; border-radius: 7px; }
 .top nav { display: flex; gap: 1.1rem; font: 0.92rem var(--mono); }
 .top nav a { color: var(--muted); text-decoration: none; }
-.top nav a:hover { color: var(--text); }
+.top nav a:hover, .top nav a[aria-current="page"] { color: var(--text); }
 @media (max-width: 560px) {
   .top nav a:not(:last-child) { display: none; }
 }
@@ -312,7 +302,7 @@ table { border-collapse: collapse; width: 100%; }
 .keys td { padding: 0.35rem 0; vertical-align: top; }
 .keys td:first-child { width: 11rem; padding-right: 0.75rem; }
 
-/* Docs links */
+/* Docs cards on the home page */
 
 .links {
   list-style: none;
@@ -335,6 +325,62 @@ table { border-collapse: collapse; width: 100%; }
 .links a:hover { border-color: var(--border); }
 .links b { display: block; font: 600 0.98rem var(--mono); color: var(--mint); }
 .links span { display: block; margin-top: 0.2rem; font-size: 0.92rem; color: var(--muted); }
+
+/* The docs page: a table of contents beside the guide on a wide screen, above it on a narrow one */
+
+.doc { display: grid; gap: 2rem; padding-top: 2.5rem; padding-bottom: 2rem; }
+@media (min-width: 960px) {
+  .doc { grid-template-columns: 13rem minmax(0, 1fr); gap: 3rem; padding-top: 3.5rem; }
+  .doc-toc { position: sticky; top: 80px; align-self: start; }
+}
+.doc-toc {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  background: var(--surface);
+  font: 0.92rem var(--mono);
+}
+.toc-title { margin: 0 0 0.5rem; color: var(--muted); font-size: 0.82rem; }
+.doc-toc ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.15rem 1rem; }
+@media (min-width: 560px) and (max-width: 959px) { .doc-toc ol { grid-template-columns: 1fr 1fr; } }
+.doc-toc a { display: block; padding: 0.2rem 0; color: var(--text); text-decoration: none; }
+.doc-toc a:hover { color: var(--accent); }
+
+.doc-body { min-width: 0; max-width: 46rem; }
+.doc-head { margin-bottom: 1rem; }
+.doc-head .lede { margin-bottom: 0; }
+.doc-body section { padding-top: 2.25rem; scroll-margin-top: 64px; }
+.doc-body h3 { margin: 1.75rem 0 0.5rem; font: 600 1.05rem var(--mono); color: var(--mint); scroll-margin-top: 64px; }
+.doc-body ul, .doc-body ol { padding-left: 1.3rem; }
+.doc-body li { margin: 0.35rem 0; }
+.doc-body li::marker { color: var(--accent); }
+.doc-body .term { margin: 1.25rem 0; }
+.steps li::marker { font-family: var(--mono); }
+
+.keys, .cmds { margin: 0.5rem 0 1rem; }
+.cmds th, .cmds td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.5rem 0.8rem 0.5rem 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.cmds thead th { font: 600 0.85rem var(--mono); color: var(--muted); }
+.cmds td:first-child, .cmds tbody th { white-space: nowrap; }
+.doc-body .keys td { border-bottom: 1px solid var(--border-soft); padding: 0.45rem 0; }
+.doc-body .keys td:first-child { width: 12rem; }
+
+.faq dt { margin-top: 1.25rem; font-weight: 600; }
+.faq dd { margin: 0.35rem 0 0; color: var(--muted); }
+.faq dd code, .faq dd kbd { color: var(--text); }
+
+.source-note {
+  margin-top: 2rem;
+  padding: 1rem 1.1rem !important;
+  border: 1px dashed var(--border-soft);
+  border-radius: 8px;
+  color: var(--muted);
+}
+.source-note p { margin: 0; }
 
 /* Footer */
 

@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Using Wooly · docs</title>
+  <meta name="description" content="How to install Wooly, sign in, get around the TUI, post, read your notifications, script the CLI and set it up the way you like.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Using Wooly">
+  <meta property="og:description" content="Install, sign in, get around, post and script Mastodon from your terminal.">
+  <meta property="og:image" content="https://jrmitch120.github.io/wooly/screenshots/home.png">
+  <meta name="theme-color" content="#0b0b10">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-inner">
+      <a class="brand" href="./" aria-label="Wooly home">
+        <img class="brand-logo" src="favicon.svg" width="30" height="30" alt="">wooly
+      </a>
+      <nav aria-label="Sections">
+        <a href="./#install">Install</a>
+        <a href="docs.html" aria-current="page">Docs</a>
+        <a href="https://github.com/jrmitch120/wooly">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap doc">
+    <aside class="doc-toc" aria-label="On this page">
+      <p class="toc-title">On this page</p>
+      <ol>
+        <li><a href="#overview">What Wooly is</a></li>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#sign-in">Signing in</a></li>
+        <li><a href="#around">Getting around</a></li>
+        <li><a href="#reading">Reading</a></li>
+        <li><a href="#posting">Posting</a></li>
+        <li><a href="#inbox">Notifications and messages</a></li>
+        <li><a href="#people">People and search</a></li>
+        <li><a href="#cli">The CLI</a></li>
+        <li><a href="#config">Settings</a></li>
+        <li><a href="#help">Troubleshooting</a></li>
+      </ol>
+    </aside>
+
+    <article class="doc-body">
+      <header class="doc-head">
+        <p class="eyebrow">wooly --help</p>
+        <h1>Using Wooly</h1>
+        <p class="lede">Everything you need to read, post and script Mastodon from your terminal. Press <kbd>?</kbd>
+          on any screen of the TUI, or add <code>--help</code> to any CLI command, to see the same thing in the app.</p>
+      </header>
+
+      <section id="overview">
+        <h2 class="section-title">What Wooly is</h2>
+        <p>Wooly is a Mastodon client for your terminal. It comes as two programs:</p>
+        <ul>
+          <li><strong><code>wooly-tui</code></strong>, a full-screen app you drive from the keyboard (or the mouse),
+            for reading and posting.</li>
+          <li><strong><code>wooly-cli</code></strong>, a command line for quick posts and for scripts, with JSON
+            output and exit codes you can rely on.</li>
+        </ul>
+        <p>They share one set of profiles and one config file. Sign in with either and the other is signed in too.</p>
+      </section>
+
+      <section id="install">
+        <h2 class="section-title">Install</h2>
+        <p>Download what you want from the <a href="https://github.com/jrmitch120/wooly/releases/latest">latest
+          release</a>. Each program is a single self-contained file, so you don't need .NET installed.</p>
+        <div class="table-scroll">
+          <table class="platforms">
+            <thead>
+              <tr><th scope="col">Platform</th><th scope="col">TUI</th><th scope="col">CLI</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Linux x64</th><td><code>wooly-tui-linux-x64.tar.gz</code></td><td><code>wooly-cli-linux-x64.tar.gz</code></td></tr>
+              <tr><th scope="row">macOS Apple silicon</th><td><code>wooly-tui-macos-arm64.tar.gz</code></td><td><code>wooly-cli-macos-arm64.tar.gz</code></td></tr>
+              <tr><th scope="row">macOS Intel</th><td><code>wooly-tui-macos-x64.tar.gz</code></td><td><code>wooly-cli-macos-x64.tar.gz</code></td></tr>
+              <tr><th scope="row">Windows x64</th><td><code>wooly-tui-windows-x64.exe</code></td><td><code>wooly-cli-windows-x64.exe</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>On Linux and macOS, unpack the tarball and run the program inside it. Moving it somewhere on your
+          <code>PATH</code>, such as <code>~/.local/bin</code>, lets you run it from anywhere.</p>
+        <pre class="copyable"><code>tar -xzf wooly-tui-linux-x64.tar.gz
+./wooly-tui</code></pre>
+        <p>On Windows, run the <code>.exe</code> from Windows Terminal or PowerShell.</p>
+        <p>Check which version you have with <code>wooly-cli version</code>. To upgrade, download the new release
+          and replace the old file. Your profiles and settings stay where they are. Anything you need to know when
+          moving between releases is in the
+          <a href="https://github.com/jrmitch120/wooly/blob/main/docs/releases.md#upgrading">upgrade notes</a>.</p>
+      </section>
+
+      <section id="sign-in">
+        <h2 class="section-title">Signing in</h2>
+        <p>Wooly signs in through your browser, on your instance's own page. It never asks for your password. Each
+          account you sign in with is saved as a <strong>profile</strong> with a name you choose, such as
+          <code>personal</code> or <code>work</code>, and you can have as many as you like, on one instance or
+          several.</p>
+
+        <h3>In the TUI</h3>
+        <p>Run <code>wooly-tui</code>. The first time, it opens on <strong>Add a profile</strong>:</p>
+        <ol class="steps">
+          <li>Type your instance, for example <code>mastodon.social</code>, and press <kbd>⏎</kbd>.</li>
+          <li>Approve Wooly in the browser window that opens.</li>
+          <li>Give the profile a name. You land on your home timeline.</li>
+        </ol>
+        <p>If the browser doesn't open, or you'd rather use an access token you already have, press <kbd>t</kbd> at that step to paste one instead.</p>
+
+        <h3>From the CLI</h3>
+        <pre class="copyable"><code>wooly-cli profile add work --instance mastodon.social</code></pre>
+        <p>This opens your browser, then checks the sign-in with your instance before saving the profile. On a machine
+          with no browser, Wooly prints the address so you can finish signing in on another device. If you already
+          have an access token, pass it with <code>--token &lt;TOKEN&gt;</code>, or use <code>--manual</code> to be
+          asked to paste one.</p>
+
+        <h3>More than one profile</h3>
+        <p>The first profile you add is the <strong>default</strong>, the one both programs use unless you say
+          otherwise.</p>
+        <ul>
+          <li>For one run, pass <code>--profile &lt;NAME&gt;</code> to either program.</li>
+          <li>To change the default, run <code>wooly-cli profile switch &lt;NAME&gt;</code>, or press
+            <kbd>D</kbd> on the profile in the TUI.</li>
+          <li>In the TUI, <kbd>ctrl-p</kbd> opens <strong>Profiles</strong>. There, <kbd>⏎</kbd> switches to a profile
+            for this session, <kbd>a</kbd> adds one, <kbd>R</kbd> signs one in again, and <kbd>x</kbd> removes
+            one.</li>
+          <li><code>wooly-cli profile list</code> and <code>profile show</code> tell you what you have.</li>
+        </ul>
+      </section>
+
+      <section id="around">
+        <h2 class="section-title">Getting around</h2>
+        <figure class="term">
+          <div class="term-bar" aria-hidden="true"><span></span><span></span><span></span><b>wooly-tui</b></div>
+          <img src="screenshots/home.png" width="1854" height="1758" loading="lazy"
+               alt="The TUI: the rail of destinations on the left and the home timeline on the right, with the keys for this screen along the bottom">
+        </figure>
+        <p>The TUI has three parts:</p>
+        <ul>
+          <li><strong>The rail</strong> on the left lists where you can go, in groups: <strong>Timelines</strong>
+            (Home, Local, Federated), <strong>Hashtags</strong> (your own <a href="#tag-sets">tag sets</a>, if you
+            have any), <strong>Explore</strong> (Discover, Search), <strong>Inbox</strong> (Notifications, Direct
+            messages, Follow requests) and <strong>You</strong>. Unread counts sit beside the places that have them. At the foot, a
+            gauge shows how much of your instance's request allowance is left.</li>
+          <li><strong>The content panel</strong> on the right shows one screen at a time. Its title is a breadcrumb,
+            such as <code>Home › Post by @maria</code>, so you always know where you are.</li>
+          <li><strong>The status row</strong> along the bottom lists the keys for the screen you're on.</li>
+        </ul>
+        <p>Opening something goes one level deeper, and <kbd>esc</kbd> always brings you back one level. It never
+          quits; <kbd>ctrl-q</kbd> does that. The keys that work everywhere:</p>
+        <div class="table-scroll">
+          <table class="keys">
+            <tbody>
+              <tr><td><kbd>tab</kbd> <kbd>shift-tab</kbd></td><td>Move down or up the rail</td></tr>
+              <tr><td><kbd>`</kbd> <kbd>~</kbd></td><td>Jump to the next or previous rail group</td></tr>
+              <tr><td><kbd>esc</kbd></td><td>Back one level</td></tr>
+              <tr><td><kbd>/</kbd></td><td>Search</td></tr>
+              <tr><td><kbd>ctrl-p</kbd></td><td>Profiles</td></tr>
+              <tr><td><kbd>\</kbd></td><td>Hide or show the rail</td></tr>
+              <tr><td><kbd>-</kbd> <kbd>+</kbd></td><td>Make the whole app narrower or wider</td></tr>
+              <tr><td><kbd>?</kbd></td><td>Every key for this screen</td></tr>
+              <tr><td><kbd>ctrl-q</kbd></td><td>Quit</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The mouse works too: click the rail, a post or a link, and scroll with the wheel. Wooly remembers a hidden
+          rail and the width you chose for next time.</p>
+      </section>
+
+      <section id="reading">
+        <h2 class="section-title">Reading</h2>
+        <p>Pick a timeline on the rail and move through it with <kbd>j</kbd> and <kbd>k</kbd>. Wooly loads more as
+          you near the bottom and tells you when there's nothing older to read.</p>
+        <div class="table-scroll">
+          <table class="keys">
+            <tbody>
+              <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>Next / previous post</td></tr>
+              <tr><td><kbd>↓</kbd> <kbd>↑</kbd> <kbd>PgDn</kbd> <kbd>PgUp</kbd></td><td>Scroll without moving the selection, to read a long post to its end</td></tr>
+              <tr><td><kbd>⏎</kbd></td><td>Open the post, with what it replies to above and its replies below</td></tr>
+              <tr><td><kbd>a</kbd></td><td>Open the author's profile</td></tr>
+              <tr><td><kbd>b</kbd> <kbd>f</kbd></td><td>Boost / favorite, and again to undo</td></tr>
+              <tr><td><kbd>w</kbd></td><td>Who favorited or boosted it</td></tr>
+              <tr><td><kbd>x</kbd></td><td>Show what a content warning or a sensitive picture is hiding</td></tr>
+              <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Step through the hashtags, mentions, links and pictures in the post; <kbd>⏎</kbd> opens the one picked</td></tr>
+              <tr><td><kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd>, then <kbd>v</kbd></td><td>Pick poll options, then vote</td></tr>
+              <tr><td><kbd>g</kbd></td><td>Refresh</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3>Pictures and video</h3>
+        <p>On a terminal that can draw pictures (one that speaks sixel or the Kitty graphics protocol, such as
+          Ghostty, kitty, WezTerm or Windows Terminal) they're drawn right in the post. Step to one with
+          <kbd>→</kbd> and press <kbd>⏎</kbd> to see it full size, with its description underneath. Everywhere else,
+          each picture is shown as a link with its description. Video and audio open in your own player.</p>
+        <h3 id="tag-sets">Tag sets</h3>
+        <p>A tag set is a name for up to twelve hashtags, followed on the rail as one timeline of the posts that
+          carry any of them. You write them in your <a href="#config">config file</a>, and each gets its own place in
+          the rail's Hashtags group:</p>
+        <pre class="copyable"><code>[[tag_sets]]
+name = "dotnet"
+tags = ["dotnet", "csharp", "fsharp"]</code></pre>
+      </section>
+
+      <section id="posting">
+        <h2 class="section-title">Posting</h2>
+        <p>Press <kbd>c</kbd> to write a new post, <kbd>r</kbd> to reply to the one you're on, or <kbd>e</kbd> to edit
+          one of your own. Compose opens on its own screen. <kbd>ctrl-s</kbd> sends it, and <kbd>esc</kbd> throws it
+          away, asking first if you've typed anything.</p>
+        <figure class="term">
+          <div class="term-bar" aria-hidden="true"><span></span><span></span><span></span><b>compose</b></div>
+          <img src="screenshots/compose.png" width="1858" height="1764" loading="lazy"
+               alt="Composing a post, with the mention picker open">
+        </figure>
+        <p>Above the post are a few fields. Move between them with <kbd>↑</kbd> and <kbd>↓</kbd>, the way you would in
+          a mail client:</p>
+        <ul>
+          <li><strong>To</strong> sets who can see it: public, unlisted, followers or direct. Choose with
+            <kbd>←</kbd> <kbd>→</kbd>.</li>
+          <li><strong>Lang</strong> sets the post's language. Start typing a code or a name to pick one.</li>
+          <li><strong>The content warning</strong> is what readers see before they choose to open the post.
+            <kbd>ctrl-w</kbd> jumps between it and the post.</li>
+          <li><strong>Media</strong> lists what's attached. <kbd>ctrl-o</kbd> opens a file browser (type to filter,
+            <kbd>space</kbd> to pick several), and <kbd>ctrl-v</kbd> or <kbd>alt-v</kbd> attaches a picture or files
+            you've copied. On an attachment, <kbd>⏎</kbd> lets you write its description (alt text),
+            <kbd>s</kbd> marks it sensitive, and <kbd>del</kbd> takes it off.</li>
+        </ul>
+        <p>Typing <code>@</code> and part of a name opens a list of people to mention; pick one with <kbd>↑</kbd>
+          <kbd>↓</kbd> and <kbd>tab</kbd>. On your own posts, <kbd>p</kbd> pins or unpins and <kbd>d</kbd> deletes
+          after asking.</p>
+        <p>From the CLI:</p>
+        <pre class="copyable"><code><span class="c"># A post with a content warning and a described picture</span>
+wooly-cli post create "Look who turned up" --cw "cat pics" \
+  --media "cat.png:a ginger cat asleep on a keyboard"
+
+<span class="c"># A poll that stays open for two days</span>
+wooly-cli post create "Tabs or spaces?" --poll tabs --poll spaces --poll-open 2d
+
+<span class="c"># Followers only</span>
+wooly-cli post create "Home safe" --visibility followers</code></pre>
+      </section>
+
+      <section id="inbox">
+        <h2 class="section-title">Notifications and messages</h2>
+        <p>The rail's <strong>Inbox</strong> group keeps its unread counts up to date as things happen, and rings
+          the terminal bell when one goes up. (Turn the bell off with <code>bell = false</code>; see
+          <a href="#config">Settings</a>.)</p>
+        <ul>
+          <li><strong>Notifications</strong> are grouped the way your instance groups them, so ten favorites on one
+            post are one row. <kbd>w</kbd> shows who did it, <kbd>d</kbd> dismisses a group and <kbd>D</kbd> clears
+            them all.</li>
+          <li><strong>Direct messages</strong> are listed as conversations. <kbd>⏎</kbd> opens one and <kbd>m</kbd>
+            marks it read. Every message in a conversation is a post, so <kbd>r</kbd>, <kbd>f</kbd> and the rest work
+            there too.</li>
+          <li><strong>Follow requests</strong>, for a locked account: <kbd>a</kbd> accepts and <kbd>x</kbd>
+            rejects.</li>
+        </ul>
+        <pre class="copyable"><code>wooly-cli notification list
+wooly-cli dm send alice@example.social "Are we still on for Thursday?"
+wooly-cli account requests list</code></pre>
+      </section>
+
+      <section id="people">
+        <h2 class="section-title">People and search</h2>
+        <p>Press <kbd>/</kbd> and type a word, a <code>#hashtag</code> or an <code>@name</code> to search accounts,
+          hashtags and posts at once. <kbd>[</kbd> and <kbd>]</kbd> move between the kinds of result. Typing a full
+          handle or the web address of a post or profile takes you straight there.</p>
+        <p>On someone's profile:</p>
+        <div class="table-scroll">
+          <table class="keys">
+            <tbody>
+              <tr><td><kbd>F</kbd> <kbd>M</kbd> <kbd>B</kbd></td><td>Follow, mute or block them, and again to undo</td></tr>
+              <tr><td><kbd>s</kbd></td><td>Switch between their posts and their posts with replies</td></tr>
+              <tr><td><kbd>w</kbd></td><td>Who they follow and who follows them</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>Discover</strong>, under Explore, suggests people to follow: <kbd>F</kbd> follows,
+          <kbd>d</kbd> dismisses. On your own profile (<strong>You</strong> on the rail), <kbd>E</kbd> edits your
+          display name, bio, avatar, header and profile fields.</p>
+      </section>
+
+      <section id="cli">
+        <h2 class="section-title">The CLI</h2>
+        <p><code>wooly-cli --help</code> lists every command, and <code>wooly-cli &lt;command&gt; --help</code> shows
+          its options.</p>
+        <div class="table-scroll">
+          <table class="cmds">
+            <thead><tr><th scope="col">Command</th><th scope="col">What it does</th></tr></thead>
+            <tbody>
+              <tr><td><code>profile</code></td><td><code>add</code>, <code>list</code>, <code>show</code>, <code>switch</code> and <code>remove</code> your profiles</td></tr>
+              <tr><td><code>timeline</code></td><td>Read <code>home</code>, <code>local</code>, <code>federated</code>, a <code>tag</code>, an <code>account</code>'s posts or its <code>pinned</code> ones</td></tr>
+              <tr><td><code>post</code></td><td><code>create</code>, <code>reply</code>, <code>edit</code>, <code>delete</code>, <code>show</code>, <code>boost</code>, <code>favorite</code>, <code>pin</code> and <code>vote</code>, the undo of each, and <code>favorited-by</code> / <code>boosted-by</code></td></tr>
+              <tr><td><code>account</code></td><td><code>show</code>, <code>edit</code> your profile, <code>follow</code>, <code>block</code>, <code>mute</code> (and undo), list <code>followers</code> and <code>following</code>, and answer <code>requests</code></td></tr>
+              <tr><td><code>notification</code></td><td><code>list</code>, <code>dismiss</code> one, or <code>clear</code> them all</td></tr>
+              <tr><td><code>dm</code></td><td><code>list</code> conversations, <code>show</code> one, <code>send</code> a message, mark one <code>read</code></td></tr>
+              <tr><td><code>search</code></td><td>Accounts, hashtags and posts, or one kind with <code>--type</code></td></tr>
+              <tr><td><code>version</code></td><td>Print the version</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Posts and accounts are named the way the commands print them: a post by the id a timeline shows, and an
+          account as <code>user@instance</code>, or just <code>user</code> for someone on your own instance.</p>
+        <pre class="copyable"><code><span class="c"># Your 40 newest home posts, as JSON</span>
+wooly-cli timeline home --limit 40 --json
+
+<span class="c"># Reply to a post</span>
+wooly-cli post reply 113452907716812345 "Agreed!"
+
+<span class="c"># Search for a hashtag</span>
+wooly-cli search "#dotnet"</code></pre>
+
+        <h3>In scripts</h3>
+        <ul>
+          <li>Lists fetch 20 items by default. <code>--limit</code> asks for more, and Wooly pages through your
+            instance for you.</li>
+          <li><code>--json</code> works on lists, searches, posts and accounts, and on what you publish. A list comes
+            wrapped in an object that says whether it's complete: a list cut short (by a rate limit, say) still prints
+            what it got, with <code>"complete": false</code>.</li>
+          <li>Results go to stdout and errors to stderr.</li>
+          <li>Commands that ask before acting, such as <code>post delete</code> and <code>post vote</code>, take
+            <code>--yes</code> to skip the question.</li>
+        </ul>
+        <p>Exit codes keep their meaning from release to release:</p>
+        <div class="table-scroll">
+          <table class="cmds">
+            <tbody>
+              <tr><td><code>0</code></td><td>Success</td></tr>
+              <tr><td><code>1</code></td><td>Something else went wrong</td></tr>
+              <tr><td><code>2</code></td><td>The command was typed wrong, or used an option Wooly doesn't have</td></tr>
+              <tr><td><code>3</code></td><td>Sign-in problem: sign the profile in again</td></tr>
+              <tr><td><code>4</code></td><td>Couldn't reach the instance</td></tr>
+              <tr><td><code>5</code></td><td>Rate limited by the instance; try again later</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="config">
+        <h2 class="section-title">Settings</h2>
+        <p>Wooly keeps its settings in <code>config.toml</code>, in a folder of its own:</p>
+        <div class="table-scroll">
+          <table class="cmds">
+            <tbody>
+              <tr><th scope="row">Linux</th><td><code>~/.config/wooly/</code></td></tr>
+              <tr><th scope="row">macOS</th><td><code>~/Library/Application Support/wooly/</code></td></tr>
+              <tr><th scope="row">Windows</th><td><code>%APPDATA%\wooly\</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The file is meant to be edited by hand. The settings you're most likely to want:</p>
+        <pre class="copyable"><code>theme = "dark"                <span class="c"># "dark", "light", or one of your own below</span>
+
+[preferences]
+default_visibility = "public" <span class="c"># public, unlisted, followers or direct</span>
+default_language = "en"
+bell = true                   <span class="c"># ring when an Inbox count goes up</span>
+hide_drawn_caption = false    <span class="c"># hide a picture's caption once it's drawn</span>
+shell_width = 100             <span class="c"># 50 to 100, a percentage of the terminal</span>
+hidden_rail = false
+scrollbar = "block"           <span class="c"># block, line, left-half, right-half or none</span>
+
+[[tag_sets]]
+name = "dotnet"
+tags = ["dotnet", "csharp", "fsharp"]
+
+<span class="c"># A theme only needs the colours it changes</span>
+[themes.midnight]
+body = "#d5d2e0"
+link = "#8fa8ff"</code></pre>
+        <p>A colour is a hex value like <code>#8fa8ff</code> or a terminal colour name like <code>bright-blue</code>.
+          The full list of things a theme can colour is in the
+          <a href="https://github.com/jrmitch120/wooly/blob/main/docs/tui-shell.md#roles">theme reference</a>.</p>
+        <p>Your sign-in tokens are never written to this file. They go in your system's keychain: Keychain on macOS,
+          Credential Manager on Windows, Secret Service on Linux.</p>
+      </section>
+
+      <section id="help">
+        <h2 class="section-title">Troubleshooting</h2>
+        <dl class="faq">
+          <dt>Pictures show up as links, not pictures.</dt>
+          <dd>Your terminal can't draw pictures, or Wooly can't tell that it can. Pictures need a terminal that speaks
+            sixel or the Kitty graphics protocol. macOS Terminal draws none, and a terminal multiplexer such as tmux
+            may not pass them through. The link and its description are always there either way.</dd>
+
+          <dt>Pasting a picture into a post does nothing on Linux.</dt>
+          <dd>Wooly reads the clipboard with <code>wl-paste</code> on Wayland and <code>xclip</code> on X11. Install
+            the one for your desktop (the <code>wl-clipboard</code> or <code>xclip</code> package).</dd>
+
+          <dt><kbd>ctrl-v</kbd> pastes text instead of attaching a picture on Windows.</dt>
+          <dd>Windows Terminal keeps <kbd>ctrl-v</kbd> for its own paste. Use <kbd>alt-v</kbd>.</dd>
+
+          <dt>Wooly warned me my token is stored in plain text.</dt>
+          <dd>It couldn't find a keychain, which is common on a headless server, so it saved the token in
+            <code>credentials.toml</code> beside your config instead. On macOS and Linux the keychain is reached
+            through Git's credential manager, so check that <code>git</code> is on your <code>PATH</code>.</dd>
+
+          <dt>Wooly won't start on Linux and mentions ICU.</dt>
+          <dd>Install your distribution's ICU package (<code>libicu</code>). Desktop and server installs usually have
+            it; minimal container images usually don't.</dd>
+
+          <dt>macOS says the app can't be opened.</dt>
+          <dd>The builds aren't signed or notarized. Unpacking with <code>tar</code> on the command line is usually
+            enough. If not, clear the quarantine flag:
+            <code>xattr -d com.apple.quarantine ./wooly-tui</code>.</dd>
+
+          <dt>Wooly refuses to start because of my config file.</dt>
+          <dd>The message names the setting that's wrong, such as a tag set with no name or more than twelve tags.
+            Fix that line and start again.</dd>
+
+          <dt>My comments in <code>config.toml</code> disappeared.</dt>
+          <dd>Changing the width, hiding the rail or picking a default profile from inside the TUI saves the whole
+            file again, and comments don't survive that.</dd>
+
+          <dt>I've been signed out, or the CLI exits with code 3.</dt>
+          <dd>Sign the profile in again: <kbd>R</kbd> on it in the TUI's Profiles screen, or add it again from the
+            CLI.</dd>
+
+          <dt>Can I turn off colour?</dt>
+          <dd>Yes. Wooly respects <code>NO_COLOR</code> and <code>TERM=dumb</code>, and still marks what's selected
+            without colour.</dd>
+        </dl>
+        <p>Still stuck, or have an idea? <a href="https://github.com/jrmitch120/wooly/issues">Open an issue</a>.</p>
+      </section>
+
+      <section class="source-note" aria-label="Source">
+        <p>Wooly is open source under the MIT licence. The code, the design notes and how to build it yourself are on
+          <a href="https://github.com/jrmitch120/wooly">GitHub</a>, and contributions are welcome.</p>
+      </section>
+    </article>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-inner">
+      <p>Wooly is open source under the <a href="https://github.com/jrmitch120/wooly/blob/main/LICENSE">MIT licence</a>
+        © Jeff Mitchell. <a href="https://github.com/jrmitch120/wooly">Source on GitHub</a>.</p>
+    </div>
+  </footer>
+
+  <script>
+    // A copy button on each command block. Comment lines are left out of what's copied.
+    document.querySelectorAll('pre.copyable').forEach(function (pre) {
+      if (!navigator.clipboard) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'copy';
+      b.textContent = 'Copy';
+      b.addEventListener('click', function () {
+        var text = pre.querySelector('code').innerText
+          .split('\n').filter(function (l) { return !/^#/.test(l.trim()); }).join('\n').trim();
+        navigator.clipboard.writeText(text).then(function () {
+          b.textContent = 'Copied';
+          setTimeout(function () { b.textContent = 'Copy'; }, 1500);
+        });
+      });
+      pre.appendChild(b);
+    });
+  </script>
+</body>
+</html>

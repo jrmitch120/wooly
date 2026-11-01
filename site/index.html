@@ -19,12 +19,12 @@
   <header class="top">
     <div class="wrap top-inner">
       <a class="brand" href="./" aria-label="Wooly home">
-        <span class="brand-mark" aria-hidden="true">w</span>wooly
+        <img class="brand-logo" src="favicon.svg" width="30" height="30" alt="">wooly
       </a>
       <nav aria-label="Sections">
         <a href="#install">Install</a>
         <a href="#start">Get started</a>
-        <a href="#docs">Docs</a>
+        <a href="docs.html">Docs</a>
         <a href="https://github.com/jrmitch120/wooly">GitHub</a>
       </nav>
     </div>
@@ -36,8 +36,8 @@
         <p class="eyebrow">Mastodon, from your terminal</p>
         <h1>Read, post and script Mastodon without leaving the shell.</h1>
         <p class="lede">
-          Wooly is a cross-platform terminal client for Mastodon, written in .NET. It comes as two programs that share
-          one API, sign-in and config layer, so you sign in once and both act as the same profile.
+          Wooly is a Mastodon client for Linux, macOS and Windows terminals. It comes as two programs, a full-screen
+          app and a command line, that share one sign-in and one config, so you sign in once and both act as you.
         </p>
         <div class="cta">
           <a class="button primary" href="https://github.com/jrmitch120/wooly/releases/latest">Download the latest release</a>
@@ -206,13 +206,17 @@ wooly-cli search "#dotnet"</code></pre>
 
     <section class="wrap" id="docs">
       <h2 class="section-title">Docs</h2>
+      <p>The <a href="docs.html">guide</a> covers everything from your first sign-in to scripting the CLI.</p>
       <ul class="links">
-        <li><a href="https://github.com/jrmitch120/wooly#readme"><b>README</b><span>Install, keys, every CLI command, configuration and building from source</span></a></li>
-        <li><a href="https://github.com/jrmitch120/wooly/blob/main/docs/tui-shell.md"><b>The TUI shell</b><span>Every screen, key, theme role and how the fallbacks work</span></a></li>
-        <li><a href="https://github.com/jrmitch120/wooly/blob/main/docs/releases.md"><b>Releases and upgrading</b><span>What each release contains and what changes between them</span></a></li>
-        <li><a href="https://github.com/jrmitch120/wooly/tree/main/docs/adr"><b>Decision records</b><span>Why things are the way they are</span></a></li>
-        <li><a href="https://github.com/jrmitch120/wooly/blob/main/GLOSSARY.md"><b>Glossary</b><span>The project's vocabulary. It says "post", never "toot".</span></a></li>
-        <li><a href="https://github.com/jrmitch120/wooly/issues"><b>Issues</b><span>Bugs and ideas</span></a></li>
+        <li><a href="docs.html#sign-in"><b>Signing in</b><span>Add a profile through your browser, or several across instances</span></a></li>
+        <li><a href="docs.html#around"><b>Getting around</b><span>The rail, the breadcrumb, and the keys that work everywhere</span></a></li>
+        <li><a href="docs.html#reading"><b>Reading</b><span>Timelines, tag sets, pictures, content warnings and polls</span></a></li>
+        <li><a href="docs.html#posting"><b>Posting</b><span>Replies, visibility, alt text, attachments from the clipboard</span></a></li>
+        <li><a href="docs.html#inbox"><b>Notifications and messages</b><span>Live unread counts, direct messages and follow requests</span></a></li>
+        <li><a href="docs.html#cli"><b>The CLI</b><span>Every command, JSON output and exit codes for scripts</span></a></li>
+        <li><a href="docs.html#config"><b>Settings</b><span>Themes, tag sets and preferences in one file</span></a></li>
+        <li><a href="docs.html#help"><b>Troubleshooting</b><span>Pictures, clipboard, keychain and platform quirks</span></a></li>
+        <li><a href="https://github.com/jrmitch120/wooly"><b>Source on GitHub</b><span>The code, issues, and how to contribute</span></a></li>
       </ul>
     </section>
   </main>
