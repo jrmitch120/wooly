@@ -1,0 +1,65 @@
+# Dependabot version updates: a weekly look for newer versions of what the repository depends on, opened as pull
+# requests. Minor and patch updates are grouped so a week's worth arrives as one pull request per ecosystem rather than
+# one per package. Security updates for known vulnerabilities are separate, and are switched on in the repository's
+# settings (Settings > Code security), not here.
+version: 2
+
+updates:
+  # NuGet packages. Versions are managed centrally in Directory.Packages.props, which Dependabot reads from the root.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Chicago
+    open-pull-requests-limit: 5
+    groups:
+      # Packages released together move together, majors included, so a family never ends up on mixed versions.
+      spectre-console:
+        patterns:
+          - "Spectre.Console*"
+      microsoft-extensions:
+        patterns:
+          - "Microsoft.Extensions.*"
+      xunit:
+        patterns:
+          - "xunit*"
+      # Everything else's minor and patch updates in one pull request. A major update arrives on its own.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # The actions the CI, release and Pages workflows use.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Chicago
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # The images the integration suite's throwaway Mastodon instance runs (tests/integration/docker-compose.yml).
+  - package-ecosystem: docker-compose
+    directory: /tests/integration
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Chicago
+    open-pull-requests-limit: 5
+    groups:
+      # web, sidekiq and streaming have to stay on the same Mastodon version, so they always update in one pull request.
+      mastodon:
+        patterns:
+          - "*mastodon*"
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
