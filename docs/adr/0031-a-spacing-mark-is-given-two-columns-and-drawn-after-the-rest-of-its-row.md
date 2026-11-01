@@ -33,6 +33,12 @@ The rule is about the character, not the terminal: nothing asks which terminal t
   says so. The field is `readonly`, and set, it overrides any driver named or forced after it — so it is set just
   before `Init` with none named. Ask upstream for a public way to hand an application its component factory; when there
   is one, use it.
+- Being the output, `HeldOutput` is also where a fault in Terminal.Gui 2.5.0's own writer is mended (#553): its
+  `AnsiOutput` declines to move the cursor onto the caret's cell, and its frame writer takes that as failure and drops the
+  rest of the frame — later rows unwritten, and a hyperlink it had opened (it links every URL it draws) left open for the
+  next blanks written, which Windows Terminal underlines on hover. `HeldOutput` makes the move itself, and ends every
+  frame by closing any link, so one left open by any other way never reaches the next frame. Report it upstream; when
+  Terminal.Gui moves the cursor there, take the override out.
 - Terminal.app is beyond any of this: probed, it drew a border placed by an explicit cursor move one or two columns
   left after `सिन्धी`, `தமிழ்`, `తెలుగు` and `हिन्दी` — it lays such text out off its own cells, and what follows with it.
   Probing all 214 language names showed no Unicode property that predicts it: Bengali, full of spacing marks, drew in

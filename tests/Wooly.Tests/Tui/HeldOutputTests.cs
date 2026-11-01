@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -11,7 +12,8 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     What reaches a terminal for a row holding a character carrying a spacing mark (ADR-0031): written by the
 ///     client's own output, and played on a terminal that draws such a character one, two or three columns wide — as
-///     WezTerm, herdr and GNU screen were measured to. Whatever the width, nothing after it on the row moves.
+///     WezTerm, herdr and GNU screen were measured to. Whatever the width, nothing after it on the row moves. And a
+///     frame reaching the terminal whole wherever the caret is (#553).
 /// </summary>
 public partial class HeldOutputTests
 {
@@ -98,11 +100,53 @@ public partial class HeldOutputTests
         buffer.AddStr("x");
         buffer.Move(0, 1);
         buffer.AddStr("yz");
-        output.SetCursor(new Cursor { Position = new System.Drawing.Point(5, 0), Style = CursorStyle.BlinkingBar });
+        output.SetCursor(new Cursor { Position = new Point(5, 0) });
         output.Writes.Clear();
         output.Write(buffer);
 
         Assert.Equal("xyz", Drawn(output));
+    }
+
+    /// <summary>
+    ///     A link drawn on the caret's row is closed before anything else is written (#553). Terminal.Gui links every
+    ///     URL it draws; cut short at the caret's cell, its writer left the link open, and the blanks written next were
+    ///     inside it — a line a terminal underlines when the pointer passes over.
+    /// </summary>
+    [Fact]
+    public void ALinkOnTheCaretsRowIsClosed()
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(16, 1);
+        var output = new Recording();
+        output.Write(buffer);
+
+        buffer.Move(0, 0);
+        buffer.AddStr("http://a.io");
+        buffer.Contents![0, 11].IsDirty = false;
+        buffer.Move(13, 0);
+        buffer.AddStr("x");
+        output.SetCursor(new Cursor { Position = new Point(13, 0) });
+        output.Writes.Clear();
+        output.Write(buffer);
+
+        Assert.False(LinkOpen(output));
+    }
+
+    /// <summary>
+    ///     Every frame leaves no link open behind it, whatever Terminal.Gui wrote (#553): a link is closed at the end
+    ///     of each frame, so nothing written after it — the next frame, or a terminal's own erasing — can be taken
+    ///     into one.
+    /// </summary>
+    [Fact]
+    public void AFrameLeavesNoLinkOpen()
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(Columns, 1);
+        var output = new Recording();
+
+        output.Write(buffer);
+
+        Assert.EndsWith(EscSeqUtils.OSC_EndHyperlink(), string.Concat(output.Writes.Select(write => write.Text)));
     }
 
     private static Terminal Played(string row, int drawnIn)
@@ -117,9 +161,22 @@ public partial class HeldOutputTests
         return terminal;
     }
 
+    /// <summary>Whether the last hyperlink sequence <paramref name="output" /> wrote opened a link rather than closed one.</summary>
+    private static bool LinkOpen(Recording output) =>
+        Links().Matches(string.Concat(output.Writes.Select(write => write.Text))) is { Count: > 0 } links
+        && links[^1].Groups["url"].Length > 0;
+
+    /// <summary>An OSC 8 hyperlink sequence: a link's address opens it, an empty one closes it.</summary>
+    [GeneratedRegex(@"\u001b\]8;[^;\u0007\u001b]*;(?<url>[^\u0007\u001b]*)")]
+    private static partial Regex Links();
+
+    /// <summary>Every escape sequence a terminal reads and draws nothing for.</summary>
+    [GeneratedRegex(@"\u001b(\[[0-9;?]*[A-Za-z]|\][^\u0007\u001b]*(\u0007|\u001b\\))")]
+    private static partial Regex Escapes();
+
     /// <summary>The text <paramref name="output" /> wrote, without its escapes or blanks.</summary>
     private static string Drawn(Recording output) =>
-        Terminal.Plain(string.Concat(output.Writes.Select(write => write.Text))).Replace(" ", string.Empty);
+        Escapes().Replace(string.Concat(output.Writes.Select(write => write.Text)), string.Empty).Replace(" ", string.Empty);
 
     private static Recording Written(string row)
     {
@@ -167,7 +224,7 @@ public partial class HeldOutputTests
     ///     other one column, and — as herdr and the xterm family do with a wide character — erases a wide one when
     ///     anything is written into any of its columns but by itself.
     /// </summary>
-    private sealed partial class Terminal(int drawnIn)
+    private sealed class Terminal(int drawnIn)
     {
         private readonly string?[] _cells = Enumerable.Repeat<string?>(" ", Columns + 4).ToArray();
 
@@ -179,7 +236,7 @@ public partial class HeldOutputTests
         {
             _cursor = place ?? _cursor;
 
-            var plain = Plain(text);
+            var plain = Escapes().Replace(text, string.Empty);
             var characters = StringInfo.GetTextElementEnumerator(plain);
 
             while (characters.MoveNext())
@@ -221,10 +278,5 @@ public partial class HeldOutputTests
             }
         }
 
-        /// <summary><paramref name="text" /> with every escape sequence taken out.</summary>
-        public static string Plain(string text) => Escapes().Replace(text, string.Empty);
-
-        [GeneratedRegex(@"\u001b(\[[0-9;?]*[A-Za-z]|\][^\u0007\u001b]*(\u0007|\u001b\\))")]
-        private static partial Regex Escapes();
     }
 }

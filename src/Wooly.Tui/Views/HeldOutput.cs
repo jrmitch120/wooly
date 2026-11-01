@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text;
 using Terminal.Gui.App;
 using Terminal.Gui.Drivers;
 using Wooly.Tui.Rendering;
@@ -21,8 +22,10 @@ namespace Wooly.Tui.Views;
 ///     first left off.
 ///     <para>
 ///         Handed to the application as its <c>ansi</c> driver's output (<see cref="Into" />). A frame with no such
-///         character is written exactly as Terminal.Gui writes it, in one pass. Not sealed, so that a test can read
-///         what it writes at the terminal's edge, which headless Terminal.Gui writes nowhere.
+///         character is written as Terminal.Gui writes it, in one pass, but for two things (#553): it is never cut
+///         short where its first change on a row is the caret's cell, as Terminal.Gui's own writer cuts it
+///         (<see cref="SetCursorPositionImpl" />), and it ends by closing any hyperlink left open. Not sealed, so that
+///         a test can read what it writes at the terminal's edge, which headless Terminal.Gui writes nowhere.
 ///     </para>
 /// </remarks>
 internal class HeldOutput : AnsiOutput
@@ -78,6 +81,10 @@ internal class HeldOutput : AnsiOutput
             held.ExceptWith(pass);
             base.Write(buffer);
         }
+
+        // No link is left open past a frame, whatever Terminal.Gui wrote (#553). It links every URL it draws, and a
+        // link it failed to close takes in whatever is written next — blanks a terminal then underlines on hover.
+        Write(new StringBuilder(EscSeqUtils.OSC_EndHyperlink()));
     }
 
     /// <summary>
@@ -89,13 +96,14 @@ internal class HeldOutput : AnsiOutput
     ///     failure and gives up on the rest of the frame: every row after the caret's cell was left unwritten until the
     ///     caret moved, and a hyperlink it had opened on that row was never closed, so a terminal underlined the blanks
     ///     written later inside it. The terminal's cursor is wherever the last write left it, not at the caret, so the
-    ///     move is made here instead.
+    ///     move is made here instead — at the row as given, since the TUI always runs full screen and an inline
+    ///     region's offset is never added.
     /// </remarks>
     protected override bool SetCursorPositionImpl(int col, int row)
     {
         if (!base.SetCursorPositionImpl(col, row))
         {
-            Write(EscSeqUtils.CSI_SetCursorPosition(row + 1, col + 1));
+            Write(new StringBuilder(EscSeqUtils.CSI_SetCursorPosition(row + 1, col + 1)));
         }
 
         return true;
