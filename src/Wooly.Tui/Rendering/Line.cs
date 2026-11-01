@@ -119,6 +119,13 @@ public sealed record Line
     public int? BandsTo { get; init; }
 
     /// <summary>
+    ///     Whether column <paramref name="column" /> of this row is on the band rather than the page: on a
+    ///     <see cref="Picked" /> row, short of where <see cref="BandsTo" /> stops it. What a picture's box on this row
+    ///     shows through its transparent pixels, on Kitty's placeholders and sixel alike.
+    /// </summary>
+    public bool BandedAt(int column) => Picked && column < (BandsTo ?? int.MaxValue);
+
+    /// <summary>
     ///     Whether this row is a rule (<see cref="Rule" />): its one span repeated by the view that paints it from the
     ///     row's first column to the view's last, rather than drawn as wide as it is.
     /// </summary>

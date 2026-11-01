@@ -209,7 +209,7 @@ public sealed class Placeholders(
             inset.Rows,
             cell,
             DecodedSize.Of(picture),
-            BoxFills.Of(inset));
+            inset.Fill);
         Image image;
 
         lock (_gate)

@@ -74,4 +74,5 @@ amendment for #438), and a custom emoji's was too. But its two cells by one are 
 — 40 by 45 pixels on a cell of 20 by 45 — and a custom emoji is a logo or a badge drawn to its edges, so the crop cut
 the sides off a square `:ubuntu:` and a wide `:php:` alike. So a custom emoji is fitted whole inside its box and
 centred, never cropped or stretched, as Mastodon's web client draws one (`object-fit: contain`): the rest of the box is
-transparent through Kitty's placeholders and laid on the page on sixel, which leaves no transparent pixels.
+transparent through Kitty's placeholders, and on sixel, which leaves no transparent pixels, laid on what is behind the
+box: the band on a picked post and the page anywhere else (ADR-0023's amendment for the review of #522).

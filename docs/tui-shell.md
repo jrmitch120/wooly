@@ -1018,8 +1018,10 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   so the two cannot crop differently. A Stand-in's blur is one exception: decoded square, it is stretched to its box,
   which gives it back the picture's proportions (ADR-0025's amendment for #438). A custom emoji's fixed box, 2×1, is
   the other: its picture is fitted whole inside it and centred, as Mastodon's web client draws one, the rest of the box
-  transparent through Kitty's placeholders and the page on sixel — a logo drawn to its edges in a box narrower than
-  square, cropped, lost its sides (ADR-0035's amendment, review of #522).
+  transparent through Kitty's placeholders and on sixel laid on what is behind it, the band on the picked post and the
+  page anywhere else — a logo drawn to its edges in a box narrower than square, cropped, lost its sides (ADR-0035's
+  amendment, review of #522). On sixel every picture with transparency is laid the same way, a transparent avatar
+  included (ADR-0023's amendment, review of #522).
 - **A custom emoji is a picture two columns wide and one row tall, in the line** (#523, ADR-0035). A shortcode the post
   lists — `:php:`, `:US_AZ:` — is drawn in a post's words, and in the preview of the reader's own post under a
   notification, as a Unicode emoji sits: wrapped as one character two columns wide, so `:US_AZ:Phoenix` breaks before

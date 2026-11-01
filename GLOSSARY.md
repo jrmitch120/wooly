@@ -166,10 +166,10 @@ The cells a **drawn** picture is painted in, settled before its pixels arrive so
 go: shaped as the instance said the picture is, for a post's picture and a **Link preview**'s, or a fixed size, for an
 avatar, a **custom emoji**, the small picture on a **pending attachment**'s row and the public profile form's avatar
 and header. A fixed box is filled: a picture of another shape is cropped to it from the middle, as an instance crops an
-avatar, never stretched — but for a custom emoji's, which its picture is fitted whole inside, as an instance's web
-client draws one. A shaped box fits the picture inside it, since the shape it was given can be a guess — a
-picture the guess got wrong shows whole, with slack beside it. Until the pixels are here the box holds a **Stand-in**,
-whose blur is stretched to the box rather than cropped.
+avatar, never stretched. A custom emoji's box is the one exception: its picture is fitted whole inside it and centred,
+as Mastodon's web client draws one. A shaped box fits the picture inside it, since the shape it was given can be a
+guess — a picture the guess got wrong shows whole, with slack beside it. Until the pixels are here the box holds a
+**Stand-in**, whose blur is stretched to the box rather than cropped.
 _Avoid_: thumbnail (only the smallest of them), frame, slot
 
 **Picture screen**:

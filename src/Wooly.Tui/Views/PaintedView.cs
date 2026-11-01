@@ -731,7 +731,7 @@ internal sealed class PaintedView : View
             for (var row = Math.Max(0, pinned - top); row < inset.Rows && top + row < height; row++)
             {
                 var at = _top + top + row;
-                var picked = at < lines.Count && lines[at].Picked && inset.Column < (lines[at].BandsTo ?? int.MaxValue);
+                var picked = at < lines.Count && lines[at].BandedAt(inset.Column);
 
                 if (id is not { } named)
                 {
@@ -981,18 +981,20 @@ internal sealed class PaintedView : View
     }
 
     /// <summary>
-    ///     The page a sixel's transparent pixels are laid on: the theme's, where it names one, and otherwise the
-    ///     terminal's own background as it answered when asked at startup — every built-in theme draws on that. Nothing
-    ///     where neither is known, which leaves them transparent.
+    ///     What a sixel's transparent pixels are laid on: what is behind its box, as Kitty's placeholders show through
+    ///     to it — the band on a picked row where <paramref name="banded" /> says so (#269), and the page anywhere else.
+    ///     Each the theme's, where it names one, and otherwise the terminal's own background as it answered when asked
+    ///     at startup — every built-in theme draws its page on that. Nothing where neither is known, which leaves them
+    ///     transparent.
     /// </summary>
-    private Terminal.Gui.Drawing.Color? Backdrop()
+    private Terminal.Gui.Drawing.Color? Backdrop(bool banded)
     {
         var none = Terminal.Gui.Drawing.Color.None;
-        var page = _theme.For(Role.Body).Background;
+        var behind = (banded ? _theme.Banded(Role.Body) : _theme.For(Role.Body)).Background;
 
-        if (_theme.DrawsColour && page != none && page != Terminal.Gui.Drawing.Attribute.Default.Background)
+        if (_theme.DrawsColour && behind != none && behind != Terminal.Gui.Drawing.Attribute.Default.Background)
         {
-            return page;
+            return behind;
         }
 
         return App?.Driver?.DefaultAttribute?.Background is { } terminal && terminal != none ? terminal : null;

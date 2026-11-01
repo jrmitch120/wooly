@@ -135,7 +135,7 @@ public class SixelPicturesTests
 
                 return "";
             },
-            backdrop: () => new Color(0, 0, 200));
+            backdrop: _ => new Color(0, 0, 200));
         var pixels = new Color[80, 80];
 
         for (var x = 0; x < 80; x++)

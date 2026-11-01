@@ -98,7 +98,7 @@ internal sealed class Placing
     ///     (<see cref="PictureView" />), and a fake in a test. Asked <see cref="MostBoxes" /> times, here, and then
     ///     <see cref="MostCustomEmojiBoxes" /> times for the custom emoji's.
     /// </param>
-    /// <param name="sixels">What encodes a sixel's cuts, laid on the page's backdrop.</param>
+    /// <param name="sixels">What encodes a sixel's cuts, laid on what is behind each box.</param>
     /// <param name="placeholders">
     ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box
     ///     (ADR-0022), or <see langword="null" /> where there is no such terminal to hold them.
@@ -201,7 +201,7 @@ internal sealed class Placing
 
                     Shown(box, frame, () => box.Show(
                         inset.Drawn.Id,
-                        _sixels.Of(inset, picture, cell, crop, raster.SixelColours)));
+                        _sixels.Of(inset, picture, cell, crop, raster.SixelColours, page.Banded(inset, at))));
                 });
 
                 Prepare(page, moving, cell, raster.SixelColours);
@@ -210,7 +210,7 @@ internal sealed class Placing
                 {
                     if (OnPage(inset, at, page) is { Crop: var crop })
                     {
-                        _sixels.Prepare(inset, picture, cell, crop, raster.SixelColours);
+                        _sixels.Prepare(inset, picture, cell, crop, raster.SixelColours, page.Banded(inset, at));
                     }
                 }
 
@@ -617,9 +617,10 @@ internal sealed class Placing
                     continue;
                 }
 
+                // On the row it is on whichever row of the page that comes to.
                 if (OnPage(inset, at + rows, page) is { Crop: var next } && next != now)
                 {
-                    _sixels.Prepare(inset, picture, cell, next, colours);
+                    _sixels.Prepare(inset, picture, cell, next, colours, page.Banded(inset, at));
                 }
             }
         }
@@ -647,6 +648,13 @@ internal sealed class Placing
     {
         /// <summary>Whether there is a page at all — none where the window has shrunk to nothing.</summary>
         public bool HasRoom => Width > 0 && Height > 0;
+
+        /// <summary>
+        ///     Whether <paramref name="inset" />'s box, its top on row <paramref name="at" /> of the page, is on the band
+        ///     of a picked row rather than on the page (<see cref="Line.BandedAt" />): what shows through it.
+        /// </summary>
+        public bool Banded(Inset inset, int at) =>
+            Top + at is var row && row >= 0 && row < Lines.Count && Lines[row].BandedAt(inset.Column);
     }
 
     /// <summary>

@@ -7,6 +7,7 @@ using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 using static Wooly.Tests.Tui.ContentClicks;
+using Color = Terminal.Gui.Drawing.Color;
 
 namespace Wooly.Tests.Tui;
 
@@ -183,54 +184,47 @@ public class CustomEmojiTests
 
     /// <summary>
     ///     A custom emoji is fitted whole into its box, centred, as Mastodon's web client draws one — never cropped from
-    ///     the middle as an avatar is, which cut the sides off a wide logo like <c>:php:</c>. Twice as wide as it is
-    ///     tall, in a box 40 pixels square, it is sent as a PNG whose middle twenty rows are its colour edge to edge,
-    ///     with the ten above and the ten below transparent.
+    ///     the middle as an avatar is. On a cell of 20 by 45 its box is 40 by 45, narrower than square, and a crop cut the
+    ///     sides off a square <c>:ubuntu:</c> and a wide <c>:php:</c> alike: sent as a PNG, the square one is its colour
+    ///     edge to edge in the middle forty rows, with two transparent above and three below, and the wide one, twice as
+    ///     wide as it is tall, in the middle twenty, with twelve above and thirteen below.
     /// </summary>
-    [Fact]
-    public async Task AWideCustomEmojiIsSentFittedWholeIntoItsBoxWithTransparentBandsAboveAndBelow()
+    [Theory]
+    [InlineData(36, 36, 2, 42)]
+    [InlineData(72, 36, 12, 32)]
+    public async Task ACustomEmojiIsSentFittedWholeIntoItsBoxWithTransparentBandsAboveAndBelow(
+        int width,
+        int height,
+        int top,
+        int bottom)
     {
         var terminal = new FakeTerminalImages();
 
         using var drawn = await Shown(
             APost.With(id: "220", content: "I write :php: daily", customEmoji: [Php]),
-            pictures: new FakePictures().HoldingCustomEmoji(Php, Solid(72, 36)),
-            raster: ARaster.Placeholders(new CellSize(20, 40)),
+            pictures: new FakePictures().HoldingCustomEmoji(Php, APicture.Solid(width, height, CustomEmojiColour)),
+            raster: ARaster.Placeholders(new CellSize(20, 45)),
             terminal: terminal);
 
-        using var png = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(
-            Assert.Single(terminal.Transmitted).Png);
+        var png = Assert.Single(terminal.Transmitted).Pixels();
 
-        Assert.Equal((40, 40), (png.Width, png.Height));
+        Assert.Equal((40, 45), (png.Width, png.Height));
 
         for (var x = 0; x < 40; x++)
         {
-            for (var y = 0; y < 40; y++)
+            for (var y = 0; y < 45; y++)
             {
                 Assert.Equal(
-                    y is >= 10 and < 30 ? EmojiColour : default,
-                    png[x, y]);
+                    (x, y, APicture.Rgba(y >= top && y < bottom ? CustomEmojiColour : Transparent)),
+                    (x, y, APicture.Rgba(png.Pixels[x, y])));
             }
         }
     }
 
-    private static readonly SixLabors.ImageSharp.PixelFormats.Rgba32 EmojiColour = new(119, 123, 180, 255);
+    /// <summary>A custom emoji's colour, all over.</summary>
+    private static readonly Color CustomEmojiColour = new(119, 123, 180);
 
-    /// <summary>A custom emoji's picture <paramref name="width" /> by <paramref name="height" />, all one colour.</summary>
-    internal static Picture Solid(int width, int height)
-    {
-        var pixels = new Terminal.Gui.Drawing.Color[width, height];
-
-        for (var x = 0; x < width; x++)
-        {
-            for (var y = 0; y < height; y++)
-            {
-                pixels[x, y] = new Terminal.Gui.Drawing.Color(EmojiColour.R, EmojiColour.G, EmojiColour.B);
-            }
-        }
-
-        return new Picture(pixels);
-    }
+    private static readonly Color Transparent = new(0, 0, 0, 0);
 
     /// <summary>
     ///     Nothing moves when the pictures land: every row holds what it held, each emoji's two placeholder cells where
@@ -399,12 +393,12 @@ public class CustomEmojiTests
     /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
     private const int ToNotifications = 5;
 
-    private static readonly Terminal.Gui.Drawing.Color Shade = Themes.Dark.For(Role.StandIn).Foreground;
+    private static readonly Color Shade = Themes.Dark.For(Role.StandIn).Foreground;
 
     /// <summary>What a custom emoji's shortcode is drawn in where nothing draws, in the dark theme.</summary>
-    internal static readonly Terminal.Gui.Drawing.Color ShortcodeColour = Themes.Dark.For(Role.CustomEmoji).Foreground;
+    internal static readonly Color ShortcodeColour = Themes.Dark.For(Role.CustomEmoji).Foreground;
 
-    private static readonly Terminal.Gui.Drawing.Color Body = Themes.Dark.For(Role.Body).Foreground;
+    private static readonly Color Body = Themes.Dark.For(Role.Body).Foreground;
 
     /// <summary>
     ///     The feed, tall, in the dark theme so that roles can be told apart by colour, with <paramref name="post" />
@@ -477,7 +471,7 @@ public class CustomEmojiTests
     internal sealed record PlaceholderCell(int Row, int Column, string Grapheme, int Id);
 
     /// <summary>The foreground <paramref name="text" /> is drawn in on a row, the same in each cell.</summary>
-    internal static Terminal.Gui.Drawing.Color Foreground(DrawnShell drawn, int row, string text)
+    internal static Color Foreground(DrawnShell drawn, int row, string text)
     {
         var column = drawn.Rows()[row].IndexOf(text, RailLines.Width, StringComparison.Ordinal);
 

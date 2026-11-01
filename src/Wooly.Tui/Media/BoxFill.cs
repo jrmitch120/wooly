@@ -1,5 +1,3 @@
-using Wooly.Tui.Rendering;
-
 namespace Wooly.Tui.Media;
 
 /// <summary>
@@ -25,17 +23,4 @@ internal enum BoxFill
     ///     client draws one (ADR-0035).
     /// </summary>
     Fitted,
-}
-
-/// <summary>Which <see cref="BoxFill" /> a picture set into a box takes.</summary>
-internal static class BoxFills
-{
-    /// <summary>
-    ///     How what <paramref name="inset" /> sets into its box takes it: stretched where it is a Stand-in's blur,
-    ///     fitted where it is a custom emoji, and cropped where it is anything else.
-    /// </summary>
-    public static BoxFill Of(Inset inset) =>
-        inset.Blur is not null ? BoxFill.Stretched
-        : inset.Drawn.IsCustomEmoji ? BoxFill.Fitted
-        : BoxFill.Cropped;
 }

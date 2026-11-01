@@ -20,7 +20,7 @@ internal static class PictureEncoder
     /// <param name="picture">The picture, or the blur.</param>
     /// <param name="width">How wide the box is, in pixels.</param>
     /// <param name="height">How tall the box is, in pixels.</param>
-    /// <param name="fill">How the picture takes its box (<see cref="BoxFills.Of" />).</param>
+    /// <param name="fill">How the picture takes its box (<see cref="Rendering.Inset.Fill" />).</param>
     public static byte[] Png(Picture picture, int width, int height, BoxFill fill)
     {
         using var image = PictureDecoder.Filled(picture, width, height, fill);

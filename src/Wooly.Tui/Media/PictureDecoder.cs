@@ -135,7 +135,7 @@ internal static class PictureDecoder
     /// <param name="picture">The picture, or the blur.</param>
     /// <param name="width">How wide the box is, in pixels.</param>
     /// <param name="height">How tall the box is, in pixels.</param>
-    /// <param name="fill">How the picture takes its box (<see cref="BoxFills.Of" />).</param>
+    /// <param name="fill">How the picture takes its box (<see cref="Rendering.Inset.Fill" />).</param>
     public static Picture Scaled(Picture picture, int width, int height, BoxFill fill)
     {
         if (picture.Width == width && picture.Height == height)
@@ -170,14 +170,14 @@ internal static class PictureDecoder
     ///     <para>
     ///         A <b>custom emoji</b> is fitted whole instead (<see cref="BoxFill.Fitted" />), centred, the rest of its
     ///         box transparent, as Mastodon's web client draws one. Its two cells by one are narrower than square on most
-    ///         terminals — 40 by 45 pixels on a cell of 20 by 45 — and an emoji is a logo or a badge drawn to its edges,
-    ///         so a crop cut the sides off a square <c>:ubuntu:</c> and a wide <c>:php:</c> alike (ADR-0035).
+    ///         terminals — 40 by 45 pixels on a cell of 20 by 45 — and a custom emoji is a logo or a badge drawn to its
+    ///         edges, so a crop cut the sides off a square <c>:ubuntu:</c> and a wide <c>:php:</c> alike (ADR-0035).
     ///     </para>
     /// </remarks>
     /// <param name="picture">The picture, or the blur.</param>
     /// <param name="width">How wide the box is, in pixels.</param>
     /// <param name="height">How tall the box is, in pixels.</param>
-    /// <param name="fill">How the picture takes its box (<see cref="BoxFills.Of" />).</param>
+    /// <param name="fill">How the picture takes its box (<see cref="Rendering.Inset.Fill" />).</param>
     /// <returns>The image, which the caller disposes of.</returns>
     internal static Image<Rgba32> Filled(Picture picture, int width, int height, BoxFill fill)
     {
@@ -200,18 +200,24 @@ internal static class PictureDecoder
 
         if (image.Width != width || image.Height != height)
         {
-            image.Mutate(context => context.Resize(new ResizeOptions
+            var resize = fill switch
             {
-                Size = new Size(width, height),
-                Mode = fill switch
+                BoxFill.Cropped => new ResizeOptions { Mode = ResizeMode.Crop },
+                BoxFill.Stretched => new ResizeOptions { Mode = ResizeMode.Stretch },
+
+                // The room round it left transparent, for whatever is behind the box to show through.
+                BoxFill.Fitted => new ResizeOptions
                 {
-                    BoxFill.Stretched => ResizeMode.Stretch,
-                    BoxFill.Fitted => ResizeMode.Pad,
-                    _ => ResizeMode.Crop,
+                    Mode = ResizeMode.Pad,
+                    PadColor = SixLabors.ImageSharp.Color.Transparent,
                 },
-                Position = AnchorPositionMode.Center,
-                PadColor = SixLabors.ImageSharp.Color.Transparent,
-            }));
+                _ => throw new ArgumentOutOfRangeException(nameof(fill), fill, "Not a way this client fills a box."),
+            };
+
+            resize.Size = new Size(width, height);
+            resize.Position = AnchorPositionMode.Center;
+
+            image.Mutate(context => context.Resize(resize));
         }
 
         return image;

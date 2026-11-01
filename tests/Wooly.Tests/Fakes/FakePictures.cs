@@ -62,6 +62,14 @@ internal sealed class FakePictures : IPictures
         return this;
     }
 
+    /// <summary>Says that <paramref name="account" />'s avatar has arrived as <paramref name="picture" />.</summary>
+    public FakePictures HoldingAvatarOf(string account, Picture picture)
+    {
+        _avatars[account] = picture;
+
+        return this;
+    }
+
     /// <summary>
     ///     Says that <paramref name="emoji" />'s still picture has arrived, at the given size in pixels — one picture
     ///     for every post and name that uses it.

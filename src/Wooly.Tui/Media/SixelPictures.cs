@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Terminal.Gui.Drawing;
 using Wooly.Tui.Rendering;
 
@@ -35,13 +36,14 @@ public sealed record Sixel(Color[,] Pixels, string Encoded);
 ///     Where a crop asked for ahead of time is encoded: off the UI thread in the client, and wherever a test says.
 /// </param>
 /// <param name="backdrop">
-///     What a picture's transparent pixels are laid on before it is encoded — the page it is drawn on, where that is
-///     known — or <see langword="null" /> where it is not, which leaves them transparent.
+///     What a picture's transparent pixels are laid on before it is encoded — what is behind its box, the band where
+///     it is asked with <see langword="true" /> and the page where with <see langword="false" />, where that is known —
+///     or <see langword="null" /> where it is not, which leaves them transparent.
 /// </param>
 internal sealed class SixelPictures(
     Func<Color[,], int, string>? encode = null,
     Action<Action>? elsewhere = null,
-    Func<Color?>? backdrop = null)
+    Func<bool, Color?>? backdrop = null)
 {
     /// <summary>
     ///     How many crops are kept. A crop is its pixels at four bytes each — a megabyte or so for a photograph across a
@@ -60,8 +62,11 @@ internal sealed class SixelPictures(
     /// </summary>
     public const int MostCustomEmojiHeld = 128;
 
+    /// <summary>Whether each picture drawn is opaque, read off its pixels once and kept as long as it is.</summary>
+    private static readonly ConditionalWeakTable<Picture, StrongBox<bool>> Opaque = new();
+
     private readonly Func<Color[,], int, string> _encode = encode ?? Encoded;
-    private readonly Func<Color?> _backdrop = backdrop ?? (() => null);
+    private readonly Func<bool, Color?> _backdrop = backdrop ?? (_ => null);
     private readonly Action<Action> _elsewhere = elsewhere ?? (work => Task.Run(work));
     private readonly Lock _gate = new();
     private readonly Dictionary<Key, LinkedListNode<(Key Key, Sixel Sixel)>> _held = [];
@@ -76,12 +81,13 @@ internal sealed class SixelPictures(
 
     /// <summary>
     ///     <paramref name="crop" /> of <paramref name="picture" /> drawn in <paramref name="inset" />'s box, encoded in
-    ///     <paramref name="colours" /> colours. Encoded here, on the frame asking, only where it was neither asked for
+    ///     <paramref name="colours" /> colours and laid on the band where <paramref name="banded" /> says the box is on
+    ///     one, and the page where it is not. Encoded here, on the frame asking, only where it was neither asked for
     ///     before nor prepared.
     /// </summary>
-    public Sixel Of(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours)
+    public Sixel Of(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours, bool banded = false)
     {
-        var key = KeyOf(inset, picture, cell, crop, colours);
+        var key = KeyOf(inset, picture, cell, crop, colours, banded);
         TaskCompletionSource<Sixel>? preparing;
 
         lock (_gate)
@@ -125,9 +131,9 @@ internal sealed class SixelPictures(
     ///     Starts encoding <paramref name="crop" /> elsewhere, for a crop the next step of a scroll will want: a box
     ///     straddling the edge of the page, cut a row higher or lower than it is now.
     /// </summary>
-    public void Prepare(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours)
+    public void Prepare(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours, bool banded = false)
     {
-        var key = KeyOf(inset, picture, cell, crop, colours);
+        var key = KeyOf(inset, picture, cell, crop, colours, banded);
         var preparing = new TaskCompletionSource<Sixel>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         lock (_gate)
@@ -171,19 +177,49 @@ internal sealed class SixelPictures(
         });
     }
 
-    private Key KeyOf(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours) =>
-        new(
+    /// <summary>
+    ///     The crop's key, which names a backdrop only for a picture that has anything to lay on one — so that picking a
+    ///     post, which moves its rows from the page to the band, encodes again only those of its pictures that show what
+    ///     they are on, and never a photograph.
+    /// </summary>
+    private Key KeyOf(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours, bool banded)
+    {
+        var fill = inset.Fill;
+
+        return new Key(
             new Scale(
                 inset.Drawn.Id,
                 inset.Columns,
                 inset.Rows,
                 cell,
-                _backdrop(),
+                ShowsThrough(picture, fill) ? _backdrop(banded) : null,
                 DecodedSize.Of(picture),
-                BoxFills.Of(inset),
+                fill,
                 inset.Drawn.IsCustomEmoji),
             crop,
             colours);
+    }
+
+    /// <summary>
+    ///     Whether what is behind <paramref name="picture" />'s box shows through it once it takes the box as
+    ///     <paramref name="fill" /> says: where it is fitted, with room round it, or has a pixel less than opaque — which
+    ///     is read off its pixels once for each picture (<see cref="Opaque" />), on the frame that first wants a cut of it.
+    /// </summary>
+    private static bool ShowsThrough(Picture picture, BoxFill fill) =>
+        fill is BoxFill.Fitted || !Opaque.GetValue(picture, AllOpaque).Value;
+
+    private static StrongBox<bool> AllOpaque(Picture picture)
+    {
+        foreach (var pixel in picture.Pixels)
+        {
+            if (pixel.A != 255)
+            {
+                return new StrongBox<bool>(false);
+            }
+        }
+
+        return new StrongBox<bool>(true);
+    }
 
     /// <summary>
     ///     Holds a sixel, letting go of the one used longest ago once there are more than there is room for — among

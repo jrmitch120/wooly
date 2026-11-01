@@ -28,5 +28,9 @@ internal sealed class FakeTerminalImages : ITerminalImages
     public void ForgetAll() => ForgotAll++;
 
     /// <summary>One picture sent to the terminal.</summary>
-    public sealed record Transmission(int Id, byte[] Png, int Columns, int Rows);
+    public sealed record Transmission(int Id, byte[] Png, int Columns, int Rows)
+    {
+        /// <summary>The pixels the PNG holds, transparency and all.</summary>
+        public Picture Pixels() => APicture.FromPng(Png);
+    }
 }

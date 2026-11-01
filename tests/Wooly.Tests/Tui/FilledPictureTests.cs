@@ -1,8 +1,7 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Theme;
 using Color = Terminal.Gui.Drawing.Color;
 
 namespace Wooly.Tests.Tui;
@@ -41,7 +40,7 @@ public class FilledPictureTests
 
         placeholders.Ready(box, Portrait(), Cell);
 
-        AssertTheMiddleKept(Pixels(Assert.Single(terminal.Transmitted).Png));
+        AssertTheMiddleKept(Assert.Single(terminal.Transmitted).Pixels());
     }
 
     /// <summary>
@@ -75,7 +74,7 @@ public class FilledPictureTests
 
         placeholders.Ready(WideBlur(), Banded(), Cell);
 
-        AssertNothingCropped(Pixels(Assert.Single(terminal.Transmitted).Png));
+        AssertNothingCropped(Assert.Single(terminal.Transmitted).Pixels());
     }
 
     /// <inheritdoc cref="Placeholders_StretchABlurToAWideBoxRatherThanCroppingIt" />
@@ -90,55 +89,48 @@ public class FilledPictureTests
     }
 
     /// <summary>
-    ///     On sixel a custom emoji is fitted whole into its box and centred, as through Kitty's placeholders, and the
-    ///     rest of the box is the page it is laid on rather than black: twice as wide as it is tall, in its two cells by
-    ///     one of 20 by 40 pixels, its middle twenty rows are its colour edge to edge and the ten above and below the
-    ///     backdrop.
+    ///     An avatar's fixed box is still filled by its picture's middle, as an instance crops one, on Kitty's
+    ///     placeholders and sixel alike — only a custom emoji is fitted whole. On a cell of 20 by 45 a byline's avatar is
+    ///     80 by 90 pixels, and a portrait one, red along its top quarter and blue along its bottom, shows only the green
+    ///     between, edge to edge: fitted, it would have left the sides of the box empty, and stretched, shown the red
+    ///     and the blue.
     /// </summary>
-    [Fact]
-    public void SixelPictures_FitAWideCustomEmojiWholeIntoItsBoxOnTheBackdrop()
-    {
-        var page = new Color(30, 30, 46);
-        var sixels = new SixelPictures(encode: (_, _) => "", elsewhere: work => work(), backdrop: () => page);
-        var emoji = new Inset(
-            Drawn.CustomEmoji(new Wooly.Core.CustomEmoji("php", "https://files.example/emoji/php.png")),
-            Column: 0,
-            CustomEmojiBox.Columns,
-            CustomEmojiBox.Rows);
-
-        var sixel = sixels.Of(
-            emoji,
-            CustomEmojiTests.Solid(72, 36),
-            new CellSize(20, 40),
-            new SixelCrop(Top: 0, Rows: 1, Columns: 2),
-            colours: 256);
-
-        Assert.Equal((40, 40), (sixel.Pixels.GetLength(0), sixel.Pixels.GetLength(1)));
-
-        for (var x = 0; x < 40; x++)
-        {
-            for (var y = 0; y < 40; y++)
-            {
-                Assert.Equal(y is >= 10 and < 30 ? CustomEmojiTests.Solid(1, 1).Pixels[0, 0] : page, sixel.Pixels[x, y]);
-            }
-        }
-    }
-
-    /// <summary>An avatar's fixed box is still filled by its picture's middle, as an instance crops one.</summary>
-    [Fact]
-    public void Placeholders_SendAPortraitAvatarsMiddleRatherThanFittingIt()
+    [Theory]
+    [InlineData(PictureWay.Placeholders)]
+    [InlineData(PictureWay.Sixel)]
+    public async Task APortraitAvatarFillsItsBoxWithItsMiddle(PictureWay way)
     {
         var terminal = new FakeTerminalImages();
-        using var placeholders = new Placeholders(terminal, () => { }, work => work());
-        var box = new Inset(
-            Drawn.Avatar("jeff@mastodon.social", "https://files.example/jeff.png"),
-            Column: 0,
-            Columns: 3,
-            Rows: 1);
+        var cell = new CellSize(20, 45);
 
-        placeholders.Ready(box, Portrait(), Cell);
+        using var drawn = await DrawnShell.Of(
+            80,
+            30,
+            Themes.Dark,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110", avatarUrl: "https://files.mastodon.social/avatars/jeff.png")),
+            },
+            pictures: new FakePictures().HoldingAvatarOf("jeff@mastodon.social", PortraitAvatar()),
+            drawsPictures: way == PictureWay.Sixel,
+            kittyImages: terminal,
+            drawsPlaceholders: way == PictureWay.Placeholders,
+            raster: way == PictureWay.Sixel ? ARaster.Sixel(cell) : ARaster.Placeholders(cell));
 
-        AssertTheMiddleKept(Pixels(Assert.Single(terminal.Transmitted).Png));
+        var avatar = way == PictureWay.Sixel
+            ? new Picture(Assert.Single(drawn.Application.Driver!.GetOutputBuffer().GetRasterImages()).Pixels!)
+            : Assert.Single(terminal.Transmitted).Pixels();
+
+        Assert.Equal((80, 90), (avatar.Width, avatar.Height));
+
+        for (var x = 0; x < avatar.Width; x++)
+        {
+            for (var y = 0; y < avatar.Height; y++)
+            {
+                Assert.Equal((x, y, APicture.Rgba(Green)), (x, y, APicture.Rgba(avatar.Pixels[x, y])));
+            }
+        }
     }
 
     /// <summary>
@@ -209,6 +201,24 @@ public class FilledPictureTests
     }
 
     /// <summary>
+    ///     A portrait avatar, 50 by 200: red along its top fifty rows, blue along its bottom fifty, and green between.
+    /// </summary>
+    private static Picture PortraitAvatar()
+    {
+        var pixels = new Color[50, 200];
+
+        for (var x = 0; x < 50; x++)
+        {
+            for (var y = 0; y < 200; y++)
+            {
+                pixels[x, y] = y < 50 ? Red : y >= 150 ? Blue : Green;
+            }
+        }
+
+        return new Picture(pixels);
+    }
+
+    /// <summary>
     ///     Red at the top left, green at the top right, blue at the bottom left, white at the bottom right.
     /// </summary>
     private static Picture Quartered(int width, int height)
@@ -255,23 +265,5 @@ public class FilledPictureTests
         Assert.InRange(across, 10, 14);
         Assert.InRange(down, 10, 14);
         Assert.InRange(across - down, -2, 2);
-    }
-
-    private static Picture Pixels(byte[] png)
-    {
-        using var image = Image.Load<Rgba32>(png);
-        var pixels = new Color[image.Width, image.Height];
-
-        for (var x = 0; x < image.Width; x++)
-        {
-            for (var y = 0; y < image.Height; y++)
-            {
-                var pixel = image[x, y];
-
-                pixels[x, y] = new Color(pixel.R, pixel.G, pixel.B);
-            }
-        }
-
-        return new Picture(pixels);
     }
 }
