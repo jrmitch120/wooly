@@ -69,6 +69,14 @@ internal sealed class FakePictures : IPictures
     public FakePictures HoldingCustomEmoji(CustomEmoji emoji, int width = 36, int height = 36) =>
         Held(Drawn.CustomEmoji(emoji).Id, width, height);
 
+    /// <summary>Says that <paramref name="emoji" />'s still picture has arrived as <paramref name="picture" />.</summary>
+    public FakePictures HoldingCustomEmoji(CustomEmoji emoji, Picture picture)
+    {
+        _held[Drawn.CustomEmoji(emoji).Id] = picture;
+
+        return this;
+    }
+
     /// <summary>
     ///     Says that the picture for the attachment <paramref name="mediaId" /> has arrived as a busy photograph —
     ///     every pixel different from its neighbours — which is what makes encoding it cost what a real one does.

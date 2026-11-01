@@ -10,7 +10,8 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     The one step that takes a picture to its box's pixels, on the sixel path and the Kitty path alike (#438): the
 ///     picture's middle cropped to the box's shape, then resized — so a picture of another shape fills its box rather
-///     than being stretched to it, and one already the box's shape comes out as a plain resize.
+///     than being stretched to it, and one already the box's shape comes out as a plain resize. A Stand-in's blur is
+///     stretched to its box instead, and a custom emoji fitted whole inside it.
 /// </summary>
 public class FilledPictureTests
 {
@@ -26,7 +27,7 @@ public class FilledPictureTests
     [Fact]
     public void Scaled_KeepsAPortraitPicturesMiddleRatherThanSquashingIt()
     {
-        var filled = PictureDecoder.Scaled(Portrait(), 3 * Cell.Width, 1 * Cell.Height, stretched: false);
+        var filled = PictureDecoder.Scaled(Portrait(), 3 * Cell.Width, 1 * Cell.Height, BoxFill.Cropped);
 
         AssertTheMiddleKept(filled);
     }
@@ -50,7 +51,7 @@ public class FilledPictureTests
     [Fact]
     public void Scaled_ResizesAPictureAlreadyTheBoxsShapeWhole()
     {
-        var filled = PictureDecoder.Scaled(Quartered(60, 40), 30, 20, stretched: false);
+        var filled = PictureDecoder.Scaled(Quartered(60, 40), 30, 20, BoxFill.Cropped);
 
         Assert.Equal((30, 20), (filled.Width, filled.Height));
         Assert.Equal(Red, filled.Pixels[0, 0]);
@@ -86,6 +87,58 @@ public class FilledPictureTests
         var sixel = sixels.Of(WideBlur(), Banded(), Cell, new SixelCrop(Top: 0, Rows: 2, Columns: 8), colours: 256);
 
         AssertNothingCropped(new Picture(sixel.Pixels));
+    }
+
+    /// <summary>
+    ///     On sixel a custom emoji is fitted whole into its box and centred, as through Kitty's placeholders, and the
+    ///     rest of the box is the page it is laid on rather than black: twice as wide as it is tall, in its two cells by
+    ///     one of 20 by 40 pixels, its middle twenty rows are its colour edge to edge and the ten above and below the
+    ///     backdrop.
+    /// </summary>
+    [Fact]
+    public void SixelPictures_FitAWideCustomEmojiWholeIntoItsBoxOnTheBackdrop()
+    {
+        var page = new Color(30, 30, 46);
+        var sixels = new SixelPictures(encode: (_, _) => "", elsewhere: work => work(), backdrop: () => page);
+        var emoji = new Inset(
+            Drawn.CustomEmoji(new Wooly.Core.CustomEmoji("php", "https://files.example/emoji/php.png")),
+            Column: 0,
+            CustomEmojiBox.Columns,
+            CustomEmojiBox.Rows);
+
+        var sixel = sixels.Of(
+            emoji,
+            CustomEmojiTests.Solid(72, 36),
+            new CellSize(20, 40),
+            new SixelCrop(Top: 0, Rows: 1, Columns: 2),
+            colours: 256);
+
+        Assert.Equal((40, 40), (sixel.Pixels.GetLength(0), sixel.Pixels.GetLength(1)));
+
+        for (var x = 0; x < 40; x++)
+        {
+            for (var y = 0; y < 40; y++)
+            {
+                Assert.Equal(y is >= 10 and < 30 ? CustomEmojiTests.Solid(1, 1).Pixels[0, 0] : page, sixel.Pixels[x, y]);
+            }
+        }
+    }
+
+    /// <summary>An avatar's fixed box is still filled by its picture's middle, as an instance crops one.</summary>
+    [Fact]
+    public void Placeholders_SendAPortraitAvatarsMiddleRatherThanFittingIt()
+    {
+        var terminal = new FakeTerminalImages();
+        using var placeholders = new Placeholders(terminal, () => { }, work => work());
+        var box = new Inset(
+            Drawn.Avatar("jeff@mastodon.social", "https://files.example/jeff.png"),
+            Column: 0,
+            Columns: 3,
+            Rows: 1);
+
+        placeholders.Ready(box, Portrait(), Cell);
+
+        AssertTheMiddleKept(Pixels(Assert.Single(terminal.Transmitted).Png));
     }
 
     /// <summary>

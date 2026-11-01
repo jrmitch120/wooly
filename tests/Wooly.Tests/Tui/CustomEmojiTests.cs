@@ -182,6 +182,57 @@ public class CustomEmojiTests
     }
 
     /// <summary>
+    ///     A custom emoji is fitted whole into its box, centred, as Mastodon's web client draws one — never cropped from
+    ///     the middle as an avatar is, which cut the sides off a wide logo like <c>:php:</c>. Twice as wide as it is
+    ///     tall, in a box 40 pixels square, it is sent as a PNG whose middle twenty rows are its colour edge to edge,
+    ///     with the ten above and the ten below transparent.
+    /// </summary>
+    [Fact]
+    public async Task AWideCustomEmojiIsSentFittedWholeIntoItsBoxWithTransparentBandsAboveAndBelow()
+    {
+        var terminal = new FakeTerminalImages();
+
+        using var drawn = await Shown(
+            APost.With(id: "220", content: "I write :php: daily", customEmoji: [Php]),
+            pictures: new FakePictures().HoldingCustomEmoji(Php, Solid(72, 36)),
+            raster: ARaster.Placeholders(new CellSize(20, 40)),
+            terminal: terminal);
+
+        using var png = SixLabors.ImageSharp.Image.Load<SixLabors.ImageSharp.PixelFormats.Rgba32>(
+            Assert.Single(terminal.Transmitted).Png);
+
+        Assert.Equal((40, 40), (png.Width, png.Height));
+
+        for (var x = 0; x < 40; x++)
+        {
+            for (var y = 0; y < 40; y++)
+            {
+                Assert.Equal(
+                    y is >= 10 and < 30 ? EmojiColour : default,
+                    png[x, y]);
+            }
+        }
+    }
+
+    private static readonly SixLabors.ImageSharp.PixelFormats.Rgba32 EmojiColour = new(119, 123, 180, 255);
+
+    /// <summary>A custom emoji's picture <paramref name="width" /> by <paramref name="height" />, all one colour.</summary>
+    internal static Picture Solid(int width, int height)
+    {
+        var pixels = new Terminal.Gui.Drawing.Color[width, height];
+
+        for (var x = 0; x < width; x++)
+        {
+            for (var y = 0; y < height; y++)
+            {
+                pixels[x, y] = new Terminal.Gui.Drawing.Color(EmojiColour.R, EmojiColour.G, EmojiColour.B);
+            }
+        }
+
+        return new Picture(pixels);
+    }
+
+    /// <summary>
     ///     Nothing moves when the pictures land: every row holds what it held, each emoji's two placeholder cells where
     ///     its shade was, and the paragraph wraps where it wrapped.
     /// </summary>

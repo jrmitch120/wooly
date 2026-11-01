@@ -180,7 +180,7 @@ internal sealed class SixelPictures(
                 cell,
                 _backdrop(),
                 DecodedSize.Of(picture),
-                Stretched: inset.Blur is not null,
+                BoxFills.Of(inset),
                 inset.Drawn.IsCustomEmoji),
             crop,
             colours);
@@ -282,7 +282,7 @@ internal sealed class SixelPictures(
                 picture,
                 scale.Columns * scale.Cell.Width,
                 scale.Rows * scale.Cell.Height,
-                scale.Stretched),
+                scale.Fill),
             scale.Backdrop);
 
         lock (_gate)
@@ -338,8 +338,8 @@ internal sealed class SixelPictures(
 
     /// <summary>
     ///     One picture at one box size, on one size of cell, laid on one backdrop, from pixels decoded at one size
-    ///     (<see cref="DecodedSize" />), stretched to the box where it is a Stand-in's blur and cropped to it where it
-    ///     is not (<see cref="PictureDecoder.Filled" />) — and whether it is a custom emoji, whose crops are held in
+    ///     (<see cref="DecodedSize" />), taking the box as <see cref="BoxFill" /> says
+    ///     (<see cref="PictureDecoder.Filled" />) — and whether it is a custom emoji, whose crops are held in
     ///     room of their own (<see cref="MostCustomEmojiHeld" />).
     /// </summary>
     private readonly record struct Scale(
@@ -349,7 +349,7 @@ internal sealed class SixelPictures(
         CellSize Cell,
         Color? Backdrop,
         DecodedSize Decoded,
-        bool Stretched,
+        BoxFill Fill,
         bool CustomEmoji);
 
     /// <summary>One crop of a scaled picture, in so many colours.</summary>

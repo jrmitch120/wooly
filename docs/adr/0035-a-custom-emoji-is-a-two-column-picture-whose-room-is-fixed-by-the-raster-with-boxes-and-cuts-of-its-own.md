@@ -66,3 +66,12 @@ JSON alike.
   sequence of its own: ~320 KB more a step on the page measured above.
 - The box-drawn ways build 88 boxes before anything is drawn, where they built 24.
 - A custom emoji is not a **reference**: it is not walked to, not clicked open, and not shown on the **Picture screen**.
+
+## Amendment: a custom emoji is fitted whole into its box, not cropped (review of #522)
+
+Every other fixed **picture box** is filled by its picture's middle, cropped as an instance crops an avatar (ADR-0025's
+amendment for #438), and a custom emoji's was too. But its two cells by one are narrower than square on most terminals
+— 40 by 45 pixels on a cell of 20 by 45 — and a custom emoji is a logo or a badge drawn to its edges, so the crop cut
+the sides off a square `:ubuntu:` and a wide `:php:` alike. So a custom emoji is fitted whole inside its box and
+centred, never cropped or stretched, as Mastodon's web client draws one (`object-fit: contain`): the rest of the box is
+transparent through Kitty's placeholders and laid on the page on sixel, which leaves no transparent pixels.
