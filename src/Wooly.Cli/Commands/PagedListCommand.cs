@@ -21,7 +21,7 @@ internal abstract class PagedListCommand<TSettings, TItem>(IProfileRegistry prof
     /// <summary>Which list this command reads, given the profile to read as and what the user typed.</summary>
     protected abstract Listing<TItem> ListingFor(ActiveProfile profile, TSettings settings);
 
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         TSettings settings,
         CancellationToken cancellationToken)

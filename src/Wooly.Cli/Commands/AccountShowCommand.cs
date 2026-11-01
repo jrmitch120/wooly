@@ -22,7 +22,7 @@ internal sealed class AccountShowCommand(
     IProfileRegistry profiles,
     IAccountRelationships relationships) : AsyncCommand<SingleAccountSettings>
 {
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         SingleAccountSettings settings,
         CancellationToken cancellationToken)

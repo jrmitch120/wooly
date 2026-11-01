@@ -14,7 +14,7 @@ namespace Wooly.Cli.Commands;
 internal sealed class ProfileShowCommand(IAnsiConsole console, IProfileRegistry profiles, WoolyPaths paths)
     : Command<ProfileScopedSettings>
 {
-    protected override int Execute(CommandContext context, ProfileScopedSettings settings, CancellationToken cancellationToken)
+    public override int Execute(CommandContext context, ProfileScopedSettings settings, CancellationToken cancellationToken)
     {
         // Resolving reads the access token too, so a profile that is set up but cannot authenticate is reported here
         // rather than by the first command that tries to use it. The token itself is never printed.
