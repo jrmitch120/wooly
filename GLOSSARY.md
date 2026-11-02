@@ -257,6 +257,17 @@ _Avoid_: reblog, repost, retweet
 Marking a post as liked, without re-sharing it. The API spells this `favourite` (British spelling). This project uses the US spelling "favorite" everywhere outside the literal API-wire layer.
 _Avoid_: favourite, like
 
+**Bookmark**:
+A post kept to come back to, seen by nobody but the account that kept it: unlike a **favorite**, its author is not told
+and no count moves. One of `Post.Marks`, the fourth beside boost, favorite and pin, and Mastodon's own word.
+_Avoid_: save, saved post, star
+
+**Bookmarks**, **Favorites** (runs):
+The posts an account has bookmarked, or favorited, as a run of their own: newest mark first, ordered by when the mark was
+put on rather than when the post was written, and private to the account. Read by asking for the run, as the **Pinned**
+run is; taking the mark off a row in it leaves the row where it is with the mark gone, until the run is read again.
+_Avoid_: saved posts, likes, a favorites timeline (prose; the CLI's `timeline favorites` is a command's name)
+
 **Notification**:
 Something an instance tells an account happened to it: somebody mentioned it, followed it, boosted or favorited one of
 its posts. This project names those four and passes any other kind on under the instance's own word for it (ADR-0010).
@@ -504,10 +515,11 @@ _Avoid_: page, result, batch
 
 **Destination**:
 One of the places the TUI's rail can send you — a timeline, a **Tag set**, notifications, direct messages, follow
-requests, search, discover, the profile's own account. A destination is what carries an unread count and what costs a
-fetch to arrive at, which is why choosing one is a decision of its own (ADR-0014). Nine are the same for everybody, the
-ninth being **Discover**, the only fixed entry the rail has ever grown by: it was paid for once, by a screen built in
-sections so that a second kind of suggestion is a heading on it rather than another entry (ADR-0019). The rest are the
+requests, search, discover, the profile's own account, its bookmarks and its favorites. A destination is what carries an unread count and what costs a
+fetch to arrive at, which is why choosing one is a decision of its own (ADR-0014). Eleven are the same for everybody.
+**Discover** was the first fixed entry the rail grew by, paid for by a screen built in sections so that a second kind of
+suggestion is a heading on it rather than another entry (ADR-0019); **Bookmarks** and **Favorites** the next two, each a
+run read on as far as the reader scrolls, which a section of a screen cannot be. The rest are the
 reader's, one for each **Tag set**, as many as they have written and none if they have written none. Distinct from a **screen**: a destination is
 the entry on the rail, a screen is what the content region is showing, and drilling from a post into an account changes
 the screen without changing the destination. Every destination belongs to one **Rail group**.
@@ -518,7 +530,8 @@ One of the five titled panels the rail's destinations are drawn in, by what they
 Federated), what you read; **Hashtags**, the reader's **Tag set**s in the order they wrote them, never carrying an
 unread count and not drawn at all when there are none; **Explore** (Discover, Search), what you go looking with, never
 carrying an unread count; **Inbox** (Notifications, Direct messages, Follow requests), what comes to you, where every unread count lives;
-and **You**, the profile's own account (ADR-0021). The rail's order is the groups' order. Distinct from a **Section**,
+and **You**, the profile's own account with its **Bookmarks** and **Favorites**, none of them carrying an unread count
+(ADR-0021). The rail's order is the groups' order. Distinct from a **Section**,
 which is a headed run on a screen: `[`/`]` walk sections, `` ` ``/`~` walk rail groups. "Inbox" here names the group,
 not only the notifications that the code's `INotificationInbox` reads.
 _Avoid_: section, box, panel (a rail group is drawn as a panel, but the content is a panel too)
