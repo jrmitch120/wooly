@@ -23,7 +23,7 @@ namespace Wooly.Tui.Media;
 ///     and encodes the whole picture again every time its box moves, which on a scroll is every frame, so this is
 ///     handed a part of a picture already scaled to its box and encoded (<see cref="SixelPictures" />), and only hands
 ///     it on (#292, ADR-0023). Through Kitty it is the image view's to draw, which sends a picture once and places it
-///     again as it moves — handed it already at its box's size in pixels (<see cref="KittyBoxPictures" />), so that
+///     again as it moves — handed it already at its box's size in pixels (<see cref="BoxPictures" />), so that
 ///     the terminal has nothing left to stretch it to (#533).
 ///     <para>
 ///         It will not draw at all where neither protocol is there: <see cref="ImageView" /> would otherwise fall back
@@ -105,7 +105,7 @@ internal sealed class PictureView : ImageView, IPictureBox
 
     /// <summary>
     ///     Shows <paramref name="picture" />, the one <paramref name="pictureId" /> names already at this box's size in
-    ///     pixels (<see cref="KittyBoxPictures" />), for the image view to draw through Kitty.
+    ///     pixels (<see cref="BoxPictures" />), for the image view to draw through Kitty.
     /// </summary>
     /// <remarks>
     ///     Only ever called on a view holding this picture already or holding nothing at all: one of these never goes

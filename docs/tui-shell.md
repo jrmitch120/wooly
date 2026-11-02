@@ -991,9 +991,11 @@ Media is drawn in place inside a feed item or a post, at whatever width the cont
   `PictureView` box: through Kitty where Terminal.Gui says the terminal speaks it, and through sixel otherwise
   (ADR-0023). Terminal.Gui says so only for kitty and Ghostty, so in practice every box is sixel.
 - **A sixel is encoded once for each cut of a picture, and handed to the driver ready** (#292, ADR-0023). A picture
-  is scaled to its box once; a box straddling the edge of the page is framed to the rows still on it; each cut is
-  encoded once, kept, and encoded ahead off the UI thread for the next few rows of a scroll. A notch over sixel
-  photographs went from ~104 ms to ~29 ms. Sixel still sends every visible picture on every step — that is the
+  is scaled to its box once, into the same `BoxPictures` Kitty through a box is handed from, with nothing laid under
+  it; a box straddling the edge of the page is framed to the rows still on it; each cut is cut from that, laid on what
+  is behind its box, encoded once, kept, and encoded ahead off the UI thread for the next few rows of a scroll — so
+  picking a post cuts its see-through pictures again for the band without scaling them again (#554). A notch over
+  sixel photographs went from ~104 ms to ~29 ms. Sixel still sends every visible picture on every step — that is the
   protocol.
 - **A frame paints each cell once** (#292). The content panel's frame paints its top and bottom edges and the two end
   cells of each row between, not whole rows for the clip to cut down; a row paints its spans and then clears only

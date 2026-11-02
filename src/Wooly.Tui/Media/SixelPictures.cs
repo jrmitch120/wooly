@@ -28,22 +28,14 @@ public sealed record Sixel(Color[,] Pixels, string Encoded);
 ///     driver encoding a crop again on every frame a box straddles the edge of the page. Here a picture is scaled to
 ///     its box once, and each crop of it encoded once, so a step costs the sending and nothing else — except the first
 ///     time a box is cut at a given row, which a box being scrolled past is one step at a time.
+///     <para>
+///         The picture at its box's size is not held here but in the <see cref="BoxPictures" /> Kitty through a box
+///         is handed from too, with nothing laid under it; each crop is cut from it and laid on what is behind its box
+///         once it is cut (#554). So picking a post, which moves its rows from the page to the band, cuts its
+///         see-through pictures again for the band without scaling them again.
+///     </para>
 /// </remarks>
-/// <param name="encode">
-///     How pixels become sixel, in so many colours: Terminal.Gui's own encoder, or a test's answer.
-/// </param>
-/// <param name="elsewhere">
-///     Where a crop asked for ahead of time is encoded: off the UI thread in the client, and wherever a test says.
-/// </param>
-/// <param name="backdrop">
-///     What a picture's transparent pixels are laid on before it is encoded — what is behind its box, the band where
-///     it is asked with <see langword="true" /> and the page where with <see langword="false" />, where that is known —
-///     or <see langword="null" /> where it is not, which leaves them transparent.
-/// </param>
-internal sealed class SixelPictures(
-    Func<Color[,], int, string>? encode = null,
-    Action<Action>? elsewhere = null,
-    Func<bool, Color?>? backdrop = null)
+internal sealed class SixelPictures
 {
     /// <summary>
     ///     How many crops are kept. A crop is its pixels at four bytes each — a megabyte or so for a photograph across a
@@ -65,116 +57,66 @@ internal sealed class SixelPictures(
     /// <summary>Whether each picture drawn is opaque, read off its pixels once and kept as long as it is.</summary>
     private static readonly ConditionalWeakTable<Picture, StrongBox<bool>> Opaque = new();
 
-    private readonly Func<Color[,], int, string> _encode = encode ?? Encoded;
-    private readonly Func<bool, Color?> _backdrop = backdrop ?? (_ => null);
-    private readonly Action<Action> _elsewhere = elsewhere ?? (work => Task.Run(work));
-    private readonly Lock _gate = new();
-    private readonly Dictionary<Key, LinkedListNode<(Key Key, Sixel Sixel)>> _held = [];
+    private readonly Func<Color[,], int, string> _encode;
+    private readonly Func<bool, Color?> _backdrop;
+    private readonly PreparedAhead<Key, (Inset Inset, Picture Picture), Sixel> _held;
 
-    /// <summary>Every crop held but custom emoji's, the one used last first.</summary>
-    private readonly LinkedList<(Key Key, Sixel Sixel)> _used = new();
+    /// <param name="encode">
+    ///     How pixels become sixel, in so many colours: Terminal.Gui's own encoder, or a test's answer.
+    /// </param>
+    /// <param name="elsewhere">
+    ///     Where a crop asked for ahead of time is encoded: off the UI thread in the client, and wherever a test says.
+    /// </param>
+    /// <param name="backdrop">
+    ///     What a picture's transparent pixels are laid on before it is encoded — what is behind its box, the band
+    ///     where it is asked with <see langword="true" /> and the page where with <see langword="false" />, where that
+    ///     is known — or <see langword="null" /> where it is not, which leaves them transparent.
+    /// </param>
+    /// <param name="boxes">
+    ///     Where the crops are cut from: the box pictures <see cref="Placing" /> shares with Kitty through a box,
+    ///     or where none is said, some of this one's own.
+    /// </param>
+    public SixelPictures(
+        Func<Color[,], int, string>? encode = null,
+        Action<Action>? elsewhere = null,
+        Func<bool, Color?>? backdrop = null,
+        BoxPictures? boxes = null)
+    {
+        _encode = encode ?? Encoded;
+        _backdrop = backdrop ?? (_ => null);
+        Boxes = boxes ?? new BoxPictures(elsewhere);
+        _held = new PreparedAhead<Key, (Inset Inset, Picture Picture), Sixel>(
+            (key, from) => Made(key, from.Inset, from.Picture),
+            elsewhere ?? (work => Task.Run(work)),
+            new LeastRecentlyUsed<Key>(MostHeld, key => key.CustomEmoji, MostCustomEmojiHeld));
+    }
 
-    /// <summary>Every custom emoji's crop held, the one used last first.</summary>
-    private readonly LinkedList<(Key Key, Sixel Sixel)> _usedCustomEmoji = new();
-    private readonly Dictionary<Key, TaskCompletionSource<Sixel>> _preparing = [];
-    private readonly Dictionary<Scale, Picture> _scaled = [];
+    /// <summary>The box pictures the crops are cut from, which Kitty through a box is handed from too.</summary>
+    public BoxPictures Boxes { get; }
 
     /// <summary>
     ///     <paramref name="crop" /> of <paramref name="picture" /> drawn in <paramref name="inset" />'s box, encoded in
     ///     <paramref name="colours" /> colours and laid on the band where <paramref name="banded" /> says the box is on
     ///     one, and the page where it is not. Encoded here, on the frame asking, only where it was neither asked for
-    ///     before nor prepared.
+    ///     before nor prepared. On the UI thread.
     /// </summary>
     public Sixel Of(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours, bool banded = false)
     {
-        var key = KeyOf(inset, picture, cell, crop, colours, banded);
-        TaskCompletionSource<Sixel>? preparing;
+        // Asked for even where the crop is held, so that the box picture stays for the next step's crop rather than
+        // being let go of and scaled again for it.
+        Boxes.Ask(inset, picture, cell);
 
-        lock (_gate)
-        {
-            if (_held.TryGetValue(key, out var known))
-            {
-                var used = known.List!;
-
-                used.Remove(known);
-                used.AddFirst(known);
-
-                return known.Value.Sixel;
-            }
-
-            _preparing.TryGetValue(key, out preparing);
-        }
-
-        if (preparing is not null)
-        {
-            try
-            {
-                return preparing.Task.GetAwaiter().GetResult();
-            }
-            catch (Exception failure) when (failure is not OutOfMemoryException)
-            {
-                // Encoded here instead, as it would have been had nobody prepared it.
-            }
-        }
-
-        var sixel = Made(key, picture);
-
-        lock (_gate)
-        {
-            Hold(key, sixel);
-        }
-
-        return sixel;
+        return _held.Of(KeyOf(inset, picture, cell, crop, colours, banded), (inset, picture));
     }
 
     /// <summary>
     ///     Starts encoding <paramref name="crop" /> elsewhere, for a crop the next step of a scroll will want: a box
-    ///     straddling the edge of the page, cut a row higher or lower than it is now.
+    ///     straddling the edge of the page, cut a row higher or lower than it is now. On the UI thread.
     /// </summary>
     public void Prepare(Inset inset, Picture picture, CellSize cell, SixelCrop crop, int colours, bool banded = false)
     {
-        var key = KeyOf(inset, picture, cell, crop, colours, banded);
-        var preparing = new TaskCompletionSource<Sixel>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        lock (_gate)
-        {
-            if (_held.ContainsKey(key) || !_preparing.TryAdd(key, preparing))
-            {
-                return;
-            }
-        }
-
-        _elsewhere(() =>
-        {
-            // Settled whatever happens, an out-of-memory included: the frame that asks for this crop waits on it, and
-            // one left unsettled would leave the UI thread waiting for ever.
-            try
-            {
-                var sixel = Made(key, picture);
-
-                lock (_gate)
-                {
-                    _preparing.Remove(key);
-                    Hold(key, sixel);
-                }
-
-                preparing.SetResult(sixel);
-            }
-            catch (Exception failure)
-            {
-                lock (_gate)
-                {
-                    _preparing.Remove(key);
-                }
-
-                preparing.SetException(failure);
-
-                if (failure is OutOfMemoryException)
-                {
-                    throw;
-                }
-            }
-        });
+        Boxes.Ask(inset, picture, cell);
+        _held.Prepare(KeyOf(inset, picture, cell, crop, colours, banded), (inset, picture));
     }
 
     /// <summary>
@@ -187,17 +129,16 @@ internal sealed class SixelPictures(
         var fill = inset.Fill;
 
         return new Key(
-            new Scale(
-                inset.Drawn.Id,
-                inset.Columns,
-                inset.Rows,
-                cell,
-                ShowsThrough(picture, fill, inset.Columns * cell.Width, inset.Rows * cell.Height)
-                    ? _backdrop(banded)
-                    : null,
-                DecodedSize.Of(picture),
-                fill,
-                inset.Drawn.IsCustomEmoji),
+            inset.Drawn.Id,
+            inset.Columns,
+            inset.Rows,
+            cell,
+            ShowsThrough(picture, fill, inset.Columns * cell.Width, inset.Rows * cell.Height)
+                ? _backdrop(banded)
+                : null,
+            DecodedSize.Of(picture),
+            fill,
+            inset.Drawn.IsCustomEmoji,
             crop,
             colours);
     }
@@ -228,42 +169,12 @@ internal sealed class SixelPictures(
     }
 
     /// <summary>
-    ///     Holds a sixel, letting go of the one used longest ago once there are more than there is room for — among
-    ///     custom emoji's crops for one of theirs, and among every other picture's for the rest.
+    ///     The crop <paramref name="key" /> names, cut from the box picture and laid on its backdrop, and encoded:
+    ///     wherever it was asked for, on the frame or elsewhere. Outside the lock: this is the slow part.
     /// </summary>
-    private void Hold(Key key, Sixel sixel)
+    private Sixel Made(Key key, Inset inset, Picture picture)
     {
-        if (_held.ContainsKey(key))
-        {
-            return;
-        }
-
-        var (used, most) = key.Scale.CustomEmoji ? (_usedCustomEmoji, MostCustomEmojiHeld) : (_used, MostHeld);
-
-        _held[key] = used.AddFirst((key, sixel));
-
-        while (used.Count > most)
-        {
-            _held.Remove(used.Last!.Value.Key);
-            used.RemoveLast();
-        }
-
-        // The scaled pictures go with the last of their crops, so that what is held is bounded by the crops.
-        if (_scaled.Count > MostHeld + MostCustomEmojiHeld)
-        {
-            var wanted = _held.Keys.Select(held => held.Scale).ToHashSet();
-
-            foreach (var gone in _scaled.Keys.Where(scaled => !wanted.Contains(scaled)).ToList())
-            {
-                _scaled.Remove(gone);
-            }
-        }
-    }
-
-    /// <summary>The crop <paramref name="key" /> names, cut and encoded. Outside the lock: this is the slow part.</summary>
-    private Sixel Made(Key key, Picture picture)
-    {
-        var pixels = Cropped(Scaled(key.Scale, picture), key.Scale.Cell, key.Crop);
+        var pixels = Cropped(Boxes.Unasked(inset, picture, key.Cell), key.Cell, key.Crop, key.Backdrop);
 
         return new Sixel(pixels, _encode(pixels, key.Colours));
     }
@@ -283,8 +194,13 @@ internal sealed class SixelPictures(
         return encoder.EncodeSixel(quantized);
     }
 
-    /// <summary>The rows and columns of <paramref name="crop" />, cut from the box's pixels.</summary>
-    private static Color[,] Cropped(Picture box, CellSize cell, SixelCrop crop)
+    /// <summary>
+    ///     The rows and columns of <paramref name="crop" />, cut from the box's pixels and laid on
+    ///     <paramref name="backdrop" /> as they are copied — the very pixels <see cref="Laid" /> gives the cut, since
+    ///     laying a pixel reads only that pixel, without copying the cut a second time to lay it. The box itself is
+    ///     shared with Kitty through a box, and never laid where it is.
+    /// </summary>
+    private static Color[,] Cropped(Picture box, CellSize cell, SixelCrop crop, Color? backdrop)
     {
         var top = Math.Min(crop.Top * cell.Height, box.Height);
         var width = Math.Min(crop.Columns * cell.Width, box.Width);
@@ -292,7 +208,7 @@ internal sealed class SixelPictures(
 
         if (top == 0 && width == box.Width && height == box.Height)
         {
-            return box.Pixels;
+            return Laid(box, backdrop).Pixels;
         }
 
         var pixels = new Color[width, height];
@@ -301,38 +217,13 @@ internal sealed class SixelPictures(
         {
             for (var y = 0; y < height; y++)
             {
-                pixels[x, y] = box.Pixels[x, top + y];
+                var pixel = box.Pixels[x, top + y];
+
+                pixels[x, y] = backdrop is { } behind ? On(pixel, behind) : pixel;
             }
         }
 
         return pixels;
-    }
-
-    /// <summary>The picture at its box's size in pixels, scaled once — or now and then twice, if two threads race to it.</summary>
-    private Picture Scaled(Scale scale, Picture picture)
-    {
-        lock (_gate)
-        {
-            if (_scaled.TryGetValue(scale, out var known))
-            {
-                return known;
-            }
-        }
-
-        var scaled = Laid(
-            PictureDecoder.Scaled(
-                picture,
-                scale.Columns * scale.Cell.Width,
-                scale.Rows * scale.Cell.Height,
-                scale.Fill),
-            scale.Backdrop);
-
-        lock (_gate)
-        {
-            _scaled[scale] = scaled;
-        }
-
-        return scaled;
     }
 
     /// <summary>
@@ -367,24 +258,29 @@ internal sealed class SixelPictures(
                 }
 
                 laid ??= (Color[,])picture.Pixels.Clone();
-
-                laid[x, y] = new Color(
-                    ((pixel.R * pixel.A) + (page.R * (255 - pixel.A))) / 255,
-                    ((pixel.G * pixel.A) + (page.G * (255 - pixel.A))) / 255,
-                    ((pixel.B * pixel.A) + (page.B * (255 - pixel.A))) / 255);
+                laid[x, y] = On(pixel, page);
             }
         }
 
         return laid is null ? picture : new Picture(laid);
     }
 
+    /// <summary><paramref name="pixel" /> laid on <paramref name="backdrop" />: itself where it is opaque.</summary>
+    private static Color On(Color pixel, Color backdrop) =>
+        pixel.A == 255
+            ? pixel
+            : new Color(
+                ((pixel.R * pixel.A) + (backdrop.R * (255 - pixel.A))) / 255,
+                ((pixel.G * pixel.A) + (backdrop.G * (255 - pixel.A))) / 255,
+                ((pixel.B * pixel.A) + (backdrop.B * (255 - pixel.A))) / 255);
+
     /// <summary>
-    ///     One picture at one box size, on one size of cell, laid on one backdrop, from pixels decoded at one size
-    ///     (<see cref="DecodedSize" />), taking the box as <see cref="BoxFill" /> says
-    ///     (<see cref="PictureDecoder.Filled" />) — and whether it is a custom emoji, whose crops are held in
-    ///     room of their own (<see cref="MostCustomEmojiHeld" />).
+    ///     One crop of one picture at one box size, on one size of cell, laid on one backdrop and encoded in so many
+    ///     colours, from pixels decoded at one size (<see cref="DecodedSize" />), taking the box as
+    ///     <see cref="BoxFill" /> says (<see cref="PictureDecoder.Filled" />) — and whether it is a custom emoji, whose
+    ///     crops are held in room of their own (<see cref="MostCustomEmojiHeld" />).
     /// </summary>
-    private readonly record struct Scale(
+    private readonly record struct Key(
         string Drawn,
         int Columns,
         int Rows,
@@ -392,8 +288,7 @@ internal sealed class SixelPictures(
         Color? Backdrop,
         DecodedSize Decoded,
         BoxFill Fill,
-        bool CustomEmoji);
-
-    /// <summary>One crop of a scaled picture, in so many colours.</summary>
-    private readonly record struct Key(Scale Scale, SixelCrop Crop, int Colours);
+        bool CustomEmoji,
+        SixelCrop Crop,
+        int Colours);
 }

@@ -220,3 +220,25 @@ a sixel cut of one across a wide page is the costly encode this ADR is about, so
 picture has a pixel less than opaque or is fitted with room round it (`SixelPictures.KeyOf`): moving the pick encodes no
 photograph or blur again, only the avatars and custom emoji that show through, each a few cells. Whether a picture is
 opaque is worked out once for each picture, by reading its pixels the first time it is drawn.
+
+## Amendment: a sixel's box picture is Kitty through a box's, and the backdrop is laid on each cut (#554)
+
+Superseded: where the decision above says `SixelPictures` holds the picture at its box's size, and where the amendment
+for #522 has the whole picture laid on its backdrop and so scaled once per box per backdrop. The picture at its box's
+size is now held in `BoxPictures`, the one Kitty through a box is handed from (ADR-0025's amendment for #533), with
+nothing laid under it: one instance, which `Placing` reaches through its `SixelPictures`, so whichever way is drawing,
+a picture is scaled once for its box. Each cut is copied out of it and laid on its backdrop as it is copied
+(`SixelPictures.Cropped`, sharing its rule for a pixel with `Laid`), which gives the very pixels laying the whole box
+and cutting that did, since laying a pixel on a backdrop reads only that pixel. So moving the pick cuts and encodes a
+see-through picture's cuts again for the band, as before, without scaling it again. Which cuts name a backdrop is
+unchanged: an opaque photograph's never does, and is never laid on.
+
+A frame asks `BoxPictures` for a cut's box picture even where the cut is held, drawn or prepared, since it keeps only
+what a frame asked for: a box whose cuts were all held would otherwise lose its box picture, and the next step's new cut
+scale it again. The cut's own work, elsewhere, fetches the box picture without asking for it — held, or waited on while
+it is being prepared, or scaled there and then. The cuts are held as before, 32 and 128 for custom emoji's, the one
+used longest ago going first; the hold, prepare, wait and settle steps of both caches are one `PreparedAhead`, which
+takes a cut being prepared off its list only where it is still the one there. Measured with `ScrollMeasure` at 120×50,
+medians over five runs before and after: sixel photographs 26.9 and 27.5 ms down a notch every 16 ms, 24.0 and 23.5 ms
+down back to back, 17.5 and 16.1 ms up; sixel custom emoji 34.1 and 32.2, 23.3 and 23.1, 18.7 and 18.8 ms; Kitty
+photographs in a box 17.5 and 17.6 ms down, 15.0 and 14.0 ms up — the same, within run-to-run noise.

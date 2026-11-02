@@ -277,6 +277,108 @@ public class SixelPicturesTests
         Assert.Equal(1, encodes);
     }
 
+    /// <summary>
+    ///     A box straddling the page's edge, scrolled over a step at a time, is scaled once: a frame whose cuts of it
+    ///     are all held still asks for its box picture, whether it draws them or prepares them, so the next step's new
+    ///     cut is cut from the one already held rather than scaled again for (#554).
+    /// </summary>
+    [Fact]
+    public void ABoxWhoseCutsAreAllHeldIsNotScaledAgainForTheNextStep()
+    {
+        var scales = 0;
+        var boxes = new BoxPictures(scale: Counted(() => scales++));
+        var sixels = new SixelPictures((_, _) => "", work => work(), boxes: boxes);
+        var inset = Box("m1", columns: 8, rows: 4);
+        var picture = APicture(160, 160);
+        var held = new SixelCrop(Top: 1, Rows: 3, Columns: 8);
+
+        // Drawn, then drawn again from what is held, then prepared from what is held, a frame each.
+        foreach (Action<SixelCrop> frame in new Action<SixelCrop>[] { Drawn, Drawn, Drawn, Prepared, Prepared })
+        {
+            boxes.LetGoOfWhatWasNotAsked();
+            frame(held);
+        }
+
+        // The next step down, a crop not yet cut.
+        boxes.LetGoOfWhatWasNotAsked();
+        Drawn(new SixelCrop(Top: 2, Rows: 2, Columns: 8));
+
+        Assert.Equal(1, scales);
+
+        void Drawn(SixelCrop crop) => sixels.Of(inset, picture, Cell, crop, colours: 64);
+
+        void Prepared(SixelCrop crop) => sixels.Prepare(inset, picture, Cell, crop, colours: 64);
+    }
+
+    /// <summary>
+    ///     A see-through picture cut on the band and on the page is scaled once, and each cut laid on its own backdrop
+    ///     after it is cut — the very pixels laying the whole box on the backdrop and cutting that gave (#554).
+    /// </summary>
+    [Fact]
+    public void ASeeThroughPictureOnTheBandAndThePageIsScaledOnceAndLaidOnEachCut()
+    {
+        var scales = 0;
+        var band = new Color(0, 0, 200);
+        var page = new Color(10, 200, 10);
+        var sixels = new SixelPictures(
+            (_, _) => "",
+            work => work(),
+            backdrop: banded => banded ? band : page,
+            boxes: new BoxPictures(scale: Counted(() => scales++)));
+        var inset = Box("m1", columns: 8, rows: 4);
+        var picture = ASeeThroughPicture(120, 90);
+        var crop = new SixelCrop(Top: 1, Rows: 3, Columns: 6);
+
+        var onTheBand = sixels.Of(inset, picture, Cell, crop, colours: 256, banded: true);
+        var onThePage = sixels.Of(inset, picture, Cell, crop, colours: 256, banded: false);
+
+        Assert.Equal(1, scales);
+        Assert.Equal(LaidThenCut(picture, band), onTheBand.Pixels);
+        Assert.Equal(LaidThenCut(picture, page), onThePage.Pixels);
+
+        // What laying the box on its backdrop and then cutting it gave, before the box picture was shared (#554).
+        Color[,] LaidThenCut(Picture whole, Color backdrop)
+        {
+            var laid = SixelPictures.Laid(PictureDecoder.Scaled(whole, 80, 80, inset.Fill), backdrop).Pixels;
+            var cut = new Color[60, 60];
+
+            for (var x = 0; x < 60; x++)
+            {
+                for (var y = 0; y < 60; y++)
+                {
+                    cut[x, y] = laid[x, 20 + y];
+                }
+            }
+
+            return cut;
+        }
+    }
+
+    /// <summary>The box picture's own scaling, counting each time it is done.</summary>
+    private static Func<Picture, int, int, BoxFill, Picture> Counted(Action counted) =>
+        (picture, width, height, fill) =>
+        {
+            counted();
+
+            return PictureDecoder.Scaled(picture, width, height, fill);
+        };
+
+    /// <summary>A picture whose pixels run from opaque to transparent, in a shape not its box's.</summary>
+    private static Picture ASeeThroughPicture(int width, int height)
+    {
+        var pixels = new Color[width, height];
+
+        for (var x = 0; x < width; x++)
+        {
+            for (var y = 0; y < height; y++)
+            {
+                pixels[x, y] = new Color(x * 2, y * 2, 100, (x + y) % 256);
+            }
+        }
+
+        return new Picture(pixels);
+    }
+
     private static Inset Box(string id, int columns, int rows) =>
         new(new Drawn(id, $"https://files.example/{id}.png"), Column: 0, columns, rows);
 
