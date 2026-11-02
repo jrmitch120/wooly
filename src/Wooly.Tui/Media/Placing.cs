@@ -69,8 +69,11 @@ internal sealed class Placing
     private readonly SixelPictures _sixels;
     private readonly Placeholders? _placeholders;
 
-    /// <summary>The pictures Kitty through a box is handed, each at its box's size in pixels (#533).</summary>
-    private readonly KittyBoxPictures _kittyBoxes;
+    /// <summary>
+    ///     Each picture drawn through a box at its box's size in pixels (#533): what Kitty through a box is handed, and
+    ///     the very ones a sixel's cuts are cut from — the sixels' own, so the two ways share one (#554).
+    /// </summary>
+    private readonly BoxPictures _boxPictures;
 
     /// <summary>
     ///     Every box: the first <see cref="MostBoxes" /> for every picture but custom emoji, and the rest theirs.
@@ -101,26 +104,24 @@ internal sealed class Placing
     ///     (<see cref="PictureView" />), and a fake in a test. Asked <see cref="MostBoxes" /> times, here, and then
     ///     <see cref="MostCustomEmojiBoxes" /> times for the custom emoji's.
     /// </param>
-    /// <param name="sixels">What encodes a sixel's cuts, laid on what is behind each box.</param>
+    /// <param name="sixels">
+    ///     What encodes a sixel's cuts, laid on what is behind each box — and holds the box pictures they are cut
+    ///     from, which Kitty through a box is handed too.
+    /// </param>
     /// <param name="placeholders">
     ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box
     ///     (ADR-0022), or <see langword="null" /> where there is no such terminal to hold them.
-    /// </param>
-    /// <param name="kittyBoxes">
-    ///     What takes a picture to its box for Kitty through a box, ahead of the frame off the UI thread unless a test
-    ///     says otherwise.
     /// </param>
     public Placing(
         IPictures pictures,
         Func<IPictureBox> box,
         SixelPictures sixels,
-        Placeholders? placeholders = null,
-        KittyBoxPictures? kittyBoxes = null)
+        Placeholders? placeholders = null)
     {
         _pictures = pictures;
         _sixels = sixels;
         _placeholders = placeholders;
-        _kittyBoxes = kittyBoxes ?? new KittyBoxPictures();
+        _boxPictures = sixels.Boxes;
 
         for (var at = 0; at < MostBoxes + MostCustomEmojiBoxes; at++)
         {
@@ -161,8 +162,9 @@ internal sealed class Placing
     {
         var page = new Page(lines, top, width, height);
 
-        // Whatever the last frame did not hand a Kitty box, before this one hands them anything.
-        _kittyBoxes.LetGoOfWhatWasNotAsked();
+        // Whatever the last frame did not ask of the box pictures, before this one asks for any — whichever way it
+        // draws, so that a frame drawing neither through a box lets go of them all.
+        _boxPictures.LetGoOfWhatWasNotAsked();
 
         // What pictures are drawn as this frame, if they are drawn as placeholders at all: the one place the Raster's
         // way is asked about them. Anywhere else nothing is sent that way, so nothing sent is near to be held.
@@ -238,21 +240,13 @@ internal sealed class Placing
                 var boxed = Place(page, (box, inset, at, picture) => Shown(
                     box,
                     new Rectangle(inset.Column, at, inset.Columns, inset.Rows),
-                    () => box.Show(inset.Drawn.Id, _kittyBoxes.Of(inset, picture, cell))));
+                    () => box.Show(inset.Drawn.Id, _boxPictures.Of(inset, picture, cell))));
 
                 // And a screen either side of the page taken to their boxes ahead, as Kitty's placeholders are encoded
                 // ahead, so that a picture scrolled to is usually ready rather than scaled on the frame it comes on.
-                foreach (var (inset, at, picture) in Wanted(page, near: page.Height))
+                foreach (var (inset, picture) in NearButOff(page))
                 {
-                    if (at + inset.Rows <= 0 || at >= page.Height)
-                    {
-                        _kittyBoxes.Prepare(inset, picture, cell);
-                    }
-                }
-
-                foreach (var (inset, _, picture) in AheadOfAKeypress(page))
-                {
-                    _kittyBoxes.Prepare(inset, picture, cell);
+                    _boxPictures.Prepare(inset, picture, cell);
                 }
 
                 return boxed;
@@ -423,19 +417,15 @@ internal sealed class Placing
     {
         var placed = new List<Placement>();
 
-        foreach (var (inset, at, picture) in Wanted(page, near: page.Height))
+        foreach (var (inset, at, picture) in Wanted(page))
         {
-            if (at + inset.Rows <= 0 || at >= page.Height)
-            {
-                drawing.Prepare(inset, picture, cell);
-            }
-            else if (drawing.Ready(inset, picture, cell) is { } id)
+            if (drawing.Ready(inset, picture, cell) is { } id)
             {
                 placed.Add(new Placement(inset, at, id));
             }
         }
 
-        foreach (var (inset, _, picture) in AheadOfAKeypress(page))
+        foreach (var (inset, picture) in NearButOff(page))
         {
             drawing.Prepare(inset, picture, cell);
         }
@@ -443,6 +433,27 @@ internal sealed class Placing
         drawing.LetGoOfSizesNotAsked();
 
         return placed;
+    }
+
+    /// <summary>
+    ///     The pictures a Kitty terminal prepares ahead of the frame that draws them, whether as placeholders or
+    ///     through a box: those a screen either side of the page and not on it, and those ahead of a keypress — the one
+    ///     reach both ways prepare over.
+    /// </summary>
+    private IEnumerable<(Inset Inset, Picture Picture)> NearButOff(Page page)
+    {
+        foreach (var (inset, at, picture) in Wanted(page, near: page.Height))
+        {
+            if (at + inset.Rows <= 0 || at >= page.Height)
+            {
+                yield return (inset, picture);
+            }
+        }
+
+        foreach (var (inset, _, picture) in AheadOfAKeypress(page))
+        {
+            yield return (inset, picture);
+        }
     }
 
     /// <summary>
