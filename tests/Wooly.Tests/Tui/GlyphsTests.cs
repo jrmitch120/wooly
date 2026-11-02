@@ -73,7 +73,7 @@ public class GlyphsTests
     [InlineData("ភាសាខ្មែរ", false)]
     // Chakma's letter KAA and its vowel sign E, both beyond the first 65,536 characters: a mark written as two halves.
     [InlineData("\U00011107\U0001112C", false)]
-    public void MeasuredAlike_IsFalseOnlyWhereASpacingMarkIs(string text, bool alike) =>
+    public void MeasuredAlike_IsFalseWhereASpacingMarkIs(string text, bool alike) =>
         Assert.Equal(alike, Glyphs.MeasuredAlike(text));
 
     /// <summary>
@@ -88,6 +88,25 @@ public class GlyphsTests
     [InlineData("a মী b", 6)]
     public void Columns_HoldsACharacterCarryingASpacingMarkInTwo(string text, int columns) =>
         Assert.Equal(columns, Glyphs.Columns(text));
+
+    /// <summary>
+    ///     A character newer than the tables, which Terminal.Gui counts as one column and a terminal knowing it draws
+    ///     in two, is held in two like a spacing mark: 🫪 from Unicode 17, and with what grapheme segmentation joins to
+    ///     it. A character the tables know, and a reserved one Terminal.Gui already counts two wide as a terminal does,
+    ///     is not.
+    /// </summary>
+    [Theory]
+    [InlineData("\U0001FAEA", 2, false)]
+    [InlineData("system\U0001FAEA", 8, false)]
+    [InlineData("\U0001FAEA\U0001F3FD", 2, false)]
+    [InlineData("😳", 2, true)]
+    [InlineData("👍🏽", 2, true)]
+    [InlineData("\U0002FFF0", 2, true)]
+    public void ACharacterNewerThanTheTables_IsHeldInTwo(string text, int columns, bool alike)
+    {
+        Assert.Equal(columns, Glyphs.Columns(text));
+        Assert.Equal(alike, Glyphs.MeasuredAlike(text));
+    }
 
     /// <summary>
     ///     A virama joining two letters with no spacing mark between them is measured alike by Terminal.Gui and every

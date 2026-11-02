@@ -223,7 +223,8 @@ A vowel sign that takes room of its own (Unicode Mc) — the `ী` of `অসম
 character terminals and Terminal.Gui count differently, and differently from each other: one column, two, or none.
 Text carrying one is given two columns and drawn after the rest of its row, so whatever a terminal makes of it, nothing
 after it on the row moves (ADR-0031). Distinct from the marks that take no room — an accent, Arabic's vowels, a virama —
-which every terminal counts alike.
+which every terminal counts alike. A character newer than .NET's and Terminal.Gui's tables, such as an emoji from a
+Unicode they predate, is held the same way, though it carries no mark.
 _Avoid_: combining mark (most of those take no room), wide character, complex script
 
 **Custom emoji**:

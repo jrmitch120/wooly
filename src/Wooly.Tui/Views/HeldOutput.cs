@@ -6,8 +6,8 @@ using Wooly.Tui.Rendering;
 namespace Wooly.Tui.Views;
 
 /// <summary>
-///     The terminal output, writing a character carrying a spacing mark after everything else on its row and at a place
-///     of its own (ADR-0031, #434).
+///     The terminal output, writing a character carrying a spacing mark, or one newer than the tables, after everything
+///     else on its row and at a place of its own (ADR-0031, #434).
 /// </summary>
 /// <remarks>
 ///     Terminal.Gui writes a row as one run from a single place, trusting each character to take the columns it counts
@@ -81,8 +81,8 @@ internal class HeldOutput : AnsiOutput
     }
 
     /// <summary>
-    ///     Every cell waiting to be written that holds a character carrying a spacing mark, set aside — marked as
-    ///     written, so that Terminal.Gui's pass over the rest breaks its run there.
+    ///     Every cell waiting to be written that holds a character <see cref="Glyphs.MeasuredAlike" /> says is not, set
+    ///     aside — marked as written, so that Terminal.Gui's pass over the rest breaks its run there.
     /// </summary>
     private static HashSet<(int Row, int Column)> Hold(IOutputBuffer buffer)
     {

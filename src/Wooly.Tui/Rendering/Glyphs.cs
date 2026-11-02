@@ -62,16 +62,17 @@ public static class Glyphs
     ///     The single measure every layout reads. Plain ASCII — which is most of what a client of an English-speaking
     ///     instance draws, and all of its own chrome — is a column a character and answered by the scan alone; anything
     ///     else is handed to Terminal.Gui, whose reading of it is the one that places the cells. The exception is a
-    ///     character carrying a spacing mark, which is <see cref="HeldColumns" /> wherever it is (ADR-0031).
+    ///     character carrying a spacing mark or one newer than the tables, which is <see cref="HeldColumns" /> wherever
+    ///     it is (ADR-0031).
     /// </remarks>
     public static int Columns(string text) =>
         !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) ? text.Length
-        : CarriesASpacingMark(text) ? ColumnsByCharacter(text)
+        : CountedApart(text) ? ColumnsByCharacter(text)
         : text.GetColumns();
 
     /// <summary>
     ///     Whether this client and a terminal measure <paramref name="text" /> alike: false where it carries a
-    ///     <em>spacing mark</em> (#432).
+    ///     <em>spacing mark</em> (#432) or a character newer than the tables.
     /// </summary>
     /// <remarks>
     ///     A spacing mark is a vowel sign that takes up room of its own — the <c>ী</c> of <c>অসমীয়া</c>, most of the
@@ -83,9 +84,16 @@ public static class Glyphs
     ///     held in <see cref="HeldColumns" />, the second left blank, and drawn after the rest of its row at a place
     ///     of its own (ADR-0031): whatever a terminal makes of it, nothing after it moves. Marks that take no room —
     ///     an accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all.
+    ///     <para>
+    ///         A character newer than the tables is the same disagreement from the other side. <c>🫪</c>, from Unicode
+    ///         17, is in neither .NET's table nor the one Terminal.Gui reads, so Terminal.Gui counts it as one column;
+    ///         a terminal that knows it draws it in two, one that doesn't in one. Past it every cell on the row sat a
+    ///         column right of where it was laid out: a post's right edge and the scrollbar's thumb landed in the
+    ///         margin, where nothing writes again, and stayed there as the post scrolled away.
+    ///     </para>
     /// </remarks>
     public static bool MeasuredAlike(string text) =>
-        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) || !CarriesASpacingMark(text);
+        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) || !CountedApart(text);
 
     /// <summary>
     ///     Whether every terminal draws <paramref name="text" /> a character to a cell: written in Latin, Greek,
@@ -143,14 +151,23 @@ public static class Glyphs
         };
 
     /// <summary>
-    ///     Whether <paramref name="text" /> carries a spacing mark, read a character at a time rather than a half of one:
-    ///     Chakma's and Grantha's are written as two.
+    ///     Whether <paramref name="text" /> carries a spacing mark or a character newer than the tables, read a
+    ///     character at a time rather than a half of one: Chakma's and Grantha's marks and every new emoji are written
+    ///     as two.
     /// </summary>
-    private static bool CarriesASpacingMark(string text)
+    /// <remarks>
+    ///     A character .NET has no entry for and Terminal.Gui counts as one column, which is what it counts whatever it
+    ///     doesn't know. The ones it counts otherwise are the blocks kept for future Han and Hangul, which it already
+    ///     counts as a terminal does.
+    /// </remarks>
+    private static bool CountedApart(string text)
     {
         foreach (var rune in text.EnumerateRunes())
         {
-            if (Rune.GetUnicodeCategory(rune) == UnicodeCategory.SpacingCombiningMark)
+            var category = Rune.GetUnicodeCategory(rune);
+
+            if (category == UnicodeCategory.SpacingCombiningMark
+                || (category == UnicodeCategory.OtherNotAssigned && rune.GetColumns() == 1))
             {
                 return true;
             }
@@ -160,14 +177,15 @@ public static class Glyphs
     }
 
     /// <summary>
-    ///     How many columns a character carrying a spacing mark is held in: its own and one left blank after it, which
-    ///     a terminal drawing it two wide covers and one drawing it one wide leaves (ADR-0031).
+    ///     How many columns a character carrying a spacing mark, or one newer than the tables, is held in: its own and
+    ///     one left blank after it, which a terminal drawing it two wide covers and one drawing it one wide leaves
+    ///     (ADR-0031).
     /// </summary>
     public const int HeldColumns = 2;
 
     /// <summary>
-    ///     <paramref name="text" /> measured a character at a time, each carrying a spacing mark held in
-    ///     <see cref="HeldColumns" /> and every other as Terminal.Gui counts it.
+    ///     <paramref name="text" /> measured a character at a time, each carrying a spacing mark or newer than the
+    ///     tables held in <see cref="HeldColumns" /> and every other as Terminal.Gui counts it.
     /// </summary>
     private static int ColumnsByCharacter(string text)
     {

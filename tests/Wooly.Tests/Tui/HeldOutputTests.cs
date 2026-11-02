@@ -57,6 +57,17 @@ public partial class HeldOutputTests
     public void TwoMarkedCharactersSideBySideAreEachPlacedInTheirOwnColumn(int drawnIn) =>
         Assert.Equal("b", Played("মীদী|ab", drawnIn).At(4));
 
+    /// <summary>
+    ///     An emoji newer than Terminal.Gui's tables, 🫪 as the painter leaves it, then <c>|ab</c>: a terminal that
+    ///     knows it draws it two wide and one that doesn't draws it one, and the <c>b</c> stays at column four on both
+    ///     — where it was laid out, rather than a post's right edge landing in the margin past it, and staying there.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void WhatFollowsANewEmojiIsWhereTheRowPutItHoweverWideTheTerminalDrawsIt(int drawnIn) =>
+        Assert.Equal("b", Played("\U0001FAEA |ab", drawnIn).At(4));
+
     /// <summary>A row with no such character is written as Terminal.Gui writes it: one run, one place.</summary>
     [Fact]
     public void ARowWithNoMarkIsWrittenInOneRun()
@@ -135,7 +146,8 @@ public partial class HeldOutputTests
     }
 
     /// <summary>
-    ///     One row of a terminal that draws a character carrying a spacing mark <c>drawnIn</c> columns wide and every
+    ///     One row of a terminal that draws a character carrying a spacing mark or 🫪 <c>drawnIn</c> columns wide and
+    ///     every
     ///     other one column, and — as herdr and the xterm family do with a wide character — erases a wide one when
     ///     anything is written into any of its columns but by itself.
     /// </summary>
@@ -157,7 +169,7 @@ public partial class HeldOutputTests
             while (characters.MoveNext())
             {
                 var character = (string)characters.Current;
-                var wide = Glyphs.MeasuredAlike(character) ? 1 : drawnIn;
+                var wide = Glyphs.MeasuredAlike(character) && !character.Contains("\U0001FAEA") ? 1 : drawnIn;
 
                 for (var column = _cursor; column < _cursor + wide; column++)
                 {

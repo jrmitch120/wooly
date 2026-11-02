@@ -45,3 +45,17 @@ The rule is about the character, not the terminal: nothing asks which terminal t
 - A virama conjunct with no spacing mark (`न्द`, `ক্ষ`) is counted alike everywhere today, and only because .NET's
   grapheme segmentation splits it after the virama. A runtime adopting Unicode's conjunct rule (GB9c) would make it one
   Terminal.Gui cell drawn two wide; a test pins the split so that upgrade says so.
+
+## Amendment: a character newer than the tables is held the same way
+
+`🫪` (U+1FAEA, Unicode 17) is in neither .NET 10's table nor Wcwidth 4.0.1's, so Terminal.Gui counted it as one column,
+and the macOS terminal it was seen on drew it in two. Every cell after it moved a column right: the content panel's edge
+and the scrollbar's thumb went into the right margin, whose cells stay blank from frame to frame and so are not written
+again, and they stayed behind as the post scrolled away. A terminal with tables older than the emoji counts it as one,
+so no count agrees with all of them, which is the disagreement this ADR was written for. So a character .NET calls
+unassigned and Terminal.Gui counts as one column is held in two columns and drawn after the rest of its row, like a
+spacing mark. A terminal that knows it covers the blank; one that doesn't shows a gap after a stand-in glyph. Characters
+reserved for future Han and Hangul stay as they are, because Terminal.Gui already counts them as terminals do. The rule
+needs no table of emoji, so a later Unicode needs no change here. A .NET whose table is newer than Wcwidth's would stop
+holding what Wcwidth still counts as one column, and the row would move again; `GlyphsTests` pins `🫪` so that upgrade
+says so.

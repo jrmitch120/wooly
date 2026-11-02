@@ -56,6 +56,21 @@ public class FramedRegionTests
         Assert.Equal("│", drawn.Grapheme(1, Width - 1));
     }
 
+    /// <summary>
+    ///     And so does a character newer than the tables, as 🫪 at the end of a post's line is: the frame's edge stays
+    ///     where the frame is on a terminal drawing it two wide, rather than a column out into the margin (ADR-0031).
+    /// </summary>
+    [Fact]
+    public async Task ACharacterNewerThanTheTablesIsPaintedWithABlankCellAfterIt()
+    {
+        using var drawn = await Draw(Themes.Dark, [Line.Of("a\U0001FAEA|", Role.Body)]);
+
+        Assert.Equal("\U0001FAEA", drawn.Grapheme(1, 2));
+        Assert.Equal(" ", drawn.Grapheme(1, 3));
+        Assert.Equal("|", drawn.Grapheme(1, 4));
+        Assert.Equal("│", drawn.Grapheme(1, Width - 1));
+    }
+
     /// <summary>And so does one in a frame's title, which is painted as a row like any other.</summary>
     [Fact]
     public async Task ATitleCarryingASpacingMarkIsPaintedWithABlankCellAfterIt()
