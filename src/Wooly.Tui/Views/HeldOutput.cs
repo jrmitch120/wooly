@@ -1,6 +1,7 @@
 using System.Reflection;
 using Terminal.Gui.App;
 using Terminal.Gui.Drivers;
+using Terminal.Gui.Text;
 using Wooly.Tui.Rendering;
 
 namespace Wooly.Tui.Views;
@@ -59,6 +60,8 @@ internal class HeldOutput : AnsiOutput
     /// <inheritdoc />
     public override void Write(IOutputBuffer buffer)
     {
+        ClearPastTheEnd(buffer);
+
         var held = Hold(buffer);
 
         base.Write(buffer);
@@ -77,6 +80,47 @@ internal class HeldOutput : AnsiOutput
 
             held.ExceptWith(pass);
             base.Write(buffer);
+        }
+    }
+
+    /// <summary>
+    ///     Has the blanks past the last thing on each row being written written too, past the panel's edge and to the end
+    ///     of the terminal's row.
+    /// </summary>
+    /// <remarks>
+    ///     Those cells stay blank from frame to frame, so Terminal.Gui never writes them again. A cell some terminal's
+    ///     count put there would stay when the row had moved on, which is how a panel's edge and a scrollbar's thumb came
+    ///     to be left behind in the margin. Whatever the next such text is, this clears it the next time its row is drawn.
+    ///     Only what is right of everything else on the row: anything further left is drawn by a view that knows it is
+    ///     there, a picture's box among them, and the second column of a wide character is not a blank to write.
+    /// </remarks>
+    private static void ClearPastTheEnd(IOutputBuffer buffer)
+    {
+        var cells = buffer.Contents;
+
+        if (cells is null)
+        {
+            return;
+        }
+
+        for (var row = 0; row < cells.GetLength(0) && row < buffer.DirtyLines.Length; row++)
+        {
+            if (!buffer.DirtyLines[row])
+            {
+                continue;
+            }
+
+            for (var column = cells.GetLength(1) - 1; column >= 0; column--)
+            {
+                if (cells[row, column].IsDirty
+                    || cells[row, column].Grapheme != " "
+                    || (column > 0 && cells[row, column - 1].Grapheme.GetColumns() > 1))
+                {
+                    break;
+                }
+
+                cells[row, column].IsDirty = true;
+            }
         }
     }
 

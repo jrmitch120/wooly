@@ -74,3 +74,10 @@ Wcwidth 4.0.1 also counts Ethiopic's `ሀ` as no column, its range for Hangul's 
 calls wide (`UnicodeWide.txt`, from Unicode 17) must be counted two or held. A table upgraded on one side only fails
 there first. Two exceptions are named in it: a Hangul vowel with no consonant before it, which no Korean text has, and a
 skin tone alone.
+
+## Amendment: the cells past the end of a row are written with it
+
+The output now also writes the blanks right of everything else on any row it is writing, one move and a few blanks a
+row. They never change, so Terminal.Gui never wrote them, and a cell any miscount put there stayed until the screen was
+cleared. Now it goes the next time its row is drawn, whatever the miscount was. The second column of a wide character at
+the end of a row is left out, because writing it would erase the character.

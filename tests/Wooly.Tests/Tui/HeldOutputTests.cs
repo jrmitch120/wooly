@@ -68,6 +68,90 @@ public partial class HeldOutputTests
     public void WhatFollowsANewEmojiIsWhereTheRowPutItHoweverWideTheTerminalDrawsIt(int drawnIn) =>
         Assert.Equal("b", Played("\U0001FAEA |ab", drawnIn).At(4));
 
+    /// <summary>
+    ///     A row being written has the blanks past its last drawn cell written too, which nothing else would touch: a
+    ///     cell some count put past the panel's edge is gone the next time its row is drawn, whatever put it there.
+    /// </summary>
+    [Fact]
+    public void ACellStrayedPastTheEndOfARowIsClearedTheNextTimeItsRowIsWritten()
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(Columns, 1);
+        buffer.Move(0, 0);
+        buffer.AddStr("ab|");
+
+        var output = new Recording();
+        output.Write(buffer);
+
+        var terminal = new Terminal(1);
+
+        foreach (var (place, text) in output.Writes)
+        {
+            terminal.Write(place, text);
+        }
+
+        output.Writes.Clear();
+        terminal.Write(7, "x");
+
+        buffer.Move(0, 0);
+        buffer.AddStr("cd|");
+        output.Write(buffer);
+
+        foreach (var (place, text) in output.Writes)
+        {
+            terminal.Write(place, text);
+        }
+
+        Assert.Equal("cd|", terminal.Text());
+    }
+
+    /// <summary>
+    ///     And nothing else is: a row with text to its right keeps it clean, so a picture beside what is being written is
+    ///     not written over by the blanks between them.
+    /// </summary>
+    [Fact]
+    public void WhatLiesBetweenARowsLastDrawnCellAndItsLastTextIsLeftAlone()
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(Columns, 1);
+        buffer.Move(0, 0);
+        buffer.AddStr("ab");
+        buffer.Move(8, 0);
+        buffer.AddStr("|");
+
+        var output = new Recording();
+        output.Write(buffer);
+        output.Writes.Clear();
+
+        buffer.Move(0, 0);
+        buffer.AddStr("cd");
+        output.Write(buffer);
+
+        Assert.DoesNotContain(output.Places, place => place is >= 2 and <= 8);
+    }
+
+    /// <summary>The cell a wide character at the end of a row covers is not one of those blanks: writing it would erase it.</summary>
+    [Fact]
+    public void AWideCharacterAtTheEndOfARowKeepsItsSecondColumn()
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(Columns, 1);
+        buffer.Move(0, 0);
+        buffer.AddStr("ab");
+        buffer.Move(Columns - 2, 0);
+        buffer.AddStr("\U0001F633");
+
+        var output = new Recording();
+        output.Write(buffer);
+        output.Writes.Clear();
+
+        buffer.Move(0, 0);
+        buffer.AddStr("cd");
+        output.Write(buffer);
+
+        Assert.DoesNotContain(output.Places, place => place >= Columns - 2);
+    }
+
     /// <summary>A row with no such character is written as Terminal.Gui writes it: one run, one place.</summary>
     [Fact]
     public void ARowWithNoMarkIsWrittenInOneRun()
