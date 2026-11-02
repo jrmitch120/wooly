@@ -6,18 +6,18 @@ using Wooly.Tui.Rendering;
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     Every character there is, held to the two things a row depends on: the columns <see cref="Glyphs.Columns" /> gives
-///     it are the cells Terminal.Gui puts it in, and a character Unicode calls wide is one this client either counts two
-///     wide or holds (ADR-0031). A row a layout and a grid disagree about comes apart at its edge, and a table upgraded
-///     on one side only is how a disagreement arrives: these are what says so before a post does.
+///     Every character there is, held to the two things a row depends on: the columns <see cref="Glyphs.Columns" />
+///     gives it are the cells Terminal.Gui puts it in, and a character Unicode calls wide is one this client either
+///     counts two wide or holds (ADR-0031). A row a layout and a grid disagree about comes apart at its edge, and a
+///     table upgraded on one side only is how a disagreement arrives: these are what says so before a post does.
 /// </summary>
 public class MeasuredAsPlacedTests
 {
     private const int Cells = 14;
 
     /// <summary>
-    ///     Between two letters, each character's measure is where Terminal.Gui puts what follows it. Text is held to this
-    ///     as a span would paint it, with what <see cref="Glyphs.Plain" /> drops gone.
+    ///     Between two letters, each character's measure is where Terminal.Gui puts what follows it. Text is held to
+    ///     this as a span would paint it, with what <see cref="Glyphs.Plain" /> drops gone.
     /// </summary>
     [Fact]
     public void WhatFollowsACharacterIsWhereItsMeasureSays()
@@ -39,8 +39,8 @@ public class MeasuredAsPlacedTests
     }
 
     /// <summary>
-    ///     Every character Unicode calls wide takes two columns here or is held in two. What takes no room of its own is
-    ///     left out, along with a skin tone, which is wide only with nothing before it to wear it.
+    ///     Every character Unicode calls wide takes two columns here or is held in two. What takes no room of its own
+    ///     is left out, along with a skin tone, which is wide only with nothing before it to wear it.
     /// </summary>
     [Fact]
     public void ACharacterUnicodeCallsWideIsCountedTwoWideOrHeld()
@@ -87,8 +87,8 @@ public class MeasuredAsPlacedTests
     }
 
     /// <summary>
-    ///     Where Terminal.Gui puts the bar at the end of <paramref name="text" />, or null where it has joined it to what
-    ///     came before it, as Unicode's prepended marks ask, and it has no cell of its own to be looked for in.
+    ///     Where Terminal.Gui puts the bar at the end of <paramref name="text" />, or null where it has joined it to
+    ///     what came before it, as Unicode's prepended marks ask, and it has no cell of its own to be looked for in.
     /// </summary>
     private static int? BarAt(string text)
     {
@@ -109,9 +109,9 @@ public class MeasuredAsPlacedTests
     }
 
     /// <summary>
-    ///     A vowel or final of Hangul's conjoining jamo with no consonant before it, which no Korean text has: Terminal.Gui
-    ///     counts it as no column and gives it a cell of its own all the same, and nothing here can tell it from one that
-    ///     has its consonant without cutting all Korean up.
+    ///     A vowel or final of Hangul's conjoining jamo with no consonant before it, which no Korean text has:
+    ///     Terminal.Gui counts it as no column and gives it a cell of its own all the same, and nothing here can tell
+    ///     it from one that has its consonant without cutting all Korean up.
     /// </summary>
     private static bool LoneVowelJamo(int value) => value is (>= 0x1160 and <= 0x11FF) or (>= 0xD7B0 and <= 0xD7FF);
 

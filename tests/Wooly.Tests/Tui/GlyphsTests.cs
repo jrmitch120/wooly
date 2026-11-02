@@ -27,7 +27,8 @@ public class GlyphsTests
 
     /// <summary>
     ///     A character with nothing to draw is dropped: this client counts it as no column and Terminal.Gui gives it a
-    ///     cell, so a zero-width space or a direction mark in a post moved its row's edge and ate the row's last letter.
+    ///     cell, so a zero-width space or a direction mark in a post moved its row's edge and ate the row's last
+    ///     letter.
     /// </summary>
     [Theory]
     [InlineData("a\u200Bb", "ab")]
@@ -49,7 +50,9 @@ public class GlyphsTests
     [InlineData("a\u00ADb")]
     public void Plain_LeavesWhatJoinsItsNeighboursAlone(string sent) => Assert.Same(sent, Glyphs.Plain(sent));
 
-    /// <summary>Ethiopic's <c>ሀ</c>, which Wcwidth 4.0.1 counts as no column, is one, as Terminal.Gui's cell for it is.</summary>
+    /// <summary>
+    ///     Ethiopic's <c>ሀ</c>, which Wcwidth 4.0.1 counts as no column, is one, as Terminal.Gui's cell for it is.
+    /// </summary>
     [Theory]
     [InlineData("\u1200", 1)]
     [InlineData("a\u1200b", 3)]
@@ -85,10 +88,10 @@ public class GlyphsTests
         Assert.Equal(columns, Glyphs.Columns(text));
 
     /// <summary>
-    ///     Text this client and a terminal measure alike, and text they do not (#432): a <em>spacing mark</em> — a vowel
-    ///     sign that takes up room of its own, the <c>ী</c> of <c>অসমীয়া</c> — is no column to Terminal.Gui and one to
-    ///     some terminals and not to others, so no count of it agrees with all of them. Marks that take no room (an
-    ///     accent, Arabic's vowels, Tibetan's) are counted alike, and so is everything without a mark at all.
+    ///     Text this client and a terminal measure alike, and text they do not (#432): a <em>spacing mark</em> — a
+    ///     vowel sign that takes up room of its own, the <c>ী</c> of <c>অসমীয়া</c> — is no column to Terminal.Gui and
+    ///     one to some terminals and not to others, so no count of it agrees with all of them. Marks that take no room
+    ///     (an accent, Arabic's vowels, Tibetan's) are counted alike, and so is everything without a mark at all.
     /// </summary>
     [Theory]
     [InlineData("Français", true)]

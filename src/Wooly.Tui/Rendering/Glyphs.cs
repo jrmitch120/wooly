@@ -39,15 +39,23 @@ public static class Glyphs
 
     private const char LastSelector = '\uFE0F';
 
-    /// <summary>The last character whose column can be counted without asking anybody: one character, one column.</summary>
+    /// <summary>
+    ///     The last character whose column can be counted without asking anybody: one character, one column.
+    /// </summary>
     private const char LastPlainAscii = '~';
 
-    /// <summary>The first of them, everything below it being a control character and none of them a column wide.</summary>
+    /// <summary>
+    ///     The first of them, everything below it being a control character and none of them a column wide.
+    /// </summary>
     private const char FirstPlainAscii = ' ';
 
+    private const int FirstBoxDrawing = 0x2500;
+
+    private const int LastBlockElement = 0x259F;
+
     /// <summary>
-    ///     Ethiopic's <c>ሀ</c>, the one letter Wcwidth 4.0.1 counts as no column: its range for Hangul's vowels runs one
-    ///     character too far. Terminal.Gui gives it a cell and a terminal draws it in one.
+    ///     Ethiopic's <c>ሀ</c>, the one letter Wcwidth 4.0.1 counts as no column: its range for Hangul's vowels runs
+    ///     one character too far. Terminal.Gui gives it a cell and a terminal draws it in one.
     /// </summary>
     private const char UncountedLetter = '\u1200';
 
@@ -101,14 +109,14 @@ public static class Glyphs
     }
 
     /// <summary>
-    ///     A selector, a control character, a line or paragraph separator, or an invisible format character: a zero-width
-    ///     space, a joiner or a direction mark.
+    ///     A selector, a control character, a line or paragraph separator, or an invisible format character: a
+    ///     zero-width space, a joiner or a direction mark.
     /// </summary>
     /// <remarks>
-    ///     Not the format characters grapheme segmentation joins to their neighbours and so never reach a cell alone: the
-    ///     joiners inside an emoji or a word, the tags inside a flag, the marks Arabic and others prepend to a number.
-    ///     Nor a soft hyphen, which Terminal.Gui and this client count alike. <c>MeasuredAsPlacedTests</c> holds this to
-    ///     every character there is.
+    ///     Not the format characters grapheme segmentation joins to their neighbours and so never reach a cell alone:
+    ///     the joiners inside an emoji or a word, the tags inside a flag, the marks Arabic and others prepend to a
+    ///     number. Nor a soft hyphen, which Terminal.Gui and this client count alike. <c>MeasuredAsPlacedTests</c>
+    ///     holds this to every character there is.
     /// </remarks>
     private static bool DrawsNothing(Rune rune) =>
         Rune.GetUnicodeCategory(rune) switch
@@ -140,12 +148,12 @@ public static class Glyphs
     ///     A spacing mark is a vowel sign that takes up room of its own — the <c>ী</c> of <c>অসমীয়া</c>, most of the
     ///     vowel signs of the scripts of South and Southeast Asia. Terminal.Gui counts one as no column; a terminal
     ///     counts it its own way, and not one way: measured in herdr, <c>অসমীয়া</c> came out two columns wider than
-    ///     counted and <c>हिन्दी</c> one, its <c>ि</c> counted as nothing and its <c>ी</c> as one. Every cell after such
-    ///     text lands that many columns right of where it was laid out, which is how a list's border came apart beside
-    ///     the languages written in those scripts. There is no count to correct to, so a character carrying one is
-    ///     held in <see cref="HeldColumns" />, the second left blank, and drawn after the rest of its row at a place
-    ///     of its own (ADR-0031): whatever a terminal makes of it, nothing after it moves. Marks that take no room —
-    ///     an accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all.
+    ///     counted and <c>हिन्दी</c> one, its <c>ि</c> counted as nothing and its <c>ी</c> as one. Every cell after
+    ///     such text lands that many columns right of where it was laid out, which is how a list's border came apart
+    ///     beside the languages written in those scripts. There is no count to correct to, so a character carrying one
+    ///     is held in <see cref="HeldColumns" />, the second left blank, and drawn after the rest of its row at a place
+    ///     of its own (ADR-0031): whatever a terminal makes of it, nothing after it moves. Marks that take no room — an
+    ///     accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all.
     ///     <para>
     ///         A character newer than the tables is the same disagreement from the other side. <c>🫪</c>, from Unicode
     ///         17, is in neither .NET's table nor the one Terminal.Gui reads, so Terminal.Gui counts it as one column;
@@ -156,6 +164,35 @@ public static class Glyphs
     /// </remarks>
     public static bool MeasuredAlike(string text) =>
         !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) || !CountedApart(text);
+
+    /// <summary>
+    ///     Whether the character in a cell is written apart from what follows it, because it is a symbol or an emoji:
+    ///     the one kind of character whose width keeps changing under everybody, with each Unicode, each terminal and
+    ///     each font, and whose sequences a terminal may add up rather than join.
+    /// </summary>
+    /// <remarks>
+    ///     Counted as it is, but what follows it is placed by itself rather than left to follow it, so that a terminal
+    ///     drawing it wider than counted covers what is next rather than moving the rest of the row (ADR-0031). Box
+    ///     drawing and block elements are symbols every terminal draws in one cell, and they run the length of a row.
+    /// </remarks>
+    public static bool WrittenApart(string character)
+    {
+        if (character.Length == 1 && character[0] <= LastPlainAscii)
+        {
+            return false;
+        }
+
+        foreach (var rune in character.EnumerateRunes())
+        {
+            if (rune.Value is < FirstBoxDrawing or > LastBlockElement
+                && Rune.GetUnicodeCategory(rune) is UnicodeCategory.OtherSymbol or UnicodeCategory.ModifierSymbol)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>
     ///     Whether every terminal draws <paramref name="text" /> a character to a cell: written in Latin, Greek,

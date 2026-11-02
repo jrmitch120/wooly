@@ -106,8 +106,8 @@ public partial class HeldOutputTests
     }
 
     /// <summary>
-    ///     And nothing else is: a row with text to its right keeps it clean, so a picture beside what is being written is
-    ///     not written over by the blanks between them.
+    ///     And nothing else is: a row with text to its right keeps it clean, so a picture beside what is being written
+    ///     is not written over by the blanks between them.
     /// </summary>
     [Fact]
     public void WhatLiesBetweenARowsLastDrawnCellAndItsLastTextIsLeftAlone()
@@ -121,7 +121,7 @@ public partial class HeldOutputTests
 
         var output = new Recording();
         output.Write(buffer);
-        output.Writes.Clear();
+        output.Places.Clear();
 
         buffer.Move(0, 0);
         buffer.AddStr("cd");
@@ -130,7 +130,9 @@ public partial class HeldOutputTests
         Assert.DoesNotContain(output.Places, place => place is >= 2 and <= 8);
     }
 
-    /// <summary>The cell a wide character at the end of a row covers is not one of those blanks: writing it would erase it.</summary>
+    /// <summary>
+    ///     The cell a wide character at the end of a row covers is not one of those blanks: writing it would erase it.
+    /// </summary>
     [Fact]
     public void AWideCharacterAtTheEndOfARowKeepsItsSecondColumn()
     {
@@ -143,7 +145,7 @@ public partial class HeldOutputTests
 
         var output = new Recording();
         output.Write(buffer);
-        output.Writes.Clear();
+        output.Places.Clear();
 
         buffer.Move(0, 0);
         buffer.AddStr("cd");
@@ -151,6 +153,42 @@ public partial class HeldOutputTests
 
         Assert.DoesNotContain(output.Places, place => place >= Columns - 2);
     }
+
+    /// <summary>
+    ///     An emoji sequence on a terminal that adds its parts up, six columns where it was counted two, covers what is
+    ///     next and moves nothing past it: the row's edge stays at its column however the sequence is drawn.
+    /// </summary>
+    [Theory]
+    [InlineData(2)]
+    [InlineData(6)]
+    public void WhatLiesPastAnEmojiIsWhereTheRowPutItHoweverWideTheTerminalDrawsIt(int drawnIn) =>
+        Assert.Equal("d", Played("\U0001F468\u200D\U0001F469\u200D\U0001F467|abcdef", drawnIn).At(6));
+
+    /// <summary>A terminal drawing it as counted keeps the row whole, its second column covered by nothing.</summary>
+    [Fact]
+    public void ATerminalDrawingAnEmojiAsCountedKeepsTheRowWhole() =>
+        Assert.Equal("\U0001F633|ab", Played("\U0001F633|ab", 2).Text());
+
+    /// <summary>
+    ///     Nothing is written into an emoji's second column but blanks, and those before it: what a terminal shows for
+    ///     the frame's moment before the emoji is written over them is a gap, not a stand-in character.
+    /// </summary>
+    [Fact]
+    public void AnEmojisSecondColumnIsWrittenAsABlankIfAtAll()
+    {
+        var writes = Written("\U0001F633|ab").Writes.Select(write => write.Text).ToList();
+        var emoji = writes.FindIndex(text => text.Contains("\U0001F633"));
+
+        Assert.True(emoji > 0);
+        Assert.DoesNotContain(writes[..emoji], text => text.Contains('\uFFFD'));
+        Assert.Contains(writes[..emoji], text => Terminal.Plain(text).TrimStart().StartsWith("|ab"));
+    }
+
+    /// <summary>
+    ///     A rule and a scrollbar's thumb run the length of a row and every terminal agrees on them: one run.
+    /// </summary>
+    [Fact]
+    public void BoxDrawingAndBlocksAreWrittenInOneRun() => Assert.Single(Written("│─┃█▌▐░─│").Places);
 
     /// <summary>A row with no such character is written as Terminal.Gui writes it: one run, one place.</summary>
     [Fact]
@@ -230,10 +268,9 @@ public partial class HeldOutputTests
     }
 
     /// <summary>
-    ///     One row of a terminal that draws a character carrying a spacing mark or 🫪 <c>drawnIn</c> columns wide and
-    ///     every
-    ///     other one column, and — as herdr and the xterm family do with a wide character — erases a wide one when
-    ///     anything is written into any of its columns but by itself.
+    ///     One row of a terminal that draws a character carrying a spacing mark or an emoji <c>drawnIn</c> columns wide
+    ///     and every other one column, and — as herdr and the xterm family do with a wide character — erases a wide one
+    ///     when anything is written into any of its columns but by itself.
     /// </summary>
     private sealed partial class Terminal(int drawnIn)
     {
@@ -253,7 +290,7 @@ public partial class HeldOutputTests
             while (characters.MoveNext())
             {
                 var character = (string)characters.Current;
-                var wide = Glyphs.MeasuredAlike(character) && !character.Contains("\U0001FAEA") ? 1 : drawnIn;
+                var wide = Glyphs.MeasuredAlike(character) && !Glyphs.WrittenApart(character) ? 1 : drawnIn;
 
                 for (var column = _cursor; column < _cursor + wide; column++)
                 {
@@ -288,6 +325,9 @@ public partial class HeldOutputTests
                 _owner[column] = column;
             }
         }
+
+        /// <summary><paramref name="text" /> with what moves the cursor or sets a colour taken out.</summary>
+        public static string Plain(string text) => Escapes().Replace(text, string.Empty);
 
         [GeneratedRegex(@"\u001b(\[[0-9;?]*[A-Za-z]|\][^\u0007\u001b]*(\u0007|\u001b\\))")]
         private static partial Regex Escapes();

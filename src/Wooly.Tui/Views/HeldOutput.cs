@@ -7,8 +7,8 @@ using Wooly.Tui.Rendering;
 namespace Wooly.Tui.Views;
 
 /// <summary>
-///     The terminal output, writing a character carrying a spacing mark, or one newer than the tables, after everything
-///     else on its row and at a place of its own (ADR-0031, #434).
+///     The terminal output, writing a character carrying a spacing mark, one newer than the tables, or a symbol or
+///     emoji, after everything else on its row and at a place of its own (ADR-0031, #434).
 /// </summary>
 /// <remarks>
 ///     Terminal.Gui writes a row as one run from a single place, trusting each character to take the columns it counts
@@ -84,15 +84,16 @@ internal class HeldOutput : AnsiOutput
     }
 
     /// <summary>
-    ///     Has the blanks past the last thing on each row being written written too, past the panel's edge and to the end
-    ///     of the terminal's row.
+    ///     Has the blanks past the last thing on each row being written written too, past the panel's edge and to the
+    ///     end of the terminal's row.
     /// </summary>
     /// <remarks>
     ///     Those cells stay blank from frame to frame, so Terminal.Gui never writes them again. A cell some terminal's
-    ///     count put there would stay when the row had moved on, which is how a panel's edge and a scrollbar's thumb came
-    ///     to be left behind in the margin. Whatever the next such text is, this clears it the next time its row is drawn.
-    ///     Only what is right of everything else on the row: anything further left is drawn by a view that knows it is
-    ///     there, a picture's box among them, and the second column of a wide character is not a blank to write.
+    ///     count put there would stay when the row had moved on, which is how a panel's edge and a scrollbar's thumb
+    ///     came to be left behind in the margin. Whatever the next such text is, this clears it the next time its row
+    ///     is drawn. Only what is right of everything else on the row: anything further left is drawn by a view that
+    ///     knows it is there, a picture's box among them, and the second column of a wide character is not a blank to
+    ///     write.
     /// </remarks>
     private static void ClearPastTheEnd(IOutputBuffer buffer)
     {
@@ -125,8 +126,9 @@ internal class HeldOutput : AnsiOutput
     }
 
     /// <summary>
-    ///     Every cell waiting to be written that holds a character <see cref="Glyphs.MeasuredAlike" /> says is not, set
-    ///     aside — marked as written, so that Terminal.Gui's pass over the rest breaks its run there.
+    ///     Every cell waiting to be written that holds a character <see cref="Glyphs.MeasuredAlike" /> says is not, or
+    ///     one <see cref="Glyphs.WrittenApart" /> says to write apart, set aside — marked as written, so that
+    ///     Terminal.Gui's pass over the rest breaks its run there.
     /// </summary>
     private static HashSet<(int Row, int Column)> Hold(IOutputBuffer buffer)
     {
@@ -147,7 +149,9 @@ internal class HeldOutput : AnsiOutput
 
             for (var column = 0; column < cells.GetLength(1); column++)
             {
-                if (cells[row, column].IsDirty && !Glyphs.MeasuredAlike(cells[row, column].Grapheme))
+                if (cells[row, column].IsDirty
+                    && (!Glyphs.MeasuredAlike(cells[row, column].Grapheme)
+                        || Glyphs.WrittenApart(cells[row, column].Grapheme)))
                 {
                     cells[row, column].IsDirty = false;
                     held.Add((row, column));

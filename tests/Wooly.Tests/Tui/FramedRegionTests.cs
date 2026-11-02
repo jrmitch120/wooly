@@ -57,8 +57,9 @@ public class FramedRegionTests
     }
 
     /// <summary>
-    ///     A zero-width space or a direction mark takes no cell at all, so the row is painted as it was measured and its
-    ///     last letter is still there: the frame's edge stays where the frame is on a terminal drawing it in no column.
+    ///     A zero-width space or a direction mark takes no cell at all, so the row is painted as it was measured and
+    ///     its last letter is still there: the frame's edge stays where the frame is on a terminal drawing it in no
+    ///     column.
     /// </summary>
     [Fact]
     public async Task ACharacterWithNothingToDrawIsNotPainted()
@@ -263,7 +264,9 @@ public class FramedRegionTests
 
         public string Grapheme(int row, int column) => Application.Driver!.Contents![row, column].Grapheme;
 
-        /// <summary>Every cell a picture was drawn in: where it was placed, cut to where the terminal was let draw it.</summary>
+        /// <summary>
+        ///     Every cell a picture was drawn in: where it was placed, cut to where the terminal was let draw it.
+        /// </summary>
         public List<Point> PictureCells()
         {
             var cells = new List<Point>();

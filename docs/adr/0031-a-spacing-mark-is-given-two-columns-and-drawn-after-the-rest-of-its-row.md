@@ -81,3 +81,23 @@ The output now also writes the blanks right of everything else on any row it is 
 row. They never change, so Terminal.Gui never wrote them, and a cell any miscount put there stayed until the screen was
 cleared. Now it goes the next time its row is drawn, whatever the miscount was. The second column of a wide character at
 the end of a row is left out, because writing it would erase the character.
+
+## Amendment: a symbol or emoji is written apart from what follows it
+
+A table can only say what its Unicode said. So that the next miscount costs a character rather than a row, a cell holding
+a symbol or an emoji is now written in the output's later passes too, though it is still counted as Terminal.Gui counts
+it and gets no blank. What follows it is placed by itself, so a terminal drawing it wider than counted covers the next
+cell or two and moves nothing past them. That also bounds an emoji sequence on a terminal that adds its parts up. Box
+drawing and block elements are left in the first pass, since every terminal draws them in one cell and they run the
+length of a row.
+
+Measured over a 120×50 frame with every cell written, against Terminal.Gui's own output, on Release builds: text in
+Latin or Cyrillic costs nothing more, and a feed's page with an emoji or a post's action symbols on two rows in five goes
+from a median of 502 to 542 µs and from 6.7 to 7.6 KB. Twenty emoji on every row goes from 291 to 424 µs and 6.8 to 22.9
+KB. Forty narrow symbols side by side on every row, where each pass takes only one of each, is the worst case: 300 µs to
+3 ms and 5.8 to 38.8 KB, still well inside a frame. `ScrollMeasure` does not go through this output, so these came from a
+throwaway measure of `HeldOutput.Write` itself.
+
+Mode 2027, which asks a terminal to treat a grapheme cluster as one character, is deliberately not requested. With this
+in place it would only tidy what is covered, and on a terminal that clusters by Unicode's conjunct rule (GB9c) it could
+make `न्द` one character drawn differently from the two Terminal.Gui counts, which the consequences above warn of.
