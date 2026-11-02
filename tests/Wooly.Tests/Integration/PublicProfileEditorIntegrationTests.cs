@@ -62,8 +62,10 @@ public class PublicProfileEditorIntegrationTests : IDisposable
     }
 
     /// <summary>
-    ///     Nothing about a picture is judged before it is sent (ADR-0028), so a file that only says it is one is the
-    ///     instance's to turn down, in its own words — and with it the rest of the save, which is one request.
+    ///     Nothing about a picture is judged before it is sent (ADR-0028), so a file that is not one is the instance's
+    ///     to turn down, in its own words — and with it the rest of the save, which is one request. The file is named
+    ///     as text, and so sent untyped: one named as a PNG is sent as one, and Mastodon 4.7 fails to answer that
+    ///     (500) rather than refusing it.
     /// </summary>
     [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
     public async Task Save_SaysWhatTheInstanceRefusedAboutAPictureInItsOwnWords()
@@ -80,7 +82,7 @@ public class PublicProfileEditorIntegrationTests : IDisposable
                 new PublicProfileChange
                 {
                     DisplayName = "Wooly Refused",
-                    Avatar = _files.WriteFile("not-a-picture.png", "plain text, whatever its name says"),
+                    Avatar = _files.WriteFile("not-a-picture.txt", "plain text, not a picture"),
                 },
                 cancellationToken));
 

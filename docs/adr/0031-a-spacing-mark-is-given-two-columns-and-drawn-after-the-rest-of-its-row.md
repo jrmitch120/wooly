@@ -126,9 +126,35 @@ place it would mostly tidy what is covered, and on a terminal that clusters by U
 make `न्द` one character drawn differently from the two Terminal.Gui counts, which the consequences above warn of.
 Neither has been looked at in a terminal.
 
+## Amendment: the output also mends three faults in Terminal.Gui's writer (#553)
+
+On Windows Terminal, a thin line showed on hover over blank cells on compose, reply, a post and the timeline. It was
+Windows Terminal's underline for a link, over cells holding none. `HeldOutput`, being the output every frame goes
+through, is where it is mended, in three places.
+
+Its `AnsiOutput` declines to move the cursor onto the caret's cell, and its frame writer takes that as failure and drops
+the rest of the frame: later rows unwritten, and a hyperlink it had opened (it links every URL it draws) left open for
+the next blanks written. `HeldOutput` makes the move itself, and ends every frame by closing any link, so one left open
+by any other way never reaches the next frame.
+
+It erases the cells under each sixel it is about to send. Terminal.Gui leaves those cells unwritten so as not to erase
+the picture, and a terminal draws a sixel without erasing the text under it, so the screen before's text stayed there
+out of sight, and Windows Terminal, which finds URLs in a screen's text by itself, linked one hidden there. Only a
+picture being sent is erased under, since one left on the screen would go with the text. The erase resets the colours
+and leaves the text style alone, because Terminal.Gui writes a style only where it differs from the last it wrote.
+
+Between frames it writes no cursor it has written already. Terminal.Gui sets the cursor on every pass of its main loop,
+25 a second, and its `AnsiOutput` wrote it each time, so the terminal was never quiet. Windows Terminal looks for URLs
+again only after 100ms with no output, so a URL it had found once stayed underlined on hover, wherever it had been, on
+every screen after. That one is the line on compose, reply and the timeline.
+
 ## Still open
 
 A skin tone with no emoji before it measures as nothing while a terminal may draw it wide; written apart, it covers what
 follows it rather than moving the row. Terminal.Gui's own editing widgets get the writer half of all this, as the
 consequences above say of a spacing mark: `🫪` or a symbol being typed into compose keeps its row but may cover the
 character after it.
+
+Three faults in Terminal.Gui 2.5.0's writer are mended in `HeldOutput` rather than fixed where they are (#553): the
+frame dropped at the caret's cell, the text left under a sixel, and the cursor written on every pass because it is never
+marked as needing no update. Report each upstream, and take its mend out when Terminal.Gui no longer needs it.
