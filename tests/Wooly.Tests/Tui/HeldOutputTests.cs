@@ -10,6 +10,7 @@ using Color = Terminal.Gui.Drawing.Color;
 using Point = System.Drawing.Point;
 using Rectangle = System.Drawing.Rectangle;
 using TerminalAttribute = Terminal.Gui.Drawing.Attribute;
+using TextStyle = Terminal.Gui.Drawing.TextStyle;
 
 namespace Wooly.Tests.Tui;
 
@@ -18,9 +19,9 @@ namespace Wooly.Tests.Tui;
 ///     than the tables or a symbol or emoji (ADR-0031): written by the client's own output, and played on a terminal
 ///     that draws such a character one, two or three columns wide, as WezTerm, herdr and GNU screen were measured to
 ///     draw a spacing mark. Whatever the width, nothing past what it covers on the row moves. And what lies past the
-///     end of a row: written with the row, in a run of its own, so that a cell strayed there goes. And a frame reaching the
-///     terminal whole wherever the caret is, with no text left out of sight under a picture, and nothing written between
-///     frames (#553).
+///     end of a row: written with the row, in a run of its own, so that a cell strayed there goes. And a frame reaching
+///     the terminal whole wherever the caret is, with no text left out of sight under a picture, and nothing written
+///     between frames (#553).
 /// </summary>
 public partial class HeldOutputTests
 {
@@ -169,7 +170,7 @@ public partial class HeldOutputTests
         var output = new Recording();
         output.Write(buffer);
 
-        Assert.All(output.Writes, write => Assert.True((write.Place ?? 0) + Terminal.Plain(write.Text).Length <= 8));
+        Assert.All(output.Writes, write => Assert.True((write.Column ?? 0) + Terminal.Plain(write.Text).Length <= 8));
     }
 
     /// <summary>
@@ -378,14 +379,15 @@ public partial class HeldOutputTests
 
         output.Write(buffer);
 
-        Assert.EndsWith(EscSeqUtils.OSC_EndHyperlink(), string.Concat(output.Writes.Select(write => write.Text)));
+        Assert.EndsWith(EscSeqUtils.OSC_EndHyperlink(), output.Text);
     }
 
     /// <summary>
     ///     A picture is drawn over nothing the terminal still holds as text (#553). Terminal.Gui never writes the blank
     ///     cells a sixel covers, since text written there would erase it, so what the screen before had there stayed in
-    ///     the terminal under the picture: out of sight, but still text. Windows Terminal finds a URL in it all the same
-    ///     and takes it for a link, underlined as the pointer passes over the row and still there on the next screen.
+    ///     the terminal under the picture: out of sight, but still text. Windows Terminal finds a URL in it all the
+    ///     same and takes it for a link, underlined as the pointer passes over the row and still there on the next
+    ///     screen.
     /// </summary>
     [Fact]
     public void APictureLeavesNoTextUnderIt()
@@ -426,36 +428,59 @@ public partial class HeldOutputTests
     }
 
     /// <summary>
-    ///     Between frames the terminal hears nothing (#553). Terminal.Gui sets the cursor on every pass of its main loop,
-    ///     25 a second, and wrote it each time; Windows Terminal looks for URLs in the screen again only once output has
-    ///     been quiet for 100ms, so a URL it found once stayed underlined on hover, wherever it had been, on every
-    ///     screen after.
+    ///     Erasing under a picture leaves the terminal's text style as Terminal.Gui last wrote it. Terminal.Gui writes
+    ///     a style only where it differs from the one it wrote before, frames apart, so a reset it was never told of
+    ///     would leave the next reversed run drawn plain.
+    /// </summary>
+    [Fact]
+    public void APictureLeavesTheTextStyleAsItWas()
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(Columns, 3);
+        buffer.CurrentAttribute = new TerminalAttribute(Color.White, Color.Black, TextStyle.Reverse);
+        buffer.Move(0, 2);
+        buffer.AddStr("a");
+        var output = new Recording();
+        output.Write(buffer);
+        output.Writes.Clear();
+
+        Picture(buffer, new Rectangle(0, 0, 8, 2));
+        output.Write(buffer);
+
+        Assert.DoesNotMatch(StyleReset(), output.Text);
+    }
+
+    /// <summary>
+    ///     Between frames the terminal hears nothing (#553). Terminal.Gui sets the cursor on every pass of its main
+    ///     loop, 25 a second, and wrote it each time; Windows Terminal looks for URLs in the screen again only once
+    ///     output has been quiet for 100ms, so a URL it found once stayed underlined on hover, wherever it had been, on
+    ///     every screen after.
     /// </summary>
     [Fact]
     public void ACursorAlreadyWrittenIsNotWrittenAgain()
     {
         var buffer = new OutputBufferImpl();
         buffer.SetSize(Columns, 2);
-        IOutput output = new Recording();
+        var recording = new Recording();
+        IOutput output = recording;
         var caret = new Cursor { Position = new Point(3, 1), Style = CursorStyle.BlinkingBar };
         output.Write(buffer);
         output.SetCursor(caret);
-        ((Recording)output).Writes.Clear();
-        ((Recording)output).Places.Clear();
+        recording.Writes.Clear();
+        recording.Places.Clear();
 
         output.SetCursor(caret);
         output.SetCursor(caret with { });
 
-        Assert.Empty(((Recording)output).Writes);
-        Assert.Empty(((Recording)output).Places);
+        Assert.Empty(recording.Writes);
+        Assert.Empty(recording.Places);
     }
 
     /// <summary>
-    ///     But a frame moves the terminal's cursor, so the caret is put back after one even where it has not moved; and a
-    ///     cursor that changed is written.
+    ///     But a frame moves the terminal's cursor, so the caret is put back after one even where it has not moved.
     /// </summary>
     [Fact]
-    public void TheCaretIsPutBackAfterAFrameAndWrittenWhenItMoves()
+    public void TheCaretIsPutBackAfterAFrame()
     {
         var buffer = new OutputBufferImpl();
         buffer.SetSize(Columns, 2);
@@ -467,9 +492,26 @@ public partial class HeldOutputTests
         output.Write(buffer);
         recording.Places.Clear();
         output.SetCursor(caret);
+
+        Assert.Equal([3], recording.Places);
+    }
+
+    /// <summary>And a cursor that moved between frames is written.</summary>
+    [Fact]
+    public void ACursorThatMovedIsWritten()
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(Columns, 2);
+        var recording = new Recording();
+        IOutput output = recording;
+        var caret = new Cursor { Position = new Point(3, 1), Style = CursorStyle.BlinkingBar };
+        output.Write(buffer);
+        output.SetCursor(caret);
+        recording.Places.Clear();
+
         output.SetCursor(caret with { Position = new Point(4, 1) });
 
-        Assert.Equal([3, 4], recording.Places);
+        Assert.Equal([4], recording.Places);
     }
 
     private static Terminal Played(string row, int drawnIn)
@@ -494,14 +536,20 @@ public partial class HeldOutputTests
         output.Writes.Clear();
     }
 
-    /// <summary>Whether the last hyperlink sequence <paramref name="output" /> wrote opened a link rather than closed one.</summary>
+    /// <summary>
+    ///     Whether the last hyperlink sequence <paramref name="output" /> wrote opened a link rather than closed one.
+    /// </summary>
     private static bool LinkOpen(Recording output) =>
-        Links().Matches(string.Concat(output.Writes.Select(write => write.Text))) is { Count: > 0 } links
+        Links().Matches(output.Text) is { Count: > 0 } links
         && links[^1].Groups["url"].Length > 0;
 
     /// <summary>An OSC 8 hyperlink sequence: a link's address opens it, an empty one closes it.</summary>
     [GeneratedRegex(@"\u001b\]8;[^;\u0007\u001b]*;(?<url>[^\u0007\u001b]*)")]
     private static partial Regex Links();
+
+    /// <summary>A select-graphic-rendition sequence that resets every attribute, the text style with it.</summary>
+    [GeneratedRegex(@"\u001b\[(?:0?|0;[0-9;]*)m")]
+    private static partial Regex StyleReset();
 
     /// <summary>An erase of some cells, from the cursor on.</summary>
     [GeneratedRegex(@"\u001b\[\d*X")]
@@ -509,7 +557,7 @@ public partial class HeldOutputTests
 
     /// <summary>The text <paramref name="output" /> wrote, without its escapes or blanks.</summary>
     private static string Drawn(Recording output) =>
-        Terminal.Plain(string.Concat(output.Writes.Select(write => write.Text))).Replace(" ", string.Empty);
+        Terminal.Plain(output.Text).Replace(" ", string.Empty);
 
     /// <summary>
     ///     A sixel over <paramref name="cells" />, to be sent: the cells under it painted blank and of no colour, as a
@@ -574,17 +622,20 @@ public partial class HeldOutputTests
     /// </summary>
     private sealed class Recording : HeldOutput
     {
-        private int? _place;
+        private int? _column;
 
         private int? _row;
 
-        public List<(int? Place, int? Row, string Text)> Writes { get; } = [];
+        public List<(int? Column, int? Row, string Text)> Writes { get; } = [];
 
         public List<int> Places { get; } = [];
 
+        /// <summary>Everything written, in one.</summary>
+        public string Text => string.Concat(Writes.Select(write => write.Text));
+
         protected override bool SetCursorPositionImpl(int col, int row)
         {
-            _place = col;
+            _column = col;
             _row = row;
             Places.Add(col);
 
@@ -593,21 +644,23 @@ public partial class HeldOutputTests
 
         protected override void Write(StringBuilder output)
         {
-            Writes.Add((_place, _row, output.ToString()));
-            _place = null;
+            Writes.Add((_column, _row, output.ToString()));
+            _column = null;
             _row = null;
             base.Write(output);
         }
     }
 
     /// <summary>
-    ///     A whole terminal, a few rows of <see cref="Columns" />, that draws every character one column wide, moves the
-    ///     cursor where it is put, erases where it is told to — and draws a sixel without touching the text under it,
-    ///     as Windows Terminal does.
+    ///     A whole terminal, a few rows of <see cref="Columns" />, that draws every character one column wide, moves
+    ///     the cursor where it is put, erases where it is told to — and draws a sixel without touching the text under
+    ///     it, as Windows Terminal does.
     /// </summary>
     private sealed partial class Screen
     {
-        private readonly char[,] _cells = new char[3, Columns];
+        private const int Rows = 3;
+
+        private readonly char[,] _cells = new char[Rows, Columns];
 
         private int _row;
 
@@ -615,7 +668,7 @@ public partial class HeldOutputTests
 
         public Screen()
         {
-            for (var row = 0; row < _cells.GetLength(0); row++)
+            for (var row = 0; row < Rows; row++)
             {
                 for (var column = 0; column < Columns; column++)
                 {
@@ -666,10 +719,12 @@ public partial class HeldOutputTests
         }
 
         /// <summary>
-        ///     A sequence the terminal draws nothing for: a place for the cursor, an erase of some cells, a sixel, or any
-        ///     other.
+        ///     A sequence the terminal draws nothing for: a place for the cursor, an erase of some cells, a sixel, or
+        ///     any other.
         /// </summary>
-        [GeneratedRegex(@"\u001b(?:(?<place>\[(?<row>\d+);(?<column>\d+)H)|(?<erase>\[(?<count>\d+)X)|P[^\u001b]*\u001b\\|\[[0-9;?]*[A-Za-z]|\][^\u0007\u001b]*(?:\u0007|\u001b\\))")]
+        [GeneratedRegex(
+            @"\u001b(?:(?<place>\[(?<row>\d+);(?<column>\d+)H)|(?<erase>\[(?<count>\d+)X)"
+            + @"|P[^\u001b]*\u001b\\|\[[0-9;?]*[A-Za-z]|\][^\u0007\u001b]*(?:\u0007|\u001b\\))")]
         private static partial Regex Sequence();
     }
 

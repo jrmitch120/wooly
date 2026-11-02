@@ -38,7 +38,7 @@ namespace Wooly.Tui.Views;
 internal class HeldOutput : AnsiOutput, IOutput
 {
     /// <summary>The cursor last written since the last frame, or none.</summary>
-    private Cursor? _written;
+    private Cursor? _writtenCursor;
 
     /// <summary>
     ///     Makes this the output <paramref name="application" /> writes through, once it is initialised — where it was
@@ -88,7 +88,7 @@ internal class HeldOutput : AnsiOutput, IOutput
         Write(new StringBuilder(EscSeqUtils.OSC_EndHyperlink()));
 
         // A frame moves the terminal's cursor, so whatever cursor comes next is written, even one the same as before.
-        _written = null;
+        _writtenCursor = null;
     }
 
     /// <summary>
@@ -105,13 +105,13 @@ internal class HeldOutput : AnsiOutput, IOutput
     /// </remarks>
     void IOutput.SetCursor(Cursor cursor)
     {
-        if (cursor == _written)
+        if (cursor == _writtenCursor)
         {
             return;
         }
 
         SetCursor(cursor);
-        _written = cursor;
+        _writtenCursor = cursor;
     }
 
     /// <summary>The rows of <paramref name="buffer" /> with something waiting to be written.</summary>
@@ -177,8 +177,8 @@ internal class HeldOutput : AnsiOutput, IOutput
         Glyphs.Columns(character) > 1 || Glyphs.WrittenApart(character);
 
     /// <summary>
-    ///     Erases, at the terminal, every cell a sixel this frame sends is drawn over — just before Terminal.Gui sends it
-    ///     (#553).
+    ///     Erases, at the terminal, every cell a sixel this frame sends is drawn over — just before Terminal.Gui sends
+    ///     it (#553).
     /// </summary>
     /// <remarks>
     ///     Terminal.Gui never writes the blank cells under a sixel, since text written there would erase the picture;
@@ -188,8 +188,8 @@ internal class HeldOutput : AnsiOutput, IOutput
     ///     link it had found outlived the screen. Erased first, the cells hold nothing but blanks for the picture to
     ///     be drawn over. Only a picture sent this frame, as Terminal.Gui decides it: one already on the screen and
     ///     not sent again would be taken off with the text. Any link left open is closed first and the colours reset,
-    ///     so that the blanks are plain ones; on a Kitty terminal a picture is placed under the text, and nothing is
-    ///     erased.
+    ///     so that the blanks are plain ones, but not the text style, which Terminal.Gui would not be told of. On a
+    ///     Kitty terminal a picture is placed under the text, and nothing is erased.
     /// </remarks>
     private void EraseUnderPictures(IOutputBuffer buffer)
     {
@@ -210,7 +210,9 @@ internal class HeldOutput : AnsiOutput, IOutput
 
             foreach (var part in CellsUnder(picture, screen))
             {
-                erase ??= new StringBuilder(EscSeqUtils.OSC_EndHyperlink()).Append(EscSeqUtils.CSI_ResetAttributes);
+                // The colours alone, and not the text style: Terminal.Gui writes a style only where it differs from
+                // the one it last wrote, frames apart, so a reset it was never told of would draw a reversed run plain.
+                erase ??= new StringBuilder(EscSeqUtils.OSC_EndHyperlink()).Append(EscSeqUtils.CSI).Append("39;49m");
 
                 for (var row = part.Top; row < part.Bottom; row++)
                 {
@@ -237,19 +239,21 @@ internal class HeldOutput : AnsiOutput, IOutput
         var cells = Rectangle.Intersect(picture.DestinationCells, screen);
         var parts = picture.Clip is { } clip ? clip.GetRectangles() : [cells];
 
-        return parts.Select(part => Rectangle.Intersect(cells, part)).Where(part => part is { Width: > 0, Height: > 0 });
+        return parts
+            .Select(part => Rectangle.Intersect(cells, part))
+            .Where(part => part is { Width: > 0, Height: > 0 });
     }
 
     /// <summary>
     ///     Puts the cursor at <paramref name="col" /> of <paramref name="row" />, always, and says it did (#553).
     /// </summary>
     /// <remarks>
-    ///     Terminal.Gui 2.5.0's <see cref="AnsiOutput" /> moves nothing and answers <see langword="false" /> where the place
-    ///     asked for is the caret's — a move it takes to be unneeded — and its frame writer reads that answer as a
-    ///     failure and gives up on the rest of the frame: every row after the caret's cell was left unwritten until the
-    ///     caret moved, and a hyperlink it had opened on that row was never closed, so a terminal underlined the blanks
-    ///     written later inside it. The terminal's cursor is wherever the last write left it, not at the caret, so the
-    ///     move is made here instead — at the row as given, since the TUI always runs full screen and an inline
+    ///     Terminal.Gui 2.5.0's <see cref="AnsiOutput" /> moves nothing and answers <see langword="false" /> where the
+    ///     place asked for is the caret's — a move it takes to be unneeded — and its frame writer reads that answer as
+    ///     a failure and gives up on the rest of the frame: every row after the caret's cell was left unwritten until
+    ///     the caret moved, and a hyperlink it had opened on that row was never closed, so a terminal underlined the
+    ///     blanks written later inside it. The terminal's cursor is wherever the last write left it, not at the caret,
+    ///     so the move is made here instead — at the row as given, since the TUI always runs full screen and an inline
     ///     region's offset is never added.
     /// </remarks>
     protected override bool SetCursorPositionImpl(int col, int row)
