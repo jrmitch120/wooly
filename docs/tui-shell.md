@@ -117,7 +117,10 @@ answers for the whole shell, `Glyphs.Columns`, off Terminal.Gui's own reading of
 `string.Length`. Cuts land between graphemes, never inside one — half of a ZWJ sequence, or a base parted from its
 combining mark, is something nobody wrote.
 
-The one place that measure is not Terminal.Gui's is a **spacing mark** (`GLOSSARY.md`, ADR-0031, #434): a vowel sign
+The measure parts from Terminal.Gui's in a few places, all in ADR-0031: a tab and Ethiopic's `ሀ` are put back as a
+column, what has nothing to draw, such as a zero-width space, is dropped from a span, a **character newer than the
+tables** is held in two as a spacing mark is, and anything **written apart** keeps its count but is placed apart from
+what follows it. The first of them was a **spacing mark** (`GLOSSARY.md`, #434): a vowel sign
 that takes room of its own, which Terminal.Gui counts as no column and terminals draw in none, one or two — herdr's
 `অসমীয়া` came out two columns wider than counted, and every cell after it on the row with it. There is no count every
 terminal agrees with, so a character carrying one is held in two columns: the view paints it with the next cell blank,

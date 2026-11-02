@@ -31,7 +31,9 @@ public static class AccountLines
     /// <summary>How far a custom field's continuation is stepped in, so a wrapped value reads as one row.</summary>
     private const int FieldIndent = 2;
 
-    /// <summary>What the small facts on a row are strung together on, wherever this module strings any together.</summary>
+    /// <summary>
+    ///     What the small facts on a row are strung together on, wherever this module strings any together.
+    /// </summary>
     private const string Joins = " · ";
 
     /// <summary>What a follow in place reads as on a row.</summary>
@@ -244,7 +246,9 @@ public static class AccountLines
         return string.Join(Joins, words);
     }
 
-    /// <summary>How much of a presence they have: posts, and the two follow counts — row 3 of an Account block.</summary>
+    /// <summary>
+    ///     How much of a presence they have: posts, and the two follow counts — row 3 of an Account block.
+    /// </summary>
     private static Line Presence(Account account, int width) => Line.Of(
         TextWrap.Clip(
             $"{Number.Of(account.Posts)} posts · {Number.Of(account.Following)} following · {Number.Of(account.Followers)} followers",
@@ -405,12 +409,17 @@ public static class AccountLines
         {
             var placed = row with { At = row.At + place };
 
+            // Counted from the row's start in what the spans hold, which is the text as it will be drawn: anything a
+            // span drops takes no place in it (Glyphs.Plain).
+            int InTheSpans(int offset) =>
+                offset <= row.At ? 0 : Glyphs.Plain(said[row.At..Math.Min(offset, said.Length)]).Length;
+
             var line = CustomEmojiBox.Boxed(
                 MutedOutside(
                     BodyText.Spans(placed, references, picked, shortcodes),
-                    placed.At,
-                    value,
-                    value + field.Said.Length),
+                    0,
+                    InTheSpans(value - place),
+                    InTheSpans(value - place + field.Said.Length)),
                 drawing);
 
             return at == 0 ? line : line.After(new Span(new string(' ', FieldIndent), Role.Body));
@@ -477,8 +486,10 @@ public static class AccountLines
     ///     a custom emoji's shortcode, which keeps its own.
     /// </summary>
     /// <param name="spans">The runs across one row, as the text's own references made them.</param>
-    /// <param name="at">Where that row starts in the text it was wrapped out of.</param>
-    /// <param name="from">Where the value begins in that text.</param>
+    /// <param name="at">
+    ///     Where the spans start, in the numbering of <paramref name="from" /> and <paramref name="to" />.
+    /// </param>
+    /// <param name="from">Where the value begins, counted in the spans' own text.</param>
     /// <param name="to">Where it ends.</param>
     private static IReadOnlyList<Span> MutedOutside(IReadOnlyList<Span> spans, int at, int from, int to)
     {
