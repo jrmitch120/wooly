@@ -1,4 +1,6 @@
+using System.Drawing;
 using System.Reflection;
+using System.Text;
 using Terminal.Gui.App;
 using Terminal.Gui.Drivers;
 using Terminal.Gui.Text;
@@ -24,12 +26,20 @@ namespace Wooly.Tui.Views;
 ///     rather than written wherever the last left off, and a run of any length takes two passes.
 ///     <para>
 ///         Handed to the application as its <c>ansi</c> driver's output (<see cref="Into" />). A row with none of
-///         those is written as Terminal.Gui writes it but for the blanks past its end. Not sealed, so that a test can
-///         read what it writes at the terminal's edge, which headless Terminal.Gui writes nowhere.
+///         those is written as Terminal.Gui writes it but for the blanks past its end. And for four things more
+///         (#553): a sixel is sent over cells first erased (<see cref="EraseUnderPictures" />); a frame is never cut
+///         short where its first change on a row is the caret's cell, as Terminal.Gui's own writer cuts it
+///         (<see cref="SetCursorPositionImpl" />); it ends by closing any hyperlink left open; and between frames,
+///         a cursor no different from the one last written is not written again (<see cref="IOutput.SetCursor" />).
+///         Not sealed, so that a test can read what it writes at the terminal's edge, which headless Terminal.Gui
+///         writes nowhere.
 ///     </para>
 /// </remarks>
-internal class HeldOutput : AnsiOutput
+internal class HeldOutput : AnsiOutput, IOutput
 {
+    /// <summary>The cursor last written since the last frame, or none.</summary>
+    private Cursor? _writtenCursor;
+
     /// <summary>
     ///     Makes this the output <paramref name="application" /> writes through, once it is initialised — where it was
     ///     to be Terminal.Gui's <c>ansi</c> driver anyway, its default on every platform.
@@ -62,6 +72,8 @@ internal class HeldOutput : AnsiOutput
     /// <inheritdoc />
     public override void Write(IOutputBuffer buffer)
     {
+        EraseUnderPictures(buffer);
+
         var blanks = PastTheEnd(buffer);
         var (first, second) = Apart(buffer);
 
@@ -70,6 +82,36 @@ internal class HeldOutput : AnsiOutput
         WriteAlone(buffer, first);
         WriteAlone(buffer, second);
         WriteAlone(buffer, blanks);
+
+        // No link is left open past a frame, whatever Terminal.Gui wrote (#553). It links every URL it draws, and a
+        // link it failed to close takes in whatever is written next — blanks a terminal then underlines on hover.
+        Write(new StringBuilder(EscSeqUtils.OSC_EndHyperlink()));
+
+        // A frame moves the terminal's cursor, so whatever cursor comes next is written, even one the same as before.
+        _writtenCursor = null;
+    }
+
+    /// <summary>
+    ///     Writes <paramref name="cursor" />, unless it is the very one last written since the last frame (#553).
+    /// </summary>
+    /// <remarks>
+    ///     Terminal.Gui 2.5.0 sets the cursor on every pass of its main loop, 25 a second, and never marks it as
+    ///     needing no update; each time, its <see cref="AnsiOutput" /> writes the cursor shown or hidden again, and
+    ///     put again. So the terminal was sent a few bytes every 40ms for as long as wooly ran, whatever was on the
+    ///     screen. Windows Terminal finds URLs in the screen's text by itself, and looks again only once output has
+    ///     been quiet for 100ms — which it never was. A URL it had found once stayed found: hovered, it underlined
+    ///     the cells where that URL had been, on whatever screen was there now. Nothing is written for a cursor
+    ///     already written, so between frames the terminal hears nothing.
+    /// </remarks>
+    void IOutput.SetCursor(Cursor cursor)
+    {
+        if (cursor == _writtenCursor)
+        {
+            return;
+        }
+
+        SetCursor(cursor);
+        _writtenCursor = cursor;
     }
 
     /// <summary>The rows of <paramref name="buffer" /> with something waiting to be written.</summary>
@@ -133,6 +175,96 @@ internal class HeldOutput : AnsiOutput
     /// <summary>Whether a terminal may have drawn <paramref name="character" /> over the cell after its own.</summary>
     private static bool CoversTheNextCell(string character) =>
         Glyphs.Columns(character) > 1 || Glyphs.WrittenApart(character);
+
+    /// <summary>
+    ///     Erases, at the terminal, every cell a sixel this frame sends is drawn over — just before Terminal.Gui sends
+    ///     it (#553).
+    /// </summary>
+    /// <remarks>
+    ///     Terminal.Gui never writes the blank cells under a sixel, since text written there would erase the picture;
+    ///     and a terminal draws a sixel over the text in its cells without erasing it. So the text the screen before
+    ///     had there stayed under the picture, out of sight — a URL included, which Windows Terminal finds by itself
+    ///     and takes for a link: hovered, it underlined the row out past the picture and offered to open it, and the
+    ///     link it had found outlived the screen. Erased first, the cells hold nothing but blanks for the picture to
+    ///     be drawn over. Only a picture sent this frame, as Terminal.Gui decides it: one already on the screen and
+    ///     not sent again would be taken off with the text. Any link left open is closed first and the colours reset,
+    ///     so that the blanks are plain ones, but not the text style, which Terminal.Gui would not be told of. On a
+    ///     Kitty terminal a picture is placed under the text, and nothing is erased.
+    /// </remarks>
+    private void EraseUnderPictures(IOutputBuffer buffer)
+    {
+        if (IsLegacyConsole || UseKittyGraphics)
+        {
+            return;
+        }
+
+        var screen = new Rectangle(0, 0, buffer.Cols, buffer.Rows);
+        StringBuilder? erase = null;
+
+        foreach (var picture in buffer.GetRasterImages())
+        {
+            if (picture.Pixels is null || (!picture.IsDirty && !picture.AlwaysRender))
+            {
+                continue;
+            }
+
+            foreach (var part in CellsUnder(picture, screen))
+            {
+                // The colours alone, and not the text style: Terminal.Gui writes a style only where it differs from
+                // the one it last wrote, frames apart, so a reset it was never told of would draw a reversed run plain.
+                erase ??= new StringBuilder(EscSeqUtils.OSC_EndHyperlink()).Append(EscSeqUtils.CSI).Append("39;49m");
+
+                for (var row = part.Top; row < part.Bottom; row++)
+                {
+                    erase.Append(EscSeqUtils.CSI_SetCursorPosition(row + 1, part.Left + 1))
+                        .Append(EscSeqUtils.CSI)
+                        .Append(part.Width)
+                        .Append('X');
+                }
+            }
+        }
+
+        if (erase is not null)
+        {
+            Write(erase);
+        }
+    }
+
+    /// <summary>
+    ///     The parts of the screen <paramref name="picture" /> is drawn over: its cells, inside what it was let draw in
+    ///     and on the screen — as Terminal.Gui cuts it.
+    /// </summary>
+    private static IEnumerable<Rectangle> CellsUnder(RasterImageCommand picture, Rectangle screen)
+    {
+        var cells = Rectangle.Intersect(picture.DestinationCells, screen);
+        var parts = picture.Clip is { } clip ? clip.GetRectangles() : [cells];
+
+        return parts
+            .Select(part => Rectangle.Intersect(cells, part))
+            .Where(part => part is { Width: > 0, Height: > 0 });
+    }
+
+    /// <summary>
+    ///     Puts the cursor at <paramref name="col" /> of <paramref name="row" />, always, and says it did (#553).
+    /// </summary>
+    /// <remarks>
+    ///     Terminal.Gui 2.5.0's <see cref="AnsiOutput" /> moves nothing and answers <see langword="false" /> where the
+    ///     place asked for is the caret's — a move it takes to be unneeded — and its frame writer reads that answer as
+    ///     a failure and gives up on the rest of the frame: every row after the caret's cell was left unwritten until
+    ///     the caret moved, and a hyperlink it had opened on that row was never closed, so a terminal underlined the
+    ///     blanks written later inside it. The terminal's cursor is wherever the last write left it, not at the caret,
+    ///     so the move is made here instead — at the row as given, since the TUI always runs full screen and an inline
+    ///     region's offset is never added.
+    /// </remarks>
+    protected override bool SetCursorPositionImpl(int col, int row)
+    {
+        if (!base.SetCursorPositionImpl(col, row))
+        {
+            Write(new StringBuilder(EscSeqUtils.CSI_SetCursorPosition(row + 1, col + 1)));
+        }
+
+        return true;
+    }
 
     /// <summary>
     ///     Every cell waiting to be written that holds a character <see cref="Glyphs.MeasuredAlike" /> says is not, or
