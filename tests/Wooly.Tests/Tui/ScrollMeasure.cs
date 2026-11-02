@@ -1,7 +1,10 @@
 using System.Diagnostics;
+using System.Text;
+using Terminal.Gui.Drivers;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
+using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
 
@@ -11,13 +14,125 @@ namespace Wooly.Tests.Tui;
 ///     test — the numbers are what #292 asks to be compared before and after — so it is skipped unless asked for.
 /// </summary>
 /// <remarks>
-///     Run with <c>WOOLY_MEASURE=1 dotnet test -c Release --filter ScrollMeasure --show-live-output on</c>.
+///     Run with
+///     <c>WOOLY_MEASURE=1 dotnet test --project tests/Wooly.Tests -c Release -- --filter-class Wooly.Tests.Tui.ScrollMeasure --show-live-output on</c>.
 ///     The terminal is 120×50 and the photographs are busy ones at the size <c>PictureDecoder</c> holds them, as #287's
 ///     were measured.
 /// </remarks>
 public class ScrollMeasure(ITestOutputHelper output)
 {
     public static bool Enabled => Environment.GetEnvironmentVariable("WOOLY_MEASURE") == "1";
+
+    /// <summary>
+    ///     What the client's own output costs a frame with every cell waiting to be written, against Terminal.Gui's:
+    ///     the rest of this class is headless and never reaches it (ADR-0031).
+    /// </summary>
+    [Fact(Skip = "A measurement, not a test. Set WOOLY_MEASURE=1 to run it.", SkipUnless = nameof(Enabled))]
+    public void AFrameThroughTheOutput()
+    {
+        const string latin = "the quick brown fox jumps over the lazy dog and keeps on running through the field";
+        const string cyrillic = "быстрая коричневая лиса прыгает через ленивую собаку и бежит дальше по полю";
+        const string han = "敏捷的棕色狐狸跳过懒狗然后继续穿过田野一直跑到很远的地方";
+
+        (string Name, Func<int, string> Row)[] pages =
+        [
+            ("Latin", _ => latin),
+            ("Cyrillic", _ => cyrillic),
+            ("Han", _ => han),
+            ("a rail and a rule", _ => "│ Home     │" + new string('─', 100)),
+            ("a feed", row => row % 5 == 0 ? latin + "\U0001F633" : row % 5 == 1 ? "↺0  ☆0  ↩ 0    ○ 2h" : latin),
+            ("20 emoji on a row", _ => string.Concat(Enumerable.Repeat("\U0001F633 ", 20))),
+            ("40 emoji side by side", _ => string.Concat(Enumerable.Repeat("\U0001F633", 40))),
+            ("40 symbols side by side", _ => new string('♛', 40)),
+            ("Braille, the whole row", _ => new string('⠿', 119)),
+        ];
+
+        foreach (var (name, row) in pages)
+        {
+            var theirs = new CountingAnsi();
+            var ours = new CountingHeld();
+
+            var (theirTime, theirBytes) = Frames(theirs.Write, () => theirs.Written, row);
+            var (ourTime, ourBytes) = Frames(ours.Write, () => ours.Written, row);
+
+            output.WriteLine(
+                $"{name}: Terminal.Gui {theirTime:F0} µs, {theirBytes / 1024.0:F1} KB; "
+                + $"ours {ourTime:F0} µs, {ourBytes / 1024.0:F1} KB");
+        }
+    }
+
+    /// <summary>
+    ///     The median time and the bytes of writing a page 120×50 with every cell dirty, after warming up.
+    /// </summary>
+    private static (double Microseconds, long Bytes) Frames(
+        Action<IOutputBuffer> write,
+        Func<long> written,
+        Func<int, string> row)
+    {
+        var buffer = new OutputBufferImpl();
+        buffer.SetSize(120, 50);
+
+        var times = new List<double>();
+        long bytes = 0;
+
+        for (var frame = 0; frame < 800; frame++)
+        {
+            for (var at = 0; at < 50; at++)
+            {
+                buffer.Move(0, at);
+                buffer.AddStr(row(at));
+                buffer.Move(119, at);
+                buffer.AddStr("│");
+            }
+
+            var before = written();
+            var start = Stopwatch.GetTimestamp();
+
+            write(buffer);
+
+            if (frame >= 200)
+            {
+                times.Add(Stopwatch.GetElapsedTime(start).TotalMicroseconds);
+            }
+
+            bytes = written() - before;
+        }
+
+        times.Sort();
+
+        return (times[times.Count / 2], bytes);
+    }
+
+    /// <summary>A cursor move's bytes, in the common case of a two-digit row and a two-digit column.</summary>
+    private const int ACursorMove = 8;
+
+    private sealed class CountingAnsi : AnsiOutput
+    {
+        public long Written { get; private set; }
+
+        protected override void Write(StringBuilder output) => Written += Encoding.UTF8.GetByteCount(output.ToString());
+
+        protected override bool SetCursorPositionImpl(int col, int row)
+        {
+            Written += ACursorMove;
+
+            return true;
+        }
+    }
+
+    private sealed class CountingHeld : HeldOutput
+    {
+        public long Written { get; private set; }
+
+        protected override void Write(StringBuilder output) => Written += Encoding.UTF8.GetByteCount(output.ToString());
+
+        protected override bool SetCursorPositionImpl(int col, int row)
+        {
+            Written += ACursorMove;
+
+            return true;
+        }
+    }
 
     [Fact(Skip = "A measurement, not a test. Set WOOLY_MEASURE=1 to run it.", SkipUnless = nameof(Enabled))]
     public async Task AWheelNotchOverSixelPhotographs()

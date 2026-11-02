@@ -57,6 +57,22 @@ public class FramedRegionTests
     }
 
     /// <summary>
+    ///     A character newer than the tables is held the same way, as 🫪 at the end of a post's line is: the frame's
+    ///     edge stays where the frame is on a terminal drawing it two wide, rather than a column out into the margin
+    ///     (ADR-0031).
+    /// </summary>
+    [Fact]
+    public async Task ACharacterNewerThanTheTablesIsPaintedWithABlankCellAfterIt()
+    {
+        using var drawn = await Draw(Themes.Dark, [Line.Of("a\U0001FAEA|", Role.Body)]);
+
+        Assert.Equal("\U0001FAEA", drawn.Grapheme(1, 2));
+        Assert.Equal(" ", drawn.Grapheme(1, 3));
+        Assert.Equal("|", drawn.Grapheme(1, 4));
+        Assert.Equal("│", drawn.Grapheme(1, Width - 1));
+    }
+
+    /// <summary>
     ///     A zero-width space or a direction mark takes no cell at all, so the row is painted as it was measured and
     ///     its last letter is still there: the frame's edge stays where the frame is on a terminal drawing it in no
     ///     column.
@@ -67,21 +83,6 @@ public class FramedRegionTests
         using var drawn = await Draw(Themes.Dark, [Line.Of("a\u200Bb\u200Fc|", Role.Body)]);
 
         Assert.Equal("│abc|", drawn.Rows()[1][..5]);
-        Assert.Equal("│", drawn.Grapheme(1, Width - 1));
-    }
-
-    /// <summary>
-    ///     And so does a character newer than the tables, as 🫪 at the end of a post's line is: the frame's edge stays
-    ///     where the frame is on a terminal drawing it two wide, rather than a column out into the margin (ADR-0031).
-    /// </summary>
-    [Fact]
-    public async Task ACharacterNewerThanTheTablesIsPaintedWithABlankCellAfterIt()
-    {
-        using var drawn = await Draw(Themes.Dark, [Line.Of("a\U0001FAEA|", Role.Body)]);
-
-        Assert.Equal("\U0001FAEA", drawn.Grapheme(1, 2));
-        Assert.Equal(" ", drawn.Grapheme(1, 3));
-        Assert.Equal("|", drawn.Grapheme(1, 4));
         Assert.Equal("│", drawn.Grapheme(1, Width - 1));
     }
 

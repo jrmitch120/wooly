@@ -21,16 +21,16 @@ namespace Wooly.Tui.Rendering;
 ///         what makes the model and the grid the same shape.
 ///     </para>
 ///     <para>
-///         The one mark that is dropped rather than measured is the <em>variation selector</em>: <c>U+FE0F</c> after a
-///         character asks for the emoji form of it, and <c>An Amazing Wizard➡️KICKSTARTER</c> is three numbers where a
-///         layout needs one. The characters count thirty; Terminal.Gui packs the pair into a single cell and counts
-///         twenty-nine; the terminal paints the emoji two columns wide and counts thirty. Every cell after it is
-///         painted a column right of the one Terminal.Gui put it in, so the last cell of a full-width row crosses the
-///         right margin and the terminal wraps it — which is how the <c>y</c> of <c>3y</c> came to be drawn on the
-///         rail, and an age to read as a count with no unit (#206). Measuring only settles what <em>this</em> client
-///         thinks: the cell Terminal.Gui reserves is one cell whatever the layout believes, and nothing here can widen
-///         it. Without the selector a terminal draws the plain form of the character, one column, which is the width
-///         all three had already counted.
+///         Some characters are dropped rather than measured (<see cref="Plain" />). The one that takes the most
+///         explaining is the <em>variation selector</em>: <c>U+FE0F</c> after a character asks for the emoji form of
+///         it, and <c>An Amazing Wizard➡️KICKSTARTER</c> is three numbers where a layout needs one. The characters
+///         count thirty; Terminal.Gui packs the pair into a single cell and counts twenty-nine; the terminal paints the
+///         emoji two columns wide and counts thirty. Every cell after it is painted a column right of the one
+///         Terminal.Gui put it in, so the last cell of a full-width row crosses the right margin and the terminal wraps
+///         it — which is how the <c>y</c> of <c>3y</c> came to be drawn on the rail, and an age to read as a count with
+///         no unit (#206). Measuring only settles what <em>this</em> client thinks: the cell Terminal.Gui reserves is
+///         one cell whatever the layout believes, and nothing here can widen it. Without the selector a terminal draws
+///         the plain form of the character, one column, which is the width all three had already counted.
 ///     </para>
 /// </remarks>
 public static class Glyphs
@@ -48,6 +48,18 @@ public static class Glyphs
     ///     The first of them, everything below it being a control character and none of them a column wide.
     /// </summary>
     private const char FirstPlainAscii = ' ';
+
+    private const int Tab = '\t';
+
+    private const int SoftHyphen = 0x00AD;
+
+    private const int ZeroWidthNonJoiner = 0x200C;
+
+    private const int ZeroWidthJoiner = 0x200D;
+
+    private const int FirstFlagTag = 0xE0020;
+
+    private const int LastFlagTag = 0xE007F;
 
     private const int FirstBoxDrawing = 0x2500;
 
@@ -68,7 +80,8 @@ public static class Glyphs
     ///     <para>
     ///         Besides a selector, that is a character with nothing to draw (<see cref="DrawsNothing" />): this client
     ///         counts one as no column and Terminal.Gui gives it a cell all the same, so the layout and the grid come
-    ///         apart at it, and a terminal drawing it in no column moves everything after it a column left.
+    ///         apart at it, and a terminal drawing it in no column moves everything after it a column left. A tab
+    ///         becomes the space HTML reads it as, where words would otherwise join.
     ///     </para>
     /// </remarks>
     public static string Plain(string text)
@@ -78,66 +91,73 @@ public static class Glyphs
             return text;
         }
 
-        var drops = false;
+        StringBuilder? kept = null;
+        var at = 0;
 
         foreach (var rune in text.EnumerateRunes())
         {
-            if (DrawsNothing(rune))
+            var drawn = rune.Value != Tab && !DrawsNothing(rune);
+
+            if (kept is null && drawn)
             {
-                drops = true;
+                at += rune.Utf16SequenceLength;
 
-                break;
+                continue;
             }
-        }
 
-        if (!drops)
-        {
-            return text;
-        }
+            kept ??= new StringBuilder(text.Length).Append(text, 0, at);
 
-        var kept = new StringBuilder(text.Length);
-
-        foreach (var rune in text.EnumerateRunes())
-        {
-            if (!DrawsNothing(rune))
+            if (drawn)
             {
                 kept.Append(rune);
             }
+            else if (rune.Value == Tab)
+            {
+                kept.Append(FirstPlainAscii);
+            }
         }
 
-        return kept.ToString();
+        return kept?.ToString() ?? text;
     }
 
     /// <summary>
     ///     A selector, a control character, a line or paragraph separator, or an invisible format character: a
-    ///     zero-width space, a joiner or a direction mark.
+    ///     zero-width space, a word joiner, a direction mark or a byte-order mark.
     /// </summary>
     /// <remarks>
-    ///     Not the format characters grapheme segmentation joins to their neighbours and so never reach a cell alone:
-    ///     the joiners inside an emoji or a word, the tags inside a flag, the marks Arabic and others prepend to a
-    ///     number. Nor a soft hyphen, which Terminal.Gui and this client count alike. <c>MeasuredAsPlacedTests</c>
-    ///     holds this to every character there is.
+    ///     Not a format character <see cref="StaysInText" /> keeps. <c>MeasuredAsPlacedTests</c> holds this to every
+    ///     character there is.
     /// </remarks>
     private static bool DrawsNothing(Rune rune) =>
         Rune.GetUnicodeCategory(rune) switch
         {
             UnicodeCategory.Control or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator => true,
-            UnicodeCategory.Format => rune.Value is not (0x00AD or (>= 0x0600 and <= 0x0605) or 0x06DD or 0x070F
-                or 0x0890 or 0x0891 or 0x08E2 or 0x110BD or 0x110CD or 0x200C or 0x200D or (>= 0xE0020 and <= 0xE007F)),
+            UnicodeCategory.Format => !StaysInText(rune.Value),
             _ => rune.Value is >= FirstSelector and <= LastSelector,
         };
+
+    /// <summary>
+    ///     The format characters grapheme segmentation joins to a neighbour, so that they never reach a cell alone: the
+    ///     joiners inside an emoji or a word, the tags inside a flag and the marks prepended to a number. And a soft
+    ///     hyphen, which Terminal.Gui and this client count alike.
+    /// </summary>
+    private static bool StaysInText(int character) =>
+        character is SoftHyphen or ZeroWidthNonJoiner or ZeroWidthJoiner
+            or >= FirstFlagTag and <= LastFlagTag
+            or >= 0x0600 and <= 0x0605 or 0x06DD or 0x070F or 0x0890 or 0x0891 or 0x08E2 or 0x110BD or 0x110CD;
 
     /// <summary>How wide <paramref name="text" /> is, in the columns a terminal will draw it in.</summary>
     /// <remarks>
     ///     The single measure every layout reads. Plain ASCII — which is most of what a client of an English-speaking
     ///     instance draws, and all of its own chrome — is a column a character and answered by the scan alone; anything
-    ///     else is handed to Terminal.Gui, whose reading of it is the one that places the cells. The exception is a
+    ///     else is handed to Terminal.Gui, whose reading of it is the one that places the cells. The exceptions are a
     ///     character carrying a spacing mark or one newer than the tables, which is <see cref="HeldColumns" /> wherever
-    ///     it is (ADR-0031).
+    ///     it is (ADR-0031), and the tab and the letter Terminal.Gui counts as nothing, which are one (<see
+    ///     cref="Counted" />).
     /// </remarks>
     public static int Columns(string text) =>
         !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) ? text.Length
-        : CountedApart(text) ? ColumnsByCharacter(text)
+        : CarriesAHeldCharacter(text) ? ColumnsByCharacter(text)
         : Counted(text);
 
     /// <summary>
@@ -153,7 +173,8 @@ public static class Glyphs
     ///     beside the languages written in those scripts. There is no count to correct to, so a character carrying one
     ///     is held in <see cref="HeldColumns" />, the second left blank, and drawn after the rest of its row at a place
     ///     of its own (ADR-0031): whatever a terminal makes of it, nothing after it moves. Marks that take no room — an
-    ///     accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all.
+    ///     accent, Arabic's vowels, Tibetan's — are counted alike, and so is text with no mark at all that the tables
+    ///     know.
     ///     <para>
     ///         A character newer than the tables is the same disagreement from the other side. <c>🫪</c>, from Unicode
     ///         17, is in neither .NET's table nor the one Terminal.Gui reads, so Terminal.Gui counts it as one column;
@@ -163,17 +184,19 @@ public static class Glyphs
     ///     </para>
     /// </remarks>
     public static bool MeasuredAlike(string text) =>
-        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) || !CountedApart(text);
+        !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) || !CarriesAHeldCharacter(text);
 
     /// <summary>
-    ///     Whether the character in a cell is written apart from what follows it, because it is a symbol or an emoji:
-    ///     the one kind of character whose width keeps changing under everybody, with each Unicode, each terminal and
-    ///     each font, and whose sequences a terminal may add up rather than join.
+    ///     Whether the character in a cell is written apart from what follows it, because it can be an emoji: the one
+    ///     kind of character whose width keeps changing under everybody, with each Unicode, each terminal and each
+    ///     font, and whose sequences a terminal may add up rather than join.
     /// </summary>
     /// <remarks>
-    ///     Counted as it is, but what follows it is placed by itself rather than left to follow it, so that a terminal
-    ///     drawing it wider than counted covers what is next rather than moving the rest of the row (ADR-0031). Box
-    ///     drawing and block elements are symbols every terminal draws in one cell, and they run the length of a row.
+    ///     Counted as it is and given no blank, but what follows it is placed by itself rather than left to follow it,
+    ///     so that a terminal drawing it wider than counted covers what is next rather than moving the rest of the row
+    ///     (ADR-0031). That is a symbol, an arrow, a skin tone or a keycap's enclosing mark, anywhere in the character.
+    ///     Box drawing and block elements are symbols every terminal draws in one cell, and they run the length of a
+    ///     row. Letters of any script are not written apart: ADR-0031 says why it would cost more than it saves.
     /// </remarks>
     public static bool WrittenApart(string character)
     {
@@ -185,7 +208,11 @@ public static class Glyphs
         foreach (var rune in character.EnumerateRunes())
         {
             if (rune.Value is < FirstBoxDrawing or > LastBlockElement
-                && Rune.GetUnicodeCategory(rune) is UnicodeCategory.OtherSymbol or UnicodeCategory.ModifierSymbol)
+                && Rune.GetUnicodeCategory(rune)
+                    is UnicodeCategory.OtherSymbol
+                    or UnicodeCategory.ModifierSymbol
+                    or UnicodeCategory.MathSymbol
+                    or UnicodeCategory.EnclosingMark)
             {
                 return true;
             }
@@ -259,7 +286,7 @@ public static class Glyphs
     ///     doesn't know. The ones it counts otherwise are the blocks kept for future Han and Hangul, which it already
     ///     counts as a terminal does.
     /// </remarks>
-    private static bool CountedApart(string text)
+    private static bool CarriesAHeldCharacter(string text)
     {
         foreach (var rune in text.EnumerateRunes())
         {
@@ -302,8 +329,12 @@ public static class Glyphs
         return columns;
     }
 
-    /// <summary>Terminal.Gui's count of <paramref name="text" />, with the one letter it misses put back.</summary>
-    private static int Counted(string text) => text.GetColumns() + text.AsSpan().Count(UncountedLetter);
+    /// <summary>
+    ///     Terminal.Gui's count of <paramref name="text" />, with a column put back for what it misses: the letter its
+    ///     table leaves out, and a tab, which <see cref="Plain" /> makes a space.
+    /// </summary>
+    private static int Counted(string text) =>
+        text.GetColumns() + text.AsSpan().Count(UncountedLetter) + text.AsSpan().Count((char)Tab);
 
     /// <summary>As much of the front of <paramref name="text" /> as fits in <paramref name="columns" />.</summary>
     /// <remarks>

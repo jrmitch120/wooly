@@ -41,14 +41,60 @@ public class GlyphsTests
 
     /// <summary>
     ///     What only means anything joined to what is beside it stays: the joiners inside an emoji, the tags inside a
-    ///     flag, a keycap and an Arabic number sign, each drawn as one character.
+    ///     flag, a keycap and an Arabic number sign, each drawn as one character. So does a soft hyphen, which this
+    ///     client and Terminal.Gui count alike.
     /// </summary>
     [Theory]
     [InlineData("\U0001F468\u200D\U0001F469\u200D\U0001F467")]
     [InlineData("\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F")]
     [InlineData("\u0600\u0661")]
+    [InlineData("1\u20E3")]
     [InlineData("a\u00ADb")]
     public void Plain_LeavesWhatJoinsItsNeighboursAlone(string sent) => Assert.Same(sent, Glyphs.Plain(sent));
+
+    /// <summary>
+    ///     A tab is a space, as HTML reads one, in the same place in the text and measured the same before it becomes
+    ///     one: a layout weighs text as it was sent and a terminal given one would jump to wherever its next stop is.
+    /// </summary>
+    [Fact]
+    public void Plain_MakesATabASpaceAndColumnsCountsItAsOne()
+    {
+        Assert.Equal("a b", Glyphs.Plain("a\tb"));
+        Assert.Equal(3, Glyphs.Columns("a\tb"));
+    }
+
+    /// <summary>
+    ///     Text measures the same as sent and as drawn, since a layout reads either: dropping a character never changes
+    ///     what a row is measured to take.
+    /// </summary>
+    [Theory]
+    [InlineData("a\u200Bb")]
+    [InlineData("\u200Fשלום\u200E")]
+    [InlineData("a\tb")]
+    [InlineData("❤\uFE0F")]
+    public void Columns_IsTheSameBeforeAndAfterPlain(string text) =>
+        Assert.Equal(Glyphs.Columns(Glyphs.Plain(text)), Glyphs.Columns(text));
+
+    /// <summary>
+    ///     What every terminal agrees on stays in Terminal.Gui's own run: letters, box drawing and blocks. Anything
+    ///     that can be an emoji is written apart: a symbol, an arrow, a keycap, a sequence, a skin tone with nothing to
+    ///     wear it.
+    /// </summary>
+    [Theory]
+    [InlineData("a", false)]
+    [InlineData("б", false)]
+    [InlineData("ド", false)]
+    [InlineData("क्ष", false)]
+    [InlineData("─", false)]
+    [InlineData("█", false)]
+    [InlineData("\U0001F633", true)]
+    [InlineData("\u26A0", true)]
+    [InlineData("\u2194", true)]
+    [InlineData("1\u20E3", true)]
+    [InlineData("\U0001F468\u200D\U0001F469\u200D\U0001F467", true)]
+    [InlineData("a\U0001F3FD", true)]
+    public void WrittenApart_IsTrueOfWhatCanBeAnEmoji(string character, bool apart) =>
+        Assert.Equal(apart, Glyphs.WrittenApart(character));
 
     /// <summary>
     ///     Ethiopic's <c>ሀ</c>, which Wcwidth 4.0.1 counts as no column, is one, as Terminal.Gui's cell for it is.
@@ -91,7 +137,8 @@ public class GlyphsTests
     ///     Text this client and a terminal measure alike, and text they do not (#432): a <em>spacing mark</em> — a
     ///     vowel sign that takes up room of its own, the <c>ী</c> of <c>অসমীয়া</c> — is no column to Terminal.Gui and
     ///     one to some terminals and not to others, so no count of it agrees with all of them. Marks that take no room
-    ///     (an accent, Arabic's vowels, Tibetan's) are counted alike, and so is everything without a mark at all.
+    ///     (an accent, Arabic's vowels, Tibetan's) are counted alike, and so is everything without a mark at all that
+    ///     the tables know.
     /// </summary>
     [Theory]
     [InlineData("Français", true)]

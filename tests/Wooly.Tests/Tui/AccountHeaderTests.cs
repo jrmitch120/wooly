@@ -29,10 +29,14 @@ public class AccountHeaderTests
         Raster? raster = null) =>
         AccountLines.Header(account, familiar, new Drawing(width, Now, pictures, raster ?? ARaster.Sixel()));
 
-    /// <summary>An account that wrote nothing about itself and stands in no relation the instance was asked about.</summary>
+    /// <summary>
+    ///     An account that wrote nothing about itself and stands in no relation the instance was asked about.
+    /// </summary>
     private static Account Bare() => AnAccount.With(bio: string.Empty);
 
-    /// <summary>Which row the first one <paramref name="which" /> picks out is, so a test can say "the row under it".</summary>
+    /// <summary>
+    ///     Which row the first one <paramref name="which" /> picks out is, so a test can say "the row under it".
+    /// </summary>
     private static int Row(IReadOnlyList<Line> lines, Func<Line, bool> which)
     {
         for (var at = 0; at < lines.Count; at++)
@@ -117,6 +121,30 @@ public class AccountHeaderTests
         Assert.Contains(
             lines,
             line => line.Spans.Any(span => span is { Role: Role.Link, Text: "https://maria.example" }));
+    }
+
+    /// <summary>
+    ///     What a span drops takes no place in where the value starts and ends: three direction marks written in a
+    ///     label leave the label muted and the value in its own role, not a muted first few letters of it (ADR-0031).
+    /// </summary>
+    [Fact]
+    public void Header_KeepsAFieldsRolesWhereItsTextCarriesWhatIsNotDrawn()
+    {
+        var lines = Header(AnAccount.With(
+            bio: string.Empty,
+            fields:
+            [
+                AnAccount.Field(
+                    "\u200E\u200E\u200ESite",
+                    "\u200Fhttps://maria.example",
+                    new DateTimeOffset(2024, 5, 1, 0, 0, 0, TimeSpan.Zero)),
+            ]));
+
+        var site = lines.First(line => line.Text.StartsWith("Site"));
+
+        Assert.Contains(site.Spans, span => span is { Role: Role.Muted, Text: "Site: " });
+        Assert.Contains(site.Spans, span => span is { Role: Role.Link, Text: "https://maria.example" });
+        Assert.Contains(site.Spans, span => span is { Role: Role.Muted, Text: " ✓" });
     }
 
     /// <summary>

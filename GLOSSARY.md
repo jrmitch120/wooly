@@ -223,9 +223,19 @@ A vowel sign that takes room of its own (Unicode Mc) — the `ী` of `অসম
 character terminals and Terminal.Gui count differently, and differently from each other: one column, two, or none.
 Text carrying one is given two columns and drawn after the rest of its row, so whatever a terminal makes of it, nothing
 after it on the row moves (ADR-0031). Distinct from the marks that take no room — an accent, Arabic's vowels, a virama —
-which every terminal counts alike. A character newer than .NET's and Terminal.Gui's tables, such as an emoji from a
-Unicode they predate, is held the same way, though it carries no mark.
+which every terminal counts alike.
 _Avoid_: combining mark (most of those take no room), wide character, complex script
+
+**Character newer than the tables**:
+A character neither .NET nor Terminal.Gui has an entry for, such as an emoji from a Unicode they predate, which
+Terminal.Gui counts as one column and a terminal knowing it draws in two. Held in two columns and drawn after the rest
+of its row, as a **spacing mark** is, though it carries no mark (ADR-0031).
+_Avoid_: unknown character, unassigned character
+
+**Written apart**:
+What can be an emoji, a symbol, an arrow, a skin tone or a keycap, written in a later pass than the rest of its row so
+that what follows it is placed by itself. It keeps its count and gets no blank, so a terminal drawing it wider covers
+the next cell or two and moves nothing past them (ADR-0031). Distinct from being held, which also gives it two columns.
 
 **Custom emoji**:
 A small picture an **instance** defines for itself and its people write as a **shortcode**, in a post's words, its
