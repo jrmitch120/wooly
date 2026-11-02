@@ -118,7 +118,8 @@ answers for the whole shell, `Glyphs.Columns`, off Terminal.Gui's own reading of
 combining mark, is something nobody wrote.
 
 The one place that measure is not Terminal.Gui's is a **spacing mark** (`GLOSSARY.md`, ADR-0031, #434), and a character
-newer than the tables, held the same way (ADR-0031's amendment). A spacing mark is a vowel sign
+newer than the tables, held the same way (ADR-0031's amendments; what has nothing to draw, such as a zero-width space,
+is dropped from a span). A spacing mark is a vowel sign
 that takes room of its own, which Terminal.Gui counts as no column and terminals draw in none, one or two — herdr's
 `অসমীয়া` came out two columns wider than counted, and every cell after it on the row with it. There is no count every
 terminal agrees with, so a character carrying one is held in two columns: the view paints it with the next cell blank,

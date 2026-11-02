@@ -46,16 +46,78 @@ public static class Glyphs
     private const char FirstPlainAscii = ' ';
 
     /// <summary>
+    ///     Ethiopic's <c>ሀ</c>, the one letter Wcwidth 4.0.1 counts as no column: its range for Hangul's vowels runs one
+    ///     character too far. Terminal.Gui gives it a cell and a terminal draws it in one.
+    /// </summary>
+    private const char UncountedLetter = '\u1200';
+
+    /// <summary>
     ///     <paramref name="text" /> as a terminal will draw it, which is the form every layout is measured against.
     /// </summary>
     /// <remarks>
-    ///     The text itself where it carries no selector, which is nearly everything this client draws: the scan is
+    ///     The text itself where it carries nothing to drop, which is nearly everything this client draws: the scan is
     ///     the whole cost on that path, and every row is laid out afresh on every frame.
+    ///     <para>
+    ///         Besides a selector, that is a character with nothing to draw (<see cref="DrawsNothing" />): this client
+    ///         counts one as no column and Terminal.Gui gives it a cell all the same, so the layout and the grid come
+    ///         apart at it, and a terminal drawing it in no column moves everything after it a column left.
+    ///     </para>
     /// </remarks>
-    public static string Plain(string text) =>
-        text.AsSpan().IndexOfAnyInRange(FirstSelector, LastSelector) < 0
-            ? text
-            : new string([.. text.Where(character => character is < FirstSelector or > LastSelector)]);
+    public static string Plain(string text)
+    {
+        if (!text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii))
+        {
+            return text;
+        }
+
+        var drops = false;
+
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (DrawsNothing(rune))
+            {
+                drops = true;
+
+                break;
+            }
+        }
+
+        if (!drops)
+        {
+            return text;
+        }
+
+        var kept = new StringBuilder(text.Length);
+
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (!DrawsNothing(rune))
+            {
+                kept.Append(rune);
+            }
+        }
+
+        return kept.ToString();
+    }
+
+    /// <summary>
+    ///     A selector, a control character, a line or paragraph separator, or an invisible format character: a zero-width
+    ///     space, a joiner or a direction mark.
+    /// </summary>
+    /// <remarks>
+    ///     Not the format characters grapheme segmentation joins to their neighbours and so never reach a cell alone: the
+    ///     joiners inside an emoji or a word, the tags inside a flag, the marks Arabic and others prepend to a number.
+    ///     Nor a soft hyphen, which Terminal.Gui and this client count alike. <c>MeasuredAsPlacedTests</c> holds this to
+    ///     every character there is.
+    /// </remarks>
+    private static bool DrawsNothing(Rune rune) =>
+        Rune.GetUnicodeCategory(rune) switch
+        {
+            UnicodeCategory.Control or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator => true,
+            UnicodeCategory.Format => rune.Value is not (0x00AD or (>= 0x0600 and <= 0x0605) or 0x06DD or 0x070F
+                or 0x0890 or 0x0891 or 0x08E2 or 0x110BD or 0x110CD or 0x200C or 0x200D or (>= 0xE0020 and <= 0xE007F)),
+            _ => rune.Value is >= FirstSelector and <= LastSelector,
+        };
 
     /// <summary>How wide <paramref name="text" /> is, in the columns a terminal will draw it in.</summary>
     /// <remarks>
@@ -68,7 +130,7 @@ public static class Glyphs
     public static int Columns(string text) =>
         !text.AsSpan().ContainsAnyExceptInRange(FirstPlainAscii, LastPlainAscii) ? text.Length
         : CountedApart(text) ? ColumnsByCharacter(text)
-        : text.GetColumns();
+        : Counted(text);
 
     /// <summary>
     ///     Whether this client and a terminal measure <paramref name="text" /> alike: false where it carries a
@@ -196,12 +258,15 @@ public static class Glyphs
             var end = Past(text, at, text.Length);
             var character = text[at..end];
 
-            columns += MeasuredAlike(character) ? character.GetColumns() : HeldColumns;
+            columns += MeasuredAlike(character) ? Counted(character) : HeldColumns;
             at = end;
         }
 
         return columns;
     }
+
+    /// <summary>Terminal.Gui's count of <paramref name="text" />, with the one letter it misses put back.</summary>
+    private static int Counted(string text) => text.GetColumns() + text.AsSpan().Count(UncountedLetter);
 
     /// <summary>As much of the front of <paramref name="text" /> as fits in <paramref name="columns" />.</summary>
     /// <remarks>

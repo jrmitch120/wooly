@@ -59,3 +59,18 @@ reserved for future Han and Hangul stay as they are, because Terminal.Gui alread
 needs no table of emoji, so a later Unicode needs no change here. A .NET whose table is newer than Wcwidth's would stop
 holding what Wcwidth still counts as one column, and the row would move again; `GlyphsTests` pins `🫪` so that upgrade
 says so.
+
+## Amendment: what has nothing to draw is dropped, and every character is held to its measure
+
+A zero-width space, a direction mark, a word joiner, a byte-order mark and the like were the opposite disagreement: this
+client counted each as no column, Terminal.Gui gave each a cell and wrote it in the run, and a terminal draws it in none.
+There is no column to hold, so `Glyphs.Plain` drops them, as it drops a selector, along with control characters and line
+and paragraph separators. The format characters segmentation joins to a neighbour stay: an emoji's joiners, a flag's tags
+and the marks prepended to a number. A tab, which HTML reads as a space, becomes one when an instance's HTML is flattened.
+Wcwidth 4.0.1 also counts Ethiopic's `ሀ` as no column, its range for Hangul's vowels running one character too far, and
+`Glyphs.Columns` puts that column back.
+
+`MeasuredAsPlacedTests` walks every character there is: each must take the cells Terminal.Gui gives it, and each Unicode
+calls wide (`UnicodeWide.txt`, from Unicode 17) must be counted two or held. A table upgraded on one side only fails
+there first. Two exceptions are named in it: a Hangul vowel with no consonant before it, which no Korean text has, and a
+skin tone alone.

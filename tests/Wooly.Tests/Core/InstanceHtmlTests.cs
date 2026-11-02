@@ -38,6 +38,7 @@ public class InstanceHtmlTests
     // However many blank lines the markup implied, a post is one block of text — three in a row is the HTML showing
     // through.
     [InlineData("<p>Above</p><p></p><p></p><p>Below</p>", "Above\n\nBelow")]
+    [InlineData("<p>one\ttwo</p>", "one two")]
     public void ToPlainText_FlattensTheMarkupAnInstanceSendsWrittenTextAs(string? html, string expected) =>
         Assert.Equal(expected, InstanceHtml.ToPlainText(html));
 }

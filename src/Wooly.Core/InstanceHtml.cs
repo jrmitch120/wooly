@@ -55,7 +55,8 @@ internal static class InstanceHtml
         }
 
         // Decoded last, so an entity for '<' in the user's own text cannot be read as a tag by the loop above.
-        var plain = WebUtility.HtmlDecode(text.ToString());
+        // A tab is a space to HTML, and a terminal given one would jump to wherever its next stop is.
+        var plain = WebUtility.HtmlDecode(text.ToString()).Replace('\t', ' ');
 
         // What was written is one block of text however many blank lines its HTML implied; three of them in a
         // terminal is the markup showing through.

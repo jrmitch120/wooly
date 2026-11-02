@@ -26,6 +26,37 @@ public class GlyphsTests
     public void Plain_DropsAVariationSelector(string sent, string drawn) => Assert.Equal(drawn, Glyphs.Plain(sent));
 
     /// <summary>
+    ///     A character with nothing to draw is dropped: this client counts it as no column and Terminal.Gui gives it a
+    ///     cell, so a zero-width space or a direction mark in a post moved its row's edge and ate the row's last letter.
+    /// </summary>
+    [Theory]
+    [InlineData("a\u200Bb", "ab")]
+    [InlineData("\u200Fשלום\u200E", "שלום")]
+    [InlineData("\uFEFFMaria", "Maria")]
+    [InlineData("a\u2060b\u202Ec", "abc")]
+    [InlineData("a\u2028b", "ab")]
+    [InlineData("a\u009Bb\u001Bc", "abc")]
+    public void Plain_DropsWhatHasNothingToDraw(string sent, string drawn) => Assert.Equal(drawn, Glyphs.Plain(sent));
+
+    /// <summary>
+    ///     What only means anything joined to what is beside it stays: the joiners inside an emoji, the tags inside a
+    ///     flag, a keycap and an Arabic number sign, each drawn as one character.
+    /// </summary>
+    [Theory]
+    [InlineData("\U0001F468\u200D\U0001F469\u200D\U0001F467")]
+    [InlineData("\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F")]
+    [InlineData("\u0600\u0661")]
+    [InlineData("a\u00ADb")]
+    public void Plain_LeavesWhatJoinsItsNeighboursAlone(string sent) => Assert.Same(sent, Glyphs.Plain(sent));
+
+    /// <summary>Ethiopic's <c>ሀ</c>, which Wcwidth 4.0.1 counts as no column, is one, as Terminal.Gui's cell for it is.</summary>
+    [Theory]
+    [InlineData("\u1200", 1)]
+    [InlineData("a\u1200b", 3)]
+    public void Columns_CountsTheLetterTheTableMisses(string text, int columns) =>
+        Assert.Equal(columns, Glyphs.Columns(text));
+
+    /// <summary>
     ///     Everything else is left exactly as it was written, the string itself rather than a copy of it — which is
     ///     nearly every string this client draws, on a path walked afresh for every row of every frame.
     /// </summary>
