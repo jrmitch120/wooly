@@ -123,12 +123,12 @@ public class PlacingTests
     }
 
     /// <summary>
-    ///     Through Kitty a box half off the top keeps the whole box as its frame, and is shown the whole picture: the
-    ///     image view sends it once and places a crop of it as it moves, which cutting the box down for it — as sixel
-    ///     is — would undo (ADR-0016, ADR-0022).
+    ///     Through Kitty a box half off the top keeps the whole box as its frame, and is shown the picture for the whole
+    ///     box: the image view sends it once and places a crop of it as it moves, which cutting the box down for it —
+    ///     as sixel is — would undo (ADR-0016, ADR-0022).
     /// </summary>
     [Fact]
-    public void AKittyBoxIsShownTheWholePictureAndKeepsItsWholeFrameHalfOffThePage()
+    public void AKittyBoxIsShownTheWholeBoxsPictureAndKeepsItsWholeFrameHalfOffThePage()
     {
         var frame = new AFrame(new FakePictures().Holding("m1", 40, 80));
 
@@ -137,6 +137,101 @@ public class PlacingTests
         Assert.Contains(frame.Log, call => call is { What: Kind.ShownWhole, Picture: "m1" });
         Assert.DoesNotContain(frame.Log, call => call.What is Kind.ShownSixel);
         Assert.Equal(new Rectangle(0, -2, 4, 4), frame.Showing("m1").Frame);
+        Assert.Equal((40, 80), Size(frame.Showing("m1").Shown));
+    }
+
+    /// <summary>
+    ///     Through Kitty a box is shown its picture already at the box's size in pixels — four cells square on a cell
+    ///     of 20 by 45, 80 by 180 — rather than the picture as it was decoded, which the terminal stretched to fill the
+    ///     cells the image view rounded it up to (#533).
+    /// </summary>
+    [Fact]
+    public void AKittyBoxIsShownItsPictureAtTheBoxsSizeInPixels()
+    {
+        var frame = new AFrame(new FakePictures().Holding("m1", 30, 50));
+
+        frame.Place(Rows(Box("m1", at: 2)), top: 0, ARaster.Kitty(new CellSize(20, 45)));
+
+        Assert.Equal((80, 180), Size(frame.Showing("m1").Shown));
+    }
+
+    /// <summary>
+    ///     A Kitty box shown the same picture in the same box frame after frame is shown the very same pixels, so that
+    ///     the image view has nothing to send again and nothing is taken to its box twice.
+    /// </summary>
+    [Fact]
+    public void AKittyBoxKeepsThePixelsItWasShownWhileItsBoxIsTheSameSize()
+    {
+        var frame = new AFrame(new FakePictures().Holding("m1", 30, 50));
+        var rows = Rows(Box("m1", at: 2));
+
+        frame.Place(rows, top: 0, ARaster.Kitty());
+
+        var shown = frame.Showing("m1").Shown;
+
+        frame.Place(rows, top: 1, ARaster.Kitty());
+
+        Assert.Same(shown, frame.Showing("m1").Shown);
+    }
+
+    /// <summary>
+    ///     A box whose size changes from one frame to the next — the window resized, say — is shown its picture at the
+    ///     new size, not kept at the first one's.
+    /// </summary>
+    [Fact]
+    public void AKittyBoxResizedIsShownItsPictureAtTheNewSize()
+    {
+        var frame = new AFrame(new FakePictures().Holding("m1", 30, 50));
+
+        frame.Place(Rows(Box("m1", at: 2)), top: 0, ARaster.Kitty());
+        frame.Place(Rows(Box("m1", at: 2, columns: 6, rows: 3)), top: 0, ARaster.Kitty());
+
+        Assert.Equal((60, 60), Size(frame.Showing("m1").Shown));
+    }
+
+    /// <summary>
+    ///     A Kitty box just below the page is taken to its box's size ahead, elsewhere, and one on the page is not: the
+    ///     scroll that brings it on shows the pixels already made, and takes nothing more to a box.
+    /// </summary>
+    [Fact]
+    public void AKittyBoxNearThePageIsTakenToItsBoxAheadElsewhere()
+    {
+        var elsewhere = new List<Action>();
+        var frame = new AFrame(new FakePictures().Holding("m1", 30, 50).Holding("m2", 30, 50), ahead: elsewhere.Add);
+        var rows = Rows(Box("m1", at: 0), Box("m2", at: Height + 2));
+
+        frame.Place(rows, top: 0, ARaster.Kitty());
+
+        Assert.Single(elsewhere);
+
+        elsewhere.Single()();
+        elsewhere.Clear();
+        frame.Place(rows, top: 4, ARaster.Kitty());
+
+        Assert.Equal((40, 80), Size(frame.Showing("m2").Shown));
+        Assert.Empty(elsewhere);
+    }
+
+    /// <summary>
+    ///     One picture in two box sizes on one page is shown in each at that box's size, frame after frame — the boxes
+    ///     never trading sizes.
+    /// </summary>
+    [Fact]
+    public void APictureInTwoBoxSizesIsShownAtEachThroughKitty()
+    {
+        var frame = new AFrame(new FakePictures().Holding("m1", 30, 50));
+        var rows = Rows(Box("m1", at: 0), Box("m1", at: 5, columns: 2, rows: 2));
+
+        frame.Place(rows, top: 0, ARaster.Kitty());
+        frame.Log.Clear();
+        frame.Place(rows, top: 0, ARaster.Kitty());
+
+        Assert.Equal(
+            [(new Rectangle(0, 0, 4, 4), (40, 80)), (new Rectangle(0, 5, 2, 2), (20, 40))],
+            frame.Boxes.Where(box => box.PictureId == "m1")
+                 .OrderBy(box => box.Frame.Y)
+                 .Select(box => (box.Frame, Size(box.Shown))));
+        Assert.DoesNotContain(frame.Log, call => call.What is Kind.Released && call.Picture == "m1");
     }
 
     /// <summary>
@@ -726,6 +821,9 @@ public class PlacingTests
 
     public static TheoryData<PictureWay> BoxWays() => [PictureWay.Sixel, PictureWay.Kitty];
 
+    /// <summary>How many pixels across and down <paramref name="picture" /> is, or none for no picture.</summary>
+    private static (int Width, int Height) Size(Picture? picture) => (picture?.Width ?? 0, picture?.Height ?? 0);
+
     public static TheoryData<PictureWay> NoBoxWays() => [PictureWay.Placeholders, PictureWay.None];
 
     private static Raster Of(PictureWay way) => way switch
@@ -774,9 +872,10 @@ public class PlacingTests
         ids.Aggregate(pictures, (held, id) => held.Holding(id, 10, 20));
 
     /// <summary>
-    ///     A Placing over fake boxes writing into one log, its sixels encoded by <paramref name="encode" /> and those
-    ///     encoded ahead of a scroll encoded <paramref name="ahead" />, and a Kitty terminal's placeholders encoded
-    ///     <paramref name="encoding" /> — all on the spot unless a test says otherwise.
+    ///     A Placing over fake boxes writing into one log, its sixels encoded by <paramref name="encode" />, those
+    ///     encoded and the pictures Kitty's boxes are taken to ahead of a scroll done <paramref name="ahead" />, and a
+    ///     Kitty terminal's placeholders encoded <paramref name="encoding" /> — all on the spot unless a test says
+    ///     otherwise.
     /// </summary>
     private sealed class AFrame
     {
@@ -790,7 +889,8 @@ public class PlacingTests
                 pictures,
                 FakePictureBox.Pool(Log, Boxes),
                 new SixelPictures(encode ?? ((_, _) => "sixel"), ahead ?? (work => work())),
-                new Placeholders(Kitty, encoded: () => { }, elsewhere: encoding ?? (work => work())));
+                new Placeholders(Kitty, encoded: () => { }, elsewhere: encoding ?? (work => work())),
+                new KittyBoxPictures(ahead ?? (work => work())));
         }
 
         /// <summary>What every box was shown and let go of, in the order it happened.</summary>

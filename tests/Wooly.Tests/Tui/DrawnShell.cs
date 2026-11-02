@@ -61,7 +61,7 @@ internal sealed class DrawnShell : IDisposable
     /// </param>
     /// <param name="answersKitty">
     ///     Whether the headless terminal answers that it speaks the Kitty graphics protocol — which, on a terminal not
-    ///     known by name, still draws through a box.
+    ///     known by name, still draws through a box — at <paramref name="raster" />'s cell where it says one.
     /// </param>
     /// <param name="encoding">Where a picture is encoded for a Kitty terminal, where a test is about when; on the spot if not.</param>
     /// <param name="frames">What wraps each frame in synchronized output, closed by the application as it is in the client.</param>
@@ -107,8 +107,15 @@ internal sealed class DrawnShell : IDisposable
 
         if (answersKitty)
         {
-            application.Driver.SetKittyGraphicsSupport(
-                new Terminal.Gui.Drawing.KittyGraphicsSupportResult { IsSupported = true });
+            // At the cell a Raster said outright, where one did, so that the image view measures a box as it does.
+            var kitty = new Terminal.Gui.Drawing.KittyGraphicsSupportResult { IsSupported = true };
+
+            if (raster?.Cell is { } cell)
+            {
+                kitty.Resolution = new System.Drawing.Size(cell.Width, cell.Height);
+            }
+
+            application.Driver.SetKittyGraphicsSupport(kitty);
         }
 
         // Encoded on the spot rather than off the UI thread, so that a picture is sent on the frame that first wants it.

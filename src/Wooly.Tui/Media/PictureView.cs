@@ -23,7 +23,8 @@ namespace Wooly.Tui.Media;
 ///     and encodes the whole picture again every time its box moves, which on a scroll is every frame, so this is
 ///     handed a part of a picture already scaled to its box and encoded (<see cref="SixelPictures" />), and only hands
 ///     it on (#292, ADR-0023). Through Kitty it is the image view's to draw, which sends a picture once and places it
-///     again as it moves.
+///     again as it moves — handed it already at its box's size in pixels (<see cref="KittyBoxPictures" />), so that
+///     the terminal has nothing left to stretch it to (#533).
 ///     <para>
 ///         It will not draw at all where neither protocol is there: <see cref="ImageView" /> would otherwise fall back
 ///         to a coloured cell per pixel, and that rung is gone from this client's ladder on the evidence of what it
@@ -103,16 +104,18 @@ internal sealed class PictureView : ImageView, IPictureBox
     public string? PictureId { get; private set; }
 
     /// <summary>
-    ///     Shows the whole of <paramref name="picture" />, as the one <paramref name="pictureId" /> names, for the image
-    ///     view to draw through Kitty.
+    ///     Shows <paramref name="picture" />, the one <paramref name="pictureId" /> names already at this box's size in
+    ///     pixels (<see cref="KittyBoxPictures" />), for the image view to draw through Kitty.
     /// </summary>
     /// <remarks>
     ///     Only ever called on a view holding this picture already or holding nothing at all: one of these never goes
-    ///     straight from one picture to another. <see cref="Release" /> says why.
+    ///     straight from one picture to another. <see cref="Release" /> says why. Holding it at another size — its box
+    ///     resized — is holding it all the same, and the image view sends the new pixels and takes the old ones off the
+    ///     terminal in one frame; the very pixels it holds already are nothing to send (#533).
     /// </remarks>
     public void Show(string pictureId, Picture picture)
     {
-        if (PictureId == pictureId && _sixel is null)
+        if (PictureId == pictureId && _sixel is null && ReferenceEquals(Image, picture.Pixels))
         {
             return;
         }
@@ -169,7 +172,7 @@ internal sealed class PictureView : ImageView, IPictureBox
     /// <remarks>
     ///     The box is never larger than the part of the picture on the page (<see cref="Placing" /> frames it so), so the
     ///     driver is never left to cut it at the edge — which it does by encoding the cut again, on every frame. A
-    ///     whole picture shown for Kitty is the image view's own to draw.
+    ///     picture shown for Kitty, already at its box's size, is the image view's own to draw.
     /// </remarks>
     protected override bool OnDrawingContent(DrawContext? context)
     {

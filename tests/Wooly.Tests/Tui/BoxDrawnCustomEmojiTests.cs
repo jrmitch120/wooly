@@ -157,6 +157,49 @@ public class BoxDrawnCustomEmojiTests
         }
     }
 
+    /// <summary>
+    ///     On Kitty through a box a custom emoji is handed over fitted whole into its box and centred, as on the other
+    ///     ways, the rest of the box transparent — where the terminal stretched it to fill its two cells (#533). On a
+    ///     cell of 20 by 45 a square <c>:ubuntu:</c> keeps the middle forty rows, a wide <c>:php:</c> the middle twenty.
+    /// </summary>
+    [Theory]
+    [InlineData(36, 36, 2, 42)]
+    [InlineData(72, 36, 12, 32)]
+    public async Task OnKittyThroughABoxACustomEmojiIsFittedWholeWithTransparentBandsAboveAndBelow(
+        int width,
+        int height,
+        int top,
+        int bottom)
+    {
+        using var drawn = await DrawnShell.Of(
+            80,
+            Tall,
+            OnAPage,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110", content: "I write :php: daily", customEmoji: [Php])),
+            },
+            pictures: new FakePictures().HoldingCustomEmoji(Php, APicture.Solid(width, height, CustomEmojiColour)),
+            answersKitty: true,
+            raster: ARaster.Kitty(new CellSize(20, 45)));
+
+        var box = Assert.Single(drawn.Application.Driver!.GetOutputBuffer().GetRasterImages());
+
+        Assert.Equal(new Size(CustomEmojiBox.Columns, CustomEmojiBox.Rows), box.DestinationCells.Size);
+        Assert.Equal((40, 45), (box.Pixels!.GetLength(0), box.Pixels.GetLength(1)));
+
+        for (var x = 0; x < 40; x++)
+        {
+            for (var y = 0; y < 45; y++)
+            {
+                Assert.Equal(
+                    (x, y, APicture.Rgba(y >= top && y < bottom ? CustomEmojiColour : new Color(0, 0, 0, 0))),
+                    (x, y, APicture.Rgba(box.Pixels[x, y])));
+            }
+        }
+    }
+
     public static TheoryData<PictureWay> BoxWays() => [PictureWay.Sixel, PictureWay.Kitty];
 
     /// <summary>Whether <paramref name="cells" /> are a custom emoji's two columns by one.</summary>

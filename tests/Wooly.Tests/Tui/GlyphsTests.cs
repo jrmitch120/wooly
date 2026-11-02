@@ -26,6 +26,86 @@ public class GlyphsTests
     public void Plain_DropsAVariationSelector(string sent, string drawn) => Assert.Equal(drawn, Glyphs.Plain(sent));
 
     /// <summary>
+    ///     A character with nothing to draw is dropped: this client counts it as no column and Terminal.Gui gives it a
+    ///     cell, so a zero-width space or a direction mark in a post moved its row's edge and ate the row's last
+    ///     letter.
+    /// </summary>
+    [Theory]
+    [InlineData("a\u200Bb", "ab")]
+    [InlineData("\u200Fשלום\u200E", "שלום")]
+    [InlineData("\uFEFFMaria", "Maria")]
+    [InlineData("a\u2060b\u202Ec", "abc")]
+    [InlineData("a\u2028b", "ab")]
+    [InlineData("a\u009Bb\u001Bc", "abc")]
+    public void Plain_DropsWhatHasNothingToDraw(string sent, string drawn) => Assert.Equal(drawn, Glyphs.Plain(sent));
+
+    /// <summary>
+    ///     What only means anything joined to what is beside it stays: the joiners inside an emoji, the tags inside a
+    ///     flag, a keycap and an Arabic number sign, each drawn as one character. So does a soft hyphen, which this
+    ///     client and Terminal.Gui count alike.
+    /// </summary>
+    [Theory]
+    [InlineData("\U0001F468\u200D\U0001F469\u200D\U0001F467")]
+    [InlineData("\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F")]
+    [InlineData("\u0600\u0661")]
+    [InlineData("1\u20E3")]
+    [InlineData("a\u00ADb")]
+    public void Plain_LeavesWhatJoinsItsNeighboursAlone(string sent) => Assert.Same(sent, Glyphs.Plain(sent));
+
+    /// <summary>
+    ///     A tab is a space, as HTML reads one, in the same place in the text and measured the same before it becomes
+    ///     one: a layout weighs text as it was sent and a terminal given one would jump to wherever its next stop is.
+    /// </summary>
+    [Fact]
+    public void Plain_MakesATabASpaceAndColumnsCountsItAsOne()
+    {
+        Assert.Equal("a b", Glyphs.Plain("a\tb"));
+        Assert.Equal(3, Glyphs.Columns("a\tb"));
+    }
+
+    /// <summary>
+    ///     Text measures the same as sent and as drawn, since a layout reads either: dropping a character never changes
+    ///     what a row is measured to take.
+    /// </summary>
+    [Theory]
+    [InlineData("a\u200Bb")]
+    [InlineData("\u200Fשלום\u200E")]
+    [InlineData("a\tb")]
+    [InlineData("❤\uFE0F")]
+    public void Columns_IsTheSameBeforeAndAfterPlain(string text) =>
+        Assert.Equal(Glyphs.Columns(Glyphs.Plain(text)), Glyphs.Columns(text));
+
+    /// <summary>
+    ///     What every terminal agrees on stays in Terminal.Gui's own run: letters, box drawing and blocks. Anything
+    ///     that can be an emoji is written apart: a symbol, an arrow, a keycap, a sequence, a skin tone with nothing to
+    ///     wear it.
+    /// </summary>
+    [Theory]
+    [InlineData("a", false)]
+    [InlineData("б", false)]
+    [InlineData("ド", false)]
+    [InlineData("क्ष", false)]
+    [InlineData("─", false)]
+    [InlineData("█", false)]
+    [InlineData("\U0001F633", true)]
+    [InlineData("\u26A0", true)]
+    [InlineData("\u2194", true)]
+    [InlineData("1\u20E3", true)]
+    [InlineData("\U0001F468\u200D\U0001F469\u200D\U0001F467", true)]
+    [InlineData("a\U0001F3FD", true)]
+    public void WrittenApart_IsTrueOfWhatCanBeAnEmoji(string character, bool apart) =>
+        Assert.Equal(apart, Glyphs.WrittenApart(character));
+
+    /// <summary>
+    ///     Ethiopic's <c>ሀ</c>, which Wcwidth 4.0.1 counts as no column, is one, as Terminal.Gui's cell for it is.
+    /// </summary>
+    [Theory]
+    [InlineData("\u1200", 1)]
+    [InlineData("a\u1200b", 3)]
+    public void Columns_CountsTheLetterTheTableMisses(string text, int columns) =>
+        Assert.Equal(columns, Glyphs.Columns(text));
+
+    /// <summary>
     ///     Everything else is left exactly as it was written, the string itself rather than a copy of it — which is
     ///     nearly every string this client draws, on a path walked afresh for every row of every frame.
     /// </summary>
@@ -54,10 +134,11 @@ public class GlyphsTests
         Assert.Equal(columns, Glyphs.Columns(text));
 
     /// <summary>
-    ///     Text this client and a terminal measure alike, and text they do not (#432): a <em>spacing mark</em> — a vowel
-    ///     sign that takes up room of its own, the <c>ী</c> of <c>অসমীয়া</c> — is no column to Terminal.Gui and one to
-    ///     some terminals and not to others, so no count of it agrees with all of them. Marks that take no room (an
-    ///     accent, Arabic's vowels, Tibetan's) are counted alike, and so is everything without a mark at all.
+    ///     Text this client and a terminal measure alike, and text they do not (#432): a <em>spacing mark</em> — a
+    ///     vowel sign that takes up room of its own, the <c>ী</c> of <c>অসমীয়া</c> — is no column to Terminal.Gui and
+    ///     one to some terminals and not to others, so no count of it agrees with all of them. Marks that take no room
+    ///     (an accent, Arabic's vowels, Tibetan's) are counted alike, and so is everything without a mark at all that
+    ///     the tables know.
     /// </summary>
     [Theory]
     [InlineData("Français", true)]
@@ -73,7 +154,7 @@ public class GlyphsTests
     [InlineData("ភាសាខ្មែរ", false)]
     // Chakma's letter KAA and its vowel sign E, both beyond the first 65,536 characters: a mark written as two halves.
     [InlineData("\U00011107\U0001112C", false)]
-    public void MeasuredAlike_IsFalseOnlyWhereASpacingMarkIs(string text, bool alike) =>
+    public void MeasuredAlike_IsFalseWhereASpacingMarkIs(string text, bool alike) =>
         Assert.Equal(alike, Glyphs.MeasuredAlike(text));
 
     /// <summary>
@@ -88,6 +169,25 @@ public class GlyphsTests
     [InlineData("a মী b", 6)]
     public void Columns_HoldsACharacterCarryingASpacingMarkInTwo(string text, int columns) =>
         Assert.Equal(columns, Glyphs.Columns(text));
+
+    /// <summary>
+    ///     A character newer than the tables, which Terminal.Gui counts as one column and a terminal knowing it draws
+    ///     in two, is held in two like a spacing mark: 🫪 from Unicode 17, and with what grapheme segmentation joins to
+    ///     it. A character the tables know, and a reserved one Terminal.Gui already counts two wide as a terminal does,
+    ///     is not.
+    /// </summary>
+    [Theory]
+    [InlineData("\U0001FAEA", 2, false)]
+    [InlineData("system\U0001FAEA", 8, false)]
+    [InlineData("\U0001FAEA\U0001F3FD", 2, false)]
+    [InlineData("😳", 2, true)]
+    [InlineData("👍🏽", 2, true)]
+    [InlineData("\U0002FFF0", 2, true)]
+    public void ACharacterNewerThanTheTables_IsHeldInTwo(string text, int columns, bool alike)
+    {
+        Assert.Equal(columns, Glyphs.Columns(text));
+        Assert.Equal(alike, Glyphs.MeasuredAlike(text));
+    }
 
     /// <summary>
     ///     A virama joining two letters with no spacing mark between them is measured alike by Terminal.Gui and every

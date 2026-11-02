@@ -5,7 +5,8 @@ namespace Wooly.Tui.Views;
 
 /// <summary>
 ///     Text put into a view's cells the way <see cref="Glyphs.Columns" /> measured it: a character carrying a spacing
-///     mark in a cell of its own with the next left blank, every other run as Terminal.Gui places it (ADR-0031).
+///     mark, or one newer than the tables, in a cell of its own with the next left blank, every other run as
+///     Terminal.Gui places it (ADR-0031).
 /// </summary>
 /// <remarks>
 ///     Terminal.Gui gives such a character one cell, and a terminal draws it in one, two, or more; the blank is the

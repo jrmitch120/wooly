@@ -46,7 +46,7 @@ public sealed record Inset(Drawn Drawn, int Column, int Columns, int Rows)
     public Picture? Blur { get; init; }
 
     /// <summary>
-    ///     How what this sets into its box takes it, on both raster paths (<see cref="PictureDecoder.Filled" />):
+    ///     How what this sets into its box takes it, on every raster way (<see cref="PictureDecoder.Filled" />):
     ///     stretched where it is a Stand-in's blur, and otherwise as the picture says (<see cref="Drawn.Fill" />) —
     ///     fitted where it is an avatar or a custom emoji, and cropped where it is anything else.
     /// </summary>

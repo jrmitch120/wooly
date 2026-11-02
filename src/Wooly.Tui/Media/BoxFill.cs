@@ -1,7 +1,7 @@
 namespace Wooly.Tui.Media;
 
 /// <summary>
-///     How a picture takes the box it is drawn in, on both raster paths (<see cref="PictureDecoder.Filled" />): the
+///     How a picture takes the box it is drawn in, on every raster way (<see cref="PictureDecoder.Filled" />): the
 ///     one thing that differs between a picture, a Stand-in's blur and a custom emoji once each is at its box.
 /// </summary>
 internal enum BoxFill
