@@ -55,7 +55,7 @@ internal static class PostReport
     /// </remarks>
     public static void Marked(IAnsiConsole console, Post post, PostMark mark, bool wanted)
     {
-        console.MarkupLineInterpolated($"{Did(mark, wanted)} [bold]{post.Id}[/].");
+        console.MarkupLineInterpolated($"{PostMarkWords.Did(mark, wanted)} [bold]{post.Id}[/].");
 
         console.WriteAddress(post.Url);
     }
@@ -289,24 +289,6 @@ internal static class PostReport
     private static string VoteCountLine(PostPoll poll) => poll.MultipleChoice && poll.Voters is { } voters
         ? $"{Plural.Of(poll.Votes, "vote")} from {Plural.Of(voters, "account")}"
         : Plural.Of(poll.Votes, "vote");
-
-
-    /// <summary>
-    ///     What just happened, in this project's vocabulary. One table, so that eight commands cannot come to describe
-    ///     four marks in more than eight ways.
-    /// </summary>
-    private static string Did(PostMark mark, bool wanted) => (mark, wanted) switch
-    {
-        (PostMark.Boost, true) => "Boosted",
-        (PostMark.Boost, false) => "Unboosted",
-        (PostMark.Favorite, true) => "Favorited",
-        (PostMark.Favorite, false) => "Unfavorited",
-        (PostMark.Pin, true) => "Pinned",
-        (PostMark.Pin, false) => "Unpinned",
-        (PostMark.Bookmark, true) => "Bookmarked",
-        (PostMark.Bookmark, false) => "Unbookmarked",
-        _ => throw new ArgumentOutOfRangeException(nameof(mark), mark, "Not a mark this client puts on a post."),
-    };
 
     private static string PostedAt(Post post) => LocalMoment.Of(post.PostedAt);
 

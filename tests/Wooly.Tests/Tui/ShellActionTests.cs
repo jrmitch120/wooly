@@ -112,6 +112,35 @@ public class ShellActionTests
     }
 
     /// <summary>
+    ///     The instance has kept the bookmark whether or not the reader waited to hear so, so the status row says which
+    ///     way it went on whatever screen they have moved to — as a delete, a vote or a tie does, and as a refusal is
+    ///     said wherever the reader is.
+    /// </summary>
+    [Fact]
+    public async Task Mark_SaysWhichWayABookmarkWent_AfterTheReaderHasMovedOn()
+    {
+        var answered = new TaskCompletionSource<Post>();
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io")),
+        };
+        var opened = await shell.Opened();
+
+        shell.Engagement.Marking = () => answered.Task;
+        var marking = opened.Mark(PostMark.Bookmark);
+
+        opened.StepTo(DestinationKind.Local);
+        shell.Host.Settle();
+
+        answered.SetResult(APost.With(id: "220", account: "ben@hachyderm.io", marks: APost.Marked(bookmarked: true)));
+        await marking;
+        shell.Host.Drain();
+
+        Assert.Equal(DestinationKind.Local, opened.Rail.Showing.Kind);
+        Assert.Equal("Bookmarked.", opened.Notice);
+    }
+
+    /// <summary>
     ///     A star that only lit up after the whole timeline had been fetched again would make the key feel broken, so
     ///     the post the instance answered with replaces the copy the screen is holding.
     /// </summary>

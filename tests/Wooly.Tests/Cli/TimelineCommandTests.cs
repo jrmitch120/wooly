@@ -80,10 +80,13 @@ public class TimelineCommandTests : IDisposable
         Assert.Equal("personal", read.Profile);
     }
 
-    /// <summary>An account with nothing bookmarked or favorited has an empty run, which is not an error.</summary>
+    /// <summary>
+    ///     An account with nothing bookmarked or favorited has an empty run, which is not an error — and is told so in
+    ///     the TUI's words, the run being the same run whichever front end reads it.
+    /// </summary>
     [Theory]
-    [InlineData("bookmarks", "No posts in your bookmarks.")]
-    [InlineData("favorites", "No posts in your favorites.")]
+    [InlineData("bookmarks", "Nothing bookmarked yet.")]
+    [InlineData("favorites", "Nothing favorited yet.")]
     public void Marks_SaysSoWhenTheRunHasNothingOnIt(string command, string expected)
     {
         AddProfile();

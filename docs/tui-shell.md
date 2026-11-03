@@ -300,7 +300,7 @@ Feed and post:
 | `b` | Boost / un-boost | Needs viewer state on `Post` |
 | `f` | Favorite / un-favorite | Needs viewer state on `Post` |
 | `p` | Pin / unpin | Own posts only |
-| `l` | Bookmark / un-bookmark | On a boost, the post boosted, as every mark is. A bookmark moves no count, so the status row says `Bookmarked.` or `Unbookmarked.`; a refusal is the instance's own words. The post shows `⚑` in its counts line after the reply count and before `pinned` — `⚑ bookmarked` on the post screen — in a slot held blank when it is not bookmarked, so toggling moves nothing on the line. `l` for "read later": `d` is delete and `b` boost (#561) |
+| `l` | Bookmark / un-bookmark | On a boost, the post boosted, as every mark is. A bookmark moves no count, so the status row says `Bookmarked.` or `Unbookmarked.`, even where the reader has moved on before the instance answers; a refusal is the instance's own words. The post shows `⚑` in its counts line after the reply count and before `pinned` — `⚑ bookmarked` on the post screen — in a slot held blank when it is not bookmarked, so toggling moves nothing on the line. `l` for "read later": `d` is delete and `b` boost (#561) |
 | `e` | Edit | Own posts only |
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `w` | Who favorited it, or who boosted it: the actors screen, one side at a time | On a boost, the post boosted. Opens "Favorited by" where the post's count of favorites is above zero, else "Boosted by" where its boosts are, else says `Nobody has favorited or boosted this.` and opens nothing — settled from the counts before anything is read, and always the list, never a shortcut to one account (#489). On Notifications `w` is who did what the row reports, and on an account screen's header block their follows (below, #490) |
@@ -2131,7 +2131,8 @@ The tenth and eleventh of the rail's fixed destinations, after the handle in the
 - **Neither carries an unread count.** Nothing on either is waiting for anybody, the same answer Search and Discover
   give, and private runs do not compete with the Inbox.
 - **Empty says what has not happened yet**: `Nothing bookmarked yet.` and `Nothing favorited yet.`, rather than calling
-  a run of the reader's own marks a timeline with nothing on it.
+  a run of the reader's own marks a timeline with nothing on it — the words `timeline bookmarks` and
+  `timeline favorites` say it in too.
 - **A mark taken off on its own run leaves the row where it is**, mark gone — `l` on Bookmarks, `f` on Favorites —
   so a reader sees what they did and can press the key again to undo it. That is the **Pinned** run's rule, and the
   same **Change** (`PostChanged`) that redraws a post on every screen on the stack. The cached list holding the post is

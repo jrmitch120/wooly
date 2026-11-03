@@ -107,20 +107,20 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
             PageSize,
             options => Page(client, timeline, accountId, options),
             status => PostWire.ToPost(status, profile),
-            PagesByPostId(timeline.Scope) ? status => status.Id : null,
+            PagesByPostId(timeline) ? status => status.Id : null,
             cancellationToken,
             from: from);
     }
 
     /// <summary>
-    ///     Whether a page of <paramref name="scope" /> that names no next one can be paged on from its last post's id.
-    ///     A timeline pages by the ids of the posts on it, so it can. The <b>Bookmarks</b> and <b>Favorites</b> runs
-    ///     page by the ids of the bookmark or favorite itself, which only the link header gives and no post carries:
-    ///     paging on from a post's id there would ask for a page somewhere in another id space and skip or repeat
-    ///     posts, so a page without a link header ends the run instead (<see cref="PagedReading" />'s <c>idOf</c>).
+    ///     Whether a page of <paramref name="timeline" /> that names no next one can be paged on from its last post's
+    ///     id. A timeline pages by the ids of the posts on it, so it can. A run of marks (<see cref="Timeline.RunOf" />)
+    ///     — <b>Bookmarks</b> and <b>Favorites</b> — pages by the ids of the bookmark or favorite itself, which only
+    ///     the link header gives and no post carries: paging on from a post's id there would ask for a page somewhere
+    ///     in another id space and skip or repeat posts, so a page without a link header ends the run instead
+    ///     (<see cref="PagedReading" />'s <c>idOf</c>).
     /// </summary>
-    private static bool PagesByPostId(TimelineScope scope) =>
-        scope is not (TimelineScope.Bookmarks or TimelineScope.Favorites);
+    private static bool PagesByPostId(Timeline timeline) => timeline.RunOf is null;
 
     /// <summary>
     ///     One page of one run of a set's tags in one ask: its first tag in the path, and the rest as <c>any[]</c>,

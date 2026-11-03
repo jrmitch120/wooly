@@ -149,14 +149,11 @@ public sealed class Arrival(
     /// <summary>
     ///     What a timeline with nothing on it is told, wherever one is drawn: the rail's timelines and tag sets, a
     ///     hashtag walked to from a search or a reference, and the Bookmarks and Favorites runs — which say what has
-    ///     not been done yet rather than call a run of the reader's own marks a timeline with nothing on it (#563).
+    ///     not been done yet, in the words the CLI says it in, rather than call a run of the reader's own marks a
+    ///     timeline with nothing on it (<see cref="Timeline.NothingMarked" />, #563).
     /// </summary>
-    public static string NothingOn(Timeline timeline) => timeline.Scope switch
-    {
-        TimelineScope.Bookmarks => "Nothing bookmarked yet.",
-        TimelineScope.Favorites => "Nothing favorited yet.",
-        _ => $"Nothing on {timeline.Description} yet.",
-    };
+    public static string NothingOn(Timeline timeline) =>
+        timeline.NothingMarked ?? $"Nothing on {timeline.Description} yet.";
 
     /// <summary>
     ///     Arriving at a destination, which is what moving the rail's selection means. Every destination that reads a
@@ -297,22 +294,16 @@ public sealed class Arrival(
         {
             // A mark put on is a post newly on that mark's run, which the run held cannot be holding (#564) — keyed off
             // the mark gained rather than the marks the post has, so favoriting a post bookmarked long ago leaves
-            // Bookmarks held. A mark taken off needs nothing more: the run held holds the post.
-            case Change.PostChanged { Post: var post, Gained: var gained }:
+            // Bookmarks held. A mark taken off needs nothing more: the run held holds the post. Which destination is
+            // the mark's run is its timeline's to say, and a boost or a pin has none.
+            case Change.PostChanged { Post: var post, Gained: { } gained }:
                 cache.Forget(held => held.HoldsPost(post.Id));
+                ForgetWhere(destination => destination.Timeline?.RunOf == gained);
 
-                switch (gained)
-                {
-                    case PostMark.Bookmark:
-                        Forget(DestinationKind.Bookmarks);
+                break;
 
-                        break;
-
-                    case PostMark.Favorite:
-                        Forget(DestinationKind.Favorites);
-
-                        break;
-                }
+            case Change.PostChanged { Post: var post }:
+                cache.Forget(held => held.HoldsPost(post.Id));
 
                 break;
 
@@ -387,11 +378,13 @@ public sealed class Arrival(
 
         // Named by kind, since every kind a change makes stale is one everybody's rail holds one of — and forgotten
         // as the destination on the rail, which is what the cache holds it by (#510).
-        void Forget(DestinationKind kind)
+        void Forget(DestinationKind kind) => ForgetWhere(destination => destination.Kind == kind);
+
+        void ForgetWhere(Func<Destination, bool> stale)
         {
-            foreach (var stale in rail.Destinations.Where(destination => destination.Kind == kind))
+            foreach (var destination in rail.Destinations.Where(stale))
             {
-                cache.Forget(new Subject.Destination(stale));
+                cache.Forget(new Subject.Destination(destination));
             }
         }
     }
