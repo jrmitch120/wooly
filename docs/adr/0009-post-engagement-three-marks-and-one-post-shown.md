@@ -97,3 +97,20 @@ The refusal is the one in this family that is retyped. A mark refused reaches th
 refused outright and cannot be tried differently, so it has to be sayable in both front ends: `VoteRefusedException`
 carries the instance's wording and nothing else. No other call here has that problem, which is why nothing else was
 retyped along with it.
+
+## Amendment: a bookmark, the fourth mark (ticket #560)
+
+A **bookmark** joined the three marks (#560, spec #558): `PostMark.Bookmark`, `PostMarks.Bookmarked` read off the
+status's `bookmarked` field, and `post bookmark`/`unbookmark` beside the six verbs. It fits the shape above without
+bending it, which is the shape's argument made a second time: one more pair of arms in `PostEngagement.Apply`, one more
+pair of words in `PostReport.Did`, and two one-line commands over `PostMarkCommand`. The compiler forced neither switch;
+the theories in `PostEngagementTests` and `PostEngagementCommandTests` name all eight `(mark, wanted)` pairs and all
+eight verbs, and they are what failed until each had its arm.
+
+Nothing about it is read first, as for the others: bookmarking a post already bookmarked is whatever the instance says
+it is. Its answer is unwrapped from a boost like every mark's. It differs from the other three only in who sees it — no
+count moves and the author is not told — which is the instance's business and changes nothing here.
+
+"`Post` still carries no 'you have boosted this' flag", above, was overtaken before this amendment by `Post.Marks`,
+which the TUI needed to draw a post's state before a key is pressed; `Bookmarked` is the fourth field on it. Showing the
+marks in the CLI's own output is still left for all four at once.

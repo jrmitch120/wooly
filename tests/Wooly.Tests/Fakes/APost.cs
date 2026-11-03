@@ -114,9 +114,13 @@ internal static class APost
         Blurhash = blurhash,
     };
 
-    /// <summary>The three marks, said one at a time, for a test that is about one of them.</summary>
-    public static PostMarks Marked(bool boosted = false, bool favorited = false, bool pinned = false) =>
-        new() { Boosted = boosted, Favorited = favorited, Pinned = pinned };
+    /// <summary>The four marks, said one at a time, for a test that is about one of them.</summary>
+    public static PostMarks Marked(
+        bool boosted = false,
+        bool favorited = false,
+        bool pinned = false,
+        bool bookmarked = false) =>
+        new() { Boosted = boosted, Favorited = favorited, Pinned = pinned, Bookmarked = bookmarked };
 
     /// <summary>A poll with two answers, for a test that is about the poll rather than about composing one.</summary>
     public static PostPoll APoll(

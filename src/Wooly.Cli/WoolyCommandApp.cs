@@ -117,6 +117,12 @@ public static class WoolyCommandApp
                 post.AddCommand<PostUnfavoriteCommand>("unfavorite")
                     .WithDescription("Take a favorite back off a post.");
 
+                post.AddCommand<PostBookmarkCommand>("bookmark")
+                    .WithDescription("Keep a post to come back to. Nobody else is told.");
+
+                post.AddCommand<PostUnbookmarkCommand>("unbookmark")
+                    .WithDescription("Take a bookmark back off a post.");
+
                 post.AddCommand<PostFavoritedByCommand>("favorited-by")
                     .WithDescription("List the accounts that favorited a post.");
 
