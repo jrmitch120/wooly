@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Wooly.Core.Posts;
+using Wooly.Core.Timelines;
 
 namespace Wooly.Tests.Integration;
 
@@ -38,6 +39,11 @@ public class PostEngagementIntegrationTests
         }
     }
 
+    /// <summary>
+    ///     Read back from the <b>Favorites</b> run between the two (#562), newest favorite first, which is where drift
+    ///     between Mastonet's <c>GetFavourites</c> and the live endpoint would show. In this test rather than one of its
+    ///     own, because every post a test publishes is one more delete against the instance's throttle on deletes.
+    /// </summary>
     [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
     public async Task Mark_FavoritesAndUnfavoritesAPost()
     {
@@ -46,6 +52,7 @@ public class PostEngagementIntegrationTests
         var profile = LiveInstance.Profile;
         var author = services.GetRequiredService<IPostAuthor>();
         var engagement = services.GetRequiredService<IPostEngagement>();
+        var timelines = services.GetRequiredService<ITimelineReader>();
 
         var published = await author.Publish(profile, LiveInstance.ThrowawayDraft(), cancellationToken);
 
@@ -53,6 +60,9 @@ public class PostEngagementIntegrationTests
         {
             var favorited = await engagement.Mark(profile, published.Id, PostMark.Favorite, wanted: true, cancellationToken);
             Assert.True(favorited.Marks.Favorited);
+
+            var favorites = await timelines.Read(profile, Timeline.Favorites, limit: 20, cancellationToken);
+            Assert.Equal(published.Id, favorites.Items.FirstOrDefault()?.Id);
 
             var unfavorited = await engagement.Mark(profile, published.Id, PostMark.Favorite, wanted: false, cancellationToken);
             Assert.False(unfavorited.Marks.Favorited);
@@ -65,7 +75,8 @@ public class PostEngagementIntegrationTests
 
     /// <summary>
     ///     That the bookmark endpoints are where Mastonet says they are, and that the instance's <c>bookmarked</c> field
-    ///     comes back on the post it answers with in both directions (#560).
+    ///     comes back on the post it answers with in both directions (#560); and that the <b>Bookmarks</b> run holds the
+    ///     post, newest bookmark first, until the bookmark is taken off (#562).
     /// </summary>
     [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
     public async Task Mark_BookmarksAndUnbookmarksAPost()
@@ -75,6 +86,7 @@ public class PostEngagementIntegrationTests
         var profile = LiveInstance.Profile;
         var author = services.GetRequiredService<IPostAuthor>();
         var engagement = services.GetRequiredService<IPostEngagement>();
+        var timelines = services.GetRequiredService<ITimelineReader>();
 
         var published = await author.Publish(profile, LiveInstance.ThrowawayDraft(), cancellationToken);
 
@@ -87,6 +99,10 @@ public class PostEngagementIntegrationTests
             var shown = await engagement.Show(profile, published.Id, cancellationToken);
             Assert.True(shown.Marks.Bookmarked);
 
+            var kept = await timelines.Read(profile, Timeline.Bookmarks, limit: 20, cancellationToken);
+            Assert.Equal(published.Id, kept.Items.FirstOrDefault()?.Id);
+            Assert.True(kept.Items[0].Marks.Bookmarked);
+
             var unbookmarked = await engagement.Mark(
                 profile,
                 published.Id,
@@ -94,6 +110,9 @@ public class PostEngagementIntegrationTests
                 wanted: false,
                 cancellationToken);
             Assert.False(unbookmarked.Marks.Bookmarked);
+
+            var after = await timelines.Read(profile, Timeline.Bookmarks, limit: 20, cancellationToken);
+            Assert.DoesNotContain(after.Items, post => post.Id == published.Id);
         }
         finally
         {
