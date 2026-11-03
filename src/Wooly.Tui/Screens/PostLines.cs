@@ -1067,9 +1067,9 @@ public static class PostLines
         : $"{Number.Of(poll.Votes)} votes";
 
     /// <summary>
-    ///     The three counts. A boost or favorite count takes the role that says whether this profile is one of the
-    ///     accounts in it, which is the whole reason a post carries the reader's own marks; the reply count has no
-    ///     <em>mine</em>, and takes <see cref="Role.Replies" />.
+    ///     The three counts, and the marks that carry no count. A boost or favorite count takes the role that says
+    ///     whether this profile is one of the accounts in it, which is the whole reason a post carries the reader's own
+    ///     marks; the reply count has no <em>mine</em>, and takes <see cref="Role.Replies" />.
     /// </summary>
     /// <param name="spelledOut">
     ///     Whether each count says what it counts. A feed has room for the glyph and the number and a reader scanning
@@ -1085,8 +1085,25 @@ public static class PostLines
             post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite),
         new Span("   ", Role.Muted),
         new Span($"↩ {Number.Of(post.Replies)}{Word(" replies", spelledOut)}", Role.Replies),
+        new Span("   ", Role.Muted),
+        Bookmarked(post, spelledOut),
         new Span(post.Marks.Pinned ? "   pinned" : string.Empty, Role.Muted),
     ]);
+
+    /// <summary>
+    ///     The bookmark's slot: <c>⚑</c> where the reader has bookmarked the post, and blank space just as wide where
+    ///     they have not, so that a bookmark put on or taken off moves nothing on the line — <c>pinned</c> after it
+    ///     least of all (#561). <c>⚑</c> is U+2691, of neutral East Asian width and with no emoji presentation, so it
+    ///     is one column on every terminal and the slot is as wide as its text.
+    /// </summary>
+    private static Span Bookmarked(Post post, bool spelledOut)
+    {
+        var mark = $"⚑{Word(" bookmarked", spelledOut)}";
+
+        return post.Marks.Bookmarked
+            ? new Span(mark, Role.Bookmark)
+            : new Span(new string(' ', mark.Length), Role.Muted);
+    }
 
     private static string Word(string word, bool spelledOut) => spelledOut ? word : string.Empty;
 }

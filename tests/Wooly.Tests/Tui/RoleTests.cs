@@ -60,7 +60,7 @@ public partial class RoleTests
         }
 
         var mine = APost.With(
-            marks: APost.Marked(boosted: true, favorited: true, pinned: true),
+            marks: APost.Marked(boosted: true, favorited: true, pinned: true, bookmarked: true),
             contentWarning: "spoilers",
             content: "Thanks @maria@fosstodon.org — notes at https://example.com/notes #dotnet",
             media: [APost.APicture()],
@@ -284,6 +284,49 @@ public partial class RoleTests
 
         Assert.Contains(mine, line => line.Text.Contains("⥀ 3", StringComparison.Ordinal));
         Assert.Contains(mine, line => line.Text.Contains("★ 5", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     A bookmark is drawn as <c>⚑</c> in a slot of its own between the reply count and <c>pinned</c>, held blank
+    ///     where the post is not bookmarked — so toggling it moves nothing on the line, <c>pinned</c> least of all
+    ///     (#561).
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EveryScreenShowingAPostHoldsTheBookmarksSlotWhetherOrNotItIsOn(bool spelledOut)
+    {
+        string Counts(bool bookmarked)
+        {
+            var post = APost.With(id: "1", marks: APost.Marked(pinned: true, bookmarked: bookmarked));
+            var lines = spelledOut
+                ? new PostScreen(post, new PostThread([], [])).Lines(new Drawing(61, Now))
+                : PostLines.Feed(post, new Drawing(61, Now), default);
+
+            return lines.Single(line => line.Text.Contains('↩')).Text;
+        }
+
+        var on = Counts(bookmarked: true);
+        var off = Counts(bookmarked: false);
+
+        Assert.Equal(spelledOut ? "↩ 1 replies   ⚑ bookmarked   pinned" : "↩ 1   ⚑   pinned", on[on.IndexOf('↩')..]);
+        Assert.Equal(on.Length, off.Length);
+        Assert.Equal(on.IndexOf("pinned", StringComparison.Ordinal), off.IndexOf("pinned", StringComparison.Ordinal));
+        Assert.DoesNotContain('⚑', off);
+    }
+
+    /// <summary>
+    ///     The flag is drawn in <see cref="Role.Bookmark" />, which has no <em>not mine</em> beside it: it is only ever
+    ///     drawn where the bookmark is the reader's and on (#561).
+    /// </summary>
+    [Fact]
+    public void Feed_DrawsABookmarkInItsOwnRole()
+    {
+        var lines = PostLines.Feed(APost.With(marks: APost.Marked(bookmarked: true)), new Drawing(61, Now), default);
+
+        var flag = Assert.Single(lines.SelectMany(line => line.Spans), span => span.Text.Contains('⚑'));
+
+        Assert.Equal(Role.Bookmark, flag.Role);
     }
 
     /// <summary>

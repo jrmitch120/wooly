@@ -16,6 +16,7 @@ public class PanelsPaletteTests
     private const string Surface1 = "#45475a", Surface2 = "#585b70", Mauve = "#cba6f7", Blue = "#89b4fa";
     private const string Sapphire = "#74c7ec", Teal = "#94e2d5", Green = "#a6e3a1", Yellow = "#f9e2af";
     private const string Peach = "#fab387", Red = "#f38ba8", Flamingo = "#f2cdcd";
+    private const string Pink = "#f5c2e7";
 
     /// <summary>The pick mark's near-white.</summary>
     private const string PickMark = "#f2f0f7";
@@ -51,6 +52,9 @@ public class PanelsPaletteTests
         [Role.Favorite] = (Yellow, null),
         [Role.FavoriteMine] = (Yellow, null),
         [Role.Replies] = (Mauve, null),
+
+        // Not the prototype's, which drew no bookmark: Mocha's Pink, an accent no other mark is drawn in (#561).
+        [Role.Bookmark] = (Pink, null),
         [Role.Selection] = (PickMark, null),
         [Role.Band] = (PickMark, Band),
         [Role.Rail] = (Subtext, null),

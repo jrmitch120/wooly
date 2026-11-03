@@ -678,6 +678,7 @@ public sealed class Shell
         Verb.Boost => Ran(() => Mark(PostMark.Boost)),
         Verb.Favorite => Ran(() => Mark(PostMark.Favorite)),
         Verb.Pin => Ran(() => Mark(PostMark.Pin)),
+        Verb.Bookmark => Ran(() => Mark(PostMark.Bookmark)),
         Verb.Delete => Ran(AskToDelete),
         Verb.Reveal => Ran(Reveal),
         Verb.Vote => Ran(AskToVote),
@@ -1480,11 +1481,20 @@ public sealed class Shell
 
         // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
         var profile = Actor.Profile;
+        var wanted = !about.Marks.Has(mark);
 
         await _enquiry.Put(
-            ask => ask.Of(token => _ports.Engagement.Mark(profile, about.Id, mark, !about.Marks.Has(mark), token)),
-            eitherWay: marked => Tell(new Change.PostChanged(marked)));
+            ask => ask.Of(token => _ports.Engagement.Mark(profile, about.Id, mark, wanted, token)),
+            eitherWay: marked => Tell(new Change.PostChanged(marked)),
+            ifStillHere: mark == PostMark.Bookmark ? _ => SayBookmarked(wanted) : null);
     }
+
+    /// <summary>
+    ///     Which way a bookmark went, in the CLI's words. Said for a bookmark alone: a boost or a favorite moves a count
+    ///     beside its mark, where a bookmark moves nothing but one cell's flag, which is easy to miss (story 10 of #558).
+    /// </summary>
+    private void SayBookmarked(bool wanted) =>
+        StatusRow.Say(wanted ? "Bookmarked." : "Unbookmarked.", isError: false);
 
     /// <summary>
     ///     Asks before taking a post down. The one thing here whose effect running something else does not undo, so

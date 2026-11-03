@@ -173,6 +173,7 @@ public class NotificationPreviewTests
     [Theory]
     [InlineData(PostMark.Favorite)]
     [InlineData(PostMark.Boost)]
+    [InlineData(PostMark.Bookmark)]
     public async Task Mark_ActsOnThePostUnderAPreview(PostMark mark)
     {
         var (shell, opened) = await On(ANotification.With(kind: NotificationKind.Favorite, post: Mine()));

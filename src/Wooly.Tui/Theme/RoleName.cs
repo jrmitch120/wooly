@@ -28,6 +28,7 @@ public static class RoleName
         [Role.Favorite] = "favorite",
         [Role.FavoriteMine] = "favorite-mine",
         [Role.Replies] = "replies",
+        [Role.Bookmark] = "bookmark",
         [Role.Selection] = "selection",
         [Role.Band] = "band",
         [Role.SelectedText] = "selected-text",

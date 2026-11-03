@@ -89,6 +89,9 @@ public static class Themes
             [Role.Favorite] = "#f9e2af",
             [Role.FavoriteMine] = "#f9e2af",
             [Role.Replies] = "#cba6f7",
+
+            // Catppuccin's Pink, an accent no other mark is drawn in, so a flag kept is told from a star or a boost.
+            [Role.Bookmark] = "#f5c2e7",
             [Role.Selection] = "#f2f0f7",
             [Role.Band] = "#f2f0f7",
             [Role.SelectedText] = "#cdd6f4",
@@ -139,6 +142,7 @@ public static class Themes
             [Role.Favorite] = "#df8e1d",
             [Role.FavoriteMine] = "#df8e1d",
             [Role.Replies] = "#8839ef",
+            [Role.Bookmark] = "#ea76cb",
             [Role.Selection] = "#100e18",
             [Role.Band] = "#100e18",
             [Role.SelectedText] = "#4c4f69",

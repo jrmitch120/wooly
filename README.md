@@ -128,6 +128,7 @@ On a timeline or a post:
 | `a` | Open the author's account |
 | `c` / `r` | Compose / reply |
 | `b` / `f` | Boost / favorite (and undo) |
+| `l` | Bookmark (and undo) |
 | `e` / `d` / `p` | Edit / delete / pin your own post |
 | `w` | Who favorited or boosted it |
 | `x` | Show what a content warning is hiding |
