@@ -132,6 +132,9 @@ the view, so they leave no blank: their rows still hold, but there a terminal dr
 character after it. Terminal.app is beyond it: it draws such text off its own cells and everything after it on the row
 with it, even a border placed at an explicit column, so a post in these scripts still pushes its row there. Where the
 text is the client's own rather than an author's — the Lang list — it is written in English instead.
+The same output also mends three faults in Terminal.Gui's own writer that Windows Terminal showed as a line on hover
+over blank cells (#553, ADR-0031): it keeps a frame whole at the caret's cell and closes any link at its end, erases
+under a sixel before sending it, and writes nothing between frames.
 
 ## Hidden rail
 
