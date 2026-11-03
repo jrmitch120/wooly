@@ -53,7 +53,7 @@ internal static class PostWire
             Favorites = status.FavouritesCount,
             Replies = status.RepliesCount,
 
-            // The wire leaves all three out where it has nobody to answer them about, which is a read made without a
+            // The wire leaves all four out where it has nobody to answer them about, which is a read made without a
             // token. Silence there means "not marked" rather than "unknown": every call this client makes is signed in,
             // so a missing flag is an instance that had nothing to report rather than one that was not asked.
             Marks = new PostMarks
@@ -61,6 +61,7 @@ internal static class PostWire
                 Boosted = status.Reblogged ?? false,
                 Favorited = status.Favourited ?? false,
                 Pinned = status.Pinned ?? false,
+                Bookmarked = status.Bookmarked ?? false,
             },
             // Mastonet leaves this null rather than empty where a post carries nothing, and a timeline is mostly posts
             // that carry nothing.

@@ -4,8 +4,8 @@ using Wooly.Core.Posts;
 namespace Wooly.Tests.Integration;
 
 /// <summary>
-///     Runs <see cref="PostEngagement" /> against the live instance: boosts and favorites a post of the seeded
-///     account's own, then takes each mark back off, and votes in a poll of its own — checking the instance's own
+///     Runs <see cref="PostEngagement" /> against the live instance: boosts, favorites and bookmarks a post of the
+///     seeded account's own, then takes each mark back off, and votes in a poll of its own — checking the instance's own
 ///     answer at every step rather than assuming a write that did not throw took (#33).
 /// </summary>
 [Trait("Category", "Integration")]
@@ -56,6 +56,44 @@ public class PostEngagementIntegrationTests
 
             var unfavorited = await engagement.Mark(profile, published.Id, PostMark.Favorite, wanted: false, cancellationToken);
             Assert.False(unfavorited.Marks.Favorited);
+        }
+        finally
+        {
+            await author.Delete(profile, published.Id, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    ///     That the bookmark endpoints are where Mastonet says they are, and that the instance's <c>bookmarked</c> field
+    ///     comes back on the post it answers with in both directions (#560).
+    /// </summary>
+    [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
+    public async Task Mark_BookmarksAndUnbookmarksAPost()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var services = LiveInstance.NewServices();
+        var profile = LiveInstance.Profile;
+        var author = services.GetRequiredService<IPostAuthor>();
+        var engagement = services.GetRequiredService<IPostEngagement>();
+
+        var published = await author.Publish(profile, LiveInstance.ThrowawayDraft(), cancellationToken);
+
+        try
+        {
+            var bookmarked = await engagement.Mark(profile, published.Id, PostMark.Bookmark, wanted: true, cancellationToken);
+            Assert.Equal(published.Id, bookmarked.Id);
+            Assert.True(bookmarked.Marks.Bookmarked);
+
+            var shown = await engagement.Show(profile, published.Id, cancellationToken);
+            Assert.True(shown.Marks.Bookmarked);
+
+            var unbookmarked = await engagement.Mark(
+                profile,
+                published.Id,
+                PostMark.Bookmark,
+                wanted: false,
+                cancellationToken);
+            Assert.False(unbookmarked.Marks.Bookmarked);
         }
         finally
         {
