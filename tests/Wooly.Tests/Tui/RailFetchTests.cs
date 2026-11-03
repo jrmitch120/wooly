@@ -234,10 +234,10 @@ public class RailFetchTests
     }
 
     /// <summary>
-    ///     The nine everybody has, in the order the contract lists, each in its rail group, the groups in their order
-    ///     (ADR-0021). The shape of the rail is what #28 settled, and the ninth is the one fixed entry it has ever grown
-    ///     by, argued for on those terms (ADR-0019, #181) — and with no tag sets written, those nine are all there is
-    ///     (ADR-0033).
+    ///     The eleven everybody has, in the order the contract lists, each in its rail group, the groups in their order
+    ///     (ADR-0021). The shape of the rail is what #28 settled, and it has grown only where an entry was argued for on
+    ///     those terms: Discover (ADR-0019, #181), and Bookmarks and Favorites after the handle (ADR-0014's amendment,
+    ///     #563) — and with no tag sets written, those eleven are all there is (ADR-0033).
     /// </summary>
     /// <remarks>
     ///     The one test that says what the rail holds by its position (#559). Every other test names the destination it
@@ -259,6 +259,8 @@ public class RailFetchTests
                 (DestinationKind.Messages, RailGroup.Inbox),
                 (DestinationKind.Requests, RailGroup.Inbox),
                 (DestinationKind.Profile, RailGroup.You),
+                (DestinationKind.Bookmarks, RailGroup.You),
+                (DestinationKind.Favorites, RailGroup.You),
             ],
             opened.Rail.Destinations.Select(destination => (destination.Kind, destination.Group)));
     }

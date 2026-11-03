@@ -166,3 +166,12 @@ both fit. The two columns come off the content panel, whose rows are 58 columns 
 screen must read well at. Four columns more would have fitted the two longest Inbox labels beside a count too. Rejected:
 that clip happens only while there is something unread, and the count it keeps is the part a reader acts on, so it did
 not earn four columns off every screen at all times.
+
+## Amendment: the You group holds three, and the rail frames at 80×24 with no row to spare (#563)
+
+The You group holds the profile's own account, then **Bookmarks** and **Favorites** (ADR-0014's amendment for #563).
+With no tag sets the rail needs 23 rows framed (Timelines 5, since the Hashtag entry became the Hashtags group of
+ADR-0033, Explore 4, Inbox 5, You 5 and API 4), two more than before. An 80×24 terminal gives it 23, so with no sets
+the rail still frames, with nothing spare, and one set makes it compact, which ADR-0033 already accepted. The compact
+rail needs two rows more too. Nothing about the step-down changes but where its thresholds fall; `docs/tui-shell.md`
+carries the numbers.
