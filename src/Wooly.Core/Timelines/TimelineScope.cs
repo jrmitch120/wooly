@@ -1,6 +1,6 @@
 namespace Wooly.Core.Timelines;
 
-/// <summary>The eight timelines a profile can read, which differ only in what an instance is asked for.</summary>
+/// <summary>The ten timelines a profile can read, which differ only in what an instance is asked for.</summary>
 public enum TimelineScope
 {
     /// <summary>The posts of the accounts this profile follows.</summary>
@@ -43,4 +43,19 @@ public enum TimelineScope
     ///     that meant something on one scope alone would be a home timeline "with replies" waiting to be built (#211).
     /// </summary>
     WithReplies,
+
+    /// <summary>
+    ///     The posts this profile has bookmarked, newest bookmark first — ordered by when the mark was put on rather
+    ///     than when the post was written, and private to the profile's own account, so it needs nobody named. Paged
+    ///     by the ids of the bookmarks themselves, which the instance gives only in its link header and which are not
+    ///     the ids of any post: a page that names no next one ends the run, rather than being paged on from its last
+    ///     post.
+    /// </summary>
+    Bookmarks,
+
+    /// <summary>
+    ///     The posts this profile has favorited, newest favorite first, private to it and paged as
+    ///     <see cref="Bookmarks" /> is: by the link header alone, never by the last post's id.
+    /// </summary>
+    Favorites,
 }

@@ -7,7 +7,7 @@ using Wooly.Core.Timelines;
 namespace Wooly.Cli.Commands;
 
 /// <summary>
-///     What the six timeline commands read, which is a timeline and differs only in which one. That one difference is
+///     What the eight timeline commands read, which is a timeline and differs only in which one. That one difference is
 ///     what a subclass supplies; the reading, the writing and what a rate limit means are
 ///     <see cref="PagedListCommand{TSettings,TItem}" />'s, shared with every other list this client prints.
 /// </summary>

@@ -763,6 +763,8 @@ public class TimelineReaderTests
     [InlineData(TimelineScope.Local, "https://mastodon.social/api/v1/timelines/public?local=true&limit=20")]
     [InlineData(TimelineScope.Federated, "https://mastodon.social/api/v1/timelines/public?limit=20")]
     [InlineData(TimelineScope.Tag, "https://mastodon.social/api/v1/timelines/tag/cats?limit=20")]
+    [InlineData(TimelineScope.Bookmarks, "https://mastodon.social/api/v1/bookmarks?limit=20")]
+    [InlineData(TimelineScope.Favorites, "https://mastodon.social/api/v1/favourites?limit=20")]
     public async Task Read_AsksTheInstanceForTheTimelineItWasNamed(TimelineScope scope, string expected)
     {
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110"))));
@@ -1025,6 +1027,77 @@ public class TimelineReaderTests
         Assert.Equal(45, fetch.Items.Count);
         Assert.Equal(
             "https://mastodon.social/api/v1/timelines/home?max_id=161&limit=5",
+            network.Requests[1].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     The <b>Bookmarks</b> and <b>Favorites</b> runs page by the id of the bookmark or favorite itself, which the
+    ///     instance gives only in its link header and which is not the id of any post on the page — so the next page is
+    ///     asked for from where the header says, however far that is from the posts just read.
+    /// </summary>
+    [Theory]
+    [InlineData(TimelineScope.Bookmarks, "bookmarks")]
+    [InlineData(TimelineScope.Favorites, "favourites")]
+    public async Task Read_PagesARunOfMarksFromWhereTheLinkHeaderSaysEvenWhereNoPostHasThatId(
+        TimelineScope scope,
+        string path)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "9001", path: path),
+            PageResponse(PageOf(count: 5, firstId: 500)));
+
+        var token = TestContext.Current.CancellationToken;
+
+        var fetch = await NewReader(network).Read(Profile, TimelineFor(scope), 45, token);
+
+        Assert.Equal(45, fetch.Items.Count);
+        Assert.Equal(
+            $"https://mastodon.social/api/v1/{path}?max_id=9001&limit=5",
+            network.Requests[1].RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     And a page of either run that names no next page is its end, full or not. A timeline would be paged on from
+    ///     its last post's id here; a run of marks cannot be, because a post's id is not where any page of bookmarks or
+    ///     favorites starts, and asking from one would skip or repeat posts without a sign that it had.
+    /// </summary>
+    [Theory]
+    [InlineData(TimelineScope.Bookmarks)]
+    [InlineData(TimelineScope.Favorites)]
+    public async Task Read_EndsARunOfMarksAtAFullPageThatNamesNoNextPage(TimelineScope scope)
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200)),
+            PageResponse(PageOf(count: 5, firstId: 160)));
+
+        var token = TestContext.Current.CancellationToken;
+
+        var fetch = await NewReader(network).Read(Profile, TimelineFor(scope), 45, token);
+
+        Assert.Equal(40, fetch.Items.Count);
+        Assert.True(fetch.IsComplete);
+        Assert.Single(network.Requests);
+    }
+
+    /// <summary>
+    ///     Reading on carries the header's id too, inside the cursor the first read handed out, so nothing above the
+    ///     reader knows these runs page any differently from a timeline.
+    /// </summary>
+    [Fact]
+    public async Task ReadOn_ReadsOnARunOfMarksFromWhereTheLinkHeaderSaid()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            PageResponse(PageOf(count: 40, firstId: 200), nextMaxId: "9001", path: "bookmarks"),
+            PageResponse(PageOf(count: 3, firstId: 500)));
+        var reader = NewReader(network);
+        var token = TestContext.Current.CancellationToken;
+
+        var first = await reader.Read(Profile, Timeline.Bookmarks, 40, token);
+        var more = await reader.ReadOn(Profile, Timeline.Bookmarks, first.Onward!, 40, token);
+
+        Assert.Equal(3, more.Items.Count);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/bookmarks?max_id=9001&limit=40",
             network.Requests[1].RequestUri?.ToString());
     }
 
@@ -1326,6 +1399,8 @@ public class TimelineReaderTests
         TimelineScope.Home => Timeline.Home,
         TimelineScope.Local => Timeline.Local,
         TimelineScope.Federated => Timeline.Federated,
+        TimelineScope.Bookmarks => Timeline.Bookmarks,
+        TimelineScope.Favorites => Timeline.Favorites,
         _ => Timeline.Tag("cats"),
     };
 
@@ -1349,7 +1424,11 @@ public class TimelineReaderTests
     ///     What the instance names as the start of the next page, in the link header it sends alongside a timeline —
     ///     or <see langword="null" /> for an instance that sends none.
     /// </param>
-    private static Func<HttpRequestMessage, HttpResponseMessage> PageResponse(string json, string? nextMaxId = null) =>
+    /// <param name="path">Which endpoint the link header points back at.</param>
+    private static Func<HttpRequestMessage, HttpResponseMessage> PageResponse(
+        string json,
+        string? nextMaxId = null,
+        string path = "timelines/home") =>
         _ =>
         {
             var response = new HttpResponseMessage(HttpStatusCode.OK)
@@ -1361,7 +1440,7 @@ public class TimelineReaderTests
             {
                 response.Headers.Add(
                     "Link",
-                    $"<https://mastodon.social/api/v1/timelines/home?max_id={nextMaxId}>; rel=\"next\"");
+                    $"<https://mastodon.social/api/v1/{path}?max_id={nextMaxId}>; rel=\"next\"");
             }
 
             return response;

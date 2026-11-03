@@ -230,6 +230,14 @@ public static class WoolyCommandApp
 
                 timeline.AddCommand<TimelinePinnedCommand>("pinned")
                         .WithDescription("Read the posts an account has pinned to the top of their profile.");
+
+                // The profile's own two private runs, newest mark first. Timelines here for the reason the account's
+                // posts are: posts, paged and written the way every other timeline is.
+                timeline.AddCommand<TimelineBookmarksCommand>("bookmarks")
+                        .WithDescription("Read the posts you have bookmarked, newest bookmark first.");
+
+                timeline.AddCommand<TimelineFavoritesCommand>("favorites")
+                        .WithDescription("Read the posts you have favorited, newest favorite first.");
             });
 
             // A noun of its own rather than a corner of "post", even though a direct message is a post: what a user
