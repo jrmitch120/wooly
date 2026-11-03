@@ -180,6 +180,103 @@ public class ShellBookmarksAndFavoritesTests
         Assert.Equal(["300"], Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
     }
 
+    /// <summary>
+    ///     A post given the run's mark on another destination is on the run the next time the reader arrives there,
+    ///     without a <c>g</c>: the run held from before is read again rather than handed back without it (#564).
+    /// </summary>
+    [Theory]
+    [InlineData(DestinationKind.Bookmarks, PostMark.Bookmark)]
+    [InlineData(DestinationKind.Favorites, PostMark.Favorite)]
+    public async Task GivingAPostTheRunsMarkElsewhere_PutsItOnTheRunHeld(DestinationKind kind, PostMark mark)
+    {
+        var plain = APost.With(id: "220", account: "ben@hachyderm.io");
+        var marked = plain with
+        {
+            Marks = APost.Marked(favorited: mark == PostMark.Favorite, bookmarked: mark == PostMark.Bookmark),
+        };
+        Post[] onTheRun = [APost.With(id: "300")];
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Answering(timeline =>
+                Fetch<Post>.Complete(timeline == Run(kind) ? onTheRun : [plain])),
+            Engagement = FakePostEngagement.Answering(marked),
+        };
+        var opened = await HomeHavingReadTheRun(shell, kind);
+
+        await opened.Mark(mark);
+        shell.Host.Drain();
+        onTheRun = [marked, APost.With(id: "300")];
+        opened.StepTo(kind);
+        shell.Host.Settle();
+
+        Assert.True(Assert.Single(shell.Engagement.Marks).Wanted);
+        Assert.Equal(["220", "300"], Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     A post already carrying the run's mark, given the other mark, is not newly on the run: the run held is
+    ///     handed back rather than read again — what the post gained, not what it has, is what clears a run.
+    /// </summary>
+    [Theory]
+    [InlineData(DestinationKind.Bookmarks, PostMark.Favorite)]
+    [InlineData(DestinationKind.Favorites, PostMark.Bookmark)]
+    public async Task GivingAPostAlreadyOnTheRunTheOtherMark_LeavesTheRunHeld(DestinationKind kind, PostMark other)
+    {
+        var onItsRun = APost.With(
+            id: "220",
+            account: "ben@hachyderm.io",
+            marks: APost.Marked(favorited: kind == DestinationKind.Favorites, bookmarked: kind == DestinationKind.Bookmarks));
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Answering(timeline =>
+                Fetch<Post>.Complete(timeline == Run(kind) ? [APost.With(id: "300")] : [onItsRun])),
+            Engagement = FakePostEngagement.Answering(
+                onItsRun with { Marks = APost.Marked(favorited: true, bookmarked: true) }),
+        };
+        var opened = await HomeHavingReadTheRun(shell, kind);
+
+        await opened.Mark(other);
+        shell.Host.Drain();
+        opened.StepTo(kind);
+        shell.Host.Settle();
+
+        Assert.True(Assert.Single(shell.Engagement.Marks).Wanted);
+        Assert.Single(shell.Timelines.Reads, read => read.Timeline == Run(kind));
+        Assert.Equal(["300"], Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
+    ///     Taking the run's mark off a post on another destination is the rule every mark already follows: the run
+    ///     held holds the post, so it is read again on the next arrival, and the instance leaves the post out.
+    /// </summary>
+    [Theory]
+    [InlineData(DestinationKind.Bookmarks, PostMark.Bookmark)]
+    [InlineData(DestinationKind.Favorites, PostMark.Favorite)]
+    public async Task TakingTheRunsMarkOffElsewhere_LeavesThePostOffTheNextArrival(DestinationKind kind, PostMark mark)
+    {
+        var marked = APost.With(
+            id: "220",
+            account: "ben@hachyderm.io",
+            marks: APost.Marked(favorited: mark == PostMark.Favorite, bookmarked: mark == PostMark.Bookmark));
+        Post[] onTheRun = [marked, APost.With(id: "300")];
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Answering(timeline =>
+                Fetch<Post>.Complete(timeline == Run(kind) ? onTheRun : [marked])),
+            Engagement = FakePostEngagement.Answering(marked with { Marks = PostMarks.None }),
+        };
+        var opened = await HomeHavingReadTheRun(shell, kind);
+
+        await opened.Mark(mark);
+        shell.Host.Drain();
+        onTheRun = [APost.With(id: "300")];
+        opened.StepTo(kind);
+        shell.Host.Settle();
+
+        Assert.False(Assert.Single(shell.Engagement.Marks).Wanted);
+        Assert.Equal(["300"], Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
     /// <summary>A click on either arrives at it at once, as a click on any destination does (#288).</summary>
     [Theory]
     [InlineData(DestinationKind.Bookmarks, "Bookmarks")]
@@ -252,6 +349,22 @@ public class ShellBookmarksAndFavoritesTests
         Assert.Equal("work", read.Profile);
         Assert.Equal(Run(kind), read.Timeline);
         Assert.Equal("token-work", Assert.Single(shell.Timelines.Tokens));
+    }
+
+    /// <summary>
+    ///     A shell standing on Home again, having read the run of <paramref name="kind" /> on the way — so the run is
+    ///     held.
+    /// </summary>
+    private static async Task<Shell> HomeHavingReadTheRun(AShell shell, DestinationKind kind)
+    {
+        var opened = await shell.Opened();
+
+        opened.StepTo(kind);
+        shell.Host.Settle();
+        opened.StepTo(DestinationKind.Home);
+        shell.Host.Settle();
+
+        return opened;
     }
 
     /// <summary>The run a destination of <paramref name="kind" /> reads.</summary>

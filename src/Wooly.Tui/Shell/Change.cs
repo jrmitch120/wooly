@@ -24,7 +24,15 @@ public abstract record Change
     }
 
     /// <summary>A post as the instance now has it, after a mark, an edit or a vote.</summary>
-    public sealed record PostChanged(Post Post) : Change;
+    public sealed record PostChanged(Post Post) : Change
+    {
+        /// <summary>
+        ///     The mark the change put on the post, where it put one on that was not there before — which puts the post
+        ///     on that mark's run, if the mark has one. <see langword="null" /> for a mark taken off, an edit or a vote
+        ///     (#564).
+        /// </summary>
+        public PostMark? Gained { get; init; }
+    }
 
     /// <summary>A post deleted, by its id.</summary>
     public sealed record PostGone(string Id) : Change;

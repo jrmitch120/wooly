@@ -295,8 +295,24 @@ public sealed class Arrival(
     {
         switch (change)
         {
-            case Change.PostChanged(var post):
+            // A mark put on is a post newly on that mark's run, which the run held cannot be holding (#564) — keyed off
+            // the mark gained rather than the marks the post has, so favoriting a post bookmarked long ago leaves
+            // Bookmarks held. A mark taken off needs nothing more: the run held holds the post.
+            case Change.PostChanged { Post: var post, Gained: var gained }:
                 cache.Forget(held => held.HoldsPost(post.Id));
+
+                switch (gained)
+                {
+                    case PostMark.Bookmark:
+                        Forget(DestinationKind.Bookmarks);
+
+                        break;
+
+                    case PostMark.Favorite:
+                        Forget(DestinationKind.Favorites);
+
+                        break;
+                }
 
                 break;
 
