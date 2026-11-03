@@ -1309,7 +1309,8 @@ who walked to the bottom had no way to see anything older without leaving the TU
   the top on what came back and the cache holds that and nothing older.
 - **A change reaches a post read on exactly as it reaches one from the first read.** The change table asks the held
   list about every item in it, so a post marked or deleted forgets every cached list holding it, however it was
-  reached, and a tie forgets Home with everything read on it. The screen showing the post hears the change and patches
+  reached, a bookmark or favorite put on forgets that mark's run (#564), and a tie forgets Home with everything read
+  on it. The screen showing the post hears the change and patches
   it in place, as it does any post.
 - **Every timeline reads on, and so do an account's posts (#464).** These screens read on, the same way Home does:
   - Home, Local, Federated and every tag set on the rail;
@@ -2135,6 +2136,12 @@ The tenth and eleventh of the rail's fixed destinations, after the handle in the
   so a reader sees what they did and can press the key again to undo it. That is the **Pinned** run's rule, and the
   same **Change** (`PostChanged`) that redraws a post on every screen on the stack. The cached list holding the post is
   forgotten with it, so the next read of the run is the instance's, and leaves it out.
+- **A mark put on anywhere forgets that mark's run** (#564): a post bookmarked on Home is on Bookmarks the next time
+  the reader arrives there, without a `g`, and a post favorited anywhere on Favorites — the sent post's precedent,
+  which forgets the destinations a post is newly on. It is the mark the change *put on* that counts, not the marks the
+  post now has (`Change.PostChanged.Gained`), so favoriting a post bookmarked long ago leaves Bookmarks held, and a
+  boost, an edit or a vote forgets neither run. A mark taken off needs nothing new: the run held holds the post, and is
+  forgotten by the rule above. Nothing in front is read again, so a row still stays where it is.
 - **They are the acting profile's own.** Neither names an account, so a profile switch reads the new profile's runs
   with its token, and nobody else's are ever asked for.
 - **They are clicked like any destination**: a click on its rail row arrives at once (#288). No key goes straight to

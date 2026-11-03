@@ -1485,7 +1485,8 @@ public sealed class Shell
 
         await _enquiry.Put(
             ask => ask.Of(token => _ports.Engagement.Mark(profile, about.Id, mark, wanted, token)),
-            eitherWay: marked => Tell(new Change.PostChanged(marked)),
+            eitherWay: marked => Tell(
+                new Change.PostChanged(marked) { Gained = wanted && marked.Marks.Has(mark) ? mark : null }),
             ifStillHere: mark == PostMark.Bookmark ? _ => SayBookmarked(wanted) : null);
     }
 
