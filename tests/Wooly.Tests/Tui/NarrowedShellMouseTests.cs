@@ -5,6 +5,7 @@ using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 using static Wooly.Tests.Tui.ContentClicks;
+using static Wooly.Tests.Tui.RailPlaces;
 
 namespace Wooly.Tests.Tui;
 
@@ -358,17 +359,6 @@ public class NarrowedShellMouseTests
         Assert.Equal(Left, drawn.Rows()[0].IndexOf('╭', StringComparison.Ordinal));
 
         return drawn;
-    }
-
-    /// <summary>The terminal row the narrowed shell's rail draws <paramref name="text" /> on.</summary>
-    private static int RailRowOf(DrawnShell drawn, string text)
-    {
-        var rows = drawn.Rail();
-        var row = Array.FindIndex(rows, line => line.Contains(text, StringComparison.Ordinal));
-
-        Assert.True(row >= 0, $"Nothing on the rail reads {text}:\n{string.Join('\n', rows)}");
-
-        return row;
     }
 
     /// <summary>Two posts on Home, the second reading "Two sheep".</summary>

@@ -15,9 +15,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellNotificationGroupTests
 {
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
-
     /// <summary>
     ///     A group names two actors and counts everyone else in it by the instance's count, not by how many actors came
     ///     with it: eight favorites sent with two actors is "and 6 others".
@@ -204,7 +201,7 @@ public class ShellNotificationGroupTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         return (shell, opened);

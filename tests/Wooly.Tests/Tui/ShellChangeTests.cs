@@ -13,8 +13,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellChangeTests
 {
-    private const int ToNotifications = 5;
-
     private static readonly Post Mine = APost.With(id: "110", account: "jeff@mastodon.social");
 
     private static readonly Post Somebody = APost.With(id: "220", account: "ben@hachyderm.io");
@@ -78,7 +76,7 @@ public class ShellChangeTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Press(ShellKey.C);
@@ -89,7 +87,7 @@ public class ShellChangeTests
 
         var reads = shell.Timelines.Reads.Count;
 
-        opened.Step(-ToNotifications);
+        opened.StepTo(DestinationKind.Home);
         shell.Host.Settle();
 
         Assert.Equal(reads + 1, shell.Timelines.Reads.Count);
@@ -200,7 +198,7 @@ public class ShellChangeTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Press(ShellKey.D);
@@ -226,7 +224,7 @@ public class ShellChangeTests
     {
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications + 1);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
         opened.Step(-1);
         shell.Host.Settle();

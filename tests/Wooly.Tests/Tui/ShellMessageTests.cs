@@ -14,9 +14,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellMessageTests
 {
-    /// <summary>Where the rail's direct messages destination is, counting from Home.</summary>
-    private const int ToMessages = 6;
-
     [Fact]
     public async Task Step_ListsTheConversationsAndCountsTheUnreadOnesOnTheRail()
     {
@@ -29,7 +26,7 @@ public class ShellMessageTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         var screen = Assert.IsType<DirectMessagesScreen>(opened.Screen);
@@ -53,7 +50,7 @@ public class ShellMessageTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).ToList();
@@ -72,7 +69,7 @@ public class ShellMessageTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
@@ -90,7 +87,7 @@ public class ShellMessageTests
         var shell = new AShell { Messages = FakeDirectMessages.RateLimitedAfter(AConversation.With()) };
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
@@ -113,7 +110,7 @@ public class ShellMessageTests
         var shell = new AShell { Messages = FakeDirectMessages.Threading(thread) };
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -135,7 +132,7 @@ public class ShellMessageTests
         var shell = new AShell { Messages = FakeDirectMessages.Threading(AConversation.Thread()) };
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -154,7 +151,7 @@ public class ShellMessageTests
         var shell = new AShell { Messages = FakeDirectMessages.Threading(AConversation.Thread()) };
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -177,7 +174,7 @@ public class ShellMessageTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         await opened.MarkRead();
@@ -210,7 +207,7 @@ public class ShellMessageTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         await opened.MarkRead();
@@ -228,7 +225,7 @@ public class ShellMessageTests
         var shell = new AShell { Messages = FakeDirectMessages.Threading(AConversation.Thread()) };
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -253,7 +250,7 @@ public class ShellMessageTests
         var shell = new AShell { Messages = FakeDirectMessages.Holding(AConversation.With(unread: false)) };
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         await opened.MarkRead();
@@ -272,7 +269,7 @@ public class ShellMessageTests
         var shell = new AShell { Messages = FakeDirectMessages.Holding(AConversation.With()) };
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         var listings = shell.Messages.Listings.Count;
@@ -298,7 +295,7 @@ public class ShellMessageTests
         var shell = new AShell { Messages = FakeDirectMessages.Holding(AConversation.With(id: "7")) };
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         var listings = shell.Messages.Listings.Count;
@@ -335,7 +332,7 @@ public class ShellMessageTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -368,7 +365,7 @@ public class ShellMessageTests
         var shell = new AShell { Messages = FakeDirectMessages.Threading(thread) };
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -410,7 +407,7 @@ public class ShellMessageTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -461,7 +458,7 @@ public class ShellMessageTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -510,7 +507,7 @@ public class ShellMessageTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -557,7 +554,7 @@ public class ShellMessageTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -616,7 +613,7 @@ public class ShellMessageTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -655,7 +652,7 @@ public class ShellMessageTests
         var shell = new AShell { Messages = FakeDirectMessages.Threading(AConversation.Thread()) };
         var opened = await shell.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         Assert.Contains(opened.Keys, key => key is { Key: "⏎", Does: "open" });

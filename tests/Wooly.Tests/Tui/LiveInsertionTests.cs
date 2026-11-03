@@ -18,9 +18,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class LiveInsertionTests
 {
-    /// <summary>Where the rail's notifications destination is, counting from Home; Messages and Requests follow it.</summary>
-    private const int ToNotifications = 5;
-
     private static readonly TimeSpan Minute = TimeSpan.FromSeconds(60);
 
     [Fact]
@@ -35,7 +32,7 @@ public class LiveInsertionTests
         shell.Notifications.Marker = "102";
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         shell.Notifications.NowHolding(
@@ -63,7 +60,7 @@ public class LiveInsertionTests
         shell.Notifications.Marker = "102";
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
         opened.Screen.Move(1);
 
@@ -90,7 +87,7 @@ public class LiveInsertionTests
         shell.Notifications.Marker = "100";
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
         var moves = shell.Notifications.MarkerMoves.Count;
 
@@ -118,7 +115,7 @@ public class LiveInsertionTests
         shell.Notifications.Marker = "100";
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         shell.Notifications.NowHolding(
@@ -153,7 +150,7 @@ public class LiveInsertionTests
         var arriving = new TaskCompletionSource();
         shell.Notifications.ReadsWaitFor = arriving;
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         shell.Notifications.NowHolding(
@@ -190,7 +187,7 @@ public class LiveInsertionTests
         shell.Notifications.Marker = "102";
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         shell.Notifications.DismissalsWaitFor = new TaskCompletionSource();
@@ -226,7 +223,7 @@ public class LiveInsertionTests
         };
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications + 1);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         shell.Messages.NowHolding(
@@ -256,7 +253,7 @@ public class LiveInsertionTests
         };
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications + 1);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
         opened.Screen.Move(1);
 
@@ -285,7 +282,7 @@ public class LiveInsertionTests
         };
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications + 2);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
         opened.Screen.Move(1);
 
@@ -314,7 +311,7 @@ public class LiveInsertionTests
         shell.Accounts.Stands = AnAccount.Standing(following: true);
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications + 2);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         shell.Accounts.NowListing(
@@ -338,7 +335,7 @@ public class LiveInsertionTests
         shell.Notifications.Marker = "101";
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
         var left = Assert.IsType<NotificationsScreen>(opened.Screen);
         opened.Step(-1);
@@ -388,7 +385,7 @@ public class LiveInsertionTests
         shell.Notifications.Marker = "101";
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
         opened.Step(-1);
         shell.Host.Settle();
@@ -421,7 +418,7 @@ public class LiveInsertionTests
         built.Notifications.Marker = "102";
         using var drawn = await DrawnShell.Of(100, 40, Themes.Plain, built);
 
-        drawn.Shell.Step(ToNotifications);
+        drawn.Shell.StepTo(DestinationKind.Notifications);
         built.Host.Settle();
         drawn.Redraw();
         drawn.Shell.Screen.Move(1);
@@ -619,7 +616,7 @@ public class LiveInsertionTests
         };
         Passes(shell, Minute);
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         holding = [ANotification.With(id: "103"), ANotification.With(id: "101")];
@@ -655,7 +652,7 @@ public class LiveInsertionTests
         shell.Notifications.Marker = groups.Max(group => long.Parse(group.NewestId)).ToString();
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         return (shell, opened);
