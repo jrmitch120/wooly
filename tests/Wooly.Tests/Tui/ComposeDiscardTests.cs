@@ -6,6 +6,7 @@ using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 using static Wooly.Tests.Tui.ContentClicks;
+using static Wooly.Tests.Tui.RailPlaces;
 
 namespace Wooly.Tests.Tui;
 
@@ -56,9 +57,6 @@ public class ComposeDiscardTests
     }
 
     private static string Status(DrawnShell drawn) => drawn.Rows()[^1].TrimEnd();
-
-    private static int RailRowOf(DrawnShell drawn, string label) =>
-        Array.FindIndex(drawn.Rail(), row => row.Contains(label, StringComparison.Ordinal));
 
     /// <summary>The ways out, as pressed.</summary>
     public static TheoryData<string> WaysOut => new("esc", "right-click", "tab", "shift-tab", "rail", "ctrl-p", "ctrl-q");
@@ -225,11 +223,12 @@ public class ComposeDiscardTests
         switch (way)
         {
             case "tab":
-                Assert.Equal(1, drawn.Shell.Rail.Current);
+                Assert.Equal(DestinationKind.Local, drawn.Shell.Rail.Showing.Kind);
                 break;
 
             case "shift-tab":
-                Assert.Equal(drawn.Shell.Rail.Destinations.Count - 1, drawn.Shell.Rail.Current);
+                // Back from Home wraps to the rail's last destination, whichever that is.
+                Assert.Equal(drawn.Shell.Rail.Destinations[^1], drawn.Shell.Rail.Showing);
                 break;
         }
 
@@ -246,12 +245,13 @@ public class ComposeDiscardTests
                 break;
 
             case "tab":
-                Assert.Equal(1, drawn.Shell.Rail.Current);
+                Assert.Equal(DestinationKind.Local, drawn.Shell.Rail.Showing.Kind);
                 Assert.Equal(1, drawn.Shell.Depth);
                 break;
 
             case "shift-tab":
-                Assert.Equal(drawn.Shell.Rail.Destinations.Count - 1, drawn.Shell.Rail.Current);
+                // Back from Home wraps to the rail's last destination, whichever that is.
+                Assert.Equal(drawn.Shell.Rail.Destinations[^1], drawn.Shell.Rail.Showing);
                 Assert.Equal(1, drawn.Shell.Depth);
                 break;
 
@@ -439,11 +439,12 @@ public class ComposeDiscardTests
         switch (way)
         {
             case "tab":
-                Assert.Equal(1, drawn.Shell.Rail.Current);
+                Assert.Equal(DestinationKind.Local, drawn.Shell.Rail.Showing.Kind);
                 break;
 
             case "shift-tab":
-                Assert.Equal(drawn.Shell.Rail.Destinations.Count - 1, drawn.Shell.Rail.Current);
+                // Back from Home wraps to the rail's last destination, whichever that is.
+                Assert.Equal(drawn.Shell.Rail.Destinations[^1], drawn.Shell.Rail.Showing);
                 break;
         }
 

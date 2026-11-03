@@ -149,7 +149,7 @@ public class ShellRefreshTests
         var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "1")) };
         var opened = await shell.Opened();
 
-        opened.Step(5);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Equal(0, Badge(opened, DestinationKind.Notifications));
@@ -169,17 +169,17 @@ public class ShellRefreshTests
 
     /// <summary>Each of the seven destinations that read a list is refreshed by the arrival it already arrives by.</summary>
     [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    [InlineData(3)]
-    [InlineData(4)]
-    public async Task Refresh_AsksTheTimelineOfWhicheverFeedTheReaderIsOn(int steps)
+    [InlineData("Home")]
+    [InlineData("Local")]
+    [InlineData("Federated")]
+    [InlineData("dotnet")]
+    [InlineData("cats")]
+    public async Task Refresh_AsksTheTimelineOfWhicheverFeedTheReaderIsOn(string label)
     {
         var shell = new AShell { TagSets = [TagSet.Of("dotnet", ["dotnet", "csharp"]), TagSet.Of("cats", ["cats"])] };
         var opened = await shell.Opened();
 
-        opened.Step(steps);
+        opened.StepTo(label);
         shell.Host.Settle();
 
         var asked = shell.Timelines.Reads[^1].Timeline;
@@ -204,7 +204,7 @@ public class ShellRefreshTests
 
         var opened = await shell.Opened();
 
-        opened.Step(5);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         var notifications = shell.Notifications.GroupReads.Count;
@@ -213,7 +213,7 @@ public class ShellRefreshTests
 
         Assert.Equal(notifications + 1, shell.Notifications.GroupReads.Count);
 
-        opened.Step(1);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         var listings = shell.Messages.Listings.Count;
@@ -222,7 +222,7 @@ public class ShellRefreshTests
 
         Assert.Equal(listings + 1, shell.Messages.Listings.Count);
 
-        opened.Step(1);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         var pending = shell.Accounts.Lists.Count;
@@ -496,7 +496,7 @@ public class ShellRefreshTests
 
         var opened = await shell.Opened();
 
-        opened.Step(6);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);

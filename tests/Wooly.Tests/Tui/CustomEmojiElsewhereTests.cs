@@ -5,6 +5,7 @@ using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using static Wooly.Tests.Tui.ContentClicks;
 using static Wooly.Tests.Tui.CustomEmojiNameTests;
@@ -114,7 +115,7 @@ public class CustomEmojiElsewhereTests
             drawsPlaceholders: true,
             raster: ARaster.Placeholders());
 
-        drawn.Shell.Step(ToNotifications);
+        drawn.Shell.StepTo(DestinationKind.Notifications);
         built.Host.Settle();
         drawn.Redraw();
 
@@ -149,7 +150,7 @@ public class CustomEmojiElsewhereTests
             pictures: new FakePictures().HoldingCustomEmoji(Php),
             raster: Raster.None);
 
-        drawn.Shell.Step(ToNotifications);
+        drawn.Shell.StepTo(DestinationKind.Notifications);
         built.Host.Settle();
         drawn.Redraw();
 
@@ -159,9 +160,6 @@ public class CustomEmojiElsewhereTests
         Assert.Equal(ShortcodeColour, Foreground(drawn, row, ":php:"));
         Assert.NotEqual(Muted, ShortcodeColour);
     }
-
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
 
     /// <summary>
     ///     A warned post's words want none of their custom emoji pictures while the warning hides them — only the

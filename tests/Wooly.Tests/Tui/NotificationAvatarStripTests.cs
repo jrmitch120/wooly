@@ -16,9 +16,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class NotificationAvatarStripTests
 {
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
-
     /// <summary>
     ///     The strip stands between the names line and the post, and wants each actor's face in the order the instance
     ///     gave them.
@@ -196,7 +193,7 @@ public class NotificationAvatarStripTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         return Assert.IsType<NotificationsScreen>(opened.Screen);

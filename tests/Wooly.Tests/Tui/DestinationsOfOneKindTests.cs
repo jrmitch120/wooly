@@ -24,10 +24,10 @@ public class DestinationsOfOneKindTests
     {
         var (shell, opened) = await Opened();
 
-        opened.Arrive(Index(opened, "dogs"));
+        opened.Arrive(opened.Rail.IndexOf("dogs"));
         shell.Host.Drain();
 
-        Assert.Equal(Index(opened, "dogs"), opened.Rail.Current);
+        Assert.Equal(opened.Rail.IndexOf("dogs"), opened.Rail.Current);
         Assert.Equal("dogs", opened.Breadcrumb);
         Assert.Equal(Timeline.AnyOf(Dogs), shell.Timelines.Reads[^1].Timeline);
     }
@@ -37,12 +37,12 @@ public class DestinationsOfOneKindTests
     public async Task GoTo_FindsADestinationWhateverItsBadgeSays()
     {
         var (_, opened) = await Opened();
-        var dogs = opened.Rail.Destinations[Index(opened, "dogs")];
+        var dogs = opened.Rail.Destinations[opened.Rail.IndexOf("dogs")];
 
         opened.Rail.Update(dogs with { Unread = 3 });
         opened.Rail.GoTo(dogs);
 
-        Assert.Equal(Index(opened, "dogs"), opened.Rail.Current);
+        Assert.Equal(opened.Rail.IndexOf("dogs"), opened.Rail.Current);
         Assert.Equal(3, opened.Rail.Showing.Unread);
     }
 
@@ -52,10 +52,10 @@ public class DestinationsOfOneKindTests
     {
         var (_, opened) = await Opened();
 
-        opened.Rail.Update(opened.Rail.Destinations[Index(opened, "dogs")] with { Unread = 3 });
+        opened.Rail.Update(opened.Rail.Destinations[opened.Rail.IndexOf("dogs")] with { Unread = 3 });
 
-        Assert.Equal(0, opened.Rail.Destinations[Index(opened, "cats")].Unread);
-        Assert.Equal(3, opened.Rail.Destinations[Index(opened, "dogs")].Unread);
+        Assert.Equal(0, opened.Rail.Destinations[opened.Rail.IndexOf("cats")].Unread);
+        Assert.Equal(3, opened.Rail.Destinations[opened.Rail.IndexOf("dogs")].Unread);
     }
 
     /// <summary>
@@ -67,15 +67,15 @@ public class DestinationsOfOneKindTests
     {
         var (shell, opened) = await Opened();
 
-        opened.Arrive(Index(opened, "cats"));
+        opened.Arrive(opened.Rail.IndexOf("cats"));
         shell.Host.Drain();
-        opened.Arrive(Index(opened, "dogs"));
+        opened.Arrive(opened.Rail.IndexOf("dogs"));
         shell.Host.Drain();
 
         Assert.Equal(["cats", "dogs"], SetsRead(shell));
         Assert.Equal("dogs-post", Assert.Single(Assert.IsType<FeedScreen>(opened.Screen).Posts).Id);
 
-        opened.Arrive(Index(opened, "cats"));
+        opened.Arrive(opened.Rail.IndexOf("cats"));
         shell.Host.Drain();
 
         Assert.Equal(["cats", "dogs"], SetsRead(shell));
@@ -88,13 +88,13 @@ public class DestinationsOfOneKindTests
     {
         var (shell, opened) = await Opened();
 
-        opened.Arrive(Index(opened, "cats"));
+        opened.Arrive(opened.Rail.IndexOf("cats"));
         shell.Host.Drain();
-        opened.Arrive(Index(opened, "dogs"));
+        opened.Arrive(opened.Rail.IndexOf("dogs"));
         shell.Host.Drain();
         await opened.Refresh();
         shell.Host.Drain();
-        opened.Arrive(Index(opened, "cats"));
+        opened.Arrive(opened.Rail.IndexOf("cats"));
         shell.Host.Drain();
 
         Assert.Equal(["cats", "dogs", "dogs"], SetsRead(shell));
@@ -136,17 +136,6 @@ public class DestinationsOfOneKindTests
         };
 
         return (shell, await shell.Opened());
-    }
-
-    /// <summary>Where on the rail the set called <paramref name="name" /> stands.</summary>
-    private static int Index(Wooly.Tui.Shell.Shell shell, string name)
-    {
-        var at = shell.Rail.Destinations.ToList()
-            .FindIndex(destination => destination.Kind == DestinationKind.TagSet && destination.Label == name);
-
-        Assert.True(at >= 0, $"No set called {name} on the rail.");
-
-        return at;
     }
 
     /// <summary>The sets read so far, by name, in the order they were read.</summary>
