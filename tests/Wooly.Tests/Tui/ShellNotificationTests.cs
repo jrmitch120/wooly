@@ -13,9 +13,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellNotificationTests
 {
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
-
     /// <summary>Arriving lists what is waiting and reads it, so the rail's badge clears (#397).</summary>
     [Fact]
     public async Task Step_ListsWhatIsWaitingAndReadsIt()
@@ -29,7 +26,7 @@ public class ShellNotificationTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
@@ -57,7 +54,7 @@ public class ShellNotificationTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Press(ShellKey.D);
@@ -88,7 +85,7 @@ public class ShellNotificationTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         var notifications = Assert.IsType<NotificationsScreen>(opened.Screen);
@@ -113,7 +110,7 @@ public class ShellNotificationTests
         var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With()) };
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Press(ShellKey.CapitalD);
@@ -139,7 +136,7 @@ public class ShellNotificationTests
         var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With()) };
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Press(ShellKey.CapitalD);
@@ -156,7 +153,7 @@ public class ShellNotificationTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Press(ShellKey.CapitalD);
@@ -171,7 +168,7 @@ public class ShellNotificationTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
@@ -189,7 +186,7 @@ public class ShellNotificationTests
         var shell = new AShell { Notifications = FakeNotificationInbox.RateLimitedAfter(ANotification.With()) };
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
@@ -213,7 +210,7 @@ public class ShellNotificationTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Equal("110", opened.Screen.Picked?.Id);
@@ -233,7 +230,7 @@ public class ShellNotificationTests
         var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With()) };
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Contains(opened.Keys, key => key is { Key: "d", Does: "dismiss" });
@@ -255,7 +252,7 @@ public class ShellNotificationTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         var reads = shell.Notifications.GroupReads.Count;
@@ -299,7 +296,7 @@ public class ShellNotificationTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Press(ShellKey.W);
@@ -325,7 +322,7 @@ public class ShellNotificationTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Contains(opened.Keys, key => key is { Key: "w", Does: "who" });
@@ -351,7 +348,7 @@ public class ShellNotificationTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Contains(opened.Keys, key => key is { Key: "w", Does: "who" });
@@ -384,7 +381,7 @@ public class ShellNotificationTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Contains(opened.Keys, key => key is { Key: "a", Does: "author" });

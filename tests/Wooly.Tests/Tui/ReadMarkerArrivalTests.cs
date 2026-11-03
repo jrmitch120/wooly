@@ -13,9 +13,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ReadMarkerArrivalTests
 {
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
-
     [Fact]
     public async Task Arriving_MovesTheMarkerToTheNewestNotificationAndClearsTheBadge()
     {
@@ -24,7 +21,7 @@ public class ReadMarkerArrivalTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Equal("144", Assert.Single(shell.Notifications.MarkerMoves).NotificationId);
@@ -43,7 +40,7 @@ public class ReadMarkerArrivalTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Equal(["144", "143"], Unread(opened));
@@ -71,7 +68,7 @@ public class ReadMarkerArrivalTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
         opened.Step(-1);
         shell.Host.Settle();
@@ -92,7 +89,7 @@ public class ReadMarkerArrivalTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Empty(shell.Notifications.MarkerMoves);
@@ -110,7 +107,7 @@ public class ReadMarkerArrivalTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Equal("144", Assert.Single(shell.Notifications.MarkerMoves).NotificationId);
@@ -147,7 +144,7 @@ public class ReadMarkerArrivalTests
 
         Assert.Equal(2, Badge(opened).Unread);
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Equal(["146", "145"], Unread(opened));
@@ -168,7 +165,7 @@ public class ReadMarkerArrivalTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         var screen = Assert.IsType<NotificationsScreen>(opened.Screen);
@@ -183,9 +180,9 @@ public class ReadMarkerArrivalTests
     ///     waits until it is answered — so their badges stand, and the notifications marker is left where it is.
     /// </summary>
     [Theory]
-    [InlineData(ToNotifications + 1, DestinationKind.Messages)]
-    [InlineData(ToNotifications + 2, DestinationKind.Requests)]
-    public async Task Arriving_AtMessagesOrRequestsReadsNothing(int steps, DestinationKind kind)
+    [InlineData(DestinationKind.Messages)]
+    [InlineData(DestinationKind.Requests)]
+    public async Task Arriving_AtMessagesOrRequestsReadsNothing(DestinationKind kind)
     {
         var shell = new AShell
         {
@@ -197,7 +194,7 @@ public class ReadMarkerArrivalTests
 
         var opened = await shell.Opened();
 
-        opened.Step(steps);
+        opened.StepTo(kind);
         shell.Host.Settle();
 
         Assert.Empty(shell.Notifications.MarkerMoves);

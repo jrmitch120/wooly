@@ -5,6 +5,7 @@ using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using static Wooly.Tests.Tui.RailHeights;
+using static Wooly.Tests.Tui.RailPlaces;
 
 namespace Wooly.Tests.Tui;
 
@@ -28,11 +29,11 @@ public class ShellRailClickTests
 
         var read = drawn.Built.Notifications.GroupReads.Count;
 
-        drawn.Click(OverRail, RowOf(drawn, "Notifications"));
+        drawn.Click(OverRail, RailRowOf(drawn, "Notifications"));
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
-        var at = IndexOf(drawn, DestinationKind.Notifications);
+        var at = drawn.Shell.Rail.IndexOf(DestinationKind.Notifications);
 
         Assert.Equal(at, drawn.Shell.Rail.Cursor);
         Assert.Equal(at, drawn.Shell.Rail.Current);
@@ -56,11 +57,11 @@ public class ShellRailClickTests
         drawn.Press(Key.Tab);
         drawn.Press(Key.Tab);
 
-        drawn.Click(OverRail, RowOf(drawn, "Notifications"));
+        drawn.Click(OverRail, RailRowOf(drawn, "Notifications"));
         drawn.Built.Host.Settle();
         drawn.Redraw();
 
-        Assert.Equal(IndexOf(drawn, DestinationKind.Notifications), drawn.Shell.Rail.Current);
+        Assert.Equal(drawn.Shell.Rail.IndexOf(DestinationKind.Notifications), drawn.Shell.Rail.Current);
         Assert.Equal(timelines, drawn.Built.Timelines.Reads.Count);
         // Two reads, both of the destination clicked: its list, and what is unread on it — counted apart from the
         // list, against the read marker (ADR-0027).
@@ -83,7 +84,7 @@ public class ShellRailClickTests
         var rows = drawn.Rows();
         var requests = drawn.Built.Requests;
 
-        drawn.Click(OverRail, RowOf(drawn, "Home"));
+        drawn.Click(OverRail, RailRowOf(drawn, "Home"));
         drawn.Built.Host.Settle();
         drawn.Redraw();
 
@@ -119,7 +120,7 @@ public class ShellRailClickTests
             Assert.DoesNotContain(drawn.Rail(), row => row.Contains("Home", StringComparison.Ordinal));
         }
 
-        drawn.Click(OverRail, RowOf(drawn, label));
+        drawn.Click(OverRail, RailRowOf(drawn, label));
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
@@ -141,7 +142,7 @@ public class ShellRailClickTests
         using var drawn = await DrawnShell.Of(80, height, Themes.Plain);
 
         // The foot's last row — the gauge — where no title is named.
-        var row = title is null ? drawn.Rail().Length - 1 : RowOf(drawn, title);
+        var row = title is null ? drawn.Rail().Length - 1 : RailRowOf(drawn, title);
         var rail = drawn.Rail();
         var requests = drawn.Built.Requests;
 
@@ -180,7 +181,7 @@ public class ShellRailClickTests
 
         var read = drawn.Built.Notifications.GroupReads.Count;
 
-        drawn.Click(OverRail, RowOf(drawn, "Notifications"));
+        drawn.Click(OverRail, RailRowOf(drawn, "Notifications"));
         drawn.Built.Host.Settle();
         drawn.Redraw();
 
@@ -205,7 +206,7 @@ public class ShellRailClickTests
 
         Assert.True(follows.IsTyping);
 
-        drawn.Click(OverRail, RowOf(drawn, "Notifications"));
+        drawn.Click(OverRail, RailRowOf(drawn, "Notifications"));
         drawn.Built.Host.Settle();
         drawn.Redraw();
 
@@ -265,7 +266,7 @@ public class ShellRailClickTests
 
         var requests = drawn.Built.Requests;
 
-        drawn.Click(OverRail, RowOf(drawn, "Home"));
+        drawn.Click(OverRail, RailRowOf(drawn, "Home"));
         drawn.Built.Host.Settle();
         drawn.Redraw();
 
@@ -318,7 +319,7 @@ public class ShellRailClickTests
 
         drawn.Press(Key.Tab);
         drawn.Press(Key.Tab);
-        drawn.Click(OverRail, RowOf(drawn, "Home"));
+        drawn.Click(OverRail, RailRowOf(drawn, "Home"));
         drawn.Built.Host.Settle();
         drawn.Redraw();
 
@@ -342,7 +343,7 @@ public class ShellRailClickTests
         var sets = new[] { TagSet.Of("zebras", ["zebras"]), TagSet.Of("dotnet", ["dotnet", "csharp"]) };
         using var drawn = await DrawnShell.Of(80, height, Themes.Plain, new AShell { TagSets = sets });
 
-        drawn.Click(OverRail, RowOf(drawn, name));
+        drawn.Click(OverRail, RailRowOf(drawn, name));
         drawn.Built.Host.Drain();
         drawn.Redraw();
 
@@ -350,21 +351,6 @@ public class ShellRailClickTests
         Assert.Equal(Timeline.AnyOf(sets.Single(set => set.Name == name)), drawn.Built.Timelines.Reads[^1].Timeline);
         Assert.Equal(name, drawn.Shell.Breadcrumb);
     }
-
-    /// <summary>The rail row the first entry, title or panel reading <paramref name="text" /> is drawn on.</summary>
-    private static int RowOf(DrawnShell drawn, string text)
-    {
-        var rows = drawn.Rail();
-        var row = Array.FindIndex(rows, line => line.Contains(text, StringComparison.Ordinal));
-
-        Assert.True(row >= 0, $"Nothing on the rail reads {text}:\n{string.Join('\n', rows)}");
-
-        return row;
-    }
-
-    /// <summary>Where on the rail <paramref name="kind" /> is, as its cursor and selection count it.</summary>
-    private static int IndexOf(DrawnShell drawn, DestinationKind kind) =>
-        drawn.Shell.Rail.Destinations.ToList().FindIndex(destination => destination.Kind == kind);
 
     /// <summary>Four posts on Home, by people other than the reader.</summary>
     private static AShell Four() => new()

@@ -4,6 +4,7 @@ using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using static Wooly.Tests.Tui.RailHeights;
+using static Wooly.Tests.Tui.RailPlaces;
 
 namespace Wooly.Tests.Tui;
 
@@ -290,8 +291,7 @@ public class RailToggleMarkTests
 
         drawn.Press(new Key('\\'));
 
-        var notifications =
-            Array.FindIndex(drawn.Rail(), row => row.Contains("Notifications", StringComparison.Ordinal));
+        var notifications = RailRowOf(drawn, "Notifications");
 
         drawn.Click(RailLines.Width / 2, notifications);
         drawn.Built.Host.Drain();

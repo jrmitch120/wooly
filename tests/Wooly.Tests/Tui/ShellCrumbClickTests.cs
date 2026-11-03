@@ -7,6 +7,7 @@ using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 using static Wooly.Tests.Tui.ContentClicks;
+using static Wooly.Tests.Tui.RailPlaces;
 
 namespace Wooly.Tests.Tui;
 
@@ -83,7 +84,7 @@ public class ShellCrumbClickTests
             drawn.Press(Key.Tab);
         }
 
-        railed.Click(OverRail, Array.FindIndex(railed.Rail(), row => row.Contains("Home", StringComparison.Ordinal)));
+        railed.Click(OverRail, RailRowOf(railed, "Home"));
         crumbed.Click(CrumbColumn(crumbed, 0), Breadcrumb);
 
         railed.Built.Host.Settle();
@@ -215,7 +216,7 @@ public class ShellCrumbClickTests
             drawn.Redraw();
         }
 
-        drawn.Click(OverRail, Array.FindIndex(drawn.Rail(), row => row.Contains("Home", StringComparison.Ordinal)));
+        drawn.Click(OverRail, RailRowOf(drawn, "Home"));
         drawn.Settle();
 
         if (touched)
