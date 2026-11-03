@@ -29,8 +29,9 @@ public class StackedRailTests
     }
 
     /// <summary>
-    ///     At 80×24 with no tag sets the rail has 23 rows, two more than framing every group needs: each group is a
-    ///     panel, and the API panel sits on the row above the status row.
+    ///     At 80×24 with no tag sets the rail has 23 rows, exactly what framing every group needs: each group is a
+    ///     panel, the You panel holds the handle, Bookmarks and Favorites, and the API panel sits on the row above the
+    ///     status row.
     /// </summary>
     [Fact]
     public async Task AtEightyByTwentyFourEveryGroupIsFramed()
@@ -44,6 +45,9 @@ public class StackedRailTests
         Assert.Equal("╭ Explore ─────────╮", rail[5]);
         Assert.Equal("╭ Inbox ───────────╮", rail[9]);
         Assert.Equal("╭ You ─────────────╮", rail[14]);
+        Assert.Equal("│  Bookmarks       │", rail[16]);
+        Assert.Equal("│  Favorites       │", rail[17]);
+        Assert.Equal("╰──────────────────╯", rail[18]);
         Assert.Equal("╭ API ─────────────╮", rail[20]);
         // The toggle's mark just inside the corner, the shell's bottom-left (#445).
         Assert.Equal("╰«─────────────────╯", rail[22]);
@@ -51,13 +55,13 @@ public class StackedRailTests
     }
 
     /// <summary>
-    ///     A tag set takes its group's three rows and one of its own, so at 80×25 a rail with one set is framed, the
+    ///     A tag set takes its group's two rows and one of its own, so at 80×27 a rail with one set is framed, the
     ///     Hashtags panel between Timelines and Explore.
     /// </summary>
     [Fact]
-    public async Task AtEightyByTwentyFiveWithOneTagSetEveryGroupIsFramed()
+    public async Task AtEightyByTwentySevenWithOneTagSetEveryGroupIsFramed()
     {
-        using var drawn = await Draw(80, 25, Themes.Plain, new AShell { TagSets = [TagSet.Of("dotnet", ["dotnet"])] });
+        using var drawn = await Draw(80, 27, Themes.Plain, new AShell { TagSets = [TagSet.Of("dotnet", ["dotnet"])] });
 
         var rail = drawn.Rail();
 
@@ -65,7 +69,8 @@ public class StackedRailTests
         Assert.Equal("╭ Hashtags ────────╮", rail[5]);
         Assert.Equal("│  dotnet          │", rail[6]);
         Assert.Equal("╭ Explore ─────────╮", rail[8]);
-        Assert.Equal("╭ API ─────────────╮", rail[21]);
+        Assert.Equal("╭ You ─────────────╮", rail[17]);
+        Assert.Equal("╭ API ─────────────╮", rail[23]);
     }
 
     /// <summary>And at 80×24 the one set makes the rail compact, which ADR-0033 accepts.</summary>

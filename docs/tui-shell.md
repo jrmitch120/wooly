@@ -33,6 +33,8 @@ the dividing, so there is no breadcrumb row, no blank row under it and no gutter
 ╰──────────────────╯│                                                          │
 ╭ You ─────────────╮│                                                          │
 │@jeff             ││                                                          │
+│Bookmarks         ││                                                          │
+│Favorites         ││                                                          │
 ╰──────────────────╯│                                                          │
 ╭ API ─────────────╮│                                                          │
 │ ██████████░░  92%││                                                          │
@@ -76,15 +78,16 @@ does any screen where `scrollbar = "none"` in the config file's preferences turn
 the pointer on the margin column inside the edge as well, beside the track's rows only, so that no click there picks the
 row beside it (#502, #503; the mouse table, below).
 
-The rail needs 23 + N rows to frame every group with N tag sets on it (Timelines 5, Hashtags 2 + N, Explore 4, Inbox 5,
-You 3, API 4), and 21 with none, since then there is no Hashtags group at all; an 80×24 terminal gives it 23, so one set
-is enough to make an 80×24 rail compact (ADR-0033). Shorter than that, it steps down rather than clipping:
+The rail needs 25 + N rows to frame every group with N tag sets on it (Timelines 5, Hashtags 2 + N, Explore 4, Inbox 5,
+You 5, API 4), and 23 with none, since then there is no Hashtags group at all; an 80×24 terminal gives it 23, exactly
+enough with no sets, so one set is enough to make an 80×24 rail compact (ADR-0033). Shorter than that, it steps down
+rather than clipping:
 
 | Rows for the rail | The rail |
 |---|---|
-| 23 + N or more (21 with no sets) | Framed |
-| 15 + N to 22 + N (14 to 20 with no sets) | Compact: each group's title as a heading row, no frames, the API panel as one gauge row |
-| fewer than 15 + N (fewer than 14 with no sets) | Compact, and scrolled to keep the cursor's group in view |
+| 25 + N or more (23 with no sets) | Framed |
+| 17 + N to 24 + N (16 to 22 with no sets) | Compact: each group's title as a heading row, no frames, the API panel as one gauge row |
+| fewer than 17 + N (fewer than 16 with no sets) | Compact, and scrolled to keep the cursor's group in view |
 
 The sets are fixed for a session — they change only when the config file does — so which of the three a terminal's
 height draws is too: nothing on the rail moves while you read.
@@ -238,7 +241,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 
 | Screen | Reached by | Ticket |
 |---|---|---|
-| Feed — home, local, federated, each **Tag set** on the rail, its breadcrumb the set's name | A rail destination | #28, sets #511, past four tags #512 |
+| Feed — home, local, federated, each **Tag set** on the rail, its breadcrumb the set's name, and the **Bookmarks** and **Favorites** runs, newest mark first | A rail destination | #28, sets #511, past four tags #512, Bookmarks and Favorites #563 |
 | Hashtag — a tag walked to, not one of the rail's sets | A search result, `⏎` on a `#hashtag` typed into search, or `⏎` on a picked hashtag reference | #29, reference #65, direct #305 |
 | Post — the post whole, its ancestor chain above and its replies below | `⏎` on a feed item, or on its address typed into search | #28, ancestors #72, direct #306 |
 | Account — who they are, what they are to you, their pinned posts and their posts, or their posts and replies | `a` on a feed item or inside a post, `⏎` on a handle or profile address typed into search, `s` to swap runs | shell #28, tie actions #29, the person #164, pinned #172, replies #229, direct #306 |
@@ -327,7 +330,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Attach | type to filter, fuzzily (#376) · `space` choose the file under the cursor, or let it go — up to what the post has room for · `⏎` attach what is chosen, wherever the cursor is, else the file under the cursor, else open the folder under it · `→` open a folder · `←` up a folder · `↑`/`↓` walk the list · `ctrl-a` every file, and again only the accepted types · `backspace`/`delete` only ever the filter, stopping at empty · `esc` clear the filter, then back to the draft unchanged |
 | Media (the attachments screen) | `↑`/`↓` walk the rows · `⏎` describe the row · `del`/`backspace` take it off · `ctrl-z` bring back the last one taken off · `shift-↑`/`shift-↓` move it · `r` retry it where a retry can help · `s` the sensitive toggle · `ctrl-o` the file browser, attaching onto the compose under it · `ctrl-v`/`alt-v` attach from the clipboard onto it · `esc` back to the draft (story 58) |
 | Picture | `←`/`→` step to the post's previous or next still picture, in the order they are drawn and passing over a video or the like on the same post, each drawn as any is with its own description, stopping at either end rather than coming round; the status row says them only where the post has several, and the crumb counts which this is (`Picture 2 of 4 by Maria`), updating with each step (#518, review of #514) · `esc` back at its first press, to the screen it was opened from with the same pick and nothing walked, whichever was stepped to — nothing on the screen is walked or picked for it to let go of first, the steps being the screen's own (#516, #518, review of #514) |
-| Home, local, federated, each tag set, Discover, Notifications, Messages, Requests, Post, Account, Follows, Actors | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
+| Home, local, federated, each tag set, Discover, Notifications, Messages, Requests, Bookmarks, Favorites, Post, Account, Follows, Actors | `g` refresh — evicts the destination's cache entry (where one exists) and re-runs the same fetch its own arrival runs |
 
 ### What the four screens settled
 
@@ -2071,11 +2074,11 @@ The answer generalised: three screens use it (#166, amended by #171 and #172):
 
 ### What discover settled
 
-The ninth of the rail's fixed destinations, and the only one it has ever grown by (ADR-0014's amendment). Its one section today is who
+The ninth of the rail's fixed destinations, and the first it grew by (ADR-0014's amendment). Its one section today is who
 to follow (#171):
 
 - **It is a destination and not a key on the search screen.** What earns the entry is that the screen is sectioned, so
-  a second kind of suggestion later is a heading rather than an eleventh rail entry — the cost is paid once now instead
+  a second kind of suggestion later is a heading rather than another rail entry — the cost is paid once now instead
   of once per kind. **There is no second door**: no `S` on the search screen, because Discover is an **Arrival** and
   the stack resets to one screen, and a place that was both a destination and a pushed screen is what GLOSSARY.md's
   **Destination** term exists to prevent.
@@ -2111,6 +2114,32 @@ to follow (#171):
 - **Its status row puts the acting keys first**: `j/k person · ⏎ open · F follow · d dismiss · [/] section · g refresh ·
   tab destination`. That is the opposite of the search screen's placement, and deliberately: there, jumping between
   kinds is the feature that screen gained; here, `F` and `d` are why anyone opened the screen.
+
+### What Bookmarks and Favorites settled
+
+The tenth and eleventh of the rail's fixed destinations, after the handle in the **You** group, Bookmarks first
+(ADR-0014's amendment, #563):
+
+- **They are destinations, not sections of the You screen.** Each run reads on as far as the reader scrolls, and a
+  screen's one read-on cursor belongs to its bottom list, so a run that is a section above the profile's posts could
+  never read past its first page. Discover earned its entry by being sectioned; these earn theirs by not being able to
+  be.
+- **Each is a timeline.** The destination carries `Timeline.Bookmarks` or `Timeline.Favorites`, so arriving, reading on
+  and `g` go through the path every timeline destination goes through, and the screen is the feed. Every post key works
+  on its rows. The order is the instance's, newest mark first, however old the post.
+- **Neither carries an unread count.** Nothing on either is waiting for anybody, the same answer Search and Discover
+  give, and private runs do not compete with the Inbox.
+- **Empty says what has not happened yet**: `Nothing bookmarked yet.` and `Nothing favorited yet.`, rather than calling
+  a run of the reader's own marks a timeline with nothing on it.
+- **A mark taken off on its own run leaves the row where it is**, mark gone — `l` on Bookmarks, `f` on Favorites —
+  so a reader sees what they did and can press the key again to undo it. That is the **Pinned** run's rule, and the
+  same **Change** (`PostChanged`) that redraws a post on every screen on the stack. The cached list holding the post is
+  forgotten with it, so the next read of the run is the instance's, and leaves it out.
+- **They are the acting profile's own.** Neither names an account, so a profile switch reads the new profile's runs
+  with its token, and nobody else's are ever asked for.
+- **They are clicked like any destination**: a click on its rail row arrives at once (#288). No key goes straight to
+  either, as none goes to Home or Local; the shell's own way to a destination by name, which `/` takes to Search,
+  arrives at them with the rail hidden too.
 
 ### What one account row settled
 
@@ -2702,7 +2731,7 @@ this run, without changing which one is the default (story 9). Everything else a
 token — is resolved through `IProfileRegistry` exactly as a command's scope resolves it. With nobody to act as, it opens
 on adding a profile ("What first run settled", above).
 
-Nine of the rail's destinations are the same nine for everybody. The rest are the reader's own: one for each **Tag
+Eleven of the rail's destinations are the same eleven for everybody. The rest are the reader's own: one for each **Tag
 set**, a name given to between one and twelve hashtags and read as one timeline of the public posts carrying any of them
 (ADR-0033). Which tags are nobody's business but the reader's, so the sets are written in the same TOML file everything
 else lives in (ADR-0003), as an ordered `[[tag_sets]]` array beside the `[preferences]`:

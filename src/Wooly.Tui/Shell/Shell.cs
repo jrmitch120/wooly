@@ -1790,7 +1790,7 @@ public sealed class Shell
         again is null ? new AddProfileScreen(alone: true) : AddProfileScreen.Again(again, why, alone: true);
 
     /// <summary>
-    ///     The nine everybody has and one for each of the reader's tag sets, in the order the rail draws them: its
+    ///     The eleven everybody has and one for each of the reader's tag sets, in the order the rail draws them: its
     ///     groups' order (ADR-0021, ADR-0033), the sets in the order the file wrote them.
     /// </summary>
     private static IReadOnlyList<Destination> Destinations(ActiveProfile? profile, IReadOnlyList<TagSet> tagSets) =>
@@ -1811,6 +1811,11 @@ public sealed class Shell
         new(DestinationKind.Messages, "Direct messages"),
         new(DestinationKind.Requests, "Follow requests"),
         new(DestinationKind.Profile, profile?.Handle ?? "Profile"),
+
+        // The acting profile's own runs, each read as a timeline: a destination rather than a section of the profile's
+        // screen, because each reads on as far as the reader scrolls (ADR-0014's amendment, #563).
+        new(DestinationKind.Bookmarks, "Bookmarks", Timeline.Bookmarks),
+        new(DestinationKind.Favorites, "Favorites", Timeline.Favorites),
     ];
 
     /// <summary>

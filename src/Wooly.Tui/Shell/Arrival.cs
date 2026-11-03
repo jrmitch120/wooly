@@ -147,10 +147,16 @@ public sealed class Arrival(
     }
 
     /// <summary>
-    ///     What a timeline with nothing on it is told, wherever one is drawn: the rail's own four, and a hashtag
-    ///     walked to from a search or a reference.
+    ///     What a timeline with nothing on it is told, wherever one is drawn: the rail's timelines and tag sets, a
+    ///     hashtag walked to from a search or a reference, and the Bookmarks and Favorites runs — which say what has
+    ///     not been done yet rather than call a run of the reader's own marks a timeline with nothing on it (#563).
     /// </summary>
-    public static string NothingOn(Timeline timeline) => $"Nothing on {timeline.Description} yet.";
+    public static string NothingOn(Timeline timeline) => timeline.Scope switch
+    {
+        TimelineScope.Bookmarks => "Nothing bookmarked yet.",
+        TimelineScope.Favorites => "Nothing favorited yet.",
+        _ => $"Nothing on {timeline.Description} yet.",
+    };
 
     /// <summary>
     ///     Arriving at a destination, which is what moving the rail's selection means. Every destination that reads a

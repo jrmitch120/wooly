@@ -23,7 +23,7 @@ Sign in once and both of them act as the same profile.
 
 - Home, local, federated and hashtag timelines, plus any account's posts, replies and pinned posts
 - Write, reply to, edit and delete posts, with content warnings, attachments and alt text, polls, visibility and language
-- Boost, favorite, pin, and vote in polls
+- Boost, favorite, pin, bookmark, and vote in polls, and read back what you bookmarked or favorited
 - Notifications, direct messages, and follow requests for a locked account
 - Follow, mute and block accounts, and edit your own public profile
 - One search across accounts, hashtags and posts
