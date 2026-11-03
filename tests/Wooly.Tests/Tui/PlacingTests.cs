@@ -889,8 +889,7 @@ public class PlacingTests
                 pictures,
                 FakePictureBox.Pool(Log, Boxes),
                 new SixelPictures(encode ?? ((_, _) => "sixel"), ahead ?? (work => work())),
-                new Placeholders(Kitty, encoded: () => { }, elsewhere: encoding ?? (work => work())),
-                new KittyBoxPictures(ahead ?? (work => work())));
+                new Placeholders(Kitty, encoded: () => { }, elsewhere: encoding ?? (work => work())));
         }
 
         /// <summary>What every box was shown and let go of, in the order it happened.</summary>
