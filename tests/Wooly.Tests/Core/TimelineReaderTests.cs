@@ -233,13 +233,14 @@ public class TimelineReaderTests
     }
 
     /// <summary>
-    ///     One mark at a time, because three flags mapped in one go is exactly where two of them come to be read off
+    ///     One mark at a time, because four flags mapped in one go is exactly where two of them come to be read off
     ///     the same field.
     /// </summary>
     [Theory]
     [InlineData(PostMark.Boost, "\"reblogged\": true,")]
     [InlineData(PostMark.Favorite, "\"favourited\": true,")]
     [InlineData(PostMark.Pin, "\"pinned\": true,")]
+    [InlineData(PostMark.Bookmark, "\"bookmarked\": true,")]
     public async Task Read_ReportsEachMarkFromItsOwnFieldOnTheWire(PostMark mark, string marks)
     {
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Page(PostJson("110", marks: marks))));
@@ -254,7 +255,7 @@ public class TimelineReaderTests
     }
 
     /// <summary>
-    ///     An instance leaves the three flags out where it has nobody to answer them about. Every call this client
+    ///     An instance leaves the four flags out where it has nobody to answer them about. Every call this client
     ///     makes is signed in, so silence there is a post this profile has not marked rather than a question that was
     ///     never put.
     /// </summary>

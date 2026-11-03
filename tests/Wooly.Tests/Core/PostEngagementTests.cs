@@ -33,6 +33,8 @@ public class PostEngagementTests
     [InlineData(PostMark.Favorite, false, "unfavourite")]
     [InlineData(PostMark.Pin, true, "pin")]
     [InlineData(PostMark.Pin, false, "unpin")]
+    [InlineData(PostMark.Bookmark, true, "bookmark")]
+    [InlineData(PostMark.Bookmark, false, "unbookmark")]
     public async Task Mark_AsksTheInstanceForTheMarkWanted(PostMark mark, bool wanted, string endpoint)
     {
         var network = Answering(StatusJson("110"));
@@ -82,6 +84,26 @@ public class PostEngagementTests
 
         Assert.Equal("110", post.Id);
         Assert.Equal(3, post.Boosts);
+    }
+
+    /// <summary>
+    ///     The post a mark answers with says whether the mark is now on it, read off the same field a timeline's posts
+    ///     are, so that a screen redrawn from the answer lights the bookmark it just put on.
+    /// </summary>
+    [Fact]
+    public async Task Mark_ReportsThePostAsBookmarkedWhereTheInstanceSaysItIs()
+    {
+        var network = Answering(StatusJson("110", marks: "\"bookmarked\": true,"));
+
+        var post = await NewEngagement(network).Mark(
+            Profile,
+            "110",
+            PostMark.Bookmark,
+            wanted: true,
+            TestContext.Current.CancellationToken);
+
+        Assert.True(post.Marks.Bookmarked);
+        Assert.False(post.Marks.Favorited);
     }
 
     [Fact]
@@ -499,10 +521,17 @@ public class PostEngagementTests
     }
 
     /// <param name="card">The wire's <c>card</c>, or <see langword="null" /> for a post the instance previewed no link on.</param>
-    private static string StatusJson(string id, long boosts = 0, string? boosted = null, string? card = null) =>
+    /// <param name="marks">The reader's own marks as the wire says them, each with its trailing comma.</param>
+    private static string StatusJson(
+        string id,
+        long boosts = 0,
+        string? boosted = null,
+        string? card = null,
+        string marks = "") =>
         $$"""
           {
             "id": "{{id}}",
+            {{marks}}
             "card": {{card ?? "null"}},
             "uri": "https://mastodon.social/users/jeff/statuses/{{id}}",
             "url": "https://mastodon.social/@jeff/{{id}}",

@@ -164,7 +164,7 @@ public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPost
     }
 
     /// <summary>
-    ///     The one crossing between this client's three marks and Mastodon's six endpoints. Written out rather than
+    ///     The one crossing between this client's four marks and Mastodon's eight endpoints. Written out rather than
     ///     built from the mark's name, so that a mark renamed here cannot quietly start calling an endpoint that is not
     ///     there — or, worse, one that is.
     /// </summary>
@@ -177,6 +177,8 @@ public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPost
             (PostMark.Favorite, false) => client.Unfavourite(postId),
             (PostMark.Pin, true) => client.Pin(postId),
             (PostMark.Pin, false) => client.Unpin(postId),
+            (PostMark.Bookmark, true) => client.Bookmark(postId),
+            (PostMark.Bookmark, false) => client.Unbookmark(postId),
             _ => throw new ArgumentOutOfRangeException(nameof(mark), mark, "Not a mark this client puts on a post."),
         };
 }

@@ -14,7 +14,7 @@ using Wooly.Tests.Fakes;
 namespace Wooly.Tests.Cli;
 
 /// <summary>
-///     Boosting, favoriting, pinning and showing a post, driven the way a user drives them: whole commands through the
+///     Boosting, favoriting, pinning, bookmarking and showing a post, driven the way a user drives them: whole commands through the
 ///     real command app, over a real config file and token store in a scratch directory, with the instance faked at
 ///     <see cref="IPostEngagement" /> — ADR-0005's primary seam. Which endpoint each mark becomes is
 ///     <see cref="Core.PostEngagementTests" />'s business; what is proved here is what the command line asked for.
@@ -28,8 +28,8 @@ public class PostEngagementCommandTests : IDisposable
     public void Dispose() => _directory.Dispose();
 
     /// <summary>
-    ///     The six verbs the ticket asks for, and the three marks behind them: <c>unboost</c> is <c>boost</c> undone
-    ///     rather than a seventh thing to do.
+    ///     The eight marking verbs, and the four marks behind them: <c>unboost</c> is <c>boost</c> undone rather than a
+    ///     ninth thing to do.
     /// </summary>
     [Theory]
     [InlineData("boost", PostMark.Boost, true)]
@@ -38,6 +38,8 @@ public class PostEngagementCommandTests : IDisposable
     [InlineData("unfavorite", PostMark.Favorite, false)]
     [InlineData("pin", PostMark.Pin, true)]
     [InlineData("unpin", PostMark.Pin, false)]
+    [InlineData("bookmark", PostMark.Bookmark, true)]
+    [InlineData("unbookmark", PostMark.Bookmark, false)]
     public void Mark_PutsTheMarkTheVerbNamesOnThePost(string verb, PostMark mark, bool wanted)
     {
         AddProfile();
@@ -56,7 +58,8 @@ public class PostEngagementCommandTests : IDisposable
 
     /// <summary>
     ///     Said in the words of what just happened, and naming the post the user named — never the boost that carries
-    ///     it, which has an id nothing else knows that post by.
+    ///     it, which has an id nothing else knows that post by. Every verb is named here, because the words are a switch
+    ///     the compiler does not make a new mark fill in (ADR-0009).
     /// </summary>
     [Theory]
     [InlineData("boost", "Boosted")]
@@ -65,6 +68,8 @@ public class PostEngagementCommandTests : IDisposable
     [InlineData("unfavorite", "Unfavorited")]
     [InlineData("pin", "Pinned")]
     [InlineData("unpin", "Unpinned")]
+    [InlineData("bookmark", "Bookmarked")]
+    [InlineData("unbookmark", "Unbookmarked")]
     public void Mark_ReportsWhatItDidAndToWhichPost(string verb, string said)
     {
         AddProfile();
@@ -88,12 +93,15 @@ public class PostEngagementCommandTests : IDisposable
         Assert.Equal("work", Assert.Single(_posts.Marks).Profile);
     }
 
-    [Fact]
-    public void Mark_WritesTheMarkedPostAsMachineReadableJson()
+    [Theory]
+    [InlineData("favorite")]
+    [InlineData("bookmark")]
+    [InlineData("unbookmark")]
+    public void Mark_WritesTheMarkedPostAsMachineReadableJson(string verb)
     {
         AddProfile();
 
-        var run = Run(["post", "favorite", "110", "--json"]);
+        var run = Run(["post", verb, "110", "--json"]);
 
         Assert.Equal((int)ExitCode.Success, run.ExitCode);
 
@@ -139,6 +147,26 @@ public class PostEngagementCommandTests : IDisposable
         Assert.NotEqual((int)ExitCode.Success, run.ExitCode);
         Assert.Empty(run.Output.Trim());
         Assert.Contains("cannot be pinned", run.ErrorOutput);
+    }
+
+    /// <summary>
+    ///     A bookmark refused is any mark refused: the same exit code, nothing on stdout, and the instance's own words on
+    ///     stderr — the favorite verbs beside it say it the same way.
+    /// </summary>
+    [Theory]
+    [InlineData("favorite")]
+    [InlineData("bookmark")]
+    [InlineData("unbookmark")]
+    public void Mark_ReportsARefusedMarkTheSameWayWhicheverMarkItWas(string verb)
+    {
+        AddProfile();
+        _posts = FakePostEngagement.Refusing(new ServerErrorException(new Error { Description = "Record not found" }));
+
+        var run = Run(["post", verb, "110"]);
+
+        Assert.Equal((int)ExitCode.Error, run.ExitCode);
+        Assert.Empty(run.Output.Trim());
+        Assert.Contains("Record not found", run.ErrorOutput);
     }
 
     [Fact]

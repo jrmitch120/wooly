@@ -7,7 +7,7 @@ using Wooly.Core.Profiles;
 namespace Wooly.Cli.Commands;
 
 /// <summary>
-///     Everything the six marking commands do, which is everything except which mark they put on a post and whether
+///     Everything the eight marking commands do, which is everything except which mark they put on a post and whether
 ///     they are putting it on or taking it off. Those two are what a subclass supplies, as values rather than as code:
 ///     the rest — resolving the profile, asking the instance, and choosing between output for a person and output for a
 ///     program — happens identically, so that <c>unboost</c> cannot come to behave unlike <c>boost</c>.

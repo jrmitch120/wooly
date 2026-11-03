@@ -292,8 +292,8 @@ internal static class PostReport
 
 
     /// <summary>
-    ///     What just happened, in this project's vocabulary. One table, so that six commands cannot come to describe
-    ///     three marks in more than six ways.
+    ///     What just happened, in this project's vocabulary. One table, so that eight commands cannot come to describe
+    ///     four marks in more than eight ways.
     /// </summary>
     private static string Did(PostMark mark, bool wanted) => (mark, wanted) switch
     {
@@ -303,6 +303,8 @@ internal static class PostReport
         (PostMark.Favorite, false) => "Unfavorited",
         (PostMark.Pin, true) => "Pinned",
         (PostMark.Pin, false) => "Unpinned",
+        (PostMark.Bookmark, true) => "Bookmarked",
+        (PostMark.Bookmark, false) => "Unbookmarked",
         _ => throw new ArgumentOutOfRangeException(nameof(mark), mark, "Not a mark this client puts on a post."),
     };
 
