@@ -212,6 +212,9 @@ public enum Verb
     /// <summary><c>p</c>: pin it, or unpin it. Own posts only.</summary>
     Pin,
 
+    /// <summary><c>l</c>: bookmark it, or take the bookmark off (#561).</summary>
+    Bookmark,
+
     /// <summary><c>d</c>: ask before taking the picked post down (story 43).</summary>
     Delete,
 

@@ -25,6 +25,7 @@ public class ShellActionTests
     [Theory]
     [InlineData(PostMark.Boost)]
     [InlineData(PostMark.Favorite)]
+    [InlineData(PostMark.Bookmark)]
     public async Task Mark_PutsAMarkOnAPostThatDoesNotCarryIt(PostMark mark)
     {
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(Somebody) };
@@ -41,12 +42,13 @@ public class ShellActionTests
     [Theory]
     [InlineData(PostMark.Boost)]
     [InlineData(PostMark.Favorite)]
+    [InlineData(PostMark.Bookmark)]
     public async Task Mark_TakesAMarkOffAPostThatAlreadyCarriesIt(PostMark mark)
     {
         var already = APost.With(
             id: "220",
             account: "ben@hachyderm.io",
-            marks: APost.Marked(boosted: true, favorited: true));
+            marks: APost.Marked(boosted: true, favorited: true, bookmarked: true));
 
         var shell = new AShell { Timelines = FakeTimelineReader.Holding(already) };
         var opened = await shell.Opened();
@@ -54,6 +56,59 @@ public class ShellActionTests
         await opened.Mark(mark);
 
         Assert.False(Assert.Single(shell.Engagement.Marks).Wanted);
+    }
+
+    /// <summary>
+    ///     A boost row is somebody passing a post on, so a mark pressed on it is about the post passed on — in the
+    ///     direction that post's own marks say, not the boost's (#561).
+    /// </summary>
+    [Theory]
+    [InlineData(PostMark.Favorite)]
+    [InlineData(PostMark.Bookmark)]
+    public async Task Mark_OnABoostMarksThePostBoosted(PostMark mark)
+    {
+        var boost = APost.With(
+            id: "110",
+            account: "jeff@mastodon.social",
+            boosted: APost.With(
+                id: "99",
+                account: "hazel@mastodon.art",
+                marks: APost.Marked(favorited: true, bookmarked: true)));
+
+        var shell = new AShell { Timelines = FakeTimelineReader.Holding(boost) };
+        var opened = await shell.Opened();
+
+        await opened.Mark(mark);
+
+        var marked = Assert.Single(shell.Engagement.Marks);
+        Assert.Equal("99", marked.PostId);
+        Assert.False(marked.Wanted);
+    }
+
+    /// <summary>
+    ///     A bookmark moves no count, and its flag is one cell, so the status row says which way <c>l</c> went, in the
+    ///     CLI's words (story 10 of #558).
+    /// </summary>
+    [Theory]
+    [InlineData(false, "Bookmarked.")]
+    [InlineData(true, "Unbookmarked.")]
+    public async Task Mark_SaysWhichWayABookmarkWent(bool already, string said)
+    {
+        var post = APost.With(id: "220", account: "ben@hachyderm.io", marks: APost.Marked(bookmarked: already));
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(post),
+            Engagement = FakePostEngagement.Answering(
+                APost.With(id: "220", account: "ben@hachyderm.io", marks: APost.Marked(bookmarked: !already))),
+        };
+
+        var opened = await shell.Opened();
+
+        await opened.Mark(PostMark.Bookmark);
+        shell.Host.Drain();
+
+        Assert.Equal(said, opened.Notice);
+        Assert.False(opened.NoticeIsError);
     }
 
     /// <summary>
@@ -77,6 +132,39 @@ public class ShellActionTests
         shell.Host.Drain();
 
         Assert.True(opened.Screen.Picked?.Marks.Favorited);
+    }
+
+    /// <summary>
+    ///     A bookmark put on from the post screen is drawn there spelled out, and on the feed under it as the flag
+    ///     alone — the one post saying one thing on every screen on the stack (#561).
+    /// </summary>
+    [Fact]
+    public async Task Mark_DrawsABookmarkOnEveryScreenOnTheStack()
+    {
+        var bookmarked = APost.With(id: "220", account: "ben@hachyderm.io", marks: APost.Marked(bookmarked: true));
+
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(Somebody),
+            Engagement = FakePostEngagement.Answering(bookmarked),
+        };
+
+        var opened = await shell.Opened();
+        var feed = opened.Screen;
+
+        Assert.DoesNotContain(AShell.Drawn(feed), line => line.Contains('⚑'));
+
+        await opened.Enter();
+        shell.Host.Drain();
+        opened.Press(ShellKey.L);
+        shell.Host.Drain();
+
+        Assert.Contains(AShell.Drawn(opened.Screen), line => line.Contains("⚑ bookmarked", StringComparison.Ordinal));
+
+        opened.Back();
+
+        Assert.Same(feed, opened.Screen);
+        Assert.Contains(AShell.Drawn(feed), line => line.Contains('⚑'));
     }
 
     /// <summary>Pinning is for an account's own posts, so the shell says so rather than letting the instance refuse it.</summary>

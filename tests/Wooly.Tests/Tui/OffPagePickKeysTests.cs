@@ -47,10 +47,11 @@ public class OffPagePickKeysTests
         Assert.Equal(Reclaimed, Assert.IsType<PostScreen>(drawn.Shell.Screen).Post.Id);
     }
 
-    /// <summary>The first <c>f</c> or <c>b</c> marks nothing; the second marks the post it reclaimed.</summary>
+    /// <summary>The first <c>f</c>, <c>b</c> or <c>l</c> marks nothing; the second marks the post it reclaimed.</summary>
     [Theory]
     [InlineData('f', PostMark.Favorite)]
     [InlineData('b', PostMark.Boost)]
+    [InlineData('l', PostMark.Bookmark)]
     public async Task TheFirstMarkReclaimsAndTheSecondMarksIt(char key, PostMark mark)
     {
         using var drawn = await Feed();

@@ -297,6 +297,7 @@ Feed and post:
 | `b` | Boost / un-boost | Needs viewer state on `Post` |
 | `f` | Favorite / un-favorite | Needs viewer state on `Post` |
 | `p` | Pin / unpin | Own posts only |
+| `l` | Bookmark / un-bookmark | On a boost, the post boosted, as every mark is. A bookmark moves no count, so the status row says `Bookmarked.` or `Unbookmarked.`; a refusal is the instance's own words. The post shows `⚑` in its counts line after the reply count and before `pinned` — `⚑ bookmarked` on the post screen — in a slot held blank when it is not bookmarked, so toggling moves nothing on the line. `l` for "read later": `d` is delete and `b` boost (#561) |
 | `e` | Edit | Own posts only |
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `w` | Who favorited it, or who boosted it: the actors screen, one side at a time | On a boost, the post boosted. Opens "Favorited by" where the post's count of favorites is above zero, else "Boosted by" where its boosts are, else says `Nobody has favorited or boosted this.` and opens nothing — settled from the counts before anything is read, and always the list, never a shortcut to one account (#489). On Notifications `w` is who did what the row reports, and on an account screen's header block their follows (below, #490) |
@@ -1846,7 +1847,7 @@ doing so it became the first screen in the shell whose pick is not a post (#164,
   terminal-dependent — Terminal.Gui, the terminal and this client need not agree on it, which is the disagreement the
   chrome should not be built on. A clip landing mid-pair is no longer one of the reasons: since #207 the shell measures
   in columns and cuts between graphemes. Every glyph the TUI uses of its own is BMP and one column — `○ ◌ ● ✉ ⚠ ▒ ⏵ ★ ↺
-  ▌ ▷ ▶ ‹ ›` — and somebody else's words are measured rather than assumed.
+  ⚑ ▌ ▷ ▶ ‹ ›` — and somebody else's words are measured rather than assumed.
 - **Your own note about them is drawn whole**, `Your note: <text>` in `Role.Muted`, wrapped rather than clipped: it is
   the reader's own writing, and cutting it would be cutting their words. It costs no call — it has been arriving on
   every relationship payload and being dropped (ADR-0012's amendment).
@@ -1996,7 +1997,7 @@ the other side in place (#487, #489). `IPostEngagement.ReadActors` reads one sid
   be picked on — a feed, a thread, the post screen, a search, a conversation — bar Notifications, where `w` stays who did
   what the row reports (#451). On an account screen it goes by the pick: their follows on the header block, as before,
   and the post's who on one of their posts (#490). `w:who` is on the status row while a post is picked, in the tail with
-  `x` and the author's three, and the account screen's `w:follows` only while its header block is.
+  `l`, `x` and the author's three, and the account screen's `w:follows` only while its header block is.
 - **The actors screen is generalised, not copied.** It lists a notification group's actors or one side of a post's,
   with the same rows (the compact Account block with **Standing**, asked once a page), `⏎`, `g` and reading on; what
   differs is the crumb, the empty text, why a list is short, and `s` and `o`, which only a post's actors answer — each
@@ -2288,7 +2289,7 @@ reminder, `?` is the reference.** #169, #214 and #215 settled the row; #218, #21
   a reference is picked — before one is, `←/→` ranks right behind `⏎`, as "What references settled" says); the
   screen's own keys, including `g:refresh`; the way out (`esc:back`, or `tab:destination` and `` `:group `` at the
   bottom of the stack); the shared post keys worth reminding somebody of (`⏎` `r` `b` `f` `a` `c`); the tail, which
-  is what can be learned anywhere or acts only on your own posts (`↓/↑` `x` `p` `e` `d`); and `?:keys`, pinned. The
+  is what can be learned anywhere or acts only on your own posts (`↓/↑` `w` `l` `x` `p` `e` `d`); and `?:keys`, pinned. The
   order used to be assembled for reading; promoting it into a ranking fixed two accidents — `↓/↑:row` no longer outranks the three
   marks, and the way out is no longer at the end, where `tab:destination` fell into the overflow on the feed.
 - **The fill stops at the first hint that does not fit** rather than skipping it for a narrower one behind it.
@@ -2822,6 +2823,7 @@ is drawn reversed instead (#316).
 | `boost` / `boost-mine` | The boost mark, and it when it is yours — one colour in both built-ins, the glyph telling them apart | `↺` (open) vs `⥀` (closed) |
 | `favorite` / `favorite-mine` | The favorite mark, and it when it is yours — one colour in both built-ins, likewise | `☆` (hollow) vs `★` (filled) |
 | `replies` | The reply count under a post | `↩` |
+| `bookmark` | The bookmark mark, after the reply count and before `pinned` — only ever yours, and drawn only where it is on, its slot held blank where it is off so that nothing on the line moves (#561) | `⚑`, which is there or not |
 | `selection` | The selected row | `▌` in the gutter |
 | `band` | Behind every row of the selected thing | the `▌` beside each row |
 | `selected-text` | Text selected in the compose editor or its warning field (#320), and the value chosen on To while To has the typing (#338) — the body's text on a background of its own, lifted clearly off the page where `band` is barely there (#316) | drawn reversed |

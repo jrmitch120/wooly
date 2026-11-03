@@ -68,11 +68,17 @@ public static class PostKeys
     private static KeyHint Who { get; } = new("w", "who");
 
     /// <summary>
-    ///     And the rest, which rank behind <see cref="Scrolling" /> in the tail: <c>w</c> is asked of a post less than
-    ///     it is marked, <c>x</c> is learned on the first warning a reader meets, and the other three act only on your
-    ///     own posts (#218, #489).
+    ///     Bookmarking the picked post, or taking the bookmark off (#561) — on every screen with a post picked, and in
+    ///     the tail behind <see cref="Who" />, being a mark a reader uses less than a boost or a favorite.
     /// </summary>
-    private static IReadOnlyList<KeyHint> Learnable { get; } = [Who, Revealing, .. Yours];
+    private static KeyHint Bookmarking { get; } = new("l", "bookmark");
+
+    /// <summary>
+    ///     And the rest, which rank behind <see cref="Scrolling" /> in the tail: <c>w</c> is asked of a post less than
+    ///     it is marked, <c>l</c> is a mark used less than <c>b</c> and <c>f</c>, <c>x</c> is learned on the first
+    ///     warning a reader meets, and the other three act only on your own posts (#218, #489, #561).
+    /// </summary>
+    private static IReadOnlyList<KeyHint> Learnable { get; } = [Who, Bookmarking, Revealing, .. Yours];
 
     /// <summary>What every screen with posts on it answers to, in the rank the status row draws them in.</summary>
     public static IReadOnlyList<KeyHint> OnAPost { get; } = [.. Reminding, .. Learnable];

@@ -160,6 +160,23 @@ public class HelpRowsTests
     }
 
     /// <summary>
+    ///     <c>?</c> over a feed lists <c>l</c> among the post keys, right after <c>w</c>, as the status row ranks it
+    ///     (#561).
+    /// </summary>
+    [Fact]
+    public async Task HelpOverAFeedListsBookmarkingAfterWho()
+    {
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain);
+
+        drawn.Press(new Key('?'));
+
+        var rows = From(drawn.Rows(), "w", 2).ToList();
+
+        Assert.Equal("l", rows[1].Split(' ')[0]);
+        Assert.EndsWith("bookmark", rows[1], StringComparison.Ordinal);
+    }
+
+    /// <summary>
     ///     Help is taller than an 80 by 16 terminal, and <c>↓</c> reads down it to its last row, the mouse's last
     ///     action, rather than stopping short of it.
     /// </summary>

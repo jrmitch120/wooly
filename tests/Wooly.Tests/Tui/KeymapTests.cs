@@ -126,6 +126,7 @@ public class KeymapTests
     [InlineData("b", Verb.Boost)]
     [InlineData("f", Verb.Favorite)]
     [InlineData("p", Verb.Pin)]
+    [InlineData("l", Verb.Bookmark)]
     [InlineData("e", Verb.Edit)]
     [InlineData("d", Verb.Delete)]
     [InlineData("x", Verb.Reveal)]
@@ -166,6 +167,7 @@ public class KeymapTests
     [Theory]
     [InlineData("f", Verb.Favorite)]
     [InlineData("b", Verb.Boost)]
+    [InlineData("l", Verb.Bookmark)]
     public void ALowerCaseMarkKeyIsStillAMarkWhereTheTiesAreOffered(string key, Verb verb) =>
         Assert.Equal(verb, Means(key, new AccountScreen(AnAccount.With(), [], pinned: [])));
 
@@ -487,6 +489,7 @@ public class KeymapTests
     [InlineData("b")]
     [InlineData("c")]
     [InlineData("f")]
+    [InlineData("l")]
     [InlineData("k")]
     [InlineData("x")]
     [InlineData("1")]
