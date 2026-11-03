@@ -1485,17 +1485,20 @@ public sealed class Shell
 
         await _enquiry.Put(
             ask => ask.Of(token => _ports.Engagement.Mark(profile, about.Id, mark, wanted, token)),
-            eitherWay: marked => Tell(
-                new Change.PostChanged(marked) { Gained = wanted && marked.Marks.Has(mark) ? mark : null }),
-            ifStillHere: mark == PostMark.Bookmark ? _ => SayBookmarked(wanted) : null);
-    }
+            eitherWay: marked =>
+            {
+                Tell(new Change.PostChanged(marked) { Gained = wanted && marked.Marks.Has(mark) ? mark : null });
 
-    /// <summary>
-    ///     Which way a bookmark went, in the CLI's words. Said for a bookmark alone: a boost or a favorite moves a count
-    ///     beside its mark, where a bookmark moves nothing but one cell's flag, which is easy to miss (story 10 of #558).
-    /// </summary>
-    private void SayBookmarked(bool wanted) =>
-        StatusRow.Say(wanted ? "Bookmarked." : "Unbookmarked.", isError: false);
+                // Said for a bookmark alone: a boost or a favorite moves a count beside its mark, where a bookmark
+                // moves nothing but one cell's flag, which is easy to miss (story 10 of #558). Said whether or not the
+                // reader is still here, as a delete, a vote or a tie is: the instance has kept the bookmark or let it
+                // go wherever they have walked to since.
+                if (mark == PostMark.Bookmark)
+                {
+                    StatusRow.Say($"{PostMarkWords.Did(mark, wanted)}.", isError: false);
+                }
+            });
+    }
 
     /// <summary>
     ///     Asks before taking a post down. The one thing here whose effect running something else does not undo, so

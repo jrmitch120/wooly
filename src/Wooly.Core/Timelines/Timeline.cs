@@ -1,4 +1,5 @@
 using Wooly.Core.Accounts;
+using Wooly.Core.Posts;
 
 namespace Wooly.Core.Timelines;
 
@@ -9,12 +10,18 @@ namespace Wooly.Core.Timelines;
 /// </summary>
 public sealed record Timeline
 {
-    private Timeline(TimelineScope scope, string? hashtag = null, NamedAccount? account = null, TagSet? set = null)
+    private Timeline(
+        TimelineScope scope,
+        string? hashtag = null,
+        NamedAccount? account = null,
+        TagSet? set = null,
+        PostMark? runOf = null)
     {
         Scope = scope;
         Hashtag = hashtag;
         Account = account;
         Set = set;
+        RunOf = runOf;
     }
 
     /// <summary>Which of them this is.</summary>
@@ -42,6 +49,30 @@ public sealed record Timeline
     ///     past the cap, because <see cref="TagSet.Of" /> is the only way to build one.
     /// </summary>
     public TagSet? Set { get; }
+
+    /// <summary>
+    ///     The mark this is the run of — a bookmark for <see cref="Bookmarks" />, a favorite for
+    ///     <see cref="Favorites" /> — or <see langword="null" /> for a timeline. The one thing asked of the two runs
+    ///     wherever they differ from a timeline: they page by the link header alone (<see cref="TimelineReader" />), a
+    ///     mark put on anywhere puts the post on its run, and with nothing on them they say so in words of their own
+    ///     (<see cref="NothingMarked" />). Set by the factory rather than read off the scope, so that the mark a run is
+    ///     of is said where the run is.
+    /// </summary>
+    public PostMark? RunOf { get; }
+
+    /// <summary>
+    ///     What a run of marks with nothing on it says, in both front ends alike — "Nothing bookmarked yet." — or
+    ///     <see langword="null" /> for a timeline, which each front end words its own way around
+    ///     <see cref="Description" />. A run is told what has not been done yet rather than called a timeline with no
+    ///     posts on it (#563).
+    /// </summary>
+    public string? NothingMarked => RunOf switch
+    {
+        null => null,
+        PostMark.Bookmark => "Nothing bookmarked yet.",
+        PostMark.Favorite => "Nothing favorited yet.",
+        _ => throw new ArgumentOutOfRangeException(nameof(RunOf), RunOf, "Not a mark with a run of its own."),
+    };
 
     /// <summary>The posts of the accounts this profile follows.</summary>
     public static Timeline Home { get; } = new(TimelineScope.Home);
@@ -95,13 +126,13 @@ public sealed record Timeline
     ///     The posts this profile has bookmarked, newest bookmark first. Nobody is named: the run is the acting
     ///     profile's own, and an instance keeps no account's bookmarks where anybody else could ask for them.
     /// </summary>
-    public static Timeline Bookmarks { get; } = new(TimelineScope.Bookmarks);
+    public static Timeline Bookmarks { get; } = new(TimelineScope.Bookmarks, runOf: PostMark.Bookmark);
 
     /// <summary>
     ///     The posts this profile has favorited, newest favorite first — its own, as <see cref="Bookmarks" /> are,
     ///     since Mastodon keeps an account's favorites private to it.
     /// </summary>
-    public static Timeline Favorites { get; } = new(TimelineScope.Favorites);
+    public static Timeline Favorites { get; } = new(TimelineScope.Favorites, runOf: PostMark.Favorite);
 
     /// <summary>
     ///     What to call this timeline in a sentence, e.g. "No posts in <em>the federated timeline</em>." A hashtag is
