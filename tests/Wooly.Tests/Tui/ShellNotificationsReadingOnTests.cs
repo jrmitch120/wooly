@@ -14,9 +14,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellNotificationsReadingOnTests
 {
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
-
     /// <summary>The height of the content region these tests say the page is, in rows.</summary>
     private const int Screenful = 20;
 
@@ -174,7 +171,7 @@ public class ShellNotificationsReadingOnTests
         built.Notifications.Marker = $"{10_000 - 1}";
         var opened = await built.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         built.Host.Settle();
         opened.Viewed(under: 0, screenful: Screenful);
         built.Host.Drain();
@@ -225,7 +222,7 @@ public class ShellNotificationsReadingOnTests
         built.Notifications.Marker = held[0].NewestId;
         var opened = await built.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         built.Host.Settle();
 
         return (built, opened);

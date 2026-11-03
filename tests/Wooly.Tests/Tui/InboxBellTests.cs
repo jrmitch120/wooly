@@ -15,12 +15,6 @@ public class InboxBellTests
 {
     private static readonly TimeSpan Minute = TimeSpan.FromSeconds(60);
 
-    /// <summary>Where the rail's direct messages destination is, counting from Home.</summary>
-    private const int ToMessages = 6;
-
-    /// <summary>Where the rail's follow requests destination is, counting from Home.</summary>
-    private const int ToRequests = 7;
-
     [Fact]
     public async Task APollRaisingTheNotificationsBadge_RingsOnce()
     {
@@ -157,7 +151,7 @@ public class InboxBellTests
     {
         var shell = new AShell { Messages = FakeDirectMessages.Holding(AConversation.With(id: "c1", unread: true)) };
         var opened = await shell.Opened();
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
         Assert.IsType<DirectMessagesScreen>(opened.Screen);
 
@@ -179,7 +173,7 @@ public class InboxBellTests
         var shell = new AShell { Notifications = FakeNotificationInbox.Holding(ANotification.With(id: "100")) };
         shell.Notifications.Marker = "100";
         var opened = await shell.Opened();
-        opened.Step(ToMessages - 1);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         shell.Notifications.NowHolding([.. Unread(count: 45, newest: 145), ANotification.With(id: "100")]);
@@ -211,7 +205,7 @@ public class InboxBellTests
             Accounts = FakeAccountRelationships.Holding(subject: null, [.. Asking(from: 0, count: 40)]),
         };
         var opened = await shell.Opened();
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         shell.Accounts.NowListing([.. Asking(from: 1, count: 40)]);
@@ -236,7 +230,7 @@ public class InboxBellTests
             Accounts = FakeAccountRelationships.Holding(subject: null, [.. Asking(from: 0, count: 40)]),
         };
         var opened = await shell.Opened();
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         shell.Accounts.NowListing([.. Asking(from: -1, count: 1), .. Asking(from: 1, count: 39)]);
@@ -263,7 +257,7 @@ public class InboxBellTests
             Accounts = FakeAccountRelationships.Holding(subject: null, [.. Asking(from: 0, count: 40)]),
         };
         var opened = await shell.Opened();
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         opened.Press(ShellKey.A);
@@ -283,7 +277,7 @@ public class InboxBellTests
     {
         var shell = new AShell { Messages = FakeDirectMessages.Holding(AConversation.With(id: "c1", unread: true)) };
         var opened = await shell.Opened();
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         shell.Messages.NowHolding(AConversation.With(id: "c1", unread: false));
@@ -308,7 +302,7 @@ public class InboxBellTests
     {
         var shell = OneUnreadNotification();
         var opened = await shell.Opened();
-        opened.Step(ToMessages - 1);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         shell.Notifications.NowHolding(ANotification.With(id: "102"), ANotification.With(id: "101"));

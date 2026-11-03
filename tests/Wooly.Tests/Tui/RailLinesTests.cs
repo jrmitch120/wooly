@@ -128,7 +128,7 @@ public class RailLinesTests
         Assert.Equal("│  programming-lan…│", Row(framed, "programming").Text);
         Assert.Equal("  programming-langu…", Row(compact, "programming").Text);
         Assert.All(framed.Concat(compact), line => Assert.Equal(RailLines.Width, line.Width));
-        Assert.Equal("programming-languages", rail.Destinations[3].Label);
+        Assert.Equal("programming-languages", rail.Of(DestinationKind.TagSet).Label);
     }
 
     /// <summary>
@@ -233,7 +233,7 @@ public class RailLinesTests
         Assert.Equal(Role.PanelBorder, EdgeOf(atRest, "Inbox"));
         Assert.Equal(Role.PanelBorder, EdgeOf(atRest, "API"));
 
-        rail.Step(6);
+        rail.StepTo(DestinationKind.Notifications);
 
         var tabbing = RailLines.Of(rail, Plenty, 24, coloured: coloured);
 
@@ -281,7 +281,7 @@ public class RailLinesTests
     {
         var (rail, _) = TheRail();
 
-        rail.Step(2);
+        rail.StepTo(DestinationKind.Federated);
 
         var drawn = RailLines.Of(rail, Plenty, height, coloured: true);
 
@@ -514,14 +514,14 @@ public class RailLinesTests
     ///     gauge still held at the foot.
     /// </summary>
     [Theory]
-    [InlineData(0, "Timelines", "Home")]
-    [InlineData(7, "Inbox", "Direct messages")]
-    [InlineData(9, "You", "@jeff")]
-    public void Of_Scrolled_KeepsTheCursorsGroupInView(int cursor, string group, string label)
+    [InlineData("Timelines", "Home")]
+    [InlineData("Inbox", "Direct messages")]
+    [InlineData("You", "@jeff")]
+    public void Of_Scrolled_KeepsTheCursorsGroupInView(string group, string label)
     {
         var (rail, _) = TheRail();
 
-        rail.Step(cursor);
+        rail.StepTo(label);
 
         var drawn = RailLines.Of(rail, Plenty, 8);
         var texts = drawn.Select(line => line.Text.TrimEnd()).ToList();

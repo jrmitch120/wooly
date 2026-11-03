@@ -11,9 +11,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellRequestTests
 {
-    /// <summary>Where the rail's follow-requests destination is, counting from Home.</summary>
-    private const int ToRequests = 7;
-
     [Fact]
     public async Task Step_ListsWhoIsWaitingToBeLetIn()
     {
@@ -27,7 +24,7 @@ public class ShellRequestTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         var screen = Assert.IsType<FollowRequestsScreen>(opened.Screen);
@@ -52,7 +49,7 @@ public class ShellRequestTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         // Past the one column the gutter takes, which every list on this shell stamps and no screen draws itself — and
@@ -85,7 +82,7 @@ public class ShellRequestTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         var rows = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text).ToList();
@@ -112,7 +109,7 @@ public class ShellRequestTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         opened.Press(key);
@@ -146,7 +143,7 @@ public class ShellRequestTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         var requests = Assert.IsType<FollowRequestsScreen>(opened.Screen);
@@ -174,7 +171,7 @@ public class ShellRequestTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         opened.Press(ShellKey.Enter);
@@ -197,7 +194,7 @@ public class ShellRequestTests
         var shell = new AShell { Accounts = FakeAccountRelationships.HoldingNobody() };
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         var drawn = opened.Screen.Lines(new Drawing(61, AShell.Now)).Select(line => line.Text);
@@ -212,7 +209,7 @@ public class ShellRequestTests
         var shell = new AShell { Accounts = FakeAccountRelationships.HoldingNobody() };
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         opened.Press(ShellKey.A);
@@ -230,7 +227,7 @@ public class ShellRequestTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         Assert.Contains(opened.Keys, key => key is { Key: "a", Does: "accept" });
@@ -258,7 +255,7 @@ public class ShellRequestTests
         var opened = await shell.Opened();
         shell.Accounts.ForgetStandings();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         var stood = Assert.Single(shell.Accounts.Standings);
@@ -278,7 +275,7 @@ public class ShellRequestTests
         var shell = new AShell { Accounts = FakeAccountRelationships.HoldingNobody() };
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         Assert.Empty(shell.Accounts.Standings);
@@ -299,7 +296,7 @@ public class ShellRequestTests
         var opened = await shell.Opened();
         shell.Accounts.ForgetStandings();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         await opened.Refresh();
@@ -326,7 +323,7 @@ public class ShellRequestTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         var screen = Assert.IsType<FollowRequestsScreen>(opened.Screen);
