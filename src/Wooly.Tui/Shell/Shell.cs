@@ -678,6 +678,7 @@ public sealed class Shell
         Verb.Boost => Ran(() => Mark(PostMark.Boost)),
         Verb.Favorite => Ran(() => Mark(PostMark.Favorite)),
         Verb.Pin => Ran(() => Mark(PostMark.Pin)),
+        Verb.Bookmark => Ran(() => Mark(PostMark.Bookmark)),
         Verb.Delete => Ran(AskToDelete),
         Verb.Reveal => Ran(Reveal),
         Verb.Vote => Ran(AskToVote),
@@ -1480,10 +1481,23 @@ public sealed class Shell
 
         // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
         var profile = Actor.Profile;
+        var wanted = !about.Marks.Has(mark);
 
         await _enquiry.Put(
-            ask => ask.Of(token => _ports.Engagement.Mark(profile, about.Id, mark, !about.Marks.Has(mark), token)),
-            eitherWay: marked => Tell(new Change.PostChanged(marked)));
+            ask => ask.Of(token => _ports.Engagement.Mark(profile, about.Id, mark, wanted, token)),
+            eitherWay: marked =>
+            {
+                Tell(new Change.PostChanged(marked) { Gained = wanted && marked.Marks.Has(mark) ? mark : null });
+
+                // Said for a bookmark alone: a boost or a favorite moves a count beside its mark, where a bookmark
+                // moves nothing but one cell's flag, which is easy to miss (story 10 of #558). Said whether or not the
+                // reader is still here, as a delete, a vote or a tie is: the instance has kept the bookmark or let it
+                // go wherever they have walked to since.
+                if (mark == PostMark.Bookmark)
+                {
+                    StatusRow.Say($"{PostMarkWords.Did(mark, wanted)}.", isError: false);
+                }
+            });
     }
 
     /// <summary>
@@ -1780,7 +1794,7 @@ public sealed class Shell
         again is null ? new AddProfileScreen(alone: true) : AddProfileScreen.Again(again, why, alone: true);
 
     /// <summary>
-    ///     The nine everybody has and one for each of the reader's tag sets, in the order the rail draws them: its
+    ///     The eleven everybody has and one for each of the reader's tag sets, in the order the rail draws them: its
     ///     groups' order (ADR-0021, ADR-0033), the sets in the order the file wrote them.
     /// </summary>
     private static IReadOnlyList<Destination> Destinations(ActiveProfile? profile, IReadOnlyList<TagSet> tagSets) =>
@@ -1801,6 +1815,11 @@ public sealed class Shell
         new(DestinationKind.Messages, "Direct messages"),
         new(DestinationKind.Requests, "Follow requests"),
         new(DestinationKind.Profile, profile?.Handle ?? "Profile"),
+
+        // The acting profile's own runs, each read as a timeline: a destination rather than a section of the profile's
+        // screen, because each reads on as far as the reader scrolls (ADR-0014's amendment, #563).
+        new(DestinationKind.Bookmarks, "Bookmarks", Timeline.Bookmarks),
+        new(DestinationKind.Favorites, "Favorites", Timeline.Favorites),
     ];
 
     /// <summary>

@@ -11,9 +11,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellNotificationGroupDismissTests
 {
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
-
     /// <summary>
     ///     One dismissal, naming the group rather than any notification in it, takes the group off the screen and every
     ///     notification in it off the badge.
@@ -24,7 +21,7 @@ public class ShellNotificationGroupDismissTests
         var shell = Holding();
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Press(ShellKey.D);
@@ -48,7 +45,7 @@ public class ShellNotificationGroupDismissTests
         var shell = Holding();
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         var notifications = Assert.IsType<NotificationsScreen>(opened.Screen);

@@ -1,6 +1,8 @@
 using Wooly.Core.Accounts;
+using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Relationships;
+using Wooly.Core.Timelines;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
@@ -13,8 +15,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class ShellChangeTests
 {
-    private const int ToNotifications = 5;
-
     private static readonly Post Mine = APost.With(id: "110", account: "jeff@mastodon.social");
 
     private static readonly Post Somebody = APost.With(id: "220", account: "ben@hachyderm.io");
@@ -45,6 +45,42 @@ public class ShellChangeTests
         shell.Host.Settle();
 
         Assert.True(opened.Screen.Picked?.Marks.Favorited);
+    }
+
+    /// <summary>
+    ///     A boost puts the post on no run of the reader's own marks — even a post bookmarked and favorited from
+    ///     elsewhere, which neither run read a moment ago holds — so both runs are handed back as they were (#564).
+    /// </summary>
+    [Fact]
+    public async Task Mark_ThatPutsOnNeitherRunsMark_LeavesBothRunsHeld()
+    {
+        var keptElsewhere = Somebody with { Marks = APost.Marked(favorited: true, bookmarked: true) };
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Answering(timeline =>
+                Fetch<Post>.Complete(timeline.Scope == TimelineScope.Home ? [keptElsewhere] : [])),
+            Engagement = FakePostEngagement.Answering(
+                keptElsewhere with { Marks = APost.Marked(boosted: true, favorited: true, bookmarked: true) }),
+        };
+        var opened = await shell.Opened();
+
+        opened.StepTo(DestinationKind.Bookmarks);
+        shell.Host.Settle();
+        opened.StepTo(DestinationKind.Favorites);
+        shell.Host.Settle();
+        opened.StepTo(DestinationKind.Home);
+        shell.Host.Settle();
+
+        await opened.Mark(PostMark.Boost);
+        shell.Host.Drain();
+        var reads = shell.Timelines.Reads.Count;
+
+        opened.StepTo(DestinationKind.Bookmarks);
+        shell.Host.Settle();
+        opened.StepTo(DestinationKind.Favorites);
+        shell.Host.Settle();
+
+        Assert.Equal(reads, shell.Timelines.Reads.Count);
     }
 
     /// <summary>A post deleted on Home is not handed back on a Local list read before it went.</summary>
@@ -78,7 +114,7 @@ public class ShellChangeTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Press(ShellKey.C);
@@ -89,7 +125,7 @@ public class ShellChangeTests
 
         var reads = shell.Timelines.Reads.Count;
 
-        opened.Step(-ToNotifications);
+        opened.StepTo(DestinationKind.Home);
         shell.Host.Settle();
 
         Assert.Equal(reads + 1, shell.Timelines.Reads.Count);
@@ -200,7 +236,7 @@ public class ShellChangeTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Press(ShellKey.D);
@@ -226,7 +262,7 @@ public class ShellChangeTests
     {
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications + 1);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
         opened.Step(-1);
         shell.Host.Settle();

@@ -1,4 +1,5 @@
 using Wooly.Core.Accounts;
+using Wooly.Core.Posts;
 
 namespace Wooly.Core.Timelines;
 
@@ -9,30 +10,37 @@ namespace Wooly.Core.Timelines;
 /// </summary>
 public sealed record Timeline
 {
-    private Timeline(TimelineScope scope, string? hashtag = null, NamedAccount? account = null, TagSet? set = null)
+    private Timeline(
+        TimelineScope scope,
+        string? hashtag = null,
+        NamedAccount? account = null,
+        TagSet? set = null,
+        PostMark? runOf = null)
     {
         Scope = scope;
         Hashtag = hashtag;
         Account = account;
         Set = set;
+        RunOf = runOf;
     }
 
     /// <summary>Which of them this is.</summary>
     public TimelineScope Scope { get; }
 
     /// <summary>
-    ///     The hashtag being read, without its leading <c>#</c>, or <see langword="null" /> for the other six. Always
-    ///     one word, because <see cref="Tag" /> is the only way to set it — which is what makes it safe to put in a
-    ///     request path (see <see cref="Timelines.Hashtag" />).
+    ///     The hashtag being read, without its leading <c>#</c>, or <see langword="null" /> for every other timeline.
+    ///     Always one word, because <see cref="Tag" /> is the only way to set it — which is what makes it safe to put
+    ///     in a request path (see <see cref="Timelines.Hashtag" />).
     /// </summary>
     public string? Hashtag { get; }
 
     /// <summary>
-    ///     Whose posts are being read, or <see langword="null" /> for the four that belong to nobody in particular.
-    ///     A <see cref="NamedAccount" /> rather than a bare id for the reason <see cref="Accounts.AccountAddress" />
-    ///     gives — an id means nothing on any other instance — and rather than a bare address because a caller that
-    ///     has already paid for the crossing has no way to say so, and pays for it again (ADR-0012's second
-    ///     amendment). Which of the two it carries is the adapter's business, not this value's.
+    ///     Whose posts are being read, or <see langword="null" /> for the timelines that belong to nobody in particular
+    ///     and the two runs that are the profile's own. A <see cref="NamedAccount" /> rather than a bare id for the
+    ///     reason <see cref="Accounts.AccountAddress" /> gives — an id means nothing on any other instance — and rather
+    ///     than a bare address because a caller that has already paid for the crossing has no way to say so, and pays
+    ///     for it again (ADR-0012's second amendment). Which of the two it carries is the adapter's business, not this
+    ///     value's.
     /// </summary>
     public NamedAccount? Account { get; }
 
@@ -41,6 +49,30 @@ public sealed record Timeline
     ///     past the cap, because <see cref="TagSet.Of" /> is the only way to build one.
     /// </summary>
     public TagSet? Set { get; }
+
+    /// <summary>
+    ///     The mark this is the run of — a bookmark for <see cref="Bookmarks" />, a favorite for
+    ///     <see cref="Favorites" /> — or <see langword="null" /> for a timeline. The one thing asked of the two runs
+    ///     wherever they differ from a timeline: they page by the link header alone (<see cref="TimelineReader" />), a
+    ///     mark put on anywhere puts the post on its run, and with nothing on them they say so in words of their own
+    ///     (<see cref="NothingMarked" />). Set by the factory rather than read off the scope, so that the mark a run is
+    ///     of is said where the run is.
+    /// </summary>
+    public PostMark? RunOf { get; }
+
+    /// <summary>
+    ///     What a run of marks with nothing on it says, in both front ends alike — "Nothing bookmarked yet." — or
+    ///     <see langword="null" /> for a timeline, which each front end words its own way around
+    ///     <see cref="Description" />. A run is told what has not been done yet rather than called a timeline with no
+    ///     posts on it (#563).
+    /// </summary>
+    public string? NothingMarked => RunOf switch
+    {
+        null => null,
+        PostMark.Bookmark => "Nothing bookmarked yet.",
+        PostMark.Favorite => "Nothing favorited yet.",
+        _ => throw new ArgumentOutOfRangeException(nameof(RunOf), RunOf, "Not a mark with a run of its own."),
+    };
 
     /// <summary>The posts of the accounts this profile follows.</summary>
     public static Timeline Home { get; } = new(TimelineScope.Home);
@@ -91,6 +123,18 @@ public sealed record Timeline
     public static Timeline WithReplies(NamedAccount account) => new(TimelineScope.WithReplies, account: account);
 
     /// <summary>
+    ///     The posts this profile has bookmarked, newest bookmark first. Nobody is named: the run is the acting
+    ///     profile's own, and an instance keeps no account's bookmarks where anybody else could ask for them.
+    /// </summary>
+    public static Timeline Bookmarks { get; } = new(TimelineScope.Bookmarks, runOf: PostMark.Bookmark);
+
+    /// <summary>
+    ///     The posts this profile has favorited, newest favorite first — its own, as <see cref="Bookmarks" /> are,
+    ///     since Mastodon keeps an account's favorites private to it.
+    /// </summary>
+    public static Timeline Favorites { get; } = new(TimelineScope.Favorites, runOf: PostMark.Favorite);
+
+    /// <summary>
     ///     What to call this timeline in a sentence, e.g. "No posts in <em>the federated timeline</em>." A hashtag is
     ///     the user's own text, so anything rendering this has to treat it as text rather than markup.
     /// </summary>
@@ -104,6 +148,8 @@ public sealed record Timeline
         TimelineScope.Account => $"the posts of @{Account}",
         TimelineScope.Pinned => $"the pinned posts of @{Account}",
         TimelineScope.WithReplies => $"the posts and replies of @{Account}",
+        TimelineScope.Bookmarks => "your bookmarks",
+        TimelineScope.Favorites => "your favorites",
 
         // Unreachable, and said so rather than answered with a vague phrase: a timeline this client cannot name is one
         // somebody added to the enum without coming here, which is a defect to read about, not prose to show a user.

@@ -23,7 +23,7 @@ Sign in once and both of them act as the same profile.
 
 - Home, local, federated and hashtag timelines, plus any account's posts, replies and pinned posts
 - Write, reply to, edit and delete posts, with content warnings, attachments and alt text, polls, visibility and language
-- Boost, favorite, pin, and vote in polls
+- Boost, favorite, pin, bookmark, and vote in polls, and read back what you bookmarked or favorited
 - Notifications, direct messages, and follow requests for a locked account
 - Follow, mute and block accounts, and edit your own public profile
 - One search across accounts, hashtags and posts
@@ -128,6 +128,7 @@ On a timeline or a post:
 | `a` | Open the author's account |
 | `c` / `r` | Compose / reply |
 | `b` / `f` | Boost / favorite (and undo) |
+| `l` | Bookmark (and undo) |
 | `e` / `d` / `p` | Edit / delete / pin your own post |
 | `w` | Who favorited or boosted it |
 | `x` | Show what a content warning is hiding |
@@ -148,8 +149,8 @@ The full contract for every screen, key and theme role is in [docs/tui-shell.md]
 | Command | For |
 |---|---|
 | `profile` | `add`, `list`, `show`, `switch` and `remove` local profiles |
-| `timeline` | `home`, `local`, `federated`, `tag`, `account` and `pinned` |
-| `post` | `create`, `reply`, `edit`, `delete`, `show`, `boost`, `favorite`, `pin`, `vote`, `favorited-by`, `boosted-by`, and their undos |
+| `timeline` | `home`, `local`, `federated`, `tag`, `account`, `pinned`, and your own `bookmarks` and `favorites` |
+| `post` | `create`, `reply`, `edit`, `delete`, `show`, `boost`, `favorite`, `pin`, `bookmark`, `vote`, `favorited-by`, `boosted-by`, and their undos |
 | `account` | `show`, `edit`, `follow`, `unfollow`, `followers`, `following`, `block`, `mute` (and undos), and `requests list/accept/reject` |
 | `notification` | `list`, `dismiss` and `clear` |
 | `dm` | `list`, `show`, `send` and `read` |

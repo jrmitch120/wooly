@@ -14,9 +14,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class NotificationPreviewTests
 {
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
-
     /// <summary>Long enough to wrap past two rows at any width these tests draw at.</summary>
     private const string Wordy =
         "Spent the weekend teaching Wooly to group notifications, which turned out to need far more thought about "
@@ -53,7 +50,7 @@ public class NotificationPreviewTests
         var shell = new AShell { Notifications = FakeNotificationInbox.Holding(notifications) };
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.IsType<NotificationsScreen>(opened.Screen);
@@ -173,6 +170,7 @@ public class NotificationPreviewTests
     [Theory]
     [InlineData(PostMark.Favorite)]
     [InlineData(PostMark.Boost)]
+    [InlineData(PostMark.Bookmark)]
     public async Task Mark_ActsOnThePostUnderAPreview(PostMark mark)
     {
         var (shell, opened) = await On(ANotification.With(kind: NotificationKind.Favorite, post: Mine()));

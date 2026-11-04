@@ -20,7 +20,9 @@ internal static class TimelineReport
             // reported as that failure, and saying "no posts" as well would be saying the opposite of what happened.
             if (fetch.IsComplete)
             {
-                console.MarkupLineInterpolated($"No posts in {timeline.Description}.");
+                // Written as text rather than markup, a hashtag being the user's own. A run of marks says what has not
+                // been done yet, in the words the TUI says it in.
+                console.WriteLine(timeline.NothingMarked ?? $"No posts in {timeline.Description}.");
             }
 
             return;

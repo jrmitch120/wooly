@@ -148,6 +148,27 @@ Three places in the codebase and its docs enumerate nine and now enumerate ten: 
 group rules, and `docs/tui-shell.md`. GLOSSARY.md's **Destination** term says which one grew and why, so that the next
 person to propose an eleventh finds the bar it has to clear.
 
+## Amendment: the rail carries eleven, Bookmarks and Favorites after the handle (#563)
+
+Spec #558 grows the fixed rail by two more: **Bookmarks** and **Favorites**, the acting profile's two private runs, in
+the You group after the profile's own account, Bookmarks first. They clear the bar the Discover amendment set from the
+other side. Discover earned its entry because its screen is sectioned, so the next kind of suggestion is a heading
+there. These earn theirs because they cannot be sections. The obvious home for them is the You screen, under the
+profile's own posts, and it does not work: each run reads on as far as the reader scrolls, and a screen has one read-on
+cursor, which belongs to its bottom list. The account screen's bottom list is the profile's own posts, so a run placed
+above them would never get past its first page, and putting it below them would leave the posts unable to read on.
+Two runs need two screens, and a screen reached from the rail is a destination.
+
+Nothing else about a destination changes. Each carries a `Timeline` of its own scope (`Timeline.Bookmarks`,
+`Timeline.Favorites`), so arriving, reading on, `g` and the cache go through the same path as Home and the tag sets,
+and the screen is the feed. Neither counts anything unread, the same answer Search and Discover give. Taking the run's
+own mark off a row leaves the row where it is with the mark gone, as on the **Pinned** run, until the run is read
+again.
+
+The same places enumerate the fixed entries as before: `DestinationKind` and `Destination.Group`, the shell's list of
+destinations, and `docs/tui-shell.md`, whose row counts the You group's five rows change (ADR-0021's amendment).
+GLOSSARY.md's **Destination** and **Rail group** say which entries grew and why.
+
 ## Amendment: a pick is not necessarily a post, and a screen's sections are walkable (map #159)
 
 Two more corrections of wording, in the same spirit as the three above.

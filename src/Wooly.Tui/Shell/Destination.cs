@@ -3,7 +3,7 @@ using Wooly.Core.Timelines;
 namespace Wooly.Tui.Shell;
 
 /// <summary>
-///     Which of the rail's places this is: one of the nine everybody has, or one of the reader's tag sets.
+///     Which of the rail's places this is: one of the eleven everybody has, or one of the reader's tag sets.
 /// </summary>
 public enum DestinationKind
 {
@@ -39,6 +39,15 @@ public enum DestinationKind
 
     /// <summary>The profile's own account.</summary>
     Profile,
+
+    /// <summary>
+    ///     The posts the profile has bookmarked, newest bookmark first: a run read as a timeline, reading on as far as
+    ///     the reader scrolls (ADR-0014's amendment, #563).
+    /// </summary>
+    Bookmarks,
+
+    /// <summary>The posts the profile has favorited, newest favorite first, read as <see cref="Bookmarks" /> is.</summary>
+    Favorites,
 }
 
 /// <summary>
@@ -64,7 +73,10 @@ public enum RailGroup
     /// </summary>
     Inbox,
 
-    /// <summary>The profile's own account.</summary>
+    /// <summary>
+    ///     What is the profile's own: its account, and the two runs of what it has marked — Bookmarks and Favorites,
+    ///     neither of which ever carries an unread count.
+    /// </summary>
     You,
 }
 
@@ -73,16 +85,23 @@ public enum RailGroup
 ///     many unread things are waiting there.
 /// </summary>
 /// <remarks>
-///     Three of the nine everybody has open onto a timeline, one onto an account, and the other five onto a list of
-///     their own; every tag set opens onto a timeline too. The fixed ones were listed here from the start, before four
+///     Five of the eleven everybody has open onto a timeline — the three timelines, and the Bookmarks and Favorites
+///     runs — one onto an account, and the other five onto a list or prompt of their own; every tag set opens onto a
+///     timeline too. The fixed ones were listed here from the start, before four
 ///     of them had a screen — deliberately, because the rail's shape is what #28 settled, and a rail that grows four
 ///     entries later is a different rail. The reader's tag sets are the rule broken on purpose (ADR-0033): what is on
 ///     the rail is partly theirs to write, and changes only when the config file does.
 ///     <para>
-///         <see cref="DestinationKind.Discover" /> is the one entry the rail has ever grown by, and it was argued for
-///         on those terms rather than added to the list (ADR-0014's amendment, ADR-0019): what earned it is that the
+///         <see cref="DestinationKind.Discover" /> was the first entry the rail grew by, and it was argued for on
+///         those terms rather than added to the list (ADR-0014's amendment, ADR-0019): what earned it is that the
 ///         screen behind it is built in sections, so a second kind of suggestion later is a heading on it rather than
-///         an eleventh entry here (#171).
+///         another entry here (#171).
+///     </para>
+///     <para>
+///         <see cref="DestinationKind.Bookmarks" /> and <see cref="DestinationKind.Favorites" /> are the second and
+///         third, argued for the other way round (ADR-0014's amendment, #563): each run reads on as far as the reader
+///         scrolls, and a screen's one read-on cursor belongs to its bottom list, so neither could be a section of the
+///         You screen.
 ///     </para>
 /// </remarks>
 /// <param name="Kind">Which of the rail's kinds this is.</param>
@@ -121,7 +140,7 @@ public sealed record Destination(DestinationKind Kind, string Label, Timeline? T
         DestinationKind.TagSet => RailGroup.Hashtags,
         DestinationKind.Discover or DestinationKind.Search => RailGroup.Explore,
         DestinationKind.Notifications or DestinationKind.Messages or DestinationKind.Requests => RailGroup.Inbox,
-        DestinationKind.Profile => RailGroup.You,
+        DestinationKind.Profile or DestinationKind.Bookmarks or DestinationKind.Favorites => RailGroup.You,
         _ => throw new ArgumentOutOfRangeException(nameof(Kind), Kind, "A destination in no rail group."),
     };
 }

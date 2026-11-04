@@ -95,8 +95,8 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
 
         // Once, before the first page rather than on each one: an address becomes an id by asking the instance
         // (AccountLookup), and paying for that lookup per page would spend a call to learn what the last one already
-        // knew. The other four timelines need nobody looked up and pay nothing — and neither does an account that
-        // arrived already resolved, which AccountLookup.IdOf is what decides. The CLI has no resolved account to
+        // knew. The timelines naming no account need nobody looked up and pay nothing — and neither does an account
+        // that arrived already resolved, which AccountLookup.IdOf is what decides. The CLI has no resolved account to
         // give, so it goes on paying for the lookup exactly as it did.
         var accountId = timeline.Account is null
             ? null
@@ -107,10 +107,20 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
             PageSize,
             options => Page(client, timeline, accountId, options),
             status => PostWire.ToPost(status, profile),
-            status => status.Id,
+            PagesByPostId(timeline) ? status => status.Id : null,
             cancellationToken,
             from: from);
     }
+
+    /// <summary>
+    ///     Whether a page of <paramref name="timeline" /> that names no next one can be paged on from its last post's
+    ///     id. A timeline pages by the ids of the posts on it, so it can. A run of marks (<see cref="Timeline.RunOf" />)
+    ///     — <b>Bookmarks</b> and <b>Favorites</b> — pages by the ids of the bookmark or favorite itself, which only
+    ///     the link header gives and no post carries: paging on from a post's id there would ask for a page somewhere
+    ///     in another id space and skip or repeat posts, so a page without a link header ends the run instead
+    ///     (<see cref="PagedReading" />'s <c>idOf</c>).
+    /// </summary>
+    private static bool PagesByPostId(Timeline timeline) => timeline.RunOf is null;
 
     /// <summary>
     ///     One page of one run of a set's tags in one ask: its first tag in the path, and the rest as <c>any[]</c>,
@@ -198,6 +208,10 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
                 excludeReplies: false,
                 pinned: false,
                 excludeReblogs: false),
+
+            // Newest mark first, in the instance's order, and paged by the link header alone (PagesByPostId).
+            TimelineScope.Bookmarks => client.GetBookmarks(options),
+            TimelineScope.Favorites => client.GetFavourites(options),
             _ => throw new ArgumentOutOfRangeException(nameof(timeline), timeline.Scope, "Not a timeline this client reads."),
         };
 }

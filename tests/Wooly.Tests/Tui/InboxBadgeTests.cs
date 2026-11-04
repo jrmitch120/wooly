@@ -13,9 +13,6 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class InboxBadgeTests
 {
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
-
     /// <summary>
     ///     The badge that always said 40 (#396): an account with more notifications than a screen asks for, every one
     ///     of them read on the web, has nothing waiting.
@@ -39,7 +36,7 @@ public class InboxBadgeTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Equal(0, Badge(opened, DestinationKind.Notifications).Unread);
@@ -71,7 +68,7 @@ public class InboxBadgeTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Equal(5, Assert.IsType<NotificationsScreen>(opened.Screen).Groups.Count);
@@ -92,7 +89,7 @@ public class InboxBadgeTests
 
         Assert.Equal(0, Badge(opened, DestinationKind.Notifications).Unread);
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         Assert.Equal(0, Badge(opened, DestinationKind.Notifications).Unread);
@@ -155,7 +152,7 @@ public class InboxBadgeTests
 
         AssertFull(Badge(opened, DestinationKind.Notifications));
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         AssertFull(Badge(opened, DestinationKind.Notifications));
@@ -174,7 +171,7 @@ public class InboxBadgeTests
 
         AssertFull(Badge(opened, DestinationKind.Messages));
 
-        opened.Step(ToNotifications + 1);
+        opened.StepTo(DestinationKind.Messages);
         shell.Host.Settle();
 
         AssertFull(Badge(opened, DestinationKind.Messages));
@@ -194,7 +191,7 @@ public class InboxBadgeTests
 
         AssertFull(Badge(opened, DestinationKind.Requests));
 
-        opened.Step(ToNotifications + 2);
+        opened.StepTo(DestinationKind.Requests);
         shell.Host.Settle();
 
         AssertFull(Badge(opened, DestinationKind.Requests));
@@ -214,7 +211,7 @@ public class InboxBadgeTests
 
         var opened = await shell.Opened();
 
-        opened.Step(ToNotifications);
+        opened.StepTo(DestinationKind.Notifications);
         shell.Host.Settle();
 
         opened.Move(2);

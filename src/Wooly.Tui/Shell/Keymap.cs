@@ -231,6 +231,7 @@ public static class Keymap
         (ShellKey.E, _) => Verb.Edit,
         (ShellKey.F, _) => Verb.Favorite,
         (ShellKey.G, _) => Verb.Refresh,
+        (ShellKey.L, _) => Verb.Bookmark,
         (ShellKey.M, _) => Verb.MarkRead,
         (ShellKey.P, _) => Verb.Pin,
         (ShellKey.R, _) => Verb.Reply,

@@ -380,15 +380,12 @@ public class CustomEmojiNameTests
             drawsPlaceholders: raster.Way == PictureWay.Placeholders,
             raster: raster);
 
-        drawn.Shell.Step(ToNotifications);
+        drawn.Shell.StepTo(DestinationKind.Notifications);
         built.Host.Settle();
         drawn.Redraw();
 
         return drawn;
     }
-
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
 
     /// <summary>The columns from <paramref name="from" /> on that a row draws placeholder cells in.</summary>
     internal static int[] CustomEmojiColumns(DrawnShell drawn, int row, int from) =>

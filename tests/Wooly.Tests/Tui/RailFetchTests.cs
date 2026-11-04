@@ -85,7 +85,7 @@ public class RailFetchTests
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Step(2);
+        opened.StepTo(DestinationKind.Federated);
         shell.Host.Settle();
 
         Assert.Equal(TimelineScope.Federated, shell.Timelines.Reads[^1].Timeline.Scope);
@@ -201,7 +201,7 @@ public class RailFetchTests
         shell.Host.Settle();
 
         // On to search, which is a prompt and asks the instance for nothing at all until something is typed into it.
-        opened.Step(3);
+        opened.StepTo(DestinationKind.Search);
         shell.Host.Settle();
 
         Assert.IsType<SearchScreen>(opened.Screen);
@@ -234,29 +234,35 @@ public class RailFetchTests
     }
 
     /// <summary>
-    ///     The nine everybody has, in the order the contract lists, which is their rail groups' order (ADR-0021). The
-    ///     shape of the rail is what #28 settled, and the ninth is the one fixed entry it has ever grown by, argued for
-    ///     on those terms (ADR-0019, #181) — and with no tag sets written, those nine are all there is (ADR-0033).
+    ///     The eleven everybody has, in the order the contract lists, each in its rail group, the groups in their order
+    ///     (ADR-0021). The shape of the rail is what #28 settled, and it has grown only where an entry was argued for on
+    ///     those terms: Discover (ADR-0019, #181), and Bookmarks and Favorites after the handle (ADR-0014's amendment,
+    ///     #563) — and with no tag sets written, those eleven are all there is (ADR-0033).
     /// </summary>
+    /// <remarks>
+    ///     The one test that says what the rail holds by its position (#559). Every other test names the destination it
+    ///     means through <see cref="RailPlaces" />, so a new fixed destination is an edit here and in its own tests only.
+    /// </remarks>
     [Fact]
-    public async Task Rail_ListsTheNineEverybodyHas_WhereThereAreNoTagSets()
+    public async Task Rail_ListsTheFixedDestinationsInTheirGroups_WhereThereAreNoTagSets()
     {
         var opened = await new AShell().Opened();
 
         Assert.Equal(
             [
-                DestinationKind.Home,
-                DestinationKind.Local,
-                DestinationKind.Federated,
-                DestinationKind.Discover,
-                DestinationKind.Search,
-                DestinationKind.Notifications,
-                DestinationKind.Messages,
-                DestinationKind.Requests,
-                DestinationKind.Profile,
+                (DestinationKind.Home, RailGroup.Timelines),
+                (DestinationKind.Local, RailGroup.Timelines),
+                (DestinationKind.Federated, RailGroup.Timelines),
+                (DestinationKind.Discover, RailGroup.Explore),
+                (DestinationKind.Search, RailGroup.Explore),
+                (DestinationKind.Notifications, RailGroup.Inbox),
+                (DestinationKind.Messages, RailGroup.Inbox),
+                (DestinationKind.Requests, RailGroup.Inbox),
+                (DestinationKind.Profile, RailGroup.You),
+                (DestinationKind.Bookmarks, RailGroup.You),
+                (DestinationKind.Favorites, RailGroup.You),
             ],
-            opened.Rail.Destinations.Select(destination => destination.Kind));
-        Assert.DoesNotContain(RailGroup.Hashtags, opened.Rail.Destinations.Select(destination => destination.Group));
+            opened.Rail.Destinations.Select(destination => (destination.Kind, destination.Group)));
     }
 
     /// <summary>
@@ -268,12 +274,12 @@ public class RailFetchTests
     {
         var opened = await Sets().Opened();
 
+        var last = opened.Rail.IndexOf(DestinationKind.Federated);
+        var first = opened.Rail.IndexOf(DestinationKind.Discover);
+
         Assert.Equal(
-            [
-                "Home", "Local", "Federated", "zebras", "dotnet", "Discover", "Search", "Notifications",
-                "Direct messages", "Follow requests",
-            ],
-            opened.Rail.Destinations.SkipLast(1).Select(destination => destination.Label));
+            ["Federated", "zebras", "dotnet", "Discover"],
+            opened.Rail.Destinations.Skip(last).Take(first - last + 1).Select(destination => destination.Label));
         Assert.Equal(
             [RailGroup.Hashtags, RailGroup.Hashtags],
             opened.Rail.Destinations.Where(destination => destination.Kind == DestinationKind.TagSet)
@@ -293,16 +299,16 @@ public class RailFetchTests
 
     /// <summary>Home, local, federated and each tag set are all reachable, and each reads its own timeline.</summary>
     [Theory]
-    [InlineData(1, TimelineScope.Local)]
-    [InlineData(2, TimelineScope.Federated)]
-    [InlineData(3, TimelineScope.TagSet)]
-    [InlineData(4, TimelineScope.TagSet)]
-    public async Task Step_ReachesEachOfTheTimelines(int steps, TimelineScope expected)
+    [InlineData("Local", TimelineScope.Local)]
+    [InlineData("Federated", TimelineScope.Federated)]
+    [InlineData("zebras", TimelineScope.TagSet)]
+    [InlineData("dotnet", TimelineScope.TagSet)]
+    public async Task Step_ReachesEachOfTheTimelines(string label, TimelineScope expected)
     {
         var shell = Sets();
         var opened = await shell.Opened();
 
-        opened.Step(steps);
+        opened.StepTo(label);
         shell.Host.Settle();
 
         Assert.Equal(expected, shell.Timelines.Reads[^1].Timeline.Scope);
@@ -313,9 +319,9 @@ public class RailFetchTests
     ///     name as the breadcrumb, as arriving anywhere does.
     /// </summary>
     [Theory]
-    [InlineData(3, "zebras")]
-    [InlineData(4, "dotnet")]
-    public async Task Step_ReadsTheTagSetTheReaderWrote_UnderItsName(int steps, string name)
+    [InlineData("zebras")]
+    [InlineData("dotnet")]
+    public async Task Step_ReadsTheTagSetTheReaderWrote_UnderItsName(string name)
     {
         var shell = Sets();
         var opened = await shell.Opened();
@@ -324,7 +330,7 @@ public class RailFetchTests
         shell.Host.Drain();
         Assert.NotEqual("Home", opened.Breadcrumb);
 
-        opened.Step(steps);
+        opened.StepTo(name);
         shell.Host.Settle();
 
         Assert.Equal(Timeline.AnyOf(SetsWritten.Single(set => set.Name == name)), shell.Timelines.Reads[^1].Timeline);
@@ -342,7 +348,7 @@ public class RailFetchTests
         var shell = Sets();
         var opened = await shell.Opened();
 
-        opened.Step(3);
+        opened.StepTo("zebras");
         shell.Host.Settle();
         opened.Step(1);
         shell.Host.Settle();
@@ -376,7 +382,7 @@ public class RailFetchTests
         shell.Timelines = FakeTimelineReader.Holding(APost.With(id: "110"), APost.With(id: "111"));
         var opened = await shell.Opened();
 
-        opened.Step(3);
+        opened.StepTo("zebras");
         shell.Host.Settle();
 
         Assert.All(
@@ -388,19 +394,19 @@ public class RailFetchTests
     ///     Each destination that lists something of its own arrives at its own screen, not at somebody else's.
     /// </summary>
     [Theory]
-    [InlineData(4, typeof(SearchScreen))]
-    [InlineData(5, typeof(NotificationsScreen))]
-    [InlineData(6, typeof(DirectMessagesScreen))]
-    [InlineData(7, typeof(FollowRequestsScreen))]
-    public async Task Step_ArrivesAtTheScreenItsDestinationOpensOnto(int steps, Type screen)
+    [InlineData(DestinationKind.Search, typeof(SearchScreen))]
+    [InlineData(DestinationKind.Notifications, typeof(NotificationsScreen))]
+    [InlineData(DestinationKind.Messages, typeof(DirectMessagesScreen))]
+    [InlineData(DestinationKind.Requests, typeof(FollowRequestsScreen))]
+    public async Task Step_ArrivesAtTheScreenItsDestinationOpensOnto(DestinationKind kind, Type screen)
     {
         var shell = new AShell();
         var opened = await shell.Opened();
 
-        opened.Step(steps);
+        opened.StepTo(kind);
         shell.Host.Settle();
 
-        Assert.Equal(steps, opened.Rail.Current);
+        Assert.Equal(kind, opened.Rail.Showing.Kind);
         Assert.IsType(screen, opened.Screen);
     }
 
@@ -445,8 +451,6 @@ public class RailFetchTests
     [InlineData("dotnet", 1, "Discover")]
     [InlineData("Discover", -1, "dotnet")]
     [InlineData("Notifications", -1, "Search")]
-    [InlineData("Profile", 1, "Home")]
-    [InlineData("Home", -1, "Profile")]
     public async Task Step_WalksTheRailInItsShownOrder(string from, int by, string to)
     {
         var shell = Sets();
@@ -457,6 +461,27 @@ public class RailFetchTests
         shell.Host.Settle();
 
         Assert.Equal(Place(opened.Rail, to), opened.Rail.Showing);
+    }
+
+    /// <summary>
+    ///     And it wraps at either end: on from the rail's last destination is Home, and back from Home is the last —
+    ///     whichever destination the rail ends on.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(-1)]
+    public async Task Step_WrapsAtEitherEndOfTheRail(int by)
+    {
+        var shell = Sets();
+        var opened = await shell.Opened();
+        var home = opened.Rail.Of(DestinationKind.Home);
+        var last = opened.Rail.Destinations[^1];
+
+        opened.Rail.GoTo(by > 0 ? last : home);
+        opened.Step(by);
+        shell.Host.Settle();
+
+        Assert.Equal(by > 0 ? home : last, opened.Rail.Showing);
     }
 
     /// <summary>

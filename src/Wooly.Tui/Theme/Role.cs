@@ -100,6 +100,12 @@ public enum Role
     /// </summary>
     Replies,
 
+    /// <summary>
+    ///     The bookmark mark. Only ever the reader's own, and only drawn where it is on, so it has no <em>mine</em> to
+    ///     be told from (#561). Carried without colour by <c>⚑</c>.
+    /// </summary>
+    Bookmark,
+
     /// <summary>The selected row. Carried without colour by <c>▌</c> in the gutter.</summary>
     Selection,
 

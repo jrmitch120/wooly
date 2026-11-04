@@ -8,12 +8,12 @@ namespace Wooly.Tests.Tui;
 internal static class RailHeights
 {
     /// <summary>
-    ///     Tall enough that every group is framed: nine destinations, four frames of two rows, and the API panel's four,
-    ///     with the status row under them.
+    ///     Tall enough that every group is framed, with no row to spare: eleven destinations, four frames of two rows,
+    ///     and the API panel's four, with the status row under them.
     /// </summary>
     public const int Framed = 24;
 
-    /// <summary>Too short to frame the groups, tall enough for the compact rail whole (14 to 20 rail rows).</summary>
+    /// <summary>Too short to frame the groups, tall enough for the compact rail whole (16 to 22 rail rows).</summary>
     public const int Compact = 18;
 
     /// <summary>Too short even for the compact rail, which scrolls to keep the cursor's group in view.</summary>

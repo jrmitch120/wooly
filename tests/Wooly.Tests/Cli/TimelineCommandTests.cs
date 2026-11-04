@@ -56,6 +56,114 @@ public class TimelineCommandTests : IDisposable
         Assert.Equal(expected, Assert.Single(_timelines.Reads).Timeline.Scope);
     }
 
+    /// <summary>
+    ///     The two private runs Mastodon keeps for an account, beside <c>pinned</c>: read as timelines, written by the
+    ///     same post report, and naming nobody, because each is the acting profile's own.
+    /// </summary>
+    [Theory]
+    [InlineData("bookmarks", TimelineScope.Bookmarks)]
+    [InlineData("favorites", TimelineScope.Favorites)]
+    public void Marks_ReadsTheProfilesOwnRunTheSubcommandNames(string command, TimelineScope expected)
+    {
+        AddProfile();
+
+        var run = Run(["timeline", command]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("jeff@mastodon.social", run.Output);
+        Assert.Contains("Hello world", run.Output);
+        Assert.Empty(run.ErrorOutput.Trim());
+
+        var read = Assert.Single(_timelines.Reads);
+        Assert.Equal(expected, read.Timeline.Scope);
+        Assert.Null(read.Timeline.Account);
+        Assert.Equal("personal", read.Profile);
+    }
+
+    /// <summary>
+    ///     An account with nothing bookmarked or favorited has an empty run, which is not an error — and is told so in
+    ///     the TUI's words, the run being the same run whichever front end reads it.
+    /// </summary>
+    [Theory]
+    [InlineData("bookmarks", "Nothing bookmarked yet.")]
+    [InlineData("favorites", "Nothing favorited yet.")]
+    public void Marks_SaysSoWhenTheRunHasNothingOnIt(string command, string expected)
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.Holding();
+
+        var run = Run(["timeline", command]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains(expected, run.Output);
+        Assert.Empty(run.ErrorOutput.Trim());
+    }
+
+    /// <summary>
+    ///     Named in the field every timeline's JSON names itself in, with no account beside it: the run is whoever is
+    ///     reading it, which the profile says and the file need not.
+    /// </summary>
+    [Theory]
+    [InlineData("bookmarks")]
+    [InlineData("favorites")]
+    public void Marks_NamesTheRunItReadInTheJsonItWrites(string command)
+    {
+        AddProfile();
+
+        var run = Run(["timeline", command, "--json"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+
+        var timeline = JsonDocument.Parse(run.Output).RootElement;
+
+        Assert.Equal(command, timeline.GetProperty("timeline").GetString());
+        Assert.Equal("Hello world", timeline.GetProperty("posts")[0].GetProperty("content").GetString());
+        Assert.Equal(["timeline", "complete", "posts"], FieldsOf(run));
+    }
+
+    /// <summary>
+    ///     The shared paged-list options, the profile override included, rather than a second paging scheme: which
+    ///     profile is acting is whose run is read.
+    /// </summary>
+    [Theory]
+    [InlineData("bookmarks")]
+    [InlineData("favorites")]
+    public void Marks_TakesTheSamePagedListOptionsEveryOtherListDoes(string command)
+    {
+        AddProfile();
+        AddProfile("work", "hachyderm.io");
+
+        Run(["timeline", command, "--limit", "60", "--profile", "work"]);
+
+        var read = Assert.Single(_timelines.Reads);
+        Assert.Equal(60, read.Limit);
+        Assert.Equal("work", read.Profile);
+
+        var rejected = Run(["timeline", command, "--limit", "0"]);
+
+        Assert.Equal((int)ExitCode.UsageError, rejected.ExitCode);
+        Assert.Contains("at least one post", rejected.ErrorOutput);
+    }
+
+    /// <summary>
+    ///     A rate limit part way through either run is reported as it is on any timeline, so that a short list is never
+    ///     taken for a whole one.
+    /// </summary>
+    [Theory]
+    [InlineData("bookmarks")]
+    [InlineData("favorites")]
+    public void Marks_ShowsThePostsItGotAndReportsTheRateLimitThatStoppedTheRest(string command)
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.RateLimitedAfter(APost.With());
+
+        var run = Run(["timeline", command]);
+
+        Assert.Equal((int)ExitCode.RateLimited, run.ExitCode);
+        Assert.Contains("Hello world", run.Output);
+        Assert.Contains("Rate limited by mastodon.social", run.ErrorOutput);
+    }
+
     /// <summary>A user says "#cats" as readily as "cats", and a shell that ate the # leaves a third spelling.</summary>
     [Theory]
     [InlineData("cats")]
@@ -327,6 +435,8 @@ public class TimelineCommandTests : IDisposable
         Assert.Contains("tag", help);
         Assert.Contains("account", help);
         Assert.Contains("pinned", help);
+        Assert.Contains("bookmarks", help);
+        Assert.Contains("favorites", help);
     }
 
     /// <summary>GLOSSARY.md's vocabulary, at the one place a user reads it: nothing on screen says reblog or toot.</summary>
@@ -696,6 +806,8 @@ public class TimelineCommandTests : IDisposable
         TimelineScope.Account => ["timeline", "account", "alice@hachyderm.io"],
         TimelineScope.Pinned => ["timeline", "pinned", "alice@hachyderm.io"],
         TimelineScope.WithReplies => ["timeline", "account", "alice@hachyderm.io", "--replies"],
+        TimelineScope.Bookmarks => ["timeline", "bookmarks"],
+        TimelineScope.Favorites => ["timeline", "favorites"],
         _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "No command reads this timeline."),
     };
 

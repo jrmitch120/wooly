@@ -124,6 +124,24 @@ public class ScreenKeyTests
     }
 
     /// <summary>
+    ///     <c>l:bookmark</c> is learnable, so it ranks in the tail behind <c>↓/↑:row</c>, right after <c>w:who</c> —
+    ///     the same on every screen with a post picked (#561). Notifications says <c>w:who</c> up front as a key of its
+    ///     own (#451), and there nothing comes between the two.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(WithAPostPicked))]
+    public void Keys_RankBookmarkInTheTailRightAfterWho(string state)
+    {
+        var keys = Of(state).Keys.Select(key => key.ToString()).ToList();
+        var row = keys.IndexOf("↓/↑:row");
+        var bookmark = keys.IndexOf("l:bookmark");
+
+        var between = keys[(row + 1)..bookmark];
+
+        Assert.Equal(keys.IndexOf("w:who") < row ? [] : ["w:who"], between);
+    }
+
+    /// <summary>
     ///     And a screen's own key that shares a letter with one of those is untouched, which is the whole reason the
     ///     rule runs by hint: what a key does is what its screen says it does.
     /// </summary>

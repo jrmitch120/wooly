@@ -5,6 +5,7 @@ using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using static Wooly.Tests.Tui.ContentClicks;
 using Color = Terminal.Gui.Drawing.Color;
@@ -381,7 +382,7 @@ public class CustomEmojiTests
             drawsPlaceholders: true,
             raster: ARaster.Placeholders());
 
-        drawn.Shell.Step(ToNotifications);
+        drawn.Shell.StepTo(DestinationKind.Notifications);
         built.Host.Settle();
         drawn.Redraw();
 
@@ -389,9 +390,6 @@ public class CustomEmojiTests
 
         Assert.Matches("^(░░)+ ?…$", clipped);
     }
-
-    /// <summary>Where the rail's notifications destination is, counting from Home.</summary>
-    private const int ToNotifications = 5;
 
     private static readonly Color Shade = Themes.Dark.For(Role.StandIn).Foreground;
 

@@ -18,12 +18,6 @@ public class ShellInboxReadingOnTests
     /// <summary>The height of the content region these tests say the page is, in rows.</summary>
     private const int Screenful = 20;
 
-    /// <summary>Where the rail's Direct messages destination is, counting from Home.</summary>
-    private const int ToMessages = 6;
-
-    /// <summary>Where the rail's Follow requests destination is, counting from Home.</summary>
-    private const int ToRequests = 7;
-
     /// <summary>
     ///     The page within a screenful of the end of the requests: the rest of those waiting are asked for and put under
     ///     the ones held, with the pick left where it was — and, nobody being left behind them, the foot says so.
@@ -267,7 +261,7 @@ public class ShellInboxReadingOnTests
     {
         var opened = await built.Opened();
 
-        opened.Step(ToRequests);
+        opened.StepTo(DestinationKind.Requests);
         built.Host.Settle();
 
         return opened;
@@ -278,7 +272,7 @@ public class ShellInboxReadingOnTests
     {
         var opened = await built.Opened();
 
-        opened.Step(ToMessages);
+        opened.StepTo(DestinationKind.Messages);
         built.Host.Settle();
 
         return opened;

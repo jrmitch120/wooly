@@ -144,7 +144,8 @@
           <li><strong>The rail</strong> on the left lists where you can go, in groups: <strong>Timelines</strong>
             (Home, Local, Federated), <strong>Hashtags</strong> (your own <a href="#tag-sets">tag sets</a>, if you
             have any), <strong>Explore</strong> (Discover, Search), <strong>Inbox</strong> (Notifications, Direct
-            messages, Follow requests) and <strong>You</strong>. Unread counts sit beside the places that have them. At the foot, a
+            messages, Follow requests) and <strong>You</strong> (your own profile, then your Bookmarks and Favorites,
+            newest first by when you marked them). Unread counts sit beside the places that have them. At the foot, a
             gauge shows how much of your instance's request allowance is left.</li>
           <li><strong>The content panel</strong> on the right shows one screen at a time. Its title is a breadcrumb,
             such as <code>Home › Post by @maria</code>, so you always know where you are.</li>
@@ -183,6 +184,7 @@
               <tr><td><kbd>⏎</kbd></td><td>Open the post, with what it replies to above and its replies below</td></tr>
               <tr><td><kbd>a</kbd></td><td>Open the author's profile</td></tr>
               <tr><td><kbd>b</kbd> <kbd>f</kbd></td><td>Boost / favorite, and again to undo</td></tr>
+              <tr><td><kbd>l</kbd></td><td>Bookmark, and again to undo</td></tr>
               <tr><td><kbd>w</kbd></td><td>Who favorited or boosted it</td></tr>
               <tr><td><kbd>x</kbd></td><td>Show what a content warning or a sensitive picture is hiding</td></tr>
               <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Step through the hashtags, mentions, links and pictures in the post; <kbd>⏎</kbd> opens the one picked</td></tr>
@@ -292,8 +294,8 @@ wooly-cli account requests list</code></pre>
             <thead><tr><th scope="col">Command</th><th scope="col">What it does</th></tr></thead>
             <tbody>
               <tr><td><code>profile</code></td><td><code>add</code>, <code>list</code>, <code>show</code>, <code>switch</code> and <code>remove</code> your profiles</td></tr>
-              <tr><td><code>timeline</code></td><td>Read <code>home</code>, <code>local</code>, <code>federated</code>, a <code>tag</code>, an <code>account</code>'s posts or its <code>pinned</code> ones</td></tr>
-              <tr><td><code>post</code></td><td><code>create</code>, <code>reply</code>, <code>edit</code>, <code>delete</code>, <code>show</code>, <code>boost</code>, <code>favorite</code>, <code>pin</code> and <code>vote</code>, the undo of each, and <code>favorited-by</code> / <code>boosted-by</code></td></tr>
+              <tr><td><code>timeline</code></td><td>Read <code>home</code>, <code>local</code>, <code>federated</code>, a <code>tag</code>, an <code>account</code>'s posts or its <code>pinned</code> ones, or your own <code>bookmarks</code> and <code>favorites</code></td></tr>
+              <tr><td><code>post</code></td><td><code>create</code>, <code>reply</code>, <code>edit</code>, <code>delete</code>, <code>show</code>, <code>boost</code>, <code>favorite</code>, <code>pin</code>, <code>bookmark</code> and <code>vote</code>, the undo of each, and <code>favorited-by</code> / <code>boosted-by</code></td></tr>
               <tr><td><code>account</code></td><td><code>show</code>, <code>edit</code> your profile, <code>follow</code>, <code>block</code>, <code>mute</code> (and undo), list <code>followers</code> and <code>following</code>, and answer <code>requests</code></td></tr>
               <tr><td><code>notification</code></td><td><code>list</code>, <code>dismiss</code> one, or <code>clear</code> them all</td></tr>
               <tr><td><code>dm</code></td><td><code>list</code> conversations, <code>show</code> one, <code>send</code> a message, mark one <code>read</code></td></tr>
