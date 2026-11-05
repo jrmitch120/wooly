@@ -301,8 +301,8 @@ internal sealed class DrawnShell : IDisposable
     }
 
     /// <summary>
-    ///     What a terminal writes as the mouse is used — SGR reports (<see cref="Sgr" />) — read in as the running TUI
-    ///     reads them, and the loop's next pass run over them (<see cref="Iterate" />): parsed by Terminal.Gui, the clicks
+    ///     What a terminal writes as the mouse is used — SGR reports (<see cref="Sgr" />) — or as a key is pressed, read in
+    ///     as the running TUI reads them, and the loop's next pass run over them (<see cref="Iterate" />): parsed by Terminal.Gui, the clicks
     ///     it makes of them made, each sent to the view under the pointer, and the screen drawn only where that left
     ///     something to draw — never redrawn whole, as <see cref="Point" /> redraws it. All of them land in the one pass,
     ///     as a burst of reports read at once does.
