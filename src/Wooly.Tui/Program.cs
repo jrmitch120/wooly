@@ -181,7 +181,9 @@ try
     // breadcrumb's spinner is for.
     window.Initialized += (_, _) => _ = shell.Open();
 
-    application.Run(window);
+    // A key the terminal sent that Terminal.Gui cannot name — the Menu key, F13 and above — threw out of its input loop
+    // and ended the session; the loop carries on past it, and past nothing else.
+    application.Run(window, UnnamedKeys.CarryOn);
 
     return (int)TuiExit.Success;
 }
