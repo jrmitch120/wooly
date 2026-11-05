@@ -58,6 +58,7 @@ public class UnnamedKeysTests
         Assert.False(UnnamedKeys.CarryOn(thrown));
     }
 
+    /// <summary>A <see cref="NullReferenceException" /> thrown nowhere near Terminal.Gui naming a key still ends the session.</summary>
     [Fact]
     public void ANullReferenceThrownAnywhereElseIsNotCarriedOnPast()
     {

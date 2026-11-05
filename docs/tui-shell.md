@@ -138,6 +138,11 @@ text is the client's own rather than an author's — the Lang list — it is wri
 The same output also mends three faults in Terminal.Gui's own writer that Windows Terminal showed as a line on hover
 over blank cells (#553, ADR-0031): it keeps a frame whole at the caret's cell and closes any link at its end, erases
 under a sixel before sending it, and writes nothing between frames.
+A key Terminal.Gui reads as a key but cannot name, such as the Menu key (`ESC[29~` from Windows Terminal), F13 and
+above, rxvt's Home and End, a stray `ESC[201~`, `ESC O O` or a kitty report of a code that is no character, throws out
+of Terminal.Gui 2.5.0's input loop. `UnnamedKeys.CarryOn`, handed to `application.Run` as its error handler, lets the
+loop carry on past that one exception, which it recognises by its stack frames, and past nothing else. Only that key
+is lost. A fault in a key handler of wooly's own still ends the session.
 
 ## Hidden rail
 

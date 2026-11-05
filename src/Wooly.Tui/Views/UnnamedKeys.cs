@@ -34,6 +34,8 @@ namespace Wooly.Tui.Views;
 /// </remarks>
 internal static class UnnamedKeys
 {
+    // Named by string, not typeof, since Terminal.Gui keeps the parser internal; a rename in an upgrade fails the
+    // UnnamedKeysTests rather than passing silently.
     private const string Parser = "Terminal.Gui.Drivers.AnsiResponseParserBase";
 
     private const string Raising = "RaiseKeyboardEvent";
