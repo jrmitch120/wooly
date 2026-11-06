@@ -344,6 +344,11 @@ internal sealed class ShellWindow : Window
             overlay.Y = Pos.Func(content => ViewportOrigin(content).Y, _content);
             overlay.Width = Dim.Func(content => content?.Viewport.Width ?? 0, _content);
             overlay.Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content);
+
+            foreach (var laid in overlay.SubViews)
+            {
+                Uncovering(laid);
+            }
         }
 
         var status = new PaintedView(theme, (width, _) =>
@@ -1362,6 +1367,30 @@ internal sealed class ShellWindow : Window
         var bottom = _content.FrameToScreen().Bottom - 1;
 
         return _shell.ShowsRail && at == new Point(shell.X + RailLines.ToggleColumn, bottom);
+    }
+
+    /// <summary>
+    ///     Has the content panel drawn again whenever <paramref name="laid" />, a view laid over it, shows, hides, moves
+    ///     or changes size — a pick list opening, closing or following its word above all (#577). Under a list is
+    ///     whatever the panel paints there, the pictures on its rows among it; only the panel drawn again puts back
+    ///     what a list leaves, and only the panel drawn again places its pictures around what a list newly covers.
+    /// </summary>
+    /// <remarks>
+    ///     A view hidden or moved has the view holding it drawn again, and nothing beside: what it leaves is the panel's,
+    ///     and an overlay draws nothing of its own there. So a list flipped over the Media rows and closed by <c>esc</c>
+    ///     stayed on the terminal, holes in the pictures under it and all. Opening wants the panel too: a picture left as
+    ///     it was, uncut, still claims the cells the list now covers — a Kitty placement sits over them, and the driver
+    ///     leaves any blank cell on the terminal's own background inside a sixel unwritten, which is every blank cell of
+    ///     the list in a built-in theme. Drawn again, the panel is drawn with the overlays on top
+    ///     (<see cref="OnDrawingSubViews" />), and a list keeps the cells it covers out of what the panel paints:
+    ///     placeholder cells there go unpainted, and a sixel is sent and a Kitty placement put again cut round the list,
+    ///     to the cell. A shell change draws the whole window again anyway; this is for what moves a list
+    ///     without one — a key the list takes, a click it is closed by, the caret leaving its word.
+    /// </remarks>
+    private void Uncovering(View laid)
+    {
+        laid.VisibleChanged += (_, _) => _content.SetNeedsDraw();
+        laid.FrameChanged += (_, _) => _content.SetNeedsDraw();
     }
 
     /// <summary>

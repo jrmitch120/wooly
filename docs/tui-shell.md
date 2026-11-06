@@ -1813,10 +1813,21 @@ typing one in the edit public profile form's bio (#408):
   poll, people to mention landing) never opens the list by itself. A read that answers nothing is asked again on the
   next new `:`-word, never twice for the same one: a word is new when the caret comes to its end having been at the
   end of no `:`-word, or another, the time before — the same rule that ends `esc`'s memory, so typing on, deleting
-  back short of two letters, or moving within the word asks nothing. Nothing reaches the status row, in flight, failed or refused; a refused
-  token is said by the reads that fill the screen. An instance that offers none never opens the list and is not asked
-  again. Kept by instance, two profiles on one instance share one read, and switching away and back reads nothing; a
-  profile on another instance is read on its own first `:`-word.
+  back short of two letters, or moving within the word asks nothing. Nothing reaches the status row, in flight, failed
+  or refused; a refused token is said by the reads that fill the screen. An instance that offers none never opens the
+  list and is not asked again. Kept by instance, two profiles on one instance share one read, and switching away and
+  back reads nothing; a profile on another instance is read on its own first `:`-word.
+- **An open list is always on top of a picture under it (#577).** A list over the content panel's rows — the languages
+  hung down over compose's Media rows, the people to mention flipped up over them — hides a picture exactly where it
+  covers it, cell by cell, as it hides the text there, on each of the three ways a picture is drawn: Kitty's
+  placeholder cells under it are never painted, a sixel is sent again cut round it, and a picture through a Kitty box
+  is placed again cut round it. However the list closes — a pick, `esc`, a click outside it, the caret leaving the
+  word — every picture it covered is back whole where it was, and nothing has moved. The rule is the window's, for
+  anything laid over the panel: one that shows, hides, moves or changes size has the panel drawn again under it
+  (`ShellWindow.Uncovering`), which is what puts back what a list leaves and cuts a picture round what it newly covers.
+  The people to mention flipped over the Media rows used to stay on the terminal after `esc`, a click outside or the
+  caret leaving the word, holes in the pictures and all, until something else redrew the panel. A sixel cut round a
+  list is encoded by Terminal.Gui rather than from the cuts kept for it (ADR-0023), and only while the list cuts it.
 - **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
   on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
   as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that
