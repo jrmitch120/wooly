@@ -127,8 +127,9 @@ internal sealed class ComposeEditor(
     ///     reference.
     /// </summary>
     /// <remarks>
-    ///     <paramref name="idxRow" /> and <paramref name="idxCol" /> are where the letter is drawn, on the rows the
-    ///     text wrapped to.
+    ///     <paramref name="idxRow" /> and <paramref name="idxCol" /> are where the letter is in the text as wrapped:
+    ///     a row of the whole of it, counted from its first, not from the first on screen — so a post scrolled down is
+    ///     looked up where it is written, not where it is drawn.
     /// </remarks>
     protected override void OnDrawNormalColor(List<Cell> line, int idxCol, int idxRow)
     {

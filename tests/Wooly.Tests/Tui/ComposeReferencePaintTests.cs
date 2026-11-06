@@ -1,4 +1,5 @@
 using Terminal.Gui.Drivers;
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
@@ -163,6 +164,29 @@ public class ComposeReferencePaintTests
         AssertDrawn(view, 2, (address[broken..], Role.Link), (" ok", Role.Body));
     }
 
+    /// <summary>
+    ///     A post taller than the editor, scrolled down to its last row, paints the references on the rows scrolled to,
+    ///     and only those written there.
+    /// </summary>
+    [Fact]
+    public async Task AReferenceOnARowScrolledToIsPainted()
+    {
+        using var view = await ComposedView.Of();
+
+        var rows = view.Editor.Viewport.Height;
+
+        view.Paste(string.Join('\n', Enumerable.Range(1, rows * 2).Select(row => $"row {row}")));
+        view.Press(Key.Enter);
+        view.Type("hi #rustlang");
+
+        Assert.True(view.Editor.Viewport.Y > 0, "the editor has not scrolled");
+
+        var last = view.Editor.CurrentRow - view.Editor.Viewport.Y;
+
+        AssertDrawn(view, last, ("hi ", Role.Body), ("#rustlang", Role.Hashtag));
+        AssertDrawn(view, last - 1, ($"row {rows * 2}", Role.Body));
+    }
+
     /// <summary>Deleting into a tag, or typing a space inside it, un-paints what is no longer a reference.</summary>
     [Fact]
     public async Task WhatIsNoLongerAReferenceIsNoLongerPainted()
@@ -212,6 +236,46 @@ public class ComposeReferencePaintTests
         using var view = await ComposedView.Of(built, ComposeFor.Reply);
 
         AssertDrawn(view, 0, ("@ben@hachyderm.io", Role.Mention), (" ", Role.Body));
+    }
+
+    /// <summary>
+    ///     A direct message — a reply to one, which goes to the same people — opens on the mentions it is delivered to,
+    ///     and they are painted.
+    /// </summary>
+    [Fact]
+    public async Task ADirectMessagesMentionsArePainted()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "220", account: "ben@hachyderm.io", visibility: PostVisibility.Direct)),
+        };
+
+        using var view = await ComposedView.Of(built, ComposeFor.Reply);
+
+        Assert.Equal(PostVisibility.Direct, view.Compose.Visibility);
+        AssertDrawn(view, 0, ("@ben@hachyderm.io", Role.Mention), (" ", Role.Body));
+    }
+
+    /// <summary>An edit of a post already sent opens on its text, and the references in it are painted.</summary>
+    [Fact]
+    public async Task AnEditsOpeningTextIsPainted()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110", account: "jeff@mastodon.social", content: "hi #rustlang at https://a.io/x")),
+        };
+
+        using var view = await ComposedView.Of(built, ComposeFor.Edit);
+
+        AssertDrawn(
+            view,
+            0,
+            ("hi ", Role.Body),
+            ("#rustlang", Role.Hashtag),
+            (" at ", Role.Body),
+            ("https://a.io/x", Role.Link));
     }
 
     /// <summary>
