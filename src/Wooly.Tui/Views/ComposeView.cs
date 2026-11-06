@@ -88,6 +88,9 @@ internal sealed class ComposeView : View
             {
                 WordWrap = true,
 
+                // A post's body is read for its references once sent, so they are painted as it is written (#572).
+                PaintsReferences = true,
+
                 // tab is the frame's on every screen, compose included (docs/tui-shell.md, ADR-0024): it moves the
                 // rail's cursor rather than putting a tab into the post.
                 TabKeyAddsTab = false,
