@@ -197,7 +197,8 @@ public enum Role
 
     /// <summary>
     ///     Something under way that the reader is waiting on and that says so in words: the sign-in screen's wait for
-    ///     the browser to come back. Carried without colour by the words.
+    ///     the browser to come back, and the <c>:</c> list's row while the instance's custom emoji are being read (#528).
+    ///     Carried without colour by the words.
     /// </summary>
     Loading,
 

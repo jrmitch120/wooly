@@ -1,4 +1,5 @@
 using Wooly.Core;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -15,9 +16,12 @@ namespace Wooly.Tui.Views;
 ///     that starts with itself, so it stays, first. As many as a hanging list offers at most
 ///     (<see cref="HangingWord.MostOffered" />).
 ///     <para>
-///         The instance is asked the first time a word wants its emoji, and on a word once at most (#579): a read that
-///         answered nothing is asked again only on a new word, so a down instance is not asked on every keystroke. What
-///         it answers after the keystroke that asked is offered from the next one, never by a redraw on its own.
+///         The instance is asked as the caret first comes into a <c>:</c>-word, on its bare <c>:</c>, so the answer is
+///         on its way before the shortcode's letters are (#528); and on a word once at most (#579): a read that
+///         answered nothing is asked again only on a new word, so a down instance is not asked on every keystroke.
+///         While it is being asked, a word that would open the list opens it on a row saying so, which its answer
+///         landing fills in at once — or closes, where it offers none or answered nothing. Otherwise what it answers
+///         after the keystroke that asked is offered from the next one, never by a redraw on its own.
 ///     </para>
 ///     <para>
 ///         The pictures are the content panel's (<paramref name="pictures" />), from the one cache, so an emoji already
@@ -33,12 +37,18 @@ internal sealed class EmojiOffering(Drafting.Drafting drafting, PanelPictures pi
 
     /// <summary>
     ///     A new word is the one time a word asks the instance, so a read that failed is not asked again on every
-    ///     keystroke.
+    ///     keystroke; asked on its bare <c>:</c>, before it would open the list (#528).
     /// </summary>
     public void Entering() => drafting.AskForEmoji();
 
-    /// <summary>What landed since the last keystroke is offered from this one, never by a redraw on its own.</summary>
-    public void Typed() => drafting.TakeUpLandedEmoji();
+    /// <summary>
+    ///     What landed is offered from the next keystroke, or at once where the list stood waiting on it, never by any
+    ///     other redraw.
+    /// </summary>
+    public void TakeUp() => drafting.TakeUpLandedEmoji();
+
+    /// <summary>While the instance is being asked, the list stands open on a row saying so (#528).</summary>
+    public Line? Awaiting() => drafting.ReadingEmoji() ? EmojiLines.Reading : null;
 
     public IReadOnlyList<HangingOffer> Matching(HangingWord word) => Ranked(drafting.EmojiToWrite(), word);
 

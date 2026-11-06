@@ -23,6 +23,12 @@ public static class EmojiLines
     private const int Pictured = CustomEmojiBox.Columns + 1;
 
     /// <summary>
+    ///     The one row the list stands open on while the instance's emoji are being read (#528): dim, where a shortcode
+    ///     would be, nothing to pick.
+    /// </summary>
+    public static Line Reading { get; } = Line.Of("reading custom emoji…", Role.Loading);
+
+    /// <summary>
     ///     One custom emoji, given what the <c>:</c>-word typed so far is: its picture and <c>:shortcode:</c> where
     ///     <paramref name="pictures" /> and <paramref name="raster" /> draw one, and <c>:shortcode:</c> where they do not.
     /// </summary>

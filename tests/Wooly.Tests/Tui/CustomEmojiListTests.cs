@@ -318,28 +318,30 @@ public class CustomEmojiListTests
     }
 
     /// <summary>
-    ///     The instance's emoji are read the first time a <c>:</c>-word would open the list, as the profile acted as —
-    ///     not on composing, nor on any <c>:</c> before it that opens nothing — and then not again.
+    ///     The instance's emoji are read on the first <c>:</c> that starts a word, bare, before any of a shortcode's
+    ///     letters follow it, as the profile acted as — not on composing, nor on a <c>:</c> inside or ending a word —
+    ///     and then not again.
     /// </summary>
     [Fact]
-    public async Task TheEmojiAreReadOnceOnTheFirstWordThatWouldOpenTheList()
+    public async Task TheEmojiAreReadOnceOnTheFirstColonThatStartsAWord()
     {
         using var drawn = await Composing("blobcat", "thinking");
 
         Assert.Empty(drawn.Built.Emoji.Reads);
 
-        Type(drawn, "at 10:30 :) :b re:bl ");
+        Type(drawn, "at 10:30 re:bl note: ");
 
         Assert.Empty(drawn.Built.Emoji.Reads);
 
-        Type(drawn, ":bl");
+        Type(drawn, ":");
 
         Assert.Equal("personal", Assert.Single(drawn.Built.Emoji.Reads).Name);
 
+        Type(drawn, "bl");
         drawn.Press(Key.Tab);
         Type(drawn, ":th");
         drawn.Press(Key.Esc);
-        Type(drawn, " :zz");
+        Type(drawn, " :zz :)");
 
         Assert.Single(drawn.Built.Emoji.Reads);
     }

@@ -3,6 +3,7 @@ using Wooly.Core.Errors;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
+using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
@@ -16,50 +17,210 @@ namespace Wooly.Tests.Tui;
 public class CustomEmojiReadTests
 {
     /// <summary>
-    ///     Typing on in a <c>:</c>-word while its read is in flight asks nothing more and opens nothing; the answer
-    ///     landing opens nothing by itself, even with the shell changing under the word; the next keystroke in the word
-    ///     opens the list.
+    ///     While the read is in flight, a <c>:</c>-word that would open the list opens it on one dim row saying so, hung
+    ///     and lined up as the list is — under the word, left on its <c>:</c>, the row where a shortcode would be — with
+    ///     its usual foot, and nothing on the status row. One letter after the <c>:</c> opens nothing yet.
     /// </summary>
     [Fact]
-    public async Task WhileTheReadIsInFlightNothingMoreIsAsked_AndTheNextKeystrokeAfterItLandsOpensTheList()
+    public async Task WhileTheReadIsInFlightTheWordOpensTheListOnALoadingRow()
     {
-        var emoji = FakeInstanceEmoji.Offering("blobcat", "blobfox");
+        var emoji = FakeInstanceEmoji.Offering("blobcat");
+        emoji.Holding = true;
+
+        using var drawn = await ComposedView.Of(new AShell { Emoji = emoji });
+        var before = drawn.Status();
+
+        drawn.Type("hi :b");
+
+        Assert.False(drawn.Hanging.Visible);
+
+        drawn.Type("l");
+
+        var list = drawn.Hanging.FrameToScreen();
+        var editor = drawn.Editor.FrameToScreen();
+        var rows = drawn.RowsOf(drawn.Hanging);
+
+        Assert.True(drawn.Hanging.Visible);
+        Assert.Equal(editor.Y + 1, list.Y);
+        Assert.Equal(editor.X + 3, list.X);
+        Assert.Equal(3, rows.Count);
+        Assert.Matches("^│  reading custom emoji… +│$", rows[1]);
+        Assert.Contains("↑↓ pick  tab insert  esc close", rows[^1], StringComparison.Ordinal);
+        Assert.Equal(Themes.Dark.For(Role.Loading), drawn.Cell(list.Y + 1, list.X + 3));
+        Assert.Null(drawn.Shell.StatusRow.Notice);
+        Assert.Equal(before, drawn.Status());
+    }
+
+    /// <summary>
+    ///     The loading row is nothing to pick: <c>tab</c>, <c>enter</c>, a click and the wheel on it insert nothing and
+    ///     leave it open, while every other key goes on to the editor — <c>↑</c> moving the caret up a line, off the
+    ///     word, which closes it.
+    /// </summary>
+    [Fact]
+    public async Task TheLoadingRowPicksNothing_AndEveryOtherKeyGoesOnToTheEditor()
+    {
+        var emoji = FakeInstanceEmoji.Offering("blobcat");
+        emoji.Holding = true;
+
+        using var drawn = await ComposedView.Of(new AShell { Emoji = emoji });
+
+        drawn.Type("first");
+        drawn.Press(Key.Enter);
+        drawn.Type("hi :bl");
+
+        var text = drawn.Editor.Text;
+        var at = drawn.Hanging.FrameToScreen();
+
+        drawn.Press(Key.Tab);
+        drawn.Press(Key.Enter);
+        drawn.Click(at.X + 4, at.Y + 1);
+        drawn.Wheel(at.X + 4, at.Y + 1);
+
+        Assert.Equal(text, drawn.Editor.Text);
+        Assert.Equal(["reading custom emoji…"], Shortcodes(drawn));
+
+        drawn.Press(Key.CursorUp);
+
+        Assert.False(drawn.Hanging.Visible);
+
+        drawn.Type("X");
+
+        Assert.StartsWith("firstX", drawn.Editor.Text, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    ///     Near the editor's foot the loading row hangs over the line, as the list does; the answer landing grows the
+    ///     list upward from its bottom edge, which stays put on the row over the word.
+    /// </summary>
+    [Fact]
+    public async Task NearTheFootTheLoadingRowHangsOverTheLine_AndTheListGrowsUpwardFromIt()
+    {
+        var emoji = FakeInstanceEmoji.Offering("blobcat", "blobfox", "blobowl");
+        emoji.Holding = true;
+
+        using var drawn = await ComposedView.Of(new AShell { Emoji = emoji });
+        var editor = drawn.Editor.FrameToScreen();
+
+        for (var line = 0; line < editor.Height - 2; line++)
+        {
+            drawn.Press(Key.Enter);
+        }
+
+        drawn.Type(":bl");
+
+        var loading = drawn.Hanging.FrameToScreen();
+
+        Assert.Equal(editor.Y + editor.Height - 2, loading.Bottom);
+        Assert.Equal(3, loading.Height);
+
+        Assert.Single(emoji.Held).Land();
+        drawn.Settle();
+
+        var filled = drawn.Hanging.FrameToScreen();
+
+        Assert.Equal([":blobcat:", ":blobfox:", ":blobowl:"], Shortcodes(drawn));
+        Assert.Equal(loading.Bottom, filled.Bottom);
+        Assert.Equal(loading.X, filled.X);
+        Assert.Equal(5, filled.Height);
+    }
+
+    /// <summary>
+    ///     Typing on in a <c>:</c>-word while its read is in flight asks nothing more and keeps the loading row, as does
+    ///     the shell changing under it; the answer landing fills the list in at once, with no keystroke, picked on the
+    ///     first, the list growing down from where the loading row hung.
+    /// </summary>
+    [Fact]
+    public async Task WhileTheReadIsInFlightNothingMoreIsAsked_AndItsAnswerLandingFillsTheListIn()
+    {
+        var emoji = FakeInstanceEmoji.Offering("blobcat", "blobfox", "thinking");
+        emoji.Holding = true;
+
+        using var drawn = await ComposedView.Of(new AShell { Emoji = emoji });
+
+        drawn.Type(":bl");
+        drawn.Type("o");
+        drawn.Shell.StatusRow.SayForAMoment("Something else.");
+        drawn.Settle();
+
+        var loading = drawn.Hanging.FrameToScreen();
+
+        Assert.Single(emoji.Reads);
+        Assert.Equal(["reading custom emoji…"], Shortcodes(drawn));
+
+        Assert.Single(emoji.Held).Land();
+        drawn.Settle();
+
+        Assert.Equal([":blobcat:", ":blobfox:"], Shortcodes(drawn));
+        Assert.StartsWith("│▌ :blobcat:", drawn.RowsOf(drawn.Hanging)[1], StringComparison.Ordinal);
+        Assert.Equal(loading.Y, drawn.Hanging.FrameToScreen().Y);
+        Assert.Equal(loading.X, drawn.Hanging.FrameToScreen().X);
+        Assert.Single(emoji.Reads);
+    }
+
+    /// <summary>
+    ///     The answer fills in only the list standing open on the word that waited for it: one landing after the caret
+    ///     left the word, or moved back inside it, or after <c>esc</c> closed the loading row, opens nothing by itself.
+    ///     The next keystroke at the end of a word opens it, as ever — but never on the word <c>esc</c> closed.
+    /// </summary>
+    [Theory]
+    [InlineData("left")]
+    [InlineData("inside")]
+    [InlineData("esc")]
+    public async Task AnAnswerLandingFillsInNothing_WhereTheLoadingRowIsNoLongerOpen(string how)
+    {
+        var emoji = FakeInstanceEmoji.Offering("blobcat");
         emoji.Holding = true;
 
         using var drawn = await ComposedView.Of(new AShell { Emoji = emoji });
 
         drawn.Type(":bl");
 
-        Assert.Single(emoji.Reads);
-        Assert.False(drawn.Hanging.Visible);
+        Assert.True(drawn.Hanging.Visible);
 
-        drawn.Type("o");
-        drawn.Settle();
+        switch (how)
+        {
+            case "left":
+                drawn.Type(" ");
+                break;
+            case "inside":
+                drawn.Press(Key.CursorLeft);
+                break;
+            default:
+                drawn.Press(Key.Esc);
+                break;
+        }
 
-        Assert.Single(emoji.Reads);
         Assert.False(drawn.Hanging.Visible);
+        Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
 
         Assert.Single(emoji.Held).Land();
         drawn.Settle();
-        drawn.Shell.StatusRow.SayForAMoment("Something else.");
-        drawn.Settle();
 
         Assert.False(drawn.Hanging.Visible);
 
-        drawn.Type("b");
+        if (how == "esc")
+        {
+            drawn.Type("o");
 
-        Assert.True(drawn.Hanging.Visible);
-        Assert.Equal([":blobcat:", ":blobfox:"], Shortcodes(drawn));
+            Assert.False(drawn.Hanging.Visible);
+            Assert.Equal(":blo", drawn.Editor.Text);
+
+            return;
+        }
+
+        drawn.Press(how == "left" ? Key.Backspace : Key.End);
+
+        Assert.Equal([":blobcat:"], Shortcodes(drawn));
         Assert.Single(emoji.Reads);
     }
 
     /// <summary>
     ///     After a read that answered nothing, more typing in the same word asks nothing — nor does taking it back below
     ///     two letters and typing them again, or the caret going back inside it and out to its end, since the caret never
-    ///     left it; a new <c>:</c>-word asks once more, and that one answering opens the list at the next keystroke.
+    ///     left it; a new <c>:</c>-word asks once more, on its bare <c>:</c>, and that one answering fills the list in.
     /// </summary>
     [Fact]
-    public async Task AFailedReadIsAskedAgainOnlyOnANewWord_AndASuccessThenOpensTheList()
+    public async Task AFailedReadIsAskedAgainOnlyOnANewWord_AndASuccessThenFillsTheListIn()
     {
         var emoji = FakeInstanceEmoji.Offering("blobcat");
         emoji.Holding = true;
@@ -86,13 +247,13 @@ public class CustomEmojiReadTests
 
         Assert.Single(emoji.Reads);
 
-        drawn.Type(" :bl");
+        drawn.Type(" :");
 
         Assert.Equal(2, emoji.Reads.Count);
 
+        drawn.Type("bl");
         emoji.Held[1].Land();
         drawn.Settle();
-        drawn.Type("o");
 
         Assert.Equal([":blobcat:"], Shortcodes(drawn));
         Assert.Equal(2, emoji.Reads.Count);
@@ -100,16 +261,21 @@ public class CustomEmojiReadTests
 
     /// <summary>
     ///     A read in flight says nothing on the status row, nor one that answered nothing, nor one whose token was
-    ///     refused — that is said by the reads that fill the screen.
+    ///     refused — that is said by the reads that fill the screen — nor an instance offering none. Each of those
+    ///     landing just closes the loading row, and the next keystroke opens nothing.
     /// </summary>
     [Theory]
     [InlineData("nothing")]
     [InlineData("refused")]
-    public async Task NothingReachesTheStatusRow_InFlightOrFailed(string ending)
+    [InlineData("none")]
+    public async Task NothingReachesTheStatusRow_AndTheLoadingRowJustCloses_FailedOrOfferingNone(string ending)
     {
-        var emoji = ending == "refused"
-            ? FakeInstanceEmoji.Refusing(new AuthenticationException("The token was refused."))
-            : FakeInstanceEmoji.Unanswering();
+        var emoji = ending switch
+        {
+            "refused" => FakeInstanceEmoji.Refusing(new AuthenticationException("The token was refused.")),
+            "none" => FakeInstanceEmoji.Offering(),
+            _ => FakeInstanceEmoji.Unanswering(),
+        };
         emoji.Holding = true;
 
         using var drawn = await ComposedView.Of(new AShell { Emoji = emoji });
@@ -118,11 +284,15 @@ public class CustomEmojiReadTests
         drawn.Type(":bl");
         drawn.Settle();
 
+        Assert.True(drawn.Hanging.Visible);
         Assert.Null(drawn.Shell.StatusRow.Notice);
         Assert.Equal(before, drawn.Status());
 
         Assert.Single(emoji.Held).Land();
         drawn.Settle();
+
+        Assert.False(drawn.Hanging.Visible);
+
         drawn.Type("o");
 
         Assert.Null(drawn.Shell.StatusRow.Notice);

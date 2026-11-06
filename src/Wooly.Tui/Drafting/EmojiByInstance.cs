@@ -8,7 +8,7 @@ namespace Wooly.Tui.Drafting;
 
 /// <summary>
 ///     The custom emoji each instance offers its people to write, for the session (#578, #579): asked the first time a
-///     <c>:</c>-word would open the list rather than at launch or on composing, so a reader who never writes one is never
+///     <c>:</c> starts a word (#528) rather than at launch or on composing, so a reader who never writes one is never
 ///     charged a request for it, and then held, never refreshed. By instance rather than by profile, beside the limits
 ///     drafting keeps the same way (<see cref="LimitsByInstance" />): they are the instance's, so two profiles on one
 ///     instance share one read, and a switch away and back reads nothing again. Never written to disk.
@@ -20,8 +20,9 @@ namespace Wooly.Tui.Drafting;
 ///         is never asked twice at once, nor again once it has answered, even with none.
 ///     </para>
 ///     <para>
-///         An answer that lands after the keystroke that asked is kept, but offered only from the next keystroke, so the
-///         list never jumps open by itself on a redraw. One that does not answer offers nothing, and may be asked again;
+///         An answer that lands after the keystroke that asked is kept, and offered from the next keystroke, so the list
+///         never jumps open by itself on a redraw; its landing is said (<see cref="Landed" />), for a list standing open
+///         waiting on it to take it up then (#528). One that does not answer offers nothing, and may be asked again;
 ///         when is the asker's to say (<see cref="Views.EmojiOffering" />).
 ///     </para>
 /// </remarks>
@@ -39,10 +40,19 @@ public sealed class EmojiByInstance(IInstanceEmoji port, IShellHost host)
     private readonly HashSet<string> _asking = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    ///     An instance asked answered, after the keystroke that asked — with emoji, none, or nothing at all — on the
+    ///     drawing thread (#528). An answer in hand as it is asked is not said: the keystroke asking takes it up.
+    /// </summary>
+    public event Action? Landed;
+
+    /// <summary>
     ///     The custom emoji <paramref name="profile" />'s instance offers as far as a keystroke has taken them up — none
     ///     until it has said.
     /// </summary>
     public IReadOnlyList<CustomEmoji> For(ActiveProfile profile) => _known.GetValueOrDefault(profile.Instance) ?? [];
+
+    /// <summary>Whether <paramref name="profile" />'s instance is being asked now, and has not yet answered.</summary>
+    public bool Asking(ActiveProfile profile) => _asking.Contains(profile.Instance);
 
     /// <summary>
     ///     Takes up what <paramref name="profile" />'s instance answered since the last keystroke, which a keystroke in
@@ -87,8 +97,12 @@ public sealed class EmojiByInstance(IInstanceEmoji port, IShellHost host)
         // Whatever it ended in is read on the drawing thread, where everything else here is.
         await ((Task)read).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
 
-        // Kept, and nothing more: the list opens on the next keystroke in the word, rather than jumping open by itself.
-        host.OnUiThread(() => Heard(instance, Answered(read)));
+        // Kept, and said: a list standing open waiting on it fills in, and no other list opens by itself.
+        host.OnUiThread(() =>
+        {
+            Heard(instance, Answered(read));
+            Landed?.Invoke();
+        });
     }
 
     /// <summary>

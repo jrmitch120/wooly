@@ -16,8 +16,9 @@ namespace Wooly.Tui.Views;
 ///     <para>
 ///         Being the list is here, once, whatever it offers: the keys and the pointer (<see cref="PickList{T}" />'s),
 ///         the memory of a word <c>esc</c> closed, where it hangs, and replacing the word with the pick as one undoable
-///         edit. What a word is, what matches it, what a row says and what a pick writes are each
-///         <see cref="IHangingOffering" />'s — people for an <c>@</c>-word (<see cref="MentionOffering" />).
+///         edit. What a word is, what matches it, what a row says, what a pick writes and what the list says while what
+///         would match is on its way are each <see cref="IHangingOffering" />'s — people for an <c>@</c>-word
+///         (<see cref="MentionOffering" />), the instance's custom emoji for a <c>:</c>-word (<see cref="EmojiOffering" />).
 ///     </para>
 ///     <para>
 ///         The word is read from the text as written rather than as wrapped, off the editor's unwrapped caret; where
@@ -62,11 +63,17 @@ internal sealed class HangingList
     /// </summary>
     private (int Line, int Start, IHangingOffering By)? _in;
 
-    /// <summary>Whether anything has been offered on the word the caret is in; until it has, the word is a new one.</summary>
-    private bool _offeredIn;
+    /// <summary>Whether what offers for the word the caret is in has been told the caret came into it.</summary>
+    private bool _toldIn;
 
     /// <summary>Whether <c>esc</c> closed the list on the word the caret is in, which keeps it closed until the caret leaves.</summary>
     private bool _dismissed;
+
+    /// <summary>
+    ///     Whether the list stands open on the word the caret is at the end of, saying what it offers is on its way
+    ///     (<see cref="IHangingOffering.Awaiting" />) — the one time it takes up what came in without a keystroke.
+    /// </summary>
+    private bool _awaiting;
 
     /// <param name="editor">The editor this list is laid beside in the same view and hangs under.</param>
     /// <param name="offered">
@@ -148,10 +155,12 @@ internal sealed class HangingList
 
         var was = _open;
         var wasIn = _in;
+        var wasAwaiting = _awaiting;
         IReadOnlyList<HangingOffer> offers = [];
 
         _open = null;
         _in = null;
+        _awaiting = false;
 
         var caret = _editor.Visible && _offered() ? Caret() : null;
 
@@ -164,7 +173,15 @@ internal sealed class HangingList
         if (_in != wasIn)
         {
             _dismissed = false;
-            _offeredIn = false;
+            _toldIn = false;
+        }
+
+        // Told as the caret comes into the word, before it has the letters to open on, so whatever it offers is on its
+        // way by the time it has.
+        if (_in is var (_, _, into) && !_toldIn)
+        {
+            _toldIn = true;
+            into.Entering();
         }
 
         if (caret is var (atLine, at, on)
@@ -172,19 +189,24 @@ internal sealed class HangingList
             && !_dismissed
             && by.At(on, at) is { } word)
         {
-            if (!_offeredIn)
+            // A keystroke takes up what came in since the last, and so does a redraw while the list stands waiting on
+            // this same word for it; no other redraw does, so the list never jumps open by itself.
+            if (typed || (wasAwaiting && _in == wasIn))
             {
-                by.Entering();
-            }
-
-            if (typed)
-            {
-                by.Typed();
+                by.TakeUp();
             }
 
             _open = (atLine, word, by);
-            _offeredIn = true;
             offers = by.Matching(word);
+
+            // Nothing matching yet, since what would is on its way: the list stands open saying so.
+            if (offers.Count == 0 && by.Awaiting() is { } awaiting)
+            {
+                _awaiting = true;
+                _list.Note(new HangingOffer(_ => awaiting, awaiting.Width, () => string.Empty));
+
+                return;
+            }
         }
 
         _list.Offer(offers, keepingThePick: _open?.By == was?.By && _open?.Word.Query == was?.Word.Query);

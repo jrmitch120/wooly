@@ -127,6 +127,9 @@ public sealed class Drafting
         _limits = new LimitsByInstance(ports.Limits, host);
         _limits.Heard += Measured;
         _emoji = new EmojiByInstance(ports.Emoji, host);
+
+        // One redraw, which fills in a list standing open on the word that waited for them and opens no other (#528).
+        _emoji.Landed += () => _reach()?.Changed();
         _defaults = new DefaultsByProfile(ports.Defaults, host);
         _attachments = new AttachmentCalls(ports.Author, host);
         _attachments.Heard += Progressed;
@@ -143,8 +146,15 @@ public sealed class Drafting
     public IReadOnlyList<CustomEmoji> EmojiToWrite() => _reach() is { } reach ? _emoji.For(reach.Profile) : [];
 
     /// <summary>
+    ///     Whether the instance of the profile acted as is being asked for the custom emoji it offers, and has not yet
+    ///     answered (#528): what the list says while it stands waiting on them.
+    /// </summary>
+    public bool ReadingEmoji() => _reach() is { } reach && _emoji.Asking(reach.Profile);
+
+    /// <summary>
     ///     Takes up the custom emoji the instance of the profile acted as answered with since the last keystroke, on a
-    ///     keystroke in an editor (#579), so they are offered from it on, and never by a redraw on its own.
+    ///     keystroke in an editor (#579) or as they land under a list standing open waiting on them (#528), so they are
+    ///     offered from then on, and never by any other redraw.
     /// </summary>
     public void TakeUpLandedEmoji()
     {
@@ -156,7 +166,8 @@ public sealed class Drafting
 
     /// <summary>
     ///     Asks the instance of the profile acted as for the custom emoji it offers, unless it has answered or is being
-    ///     asked (#579): the first time they are wanted, which is a <c>:</c>-word that would open the list.
+    ///     asked (#579): the first time they are wanted, which is the caret coming into a <c>:</c>-word, on its bare
+    ///     <c>:</c> (#528).
     /// </summary>
     public void AskForEmoji()
     {

@@ -177,6 +177,48 @@ public class CustomEmojiListPictureTests : IDisposable
     }
 
     /// <summary>
+    ///     The instance's answer filling in the loading row with no keystroke asks the cache for the pictures it brings
+    ///     onto the list, as on screen, on the frame it lands — drawn as the loop draws it, the room for each settled
+    ///     before its pixels (#528).
+    /// </summary>
+    [Fact]
+    public async Task TheAnswerLandingAsksForThePicturesItFillsTheListInWith()
+    {
+        var pictures = new FakePictures();
+        var emoji = FakeInstanceEmoji.Offering("blobcat", "blobfox");
+        emoji.Holding = true;
+
+        using var drawn = await DrawnShell.Of(
+            100,
+            30,
+            Themes.Dark,
+            new AShell { Emoji = emoji },
+            pictures: pictures,
+            kittyImages: new FakeTerminalImages(),
+            drawsPlaceholders: true,
+            raster: ARaster.Placeholders());
+
+        drawn.Shell.Press(ShellKey.C);
+        drawn.Settle();
+        drawn.DrawAsTheLoopDraws();
+
+        Type(drawn, ":bl");
+
+        Assert.DoesNotContain(pictures.Frames[^1], wanted => wanted.Drawn == Drawn.CustomEmoji(Blobcat));
+
+        Assert.Single(emoji.Held).Land();
+        drawn.Built.Host.Drain();
+        drawn.DrawAsTheLoopDraws();
+
+        Assert.Contains(pictures.Frames[^1], wanted => wanted.Drawn == Drawn.CustomEmoji(Blobcat) && wanted.OnScreen);
+        Assert.Contains(pictures.Frames[^1], wanted => wanted.Drawn == Drawn.CustomEmoji(Blobfox) && wanted.OnScreen);
+
+        var list = List(drawn).FrameToScreen();
+
+        Assert.Matches("^│▌ ░░ :blobcat: +│$", CustomEmojiTests.Seen(drawn)[list.Y + 1][list.X..list.Right]);
+    }
+
+    /// <summary>
     ///     Typing more asks the cache for the pictures of the emoji it brings onto the list, as on screen, and for none it
     ///     took off — on the frame the list changes, drawn as the loop draws it.
     /// </summary>

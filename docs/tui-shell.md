@@ -1813,14 +1813,26 @@ typing one in the edit public profile form's bio (#408):
   those starting with the query, then those holding it, each shorter first then alphabetical, five at most — so a
   shortcode typed in full stays, first. A row is the emoji's picture, a space, then `:shortcode:` in `custom-emoji`
   with the letters typed in `mention` (#580); where the Raster draws nothing, or pictures are off, it is the
-  shortcode alone. Picking writes `:shortcode:` and a space in place of the word, as one undoable edit. They are read the first time a
-  `:`-word would open the list — never on composing, nor on a `:` that opens nothing — and kept by instance for the
+  shortcode alone. Picking writes `:shortcode:` and a space in place of the word, as one undoable edit. They are read
+  on the first `:` that starts a word, bare, before any shortcode letters follow it (#528) — never on composing, nor on
+  a `:` inside or ending a word, though an emoticon like `:)` may cost that one read — and kept by instance for the
   session, in memory only, beside the post limits drafting keeps the same way (`EmojiByInstance`), and never refreshed.
-  An answer landing raises no redraw of its own, and nothing about the read reaches the status row.
-- **Reading them never nags, never hammers, and costs nothing it need not (#579).** While a read is in flight the list
-  stays closed and nobody asks again. An answer that lands after the keystroke that asked is kept but offered only
-  from the next keystroke in an editor — an edit or a caret move — so a redraw on a change of the shell's (an inbox
-  poll, people to mention landing) never opens the list by itself. A read that answers nothing is asked again on the
+  Nothing about the read reaches the status row.
+- **While they are read, the list says so, and fills in as they land (#528).** While the read is in flight a `:`-word
+  that would open the list — two letters, the caret at its end — opens it on one row, `reading custom emoji…` in
+  `loading`, hung and lined up as the list is, the row where a shortcode would be, with its usual foot; nothing reaches
+  the status row (`IHangingOffering.Awaiting`, `PickList.Note`). It is nothing to pick: `tab`, `⏎`, a click and the
+  wheel on it insert nothing; `esc` and a click outside it close it with the usual memory of the word; every other key
+  goes on to the editor. The answer landing on the drawing thread is one redraw of the shell's (`EmojiByInstance.Landed`),
+  and a list standing open on the loading row of the word the caret is still at the end of takes it up then, with no
+  keystroke: it grows from the one row to its matches, picked on the first — down from its top edge under the line, or
+  up from its bottom edge where it hangs over it, so the word never moves — the pictures asked for in that same frame,
+  their room settled before their pixels (#580). A failure, or an instance offering none, just closes the loading row.
+- **Reading them never nags, never hammers, and costs nothing it need not (#579).** While a read is in flight nobody
+  asks again. An answer that lands where no loading row is waiting on it — the caret has left the word or gone back
+  inside it, or `esc` closed the row — is kept but offered only from the next keystroke in an editor, an edit or a
+  caret move, so a redraw on a change of the shell's (an inbox poll, people to mention landing) never opens the list by
+  itself. A read that answers nothing is asked again on the
   next new `:`-word, never twice for the same one: the same word is the same `:` in the same editor, with the caret
   never having left it — at its end, inside it, or after a `:` with fewer than two letters yet — so typing on,
   deleting back short of two letters and typing them again, or moving within the word asks nothing; the caret leaving
@@ -2954,7 +2966,7 @@ is drawn reversed instead (#316).
 | `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the cursor | the box characters; which group is active is carried by the cursor's entry's band in colour, and by `▶` on it without |
 | `scrollbar` | The **Scrollbar**'s thumb on the content panel's right edge, on a track drawn in `panel-border` so the thumb stands out by contrast. Both built-ins draw it in `panel-border-active`'s colour (#500) | the thumb's glyph — `█`, or the `scrollbar` preference's `┃`, `▌` or `▐` (#505) — against the track's `│` |
 | `panel-title` | A panel's title on its top edge: a rail group's name, and the crumb being stood on at the end of the content panel's trail, told from the crumbs walked through by foreground | position, on the edge — the current crumb is always the last, and the trail elides from the left |
-| `loading` | Something under way that the reader waits on, said in words: the sign-in screen's wait for the browser | the words |
+| `loading` | Something under way that the reader waits on, said in words: the sign-in screen's wait for the browser, and the `:` list's `reading custom emoji…` while the instance is asked (#528) | the words |
 | `spinner` | The fetch mark a space after the content panel's trail — one star spinner frame, in 2 columns held whether or not it is drawn. Both built-ins draw it in `rail-unread`'s colour | a spinner frame, moving, drawn only while a fetch is in flight |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |
