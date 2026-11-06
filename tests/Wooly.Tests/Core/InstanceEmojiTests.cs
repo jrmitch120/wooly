@@ -50,17 +50,20 @@ public class InstanceEmojiTests
     }
 
     /// <summary>
-    ///     An emoji the instance hides from its picker is not one it offers its people to write, so it is not read; it
-    ///     still draws wherever a post or an account lists it, which is another read altogether.
+    ///     Only an emoji the instance says its picker shows is one it offers its people to write: one it hides, or one it
+    ///     says nothing about, is not read. Either still draws wherever a post or an account lists it, which is another
+    ///     read altogether.
     /// </summary>
     [Fact]
-    public async Task Read_LeavesOutWhatTheInstanceHidesFromItsPicker()
+    public async Task Read_KeepsOnlyWhatTheInstanceShowsInItsPicker()
     {
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(
             """
             [
               { "shortcode": "hidden", "url": "https://files.example/hidden.png",
                 "static_url": "https://files.example/hidden.png", "visible_in_picker": false },
+              { "shortcode": "unsaid", "url": "https://files.example/unsaid.png",
+                "static_url": "https://files.example/unsaid.png" },
               { "shortcode": "shown", "url": "https://files.example/shown.png",
                 "static_url": "https://files.example/shown.png", "visible_in_picker": true }
             ]

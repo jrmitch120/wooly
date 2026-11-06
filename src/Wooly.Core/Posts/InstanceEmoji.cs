@@ -42,11 +42,11 @@ public sealed class InstanceEmoji(IHttpClientFactory httpClientFactory) : IInsta
             return null;
         }
 
-        // A bare null is no list, which is no answer either. An instance that leaves out whether its picker shows an
-        // emoji is taken to hide none: only one it says it hides is left out.
+        // A bare null is no list, which is no answer either. Only an emoji the instance says its picker shows is kept:
+        // one that leaves it out has not said it is offered.
         return listed?
             .OfType<EmojiWire>()
-            .Where(emoji => emoji.VisibleInPicker != false
+            .Where(emoji => emoji.VisibleInPicker == true
                             && !string.IsNullOrWhiteSpace(emoji.Shortcode)
                             && !string.IsNullOrWhiteSpace(emoji.StaticUrl))
             .Select(emoji => new CustomEmoji(emoji.Shortcode!, emoji.StaticUrl!))
