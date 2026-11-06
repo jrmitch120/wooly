@@ -1807,6 +1807,17 @@ typing one in the edit public profile form's bio (#408):
   `:`-word would open the list — never on composing, nor on a `:` that opens nothing — and kept by instance for the
   session, in memory only, beside the post limits drafting keeps the same way (`EmojiByInstance`), and never refreshed.
   An answer landing raises no redraw of its own, and nothing about the read reaches the status row.
+- **An open list is always on top of a picture under it (#577).** A list over the content panel's rows — the languages
+  hung down over compose's Media rows, the people to mention flipped up over them — hides a picture exactly where it
+  covers it, cell by cell, as it hides the text there, on each of the three ways a picture is drawn: Kitty's
+  placeholder cells under it are never painted, a sixel is sent again cut round it, and a picture through a Kitty box
+  is placed again cut round it. However the list closes — a pick, `esc`, a click outside it, the caret leaving the
+  word — every picture it covered is back whole where it was, and nothing has moved. The rule is the window's, for
+  anything laid over the panel: one that shows, hides, moves or changes size has the panel drawn again under it
+  (`ShellWindow.Uncovering`), which is what puts back what a list leaves and cuts a picture round what it newly covers.
+  The people to mention flipped over the Media rows used to stay on the terminal after `esc`, a click outside or the
+  caret leaving the word, holes in the pictures and all, until something else redrew the panel. A sixel cut round a
+  list is encoded by Terminal.Gui rather than from the cuts kept for it (ADR-0023), and only while the list cuts it.
 - **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
   on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
   as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that
