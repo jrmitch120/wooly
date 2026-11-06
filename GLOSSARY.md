@@ -793,10 +793,10 @@ first thing here that is not one. A walked-to reference is let go once none of i
 `⏎` or a double click has opened it. Widened past the post's own text on purpose: a video is walked to and opened exactly the way a link is,
 because placing, picking and opening several things on one screen was already solved for the three that live in the
 text, and a second copy of that solve for the ones that do not would be a second place for it to disagree with the
-first. A hashtag, mention or address written in a compose editor is painted in its role as it is typed (#571), but
-is not a reference there: nothing in an editor is walked, picked or opened. Replaces what `BodyText` used to call a
-"mark," a word this project had already spent on `Post.Marks`
-(boost/favorite/pin).
+first. A hashtag, mention or address written in a compose editor — a post's body, or the **Bio** on the edit public
+profile form — is painted in its role as it is typed (#571), but is not a reference there: nothing in an editor is
+walked, picked or opened. Replaces what `BodyText` used to call a "mark," a word this project had already spent on
+`Post.Marks` (boost/favorite/pin).
 _Avoid_: mark (for this; reserved for boost/favorite/pin)
 
 **Direct query**:

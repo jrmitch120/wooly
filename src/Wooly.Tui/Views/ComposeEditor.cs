@@ -73,9 +73,10 @@ internal sealed class ComposeEditor(
     ///     Whether the hashtags, mentions and addresses written here are painted in their roles as they are typed
     ///     (#571) — by the rule a post's text is read by, <see cref="BodyText.References" />, so what is written looks
     ///     the way it will read once sent. Colour only: no character is drawn that was not typed, and nothing here is
-    ///     walked, picked or opened, so caret, selection, wrap and undo are what they were. On for what is walked as a
-    ///     post's text is once read — compose's body, and the edit public profile form's bio (#573, ADR-0019) — and
-    ///     off, as it is unless set, for what is never walked, such as an attachment's description.
+    ///     walked, picked or opened, so caret, selection, wrap and undo are what they were. On for what is read as a
+    ///     post's text is — compose's body (#572), and the edit public profile form's bio (#573), whose references are
+    ///     drawn as a post's are when read and whose hashtags and addresses are walked (ADR-0019) — and off, as it is
+    ///     unless set, for what is never walked, such as an attachment's description.
     /// </summary>
     public bool PaintsReferences { get; init; }
 
