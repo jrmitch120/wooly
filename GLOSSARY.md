@@ -241,6 +241,8 @@ the next cell or two and moves nothing past them (ADR-0031). Distinct from being
 A small picture an **instance** defines for itself and its people write as a **shortcode**, in a post's words, its
 warning, a display name, a **bio**, a **custom field**, a poll's options. Every post and account carries the ones it
 uses. Where nothing can be drawn, the shortcode stays as written, set apart so it reads as a picture that was meant.
+An instance also offers its own people the ones they may write, leaving out any it hides from its picker; a hidden one
+still draws wherever something lists it.
 Distinct from a Unicode emoji, which is a character every terminal draws as text.
 _Avoid_: emoji (on its own), emote, sticker
 
