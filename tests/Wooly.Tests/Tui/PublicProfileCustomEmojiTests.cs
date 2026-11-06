@@ -102,6 +102,78 @@ public class PublicProfileCustomEmojiTests
     }
 
     /// <summary>
+    ///     While the read is in flight, a <c>:</c>-word in the bio opens the list on its loading row, hung and lined up
+    ///     as the list is, with its usual foot and nothing on the status row; the answer landing fills it in at once,
+    ///     with no keystroke, picked on the first, growing down from where the loading row hung — and <c>tab</c> then
+    ///     writes the pick, as ever.
+    /// </summary>
+    [Fact]
+    public async Task WhileTheReadIsInFlightTheBioOpensTheListOnALoadingRow_AndItsAnswerLandingFillsItIn()
+    {
+        var emoji = FakeInstanceEmoji.Offering("blobcat", "blobfox", "thinking");
+        emoji.Holding = true;
+
+        using var drawn = await InTheBio(emoji: emoji);
+        var bio = Bio(drawn).FrameToScreen();
+
+        Type(drawn, "hi :bl");
+
+        var loading = List(drawn).FrameToScreen();
+        var rows = RowsOf(drawn, loading);
+
+        Assert.True(List(drawn).Visible);
+        Assert.Equal(bio.Y + 1, loading.Y);
+        Assert.Equal(bio.X + 3, loading.X);
+        Assert.Equal(3, rows.Count);
+        Assert.Matches("^│  reading custom emoji… +│$", rows[1]);
+        Assert.Contains("↑↓ pick  tab insert  esc close", rows[^1], StringComparison.Ordinal);
+        Assert.Null(drawn.Shell.StatusRow.Notice);
+
+        Assert.Single(emoji.Held).Land();
+        drawn.Settle();
+
+        var filled = List(drawn).FrameToScreen();
+        rows = RowsOf(drawn, filled);
+
+        Assert.True(List(drawn).Visible);
+        Assert.Equal(loading.Y, filled.Y);
+        Assert.Equal(loading.X, filled.X);
+        Assert.Equal(4, rows.Count);
+        Assert.StartsWith("│▌ :blobcat:", rows[1], StringComparison.Ordinal);
+        Assert.StartsWith("│  :blobfox:", rows[2], StringComparison.Ordinal);
+        Assert.Single(emoji.Reads);
+
+        drawn.Press(Key.Tab);
+
+        Assert.Equal("hi :blobcat: ", Form(drawn).Bio);
+    }
+
+    /// <summary>
+    ///     A read that answers nothing, or an instance offering none, just closes the bio's loading row as it lands,
+    ///     saying nothing on the status row.
+    /// </summary>
+    [Theory]
+    [InlineData("nothing")]
+    [InlineData("none")]
+    public async Task TheBiosLoadingRowJustCloses_FailedOrOfferingNone(string ending)
+    {
+        var emoji = ending == "none" ? FakeInstanceEmoji.Offering() : FakeInstanceEmoji.Unanswering();
+        emoji.Holding = true;
+
+        using var drawn = await InTheBio(emoji: emoji);
+
+        Type(drawn, "hi :bl");
+
+        Assert.True(List(drawn).Visible);
+
+        Assert.Single(emoji.Held).Land();
+        drawn.Settle();
+
+        Assert.False(List(drawn).Visible);
+        Assert.Null(drawn.Shell.StatusRow.Notice);
+    }
+
+    /// <summary>
     ///     A bio already holding <c>:blobcat:</c> and an unfinished <c>:blob</c> reads nothing as the form opens on it and
     ///     the typing walks into it, nor as the caret is walked by the keys or clicked into either word, or to the end of
     ///     the one that would open the list (#528 story 29). The first letter typed there reads, once.
@@ -200,6 +272,10 @@ public class PublicProfileCustomEmojiTests
     private static PaintedView List(DrawnShell drawn) =>
         drawn.Window.SubViews.OfType<PublicProfileView>().Single()
              .SubViews.OfType<PaintedView>().Single(view => view.Id == HangingList.Id);
+
+    /// <summary>The rows drawn within <paramref name="at" />, as text.</summary>
+    private static List<string> RowsOf(DrawnShell drawn, Rectangle at) =>
+        [.. drawn.Rows()[at.Y..at.Bottom].Select(row => row.Substring(at.X, at.Width))];
 
     private static void Type(DrawnShell drawn, string text)
     {
