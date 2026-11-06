@@ -2848,9 +2848,9 @@ is drawn reversed instead (#316).
 | Role | Paints | Carried without colour by |
 |---|---|---|
 | `body` | A post's text | — |
-| `hashtag` | A tag inside a post's text | the `#` |
-| `mention` | An account named inside a post's text | the `@` |
-| `link` | An address inside a post's text | the scheme |
+| `hashtag` | A tag inside a post's text, and as it is written in compose (#571) | the `#` |
+| `mention` | An account named inside a post's text, and as it is written in compose (#571) | the `@` |
+| `link` | An address inside a post's text, and as it is written in compose (#571) | the scheme |
 | `muted` | Timestamps, counts nobody acted on, hints, a status row key's explanation, the row's `…+N` overflow mark, and the crumbs walked through on the content panel's title — the `›` between them and the `… › ` a long trail leads with included | position, and `…` on the mark |
 | `byline-name` | A display name | position |
 | `byline-handle` | `username@instance` | the `@` |
@@ -2938,9 +2938,16 @@ them. Three things follow from where they are found:
 - **An address is matched by pattern**, since an instance elides part of the one it displays: a scheme, a `www.`, or a
   domain with a path on it. So a bare domain somebody typed as prose is painted as a link, and a domain with nothing
   after it — `Node.js`, `config.toml` — is not. The imprecision is deliberate and costs nothing but colour.
-- **The compose editor stays plain.** The three patterns start matching at three different points in a word, so text
-  would change colour under the cursor and a would-be mention would light and go out again; and this client has not
-  resolved what somebody is halfway through typing, so a role there would assert something it has not checked.
+- **The compose editor paints them as they are typed** (#571), by exactly the rule a post is read by, so what is
+  written looks the way it will read once sent — a bare `#` and an ill-formed tag stay `body`, as they do in a post.
+  It was plain until then, on the grounds that a would-be mention lights and goes out again as it is typed; that
+  turned out to be the point, since it is the moment the text becomes, or stops being, what readers will see. A
+  mention is painted whether or not it resolves — nothing is looked up while typing — and while the list of people to
+  mention is open. It is colour only: no `‹ ›` is drawn, nothing is walked, picked or opened, and caret, selection,
+  wrap and undo are untouched; selected text stays `selected-text` over a reference. The whole text is scanned, not a
+  row, so an address wrapped across rows is painted on each. Painting is chosen per editor: on for a post's body (a
+  new post, a reply, a direct message, an edit), off for an attachment's description, which nothing walks; the
+  content-warning field is a field of its own and stays plain.
 
 ## A theme
 
