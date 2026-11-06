@@ -57,11 +57,13 @@ internal sealed class HangingList
     ///     Whether the screen in front offers anything in <paramref name="editor" />, as it stands: compose while the
     ///     typing is in the post rather than its warning, or the edit public profile form.
     /// </param>
+    /// <param name="pictures">What the pictures on the list's rows are drawn from, the list being laid over the content panel.</param>
     /// <param name="offerings">The kinds of word the list opens on, each with what it offers.</param>
     public HangingList(
         ITheme theme,
         ComposeEditor editor,
         Func<bool> offered,
+        OverlayPictures pictures,
         params IReadOnlyList<IHangingOffering> offerings)
     {
         _editor = editor;
@@ -74,7 +76,8 @@ internal sealed class HangingList
             (offer, picked) => offer.Row(picked),
             offer => offer.Columns,
             Insert,
-            Dismiss);
+            Dismiss,
+            overlaid: pictures);
 
         // Laid beside the editor in the same view, so where the editor puts its caret is where in that view it goes.
         View.X = Pos.Func(_ => At().X);

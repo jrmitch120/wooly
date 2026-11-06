@@ -83,6 +83,12 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private readonly IReadOnlyList<View> _overlays;
 
+    /// <summary>
+    ///     What the views laid over the content panel draw pictures from — the panel's own — and want of the cache with
+    ///     the panel's frame (#580).
+    /// </summary>
+    private readonly OverlayPictures _overlayPictures;
+
     /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
 
@@ -311,7 +317,12 @@ internal sealed class ShellWindow : Window
             Settled = Paged,
             HeldReference = () => shell.Screen.Reference,
             LetReferenceGo = shell.LetReferenceGo,
+            // Asked only as a frame is drawn, long after the views over the panel were made, which is all the
+            // null-forgiving says.
+            WantedOver = () => _overlayPictures!.Wanted,
         };
+
+        _overlayPictures = new OverlayPictures(pictures, placeholders, () => _content.Raster);
 
         // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one
         // row to redraw rather than the panel — which places every picture on it each time it is drawn, two and a half
@@ -333,9 +344,9 @@ internal sealed class ShellWindow : Window
         // back as "the view where the data will be retrieved".
         _overlays =
         [
-            new ComposeView(theme, shell, shell.Drafting),
+            new ComposeView(theme, shell, shell.Drafting, _overlayPictures),
             new DescriptionView(theme, shell, shell.Drafting, () => _content.Raster),
-            new PublicProfileView(theme, shell, shell.Drafting, () => _content.Raster, pictures),
+            new PublicProfileView(theme, shell, shell.Drafting, _overlayPictures),
         ];
 
         foreach (var overlay in _overlays)

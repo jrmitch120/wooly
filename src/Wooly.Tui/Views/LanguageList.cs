@@ -2,6 +2,7 @@ using System.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Wooly.Core.Posts;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 
@@ -43,7 +44,7 @@ internal sealed class LanguageList
         _list = new PickList<PostLanguage>(
             theme,
             Id,
-            LanguageLines.Row,
+            (language, picked) => new Line([.. LanguageLines.Row(language, picked)]),
             LanguageLines.Columns,
             Pick,
             Close,

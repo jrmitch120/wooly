@@ -43,6 +43,31 @@ public class PickLinesTests
         Assert.StartsWith("│▌ et Eesti", rows[2].Text, StringComparison.Ordinal);
     }
 
-    private static IEnumerable<Span> Says(string language, bool picked) =>
-        [new Span(language, picked ? Role.ReferencePicked : Role.Body)];
+    /// <summary>
+    ///     A picture set into what a row says is set where it is drawn in the box, past the side and the mark (#580) —
+    ///     and a custom emoji's box the row has no room for is dropped whole with the rest of what is cut, its picture
+    ///     with it, never cut in half.
+    /// </summary>
+    [Fact]
+    public void ARowsPictureIsSetPastTheMark_AndDroppedWholeWhereItDoesNotFit()
+    {
+        var emoji = new Wooly.Core.CustomEmoji("blobcat", "https://files.example/emoji/blobcat.png");
+        var drawn = Wooly.Tui.Media.Drawn.CustomEmoji(emoji);
+
+        Line Pictured(string _, bool __) =>
+            new Line([new Span("  ", Role.Media) { CustomEmoji = emoji }, new Span(" :blobcat:", Role.CustomEmoji)])
+            {
+                Insets = [new Inset(drawn, 0, 2, 1)],
+            };
+
+        var roomy = PickLines.Rows(["blobcat"], 0, 0, 3, 40, Pictured);
+        var narrow = PickLines.Rows(["blobcat"], 0, 0, 3, 5, Pictured);
+
+        Assert.Equal([new Inset(drawn, 3, 2, 1)], roomy[1].Insets);
+        Assert.Equal("│▌  │", narrow[1].Text);
+        Assert.Empty(narrow[1].Insets);
+    }
+
+    private static Line Says(string language, bool picked) =>
+        Line.Of(new Span(language, picked ? Role.ReferencePicked : Role.Body));
 }
