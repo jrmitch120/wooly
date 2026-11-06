@@ -74,6 +74,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<INotificationInbox, NotificationInbox>();
         services.AddSingleton<IInstanceSearch, InstanceSearch>();
         services.AddSingleton<IInstanceLimits, InstanceLimits>();
+        services.AddSingleton<IInstanceEmoji, InstanceEmoji>();
         services.AddSingleton<IAccountDefaults, AccountDefaults>();
         services.AddSingleton<IAccountRelationships, AccountRelationships>();
         services.AddSingleton<IPublicProfileEditor, PublicProfileEditor>();

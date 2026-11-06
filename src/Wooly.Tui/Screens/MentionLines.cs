@@ -60,8 +60,11 @@ public static class MentionLines
     private static int AddressMatch(string address, string query) =>
         query.Length == 0 ? -1 : address.IndexOf(query, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary><paramref name="text" /> in <paramref name="role" />, with the match at <paramref name="at" /> as a mention.</summary>
-    private static IEnumerable<Span> Lit(string text, int at, int length, Role role) =>
+    /// <summary>
+    ///     <paramref name="text" /> in <paramref name="role" />, with the match at <paramref name="at" /> as a mention —
+    ///     which is how every row a hanging list offers picks out the letters typed (<see cref="EmojiLines" />).
+    /// </summary>
+    internal static IEnumerable<Span> Lit(string text, int at, int length, Role role) =>
         at < 0
             ? [new Span(text, role)]
             :

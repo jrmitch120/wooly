@@ -1792,8 +1792,21 @@ typing one in the edit public profile form's bio (#408):
   editor: its keys, the pointer, the memory of a word `esc` closed, the placement under the caret on the word's sign
   with its flip above, the hint along its foot, and replacing the word with the pick as one undoable edit. What a word
   is, what matches it, what a row says and what a pick writes are an `IHangingOffering`'s, one per kind of word, and
-  the caret is at the end of one kind at most. The people to mention, on an @-word, are the only offering so far
-  (`MentionOffering`), so every rule above and below is theirs.
+  the caret is at the end of one kind at most. The people to mention, on an @-word, are one offering
+  (`MentionOffering`), and every rule above and below is theirs; the instance's custom emoji, on a `:`-word, are the
+  other (`EmojiOffering`), whose own rules follow. The keys, the pointer, `esc`'s memory, where it hangs and the
+  single undo are the same for both.
+- **It offers custom emoji on a `:`-word (#528, #578).** A `:` starts one only at the start of a line or after
+  whitespace; it runs over letters, digits and `_` — a Mastodon shortcode's letters — up to the caret, and opens the
+  list once two of them follow the `:` (`ShortcodeWord`). So `10:30`, `note: x`, `re:thing`, `http://`, `:)` and `:D`
+  open nothing, and typing the closing `:` ends the word and closes the list. The emoji are the instance's own, those
+  its picker shows (`IInstanceEmoji`, `GET /api/v1/custom_emojis`), matched on the shortcode alone, case ignored:
+  those starting with the query, then those holding it, each shorter first then alphabetical, five at most — so a
+  shortcode typed in full stays, first. A row is `:shortcode:` in `custom-emoji` with the letters typed in `mention`;
+  picking writes `:shortcode:` and a space in place of the word, as one undoable edit. They are read the first time a
+  `:`-word would open the list — never on composing, nor on a `:` that opens nothing — and kept by instance for the
+  session, in memory only, beside the post limits drafting keeps the same way (`EmojiByInstance`), and never refreshed.
+  An answer landing raises no redraw of its own, and nothing about the read reaches the status row.
 - **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
   on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
   as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that
