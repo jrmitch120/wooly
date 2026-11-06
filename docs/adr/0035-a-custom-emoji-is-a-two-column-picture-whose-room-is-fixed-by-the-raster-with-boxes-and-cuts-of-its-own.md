@@ -76,3 +76,21 @@ the sides off a square `:ubuntu:` and a wide `:php:` alike. So a custom emoji is
 centred, never cropped or stretched, as Mastodon's web client draws one (`object-fit: contain`): the rest of the box is
 transparent through Kitty's placeholders, and on sixel, which leaves no transparent pixels, laid on what is behind the
 box: the band on a picked post and the page anywhere else (ADR-0023's amendment for the review of #522).
+
+## Amendment: a list over the panel draws its custom emoji through boxes and cuts of its own (#580, #581)
+
+Superseded: the consequence that the box-drawn ways build 88 boxes, and "custom emoji get a pool and a cut cache of
+their own" where it is read as the only ones. The **hanging list** draws each row's custom emoji (#528), and it is laid
+over the content panel rather than drawn in it, so its pictures cannot come from the panel's boxes: a box is a view
+inside the view it draws in, clipped to it. Each list over the panel that draws pictures — compose's post's and the
+**bio**'s — places them from five boxes of its own, the most the list offers at once (`Placing.Over`,
+`PanelPictures.MostCustomEmojiBoxes`), and cuts its sixels into a `SixelPictures` of its own. The picture cache and the
+Kitty image store are still the panel's one each, and the panel says what the list wants of the cache with its own
+frame's wants, since the cache takes a frame's wants whole.
+
+So, on top of the consequences above:
+
+- The box-drawn ways build 98 boxes before anything is drawn, the panel's 88 and five for each of the two lists.
+- Through Kitty's placeholders an emoji drawn in a post and on the list is fetched once and sent once. Through a box it
+  is fetched once but sent for the post and again for the list, and on sixel cut and encoded for each, as a box sends
+  what it shows under its own id. A list holds five at most, a few kilobytes each, and only while it is open.
