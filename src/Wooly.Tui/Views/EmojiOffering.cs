@@ -16,8 +16,9 @@ namespace Wooly.Tui.Views;
 ///     that starts with itself, so it stays, first. As many as a hanging list offers at most
 ///     (<see cref="HangingWord.MostOffered" />).
 ///     <para>
-///         The instance is asked as the caret first comes into a <c>:</c>-word, on its bare <c>:</c>, so the answer is
-///         on its way before the shortcode's letters are (#528); and on a word once at most (#579): a read that
+///         The instance is asked as a <c>:</c>-word is first typed in, on its bare <c>:</c>, so the answer is on its
+///         way before the shortcode's letters are — never on the caret walked into one alone (#528); and on a word
+///         once at most (#579): a read that
 ///         answered nothing is asked again only on a new word, so a down instance is not asked on every keystroke.
 ///         While it is being asked, a word that would open the list opens it on a row saying so, which its answer
 ///         landing fills in at once — or closes, where it offers none or answered nothing. Otherwise what it answers
@@ -36,10 +37,11 @@ internal sealed class EmojiOffering(Drafting.Drafting drafting, PanelPictures pi
     public int? In(string line, int caret) => ShortcodeWord.In(line, caret);
 
     /// <summary>
-    ///     A new word is the one time a word asks the instance, so a read that failed is not asked again on every
-    ///     keystroke; asked on its bare <c>:</c>, before it would open the list (#528).
+    ///     A new word typed in is the one time a word asks the instance, so a read that failed is not asked again on
+    ///     every keystroke; asked on its bare <c>:</c> typed, before it would open the list, and never on the caret
+    ///     walked into a word already written (#528).
     /// </summary>
-    public void Entering() => drafting.AskForEmoji();
+    public void TypedIn() => drafting.AskForEmoji();
 
     /// <summary>
     ///     What landed is offered from the next keystroke, or at once where the list stood waiting on it, never by any

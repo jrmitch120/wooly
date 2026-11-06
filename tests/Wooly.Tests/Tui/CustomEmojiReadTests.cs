@@ -165,6 +165,41 @@ public class CustomEmojiReadTests
     }
 
     /// <summary>
+    ///     Near the editor's right edge the loading row is pushed left of the <c>:</c> as the list is, to keep it in the
+    ///     editor; the answer landing never moves it sideways, whether what lands is narrower than the loading row's list
+    ///     or wider — a shortcode too long for the room to the right is cut at the list's edge rather than the list
+    ///     moving off the word.
+    /// </summary>
+    [Theory]
+    [InlineData("blobcat")]
+    [InlineData("blobcat_with_a_shortcode_far_too_long_to_fit")]
+    public async Task NearTheRightEdgeTheAnswerLandingNeverMovesTheListSideways(string shortcode)
+    {
+        var emoji = FakeInstanceEmoji.Offering(shortcode);
+        emoji.Holding = true;
+
+        using var drawn = await ComposedView.Of(new AShell { Emoji = emoji });
+        var editor = drawn.Editor.FrameToScreen();
+
+        drawn.Type($"{new string('x', editor.Width - 10)} :bl");
+
+        var loading = drawn.Hanging.FrameToScreen();
+
+        Assert.Equal(["reading custom emoji…"], Shortcodes(drawn));
+        Assert.Equal(editor.Right, loading.Right);
+
+        Assert.Single(emoji.Held).Land();
+        drawn.Settle();
+
+        var filled = drawn.Hanging.FrameToScreen();
+
+        Assert.True(drawn.Hanging.Visible);
+        Assert.Equal(loading.X, filled.X);
+        Assert.Equal(loading.Y, filled.Y);
+        Assert.True(filled.Right <= editor.Right);
+    }
+
+    /// <summary>
     ///     Typing on in a <c>:</c>-word while its read is in flight asks nothing more and keeps the loading row, as does
     ///     the shell changing under it; the answer landing fills the list in at once, with no keystroke, picked on the
     ///     first, the list growing down from where the loading row hung.
@@ -339,6 +374,60 @@ public class CustomEmojiReadTests
         Assert.Equal(before, drawn.Status());
         Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
         Assert.False(drawn.Hanging.Visible);
+    }
+
+    /// <summary>
+    ///     The read starts on a <c>:</c>-word typed, never on the caret walked alone (#528 story 29): an edit opening on
+    ///     <c>:blobcat:</c> and an unfinished <c>:blob</c> reads nothing as it opens, nor as the caret is walked by the
+    ///     keys or clicked into either word, or to the end of the one that would open the list. The first letter typed
+    ///     there reads, once, standing the list open on its loading row; a bare <c>:</c> typed at a new word's start
+    ///     reads too, once more.
+    /// </summary>
+    [Fact]
+    public async Task WalkingOrClickingIntoAColonWordReadsNothing_AndTypingInOneReadsOnce()
+    {
+        var emoji = FakeInstanceEmoji.Offering("blobcat");
+        emoji.Holding = true;
+
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110", account: "jeff@mastodon.social", content: "hi :blobcat: and :blob")),
+            Emoji = emoji,
+        };
+
+        using var drawn = await ComposedView.Of(built, ComposeFor.Edit);
+
+        Assert.Equal("hi :blobcat: and :blob", drawn.Editor.Text);
+        Assert.Empty(emoji.Reads);
+
+        drawn.Press(Key.CursorLeft);
+        drawn.Press(Key.Home);
+
+        for (var step = 0; step < "hi :blob".Length; step++)
+        {
+            drawn.Press(Key.CursorRight);
+        }
+
+        var editor = drawn.Editor.FrameToScreen();
+
+        drawn.Click(editor.X + "hi :blo".Length, editor.Y);
+        drawn.Click(editor.X + "hi :blobcat: and :bl".Length, editor.Y);
+        drawn.Press(Key.End);
+
+        Assert.Empty(emoji.Reads);
+        Assert.False(drawn.Hanging.Visible);
+
+        drawn.Type("c");
+
+        Assert.Single(emoji.Reads);
+        Assert.Equal(["reading custom emoji…"], Shortcodes(drawn));
+
+        emoji.Held[0].LandNothing();
+        drawn.Settle();
+        drawn.Type(" :");
+
+        Assert.Equal(2, emoji.Reads.Count);
     }
 
     /// <summary>An instance offering no emoji never opens the list, and is read only once in the session.</summary>

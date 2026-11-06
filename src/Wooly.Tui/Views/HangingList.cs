@@ -64,23 +64,18 @@ internal sealed class HangingList
     /// </summary>
     private (int Line, int Start, IHangingOffering By)? _in;
 
-    /// <summary>Whether what offers for the word the caret is in has been told the caret came into it.</summary>
-    private bool _toldIn;
+    /// <summary>Whether what offers for the word the caret is in has been told it was typed in.</summary>
+    private bool _toldTyped;
 
     /// <summary>Whether <c>esc</c> closed the list on the word the caret is in, which keeps it closed until the caret leaves.</summary>
     private bool _dismissed;
 
     /// <summary>
-    ///     Whether the list stands open on the word the caret is at the end of, saying what it offers is on its way
-    ///     (<see cref="IHangingOffering.Awaiting" />) — the one time it takes up what came in without a keystroke.
+    ///     The word the list's side and left edge are settled for: the word the caret is in, once the list has stood
+    ///     open on it saying what it offers is on its way (<see cref="IHangingOffering.Awaiting" />), kept until the
+    ///     caret leaves it — so what lands grows the list where it already hangs (nothing jumps).
     /// </summary>
-    private bool _awaiting;
-
-    /// <summary>
-    ///     The word the caret is in, where the list stood open on it saying what it offers is on its way: sided by the
-    ///     tallest it can become from then on, so what lands grows it on the side it already hangs (nothing jumps).
-    /// </summary>
-    private (int Line, int Start, IHangingOffering By)? _awaited;
+    private (int Line, int Start, IHangingOffering By)? _sidedFor;
 
     /// <param name="editor">The editor this list is laid beside in the same view and hangs under.</param>
     /// <param name="offered">
@@ -119,9 +114,11 @@ internal sealed class HangingList
         // is followed: not on the edit itself, whose caret is still the one before it.
         editor.UnwrappedCursorPositionChanged += (_, moved) =>
         {
+            var edited = _caretIn is not null && editor.Text != _caretIn;
+
             _unwrapped = moved;
             _caretIn = editor.Text;
-            Follow(typed: true);
+            Follow(typed: true, edited);
         };
     }
 
@@ -153,7 +150,9 @@ internal sealed class HangingList
     ///     edit and caret move, <paramref name="typed" />, and whenever the shell has changed under it. The pick stays
     ///     where it was only while the same kind of word asks the same.
     /// </summary>
-    private void Follow(bool typed)
+    /// <param name="typed">Whether the editor moved its caret, by an edit or a caret move, rather than the shell changing.</param>
+    /// <param name="edited">Whether the editor's text changed on the way, rather than the caret alone moving.</param>
+    private void Follow(bool typed, bool edited = false)
     {
         if (_editor.Text != _caretIn)
         {
@@ -162,12 +161,14 @@ internal sealed class HangingList
 
         var was = _open;
         var wasIn = _in;
-        var wasAwaiting = _awaiting;
+
+        // Standing open saying what is offered is on its way — the one time the list takes up what came in without a
+        // keystroke.
+        var wasAwaiting = _list.Noting;
         IReadOnlyList<HangingOffer> offers = [];
 
         _open = null;
         _in = null;
-        _awaiting = false;
 
         var caret = _editor.Visible && _offered() ? Caret() : null;
 
@@ -180,16 +181,16 @@ internal sealed class HangingList
         if (_in != wasIn)
         {
             _dismissed = false;
-            _toldIn = false;
-            _awaited = null;
+            _toldTyped = false;
+            _sidedFor = null;
         }
 
-        // Told as the caret comes into the word, before it has the letters to open on, so whatever it offers is on its
-        // way by the time it has.
-        if (_in is var (_, _, into) && !_toldIn)
+        // Told on the first edit leaving the caret in the word — its sign typed, before it has the letters to open on,
+        // so whatever it offers is on its way by the time it has — never on the caret walked or clicked into it alone.
+        if (edited && _in is var (_, _, into) && !_toldTyped)
         {
-            _toldIn = true;
-            into.Entering();
+            _toldTyped = true;
+            into.TypedIn();
         }
 
         if (caret is var (atLine, at, on)
@@ -210,9 +211,8 @@ internal sealed class HangingList
             // Nothing matching yet, since what would is on its way: the list stands open saying so.
             if (offers.Count == 0 && by.Awaiting() is { } awaiting)
             {
-                _awaiting = true;
-                _awaited = _in;
-                _list.Note(new HangingOffer(_ => awaiting, awaiting.Width, () => string.Empty));
+                _sidedFor = _in;
+                _list.Note(awaiting);
 
                 return;
             }
@@ -292,13 +292,42 @@ internal sealed class HangingList
 
     /// <summary>
     ///     How big the list is drawn: wide enough for its widest row, never wider than the editor, and no taller than
-    ///     the more room there is under the caret's row before the editor's foot or over it.
+    ///     the more room there is under the caret's row before the editor's foot or over it. On a word the list has
+    ///     stood waiting on, no wider than the room from its settled left edge to the editor's right.
     /// </summary>
     private Size Size()
     {
+        var width = Sided ? _editor.Frame.Right - Left(PickLines.LeastWidth) : _editor.Frame.Width;
+
+        return _list.Within(width, Room());
+    }
+
+    /// <summary>The more rows there are under the caret's row before the editor's foot, or over it.</summary>
+    private int Room()
+    {
         var caret = _editor.Caret.Y;
 
-        return _list.Within(_editor.Frame.Width, Math.Max(_editor.Frame.Bottom - caret - 1, caret));
+        return Math.Max(_editor.Frame.Bottom - caret - 1, caret);
+    }
+
+    /// <summary>
+    ///     Whether the list has stood waiting on the word the caret is in, which settles where it hangs on that word —
+    ///     its side and its left edge — until the caret leaves it.
+    /// </summary>
+    private bool Sided => _sidedFor is not null && _sidedFor == _in;
+
+    /// <summary>
+    ///     The left edge of a list <paramref name="width" /> wide: on the word's sign, or as far left of it as keeps
+    ///     the list within the editor's right edge, never left of the editor's own.
+    /// </summary>
+    private int Left(int width)
+    {
+        var typed = _open?.Word.Length ?? 1;
+
+        return Math.Clamp(
+            _editor.Caret.X - typed,
+            _editor.Frame.X,
+            Math.Max(_editor.Frame.X, _editor.Frame.Right - width));
     }
 
     /// <summary>
@@ -310,16 +339,18 @@ internal sealed class HangingList
     /// <remarks>
     ///     On a word the list has stood waiting on, the side is chosen by the tallest the list can become rather than by
     ///     how tall it is: the loading row hangs where the matches will, which grow from it downward under the line or
-    ///     upward over it, so the list never crosses to the other side of the word as they land.
+    ///     upward over it, so the list never crosses to the other side of the word as they land. Its left edge is
+    ///     settled the same way, as the narrowest list's — which the loading row is — and what lands is drawn no wider
+    ///     than the room to the right of it, a shortcode too long for it cut at the list's edge, so the list never moves
+    ///     sideways off the word either.
     /// </remarks>
     private Point At()
     {
         var size = Size();
         var caret = _editor.Caret;
 
-        var sided = _awaited is not null && _awaited == _in ? Tallest(size.Height) : size.Height;
-        var typed = _open?.Word.Length ?? 1;
-        var x = Math.Clamp(caret.X - typed, _editor.Frame.X, Math.Max(_editor.Frame.X, _editor.Frame.Right - size.Width));
+        var sided = Sided ? Tallest(size.Height) : size.Height;
+        var x = Left(Sided ? PickLines.LeastWidth : size.Width);
         var y = caret.Y + 1 + sided <= _editor.Frame.Bottom ? caret.Y + 1 : Math.Max(0, caret.Y - size.Height);
 
         return new Point(x, y);
@@ -329,11 +360,5 @@ internal sealed class HangingList
     ///     The most rows the list can be drawn in, edges and all, as <see cref="Size" /> would draw it offering
     ///     <see cref="HangingWord.MostOffered" />; never less than the <paramref name="height" /> it is drawn in now.
     /// </summary>
-    private int Tallest(int height)
-    {
-        var caret = _editor.Caret.Y;
-        var room = Math.Max(_editor.Frame.Bottom - caret - 1, caret);
-
-        return Math.Max(height, Math.Min(HangingWord.MostOffered + PickLines.Edges, room));
-    }
+    private int Tallest(int height) => Math.Max(height, Math.Min(HangingWord.MostOffered + PickLines.Edges, Room()));
 }

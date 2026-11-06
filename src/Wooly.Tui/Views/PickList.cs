@@ -28,10 +28,10 @@ internal sealed class PickList<T>
     /// <summary>What is on offer, in order; nothing while the list is closed.</summary>
     private IReadOnlyList<T> _things = [];
 
-    /// <summary>
-    ///     Which of <see cref="_things" /> <c>tab</c> or <c>⏎</c> would pick; below nought while the list stands open
-    ///     on a <see cref="Note" />, which nothing picks.
-    /// </summary>
+    /// <summary>What the list stands open saying in place of things to pick (<see cref="Note" />); nothing otherwise.</summary>
+    private Line? _note;
+
+    /// <summary>Which of <see cref="_things" /> <c>tab</c> or <c>⏎</c> would pick.</summary>
     private int _at;
 
     /// <summary>The first of <see cref="_things" /> drawn, where there are more than the list has rows for.</summary>
@@ -70,7 +70,9 @@ internal sealed class PickList<T>
 
         View = new PaintedView(
             theme,
-            (width, height) => PickLines.Rows(_things, _at, Scrolled(height), height, width, row, picks),
+            (width, height) => _note is { } note
+                ? PickLines.Rows([note], picked: -1, top: 0, height, width, (line, _) => line, picks)
+                : PickLines.Rows(_things, _at, Scrolled(height), height, width, row, picks),
             over: overlaid)
         {
             Id = id,
@@ -84,8 +86,11 @@ internal sealed class PickList<T>
     /// <summary>The list as drawn, which the window lays over the field.</summary>
     public PaintedView View { get; }
 
-    /// <summary>Whether the list is open, which is whether it has anything on offer.</summary>
-    public bool Open => _things.Count > 0;
+    /// <summary>Whether the list is open, which is whether it has anything on offer or stands open on a note.</summary>
+    public bool Open => _things.Count > 0 || Noting;
+
+    /// <summary>Whether the list stands open on a <see cref="Note" />, with nothing to pick.</summary>
+    public bool Noting => _note is not null;
 
     /// <summary>
     ///     Puts <paramref name="things" /> on offer, opening the list on them or, where there are none, closing it.
@@ -95,10 +100,13 @@ internal sealed class PickList<T>
     /// </summary>
     public void Offer(IReadOnlyList<T> things, bool keepingThePick, int picking = 0)
     {
-        _things = things;
-
         // A note has no pick to keep: the things that follow it open picked as a list opening does.
-        if (!keepingThePick || things.Count == 0 || _at < 0)
+        var noted = Noting;
+
+        _things = things;
+        _note = null;
+
+        if (!keepingThePick || things.Count == 0 || noted)
         {
             _at = picking;
             _top = 0;
@@ -110,15 +118,16 @@ internal sealed class PickList<T>
     }
 
     /// <summary>
-    ///     Opens the list on <paramref name="note" /> alone, said rather than offered: drawn as a thing is, unmarked,
-    ///     with the list's usual foot. Nothing picks it — <c>tab</c>, <c>⏎</c>, a click and the wheel on it are spent
-    ///     on nothing — and <c>↑</c>/<c>↓</c>, with nothing to move, go on to the field; <c>esc</c> and a click
-    ///     elsewhere close the list as ever.
+    ///     Opens the list on <paramref name="note" /> alone, said rather than offered: drawn where a thing's row is,
+    ///     unmarked, with the list's usual foot, and sized to it as to a thing. Nothing picks it — <c>tab</c>,
+    ///     <c>⏎</c>, a click and the wheel on it are spent on nothing — and <c>↑</c>/<c>↓</c>, with nothing to move,
+    ///     go on to the field; <c>esc</c> and a click elsewhere close the list as ever.
     /// </summary>
-    public void Note(T note)
+    public void Note(Line note)
     {
-        _things = [note];
-        _at = -1;
+        _things = [];
+        _note = note;
+        _at = 0;
         _top = 0;
 
         Shown();
@@ -131,11 +140,12 @@ internal sealed class PickList<T>
     /// </summary>
     public Size Within(int width, int height)
     {
-        var widest = _things.Select(_columns).DefaultIfEmpty().Max();
+        var widest = _note is { } note ? note.Width : _things.Select(_columns).DefaultIfEmpty().Max();
+        var rows = Noting ? 1 : _things.Count;
 
         return new Size(
             Math.Min(PickLines.Width(widest), width),
-            Math.Min(_things.Count, Math.Max(1, height - PickLines.Edges)) + PickLines.Edges);
+            Math.Min(rows, Math.Max(1, height - PickLines.Edges)) + PickLines.Edges);
     }
 
     /// <summary>
@@ -152,7 +162,7 @@ internal sealed class PickList<T>
 
         if (key == Key.CursorDown || key == Key.CursorUp)
         {
-            if (_at < 0)
+            if (Noting)
             {
                 return false;
             }
@@ -174,7 +184,7 @@ internal sealed class PickList<T>
             return false;
         }
 
-        if (_at >= 0)
+        if (!Noting)
         {
             _picked(_things[_at]);
         }
@@ -223,7 +233,7 @@ internal sealed class PickList<T>
     private bool Pointed(Mouse mouse)
     {
         // A note is only said: every press on it is the list's, and picks nothing.
-        if (!Open || _at < 0)
+        if (!Open || Noting)
         {
             return Open;
         }
@@ -276,11 +286,6 @@ internal sealed class PickList<T>
     private int Scrolled(int height)
     {
         var shown = Math.Max(1, height - PickLines.Edges);
-
-        if (_at < 0)
-        {
-            return 0;
-        }
 
         _top = Math.Clamp(_top, Math.Max(0, _at - shown + 1), _at);
         _top = Math.Clamp(_top, 0, Math.Max(0, _things.Count - shown));
