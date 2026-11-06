@@ -1,3 +1,4 @@
+using Terminal.Gui.Drivers;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
@@ -110,6 +111,58 @@ public class ComposeReferencePaintTests
         AssertDrawn(view, 1, (address[broken..], Role.Link), (" ok", Role.Body));
     }
 
+    /// <summary>
+    ///     A wide emoji, a joined emoji sequence, or a letter typed with a combining accent, which the editor draws
+    ///     composed, before a reference leaves the reference painted, and everything after it.
+    /// </summary>
+    [Theory]
+    [InlineData("\U0001F600")]
+    [InlineData("\U0001F469\u200D\U0001F4BB")]
+    [InlineData("e\u0301")]
+    public async Task AWideOrCombinedLetterBeforeAReferenceLeavesItPainted(string letter)
+    {
+        using var view = await ComposedView.Of();
+
+        Write(view, "hi " + letter + " #rustlang ok @ben@hachyderm.io");
+
+        AssertDrawn(
+            view,
+            0,
+            ("hi " + letter + " ", Role.Body),
+            ("#rustlang", Role.Hashtag),
+            (" ok ", Role.Body),
+            ("@ben@hachyderm.io", Role.Mention));
+    }
+
+    /// <summary>
+    ///     A letter typed with a combining accent on the first row leaves an address wrapped across the rows after it
+    ///     painted on each.
+    /// </summary>
+    [Fact]
+    public async Task ACombinedLetterBeforeAWrappedAddressLeavesItPaintedOnEachRow()
+    {
+        using var view = await ComposedView.Of();
+
+        var width = view.Editor.Viewport.Width;
+        var address = "https://example.com/" + new string('a', width);
+
+        // The accent typed, and the rest pasted in one go, so the editor wraps it once.
+        view.Type("e\u0301");
+        view.Paste(" " + address + " ok");
+
+        Assert.Contains("e\u0301", view.Editor.Text, StringComparison.Ordinal);
+
+        // The address does not fit beside the letter, so the editor breaks it from the next row on.
+        var at = view.Editor.FrameToScreen();
+        var broken = view.Rows()[at.Y + 1].Substring(at.X, width).TrimEnd().Length;
+
+        Assert.InRange(broken, "https://example.com/".Length, address.Length - 1);
+
+        AssertDrawn(view, 0, ("e\u0301", Role.Body));
+        AssertDrawn(view, 1, (address[..broken], Role.Link));
+        AssertDrawn(view, 2, (address[broken..], Role.Link), (" ok", Role.Body));
+    }
+
     /// <summary>Deleting into a tag, or typing a space inside it, un-paints what is no longer a reference.</summary>
     [Fact]
     public async Task WhatIsNoLongerAReferenceIsNoLongerPainted()
@@ -159,6 +212,20 @@ public class ComposeReferencePaintTests
         using var view = await ComposedView.Of(built, ComposeFor.Reply);
 
         AssertDrawn(view, 0, ("@ben@hachyderm.io", Role.Mention), (" ", Role.Body));
+    }
+
+    /// <summary>
+    ///     Each letter of <paramref name="text" /> typed in turn, a letter outside the keyboard's plane — an emoji —
+    ///     included, as the terminal hands it over: as one key.
+    /// </summary>
+    private static void Write(ComposedView view, string text)
+    {
+        foreach (var letter in text.EnumerateRunes())
+        {
+            view.Window.NewKeyDownEvent(letter.IsBmp ? new Key((char)letter.Value) : new Key((KeyCode)letter.Value));
+        }
+
+        view.Redraw();
     }
 
     /// <summary>
