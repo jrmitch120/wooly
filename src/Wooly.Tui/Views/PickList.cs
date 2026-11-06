@@ -59,7 +59,7 @@ internal sealed class PickList<T>
         Action<T> picked,
         Action closed,
         string picks = "insert",
-        OverlayPictures? overlaid = null)
+        PanelPictures? overlaid = null)
     {
         _columns = columns;
         _picked = picked;
@@ -68,7 +68,7 @@ internal sealed class PickList<T>
         View = new PaintedView(
             theme,
             (width, height) => PickLines.Rows(_things, _at, Scrolled(height), height, width, row, picks),
-            overlaid: overlaid)
+            over: overlaid)
         {
             Id = id,
             CanFocus = false,

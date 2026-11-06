@@ -12,7 +12,8 @@ namespace Wooly.Tui.Views;
 /// <remarks>
 ///     Matched on the shortcode alone, ignoring case. Those starting with the query come first, then those only holding
 ///     it; within each, the shorter first, then alphabetically, ignoring case. A shortcode typed in full is the shortest
-///     that starts with itself, so it stays, first. As many as the people to mention at most.
+///     that starts with itself, so it stays, first. As many as a hanging list offers at most
+///     (<see cref="HangingWord.MostOffered" />).
 ///     <para>
 ///         The instance is asked the first time a word wants its emoji, and on a word once at most (#579): a read that
 ///         answered nothing is asked again only on a new word, so a down instance is not asked on every keystroke. What
@@ -24,7 +25,7 @@ namespace Wooly.Tui.Views;
 ///         as the list is offered and as it is drawn alike.
 ///     </para>
 /// </remarks>
-internal sealed class EmojiOffering(Drafting.Drafting drafting, OverlayPictures pictures) : IHangingOffering
+internal sealed class EmojiOffering(Drafting.Drafting drafting, PanelPictures pictures) : IHangingOffering
 {
     public HangingWord? At(string line, int caret) => ShortcodeWord.At(line, caret);
 
@@ -46,7 +47,7 @@ internal sealed class EmojiOffering(Drafting.Drafting drafting, OverlayPictures 
                   .OrderBy(emoji => emoji.Shortcode.StartsWith(word.Query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
                   .ThenBy(emoji => emoji.Shortcode.Length)
                   .ThenBy(emoji => emoji.Shortcode, StringComparer.OrdinalIgnoreCase)
-                  .Take(PeopleToMention.Most)
+                  .Take(HangingWord.MostOffered)
                   .Select(emoji => Offer(emoji, word.Query)),
     ];
 

@@ -79,7 +79,7 @@ internal sealed class HangingList
         ITheme theme,
         ComposeEditor editor,
         Func<bool> offered,
-        OverlayPictures pictures,
+        PanelPictures pictures,
         params IReadOnlyList<IHangingOffering> offerings)
     {
         _editor = editor;

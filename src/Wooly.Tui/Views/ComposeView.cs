@@ -64,9 +64,9 @@ internal sealed class ComposeView : View
     ///     The content panel's pictures and Raster, which the post's list draws a custom emoji's picture from (#580); none
     ///     where nobody said.
     /// </param>
-    public ComposeView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, OverlayPictures? pictures = null)
+    public ComposeView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, PanelPictures? pictures = null)
     {
-        pictures ??= OverlayPictures.None;
+        pictures ??= PanelPictures.None;
 
         _shell = shell;
         _drafting = drafting;

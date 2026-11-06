@@ -12,8 +12,8 @@ namespace Wooly.Tui.Shell;
 /// <param name="profile">The profile this is gathered as — whose own account is nobody to mention.</param>
 public sealed class PeopleToMention(Core.Profiles.ActiveProfile profile)
 {
-    /// <summary>The most a query is answered with, so the list never buries what is being written.</summary>
-    public const int Most = 5;
+    /// <summary>The most a query is answered with: as many as the list hung under the word offers.</summary>
+    public const int Most = HangingWord.MostOffered;
 
     /// <summary>
     ///     The most of the profile's follows read, five pages of 80: enough for most, and never a large share of the

@@ -39,7 +39,7 @@ internal sealed class PublicProfileView : View
     ///     whether the pictures are drawn at all (<see cref="Rendering.Drawing.Draws" />) — and what the bio's list draws
     ///     a custom emoji's picture from (#580).
     /// </summary>
-    private readonly OverlayPictures _pictures;
+    private readonly PanelPictures _pictures;
 
     /// <summary>The list hung under the word being typed in the bio, as under compose's post (#408, #576).</summary>
     private readonly HangingList _hanging;
@@ -60,12 +60,12 @@ internal sealed class PublicProfileView : View
         ITheme theme,
         Shell.Shell shell,
         Drafting.Drafting drafting,
-        OverlayPictures? pictures = null)
+        PanelPictures? pictures = null)
     {
         _theme = theme;
         _shell = shell;
         _drafting = drafting;
-        _pictures = pictures ?? OverlayPictures.None;
+        _pictures = pictures ?? PanelPictures.None;
         _place = new Placement<PublicProfileScreen>(this, shell);
 
         // A right click over a field is esc, which the fields would otherwise keep to themselves, and a click outside

@@ -10,6 +10,9 @@ namespace Wooly.Tui.Shell;
 /// <param name="Query">What follows the sign up to the caret, which is what the things on offer are matched on.</param>
 public sealed record HangingWord(int Start, string Query)
 {
+    /// <summary>The most things a hanging list offers on a word, whatever kind of word it is, so it never buries the text.</summary>
+    public const int MostOffered = 5;
+
     /// <summary>The columns the word takes before the caret: its one-letter sign and the query after it.</summary>
     public int Length => Query.Length + 1;
 

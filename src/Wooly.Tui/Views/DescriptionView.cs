@@ -30,21 +30,21 @@ internal sealed class DescriptionView : View
     private readonly ComposeEditor _editor;
 
     /// <summary>
-    ///     How the content panel under this paints pixels as of its last frame, which says whether the picture takes a
-    ///     place above the field on a narrow panel (#382).
+    ///     What the content panel under this draws pictures with, whose Raster as of its last frame says whether the
+    ///     picture takes a place above the field on a narrow panel (#382).
     /// </summary>
-    private readonly Func<Raster> _raster;
+    private readonly PanelPictures _pictures;
 
     /// <summary>
     ///     What the field does with an open question and with the mouse, as every draft's do (#373, #430).
     /// </summary>
     private readonly DraftFields _draft;
 
-    public DescriptionView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, Func<Raster> raster)
+    public DescriptionView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, PanelPictures pictures)
     {
         _shell = shell;
         _drafting = drafting;
-        _raster = raster;
+        _pictures = pictures;
         var place = new Placement<DescriptionScreen>(this, shell);
 
         CanFocus = true;
@@ -57,7 +57,7 @@ internal sealed class DescriptionView : View
                 WordWrap = true,
                 TabKeyAddsTab = false,
             },
-            (describing, room) => describing.FieldAt(room, _raster()));
+            (describing, room) => describing.FieldAt(room, _pictures.Raster));
 
         // ctrl-p is the frame's here as everywhere (ADR-0020), where TextView would take it for a line up.
         _editor.KeyBindings.Remove(Key.P.WithCtrl);

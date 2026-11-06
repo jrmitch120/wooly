@@ -84,10 +84,10 @@ internal sealed class ShellWindow : Window
     private readonly IReadOnlyList<View> _overlays;
 
     /// <summary>
-    ///     What the views laid over the content panel draw pictures from — the panel's own — and want of the cache with
-    ///     the panel's frame (#580).
+    ///     What the content panel draws pictures with, and the views laid over it draw theirs from, wanting of the cache
+    ///     with the panel's frame (#580).
     /// </summary>
-    private readonly OverlayPictures _overlayPictures;
+    private readonly PanelPictures _pictures;
 
     /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
@@ -272,6 +272,8 @@ internal sealed class ShellWindow : Window
         // It is a panel titled with the breadcrumb (ADR-0021), its edges laid round its viewport, so the width every
         // screen is drawn at and every picture's box are the inside of it less the margin: 57 columns at an 80-column
         // terminal, of a viewport 58 wide (#495).
+        _pictures = new PanelPictures(pictures, placeholders, raster);
+
         _content = new PaintedView(
             theme,
             // Laid out under the Raster the region settled the frame by, read rather than asked again here, so that a
@@ -292,7 +294,6 @@ internal sealed class ShellWindow : Window
                 {
                     Top = _content.Top,
                 }),
-            pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => WithTheHiddenRailsMark(Panel.Framed(
                 ChromeLines.Breadcrumb(shell.Crumbs, shell.SpinnerFrame, width),
@@ -300,9 +301,8 @@ internal sealed class ShellWindow : Window
                 width,
                 height,
                 active: true)),
-            placeholders,
             frames,
-            raster)
+            _pictures)
         {
             Id = ContentId,
             X = Pos.Func(_ => Left),
@@ -317,12 +317,7 @@ internal sealed class ShellWindow : Window
             Settled = Paged,
             HeldReference = () => shell.Screen.Reference,
             LetReferenceGo = shell.LetReferenceGo,
-            // Asked only as a frame is drawn, long after the views over the panel were made, which is all the
-            // null-forgiving says.
-            WantedOver = () => _overlayPictures!.Wanted,
         };
-
-        _overlayPictures = new OverlayPictures(pictures, placeholders, () => _content.Raster);
 
         // The same top edge again, as a row of its own laid over the panel's, so that a tick of the fetch mark has one
         // row to redraw rather than the panel — which places every picture on it each time it is drawn, two and a half
@@ -344,9 +339,9 @@ internal sealed class ShellWindow : Window
         // back as "the view where the data will be retrieved".
         _overlays =
         [
-            new ComposeView(theme, shell, shell.Drafting, _overlayPictures),
-            new DescriptionView(theme, shell, shell.Drafting, () => _content.Raster),
-            new PublicProfileView(theme, shell, shell.Drafting, _overlayPictures),
+            new ComposeView(theme, shell, shell.Drafting, _pictures),
+            new DescriptionView(theme, shell, shell.Drafting, _pictures),
+            new PublicProfileView(theme, shell, shell.Drafting, _pictures),
         ];
 
         foreach (var overlay in _overlays)

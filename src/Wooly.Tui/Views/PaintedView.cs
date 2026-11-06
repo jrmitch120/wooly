@@ -73,28 +73,22 @@ internal sealed class PaintedView : View
 
     /// <param name="theme">What answers the roles.</param>
     /// <param name="rows">The rows to draw, given how much room there is.</param>
-    /// <param name="pictures">
-    ///     Where the pixels for a drawn attachment come from, or <see langword="null" /> for a region that shows no
-    ///     posts — the rail and the two chrome rows, which reserve no boxes and would never ask.
-    /// </param>
     /// <param name="frame">
     ///     The panel this region is drawn inside, given the whole of the view's width and height — <see cref="Panel" />'s
     ///     rows, of which only the edges are painted — or <see langword="null" /> for a region with no frame.
     /// </param>
-    /// <param name="placeholders">
-    ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box, or
-    ///     <see langword="null" /> to draw every picture through a box (ADR-0022).
-    /// </param>
     /// <param name="frames">What wraps a frame this view draws in synchronized output, if anything does.</param>
-    /// <param name="raster">
-    ///     How this terminal paints pixels, asked once a frame as the frame is settled (<see cref="Raster" />), or
-    ///     <see langword="null" /> for a terminal that draws none.
+    /// <param name="pictures">
+    ///     What the pictures are drawn with — the cache, the Kitty image store (ADR-0022) and how the terminal paints
+    ///     pixels, asked once a frame as the frame is settled (<see cref="Raster" />) — for the content panel, which
+    ///     says each frame's wants for itself and for the views over it; or <see langword="null" /> for a region that
+    ///     shows no posts — the rail and the two chrome rows, which reserve no boxes and would never ask.
     /// </param>
-    /// <param name="overlaid">
+    /// <param name="over">
     ///     Where this view is laid over the content panel and draws pictures of its own — a pick list's custom emoji
-    ///     (#580) — the panel's pictures, image store and Raster it draws them from, in place of
-    ///     <paramref name="pictures" />, <paramref name="placeholders" /> and <paramref name="raster" />: placed from boxes
-    ///     of its own (<see cref="Placing.Over" />), and wanted of the cache with the panel's frame.
+    ///     (#580) — the panel's, which it draws them with as the panel last settled them: placed from boxes of its own
+    ///     (<see cref="Placing.Over" />), and wanted of the cache with the panel's frame. Never with
+    ///     <paramref name="pictures" />.
     /// </param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
@@ -105,16 +99,14 @@ internal sealed class PaintedView : View
     public PaintedView(
         ITheme theme,
         Func<int, int, IReadOnlyList<Line>> rows,
-        IPictures? pictures = null,
         Func<int, int, IReadOnlyList<Line>>? frame = null,
-        Placeholders? placeholders = null,
         SynchronizedFrames? frames = null,
-        Func<Raster>? raster = null,
-        OverlayPictures? overlaid = null)
+        PanelPictures? pictures = null,
+        PanelPictures? over = null)
     {
         _theme = theme;
-        _overlaid = overlaid is not null;
-        _raster = overlaid is not null ? () => overlaid.Raster : raster ?? (() => Raster.None);
+        _overlaid = over is not null;
+        _raster = over is not null ? () => over.Raster : pictures is not null ? pictures.Asked : () => Raster.None;
         _frames = frames;
         _rows = rows;
         _frame = frame;
@@ -125,27 +117,32 @@ internal sealed class PaintedView : View
         }
 
         // Every box added to this view now, before anything is drawn (Placing.MostBoxes says why).
-        if (overlaid is { Pictures: { } cache })
+        if (over is { Pictures: { } underneath })
         {
             _placing = Placing.Over(
-                cache,
+                underneath,
                 () => PictureView.AddedTo(this),
                 new SixelPictures(backdrop: Backdrop),
-                overlaid.Placeholders,
-                OverlayPictures.MostCustomEmojiBoxes);
+                over.Placeholders,
+                PanelPictures.MostCustomEmojiBoxes);
 
-            overlaid.Drawing(this);
+            over.DrawingOver(this);
         }
-        else if (overlaid is null && pictures is not null)
+        else if (pictures is not null)
         {
-            _placing = new Placing(
-                pictures,
-                () => PictureView.AddedTo(this),
-                new SixelPictures(backdrop: Backdrop),
-                placeholders)
+            pictures.Drawing(this);
+
+            if (pictures.Pictures is { } cache)
             {
-                WantedOver = () => WantedOver(),
-            };
+                _placing = new Placing(
+                    cache,
+                    () => PictureView.AddedTo(this),
+                    new SixelPictures(backdrop: Backdrop),
+                    pictures.Placeholders)
+                {
+                    WantedOver = () => pictures.Wanted,
+                };
+            }
         }
     }
 
@@ -223,14 +220,8 @@ internal sealed class PaintedView : View
     private bool HasScrollbar => ScrollbarStyle is not ScrollbarStyle.None;
 
     /// <summary>
-    ///     What the views laid over this one want of the picture cache, said with this view's own frame's wants: the
-    ///     content panel's, for the pick lists over it (<see cref="OverlayPictures.Wanted" />). None where nobody said.
-    /// </summary>
-    public Func<IReadOnlyList<Drawn>> WantedOver { get; init; } = () => [];
-
-    /// <summary>
     ///     Every picture the rows the last frame settled want, left to right and top to bottom — what a view laid over
-    ///     the content panel has the panel ask for (<see cref="OverlayPictures" />). None before the first.
+    ///     the content panel has the panel ask for (<see cref="PanelPictures" />). None before the first.
     /// </summary>
     public IReadOnlyList<Drawn> Wanted { get; private set; } = [];
 

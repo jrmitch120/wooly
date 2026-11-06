@@ -1841,7 +1841,7 @@ typing one in the edit public profile form's bio (#408):
   keeps a row's insets through the box's side and the mark, and holds every run of spans written for one custom emoji
   together). The pictures are the
   content panel's: one cache, keyed by the emoji's still's address, and one Kitty image store, so an emoji already
-  drawn in a post is neither fetched nor sent again for the list (`OverlayPictures`). The cache takes a frame's wants
+  drawn in a post is neither fetched nor sent again for the list (`PanelPictures`). The cache takes a frame's wants
   whole, so the list says nothing to it itself: it draws before the panel, and the panel, drawing after it, asks for
   what the list drew as on screen along with its own frame, drains what the cache let go of and flushes the image
   store, once a frame for both (`Placing.Over`). The list places its pictures from its own boxes, five custom emoji
