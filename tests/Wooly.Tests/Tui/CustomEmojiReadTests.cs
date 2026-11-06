@@ -125,6 +125,46 @@ public class CustomEmojiReadTests
     }
 
     /// <summary>
+    ///     Where there is room under the line for the loading row but not for the most the list offers, the loading row
+    ///     already hangs over the line, sided by the tallest the list can become rather than by its own one row — so the
+    ///     answer landing grows the list upward from the bottom edge it hung on, never over to the other side of the word.
+    /// </summary>
+    [Fact]
+    public async Task WhereThereIsRoomUnderTheLineForTheLoadingRowButNotTheListItHangsOverTheLine_AndTheListStaysThere()
+    {
+        var emoji = FakeInstanceEmoji.Offering("blobcat", "blobfox", "blobowl", "blobsad", "blobwave");
+        emoji.Holding = true;
+
+        using var drawn = await ComposedView.Of(new AShell { Emoji = emoji });
+        var editor = drawn.Editor.FrameToScreen();
+
+        // Four rows under the line: room for the loading row and its edges, not for five shortcodes and theirs.
+        for (var line = 0; line < editor.Height - 5; line++)
+        {
+            drawn.Press(Key.Enter);
+        }
+
+        drawn.Type(":bl");
+
+        var caret = editor.Y + editor.Height - 5;
+        var loading = drawn.Hanging.FrameToScreen();
+
+        Assert.Equal(["reading custom emoji…"], Shortcodes(drawn));
+        Assert.Equal(caret, loading.Bottom);
+        Assert.Equal(3, loading.Height);
+
+        Assert.Single(emoji.Held).Land();
+        drawn.Settle();
+
+        var filled = drawn.Hanging.FrameToScreen();
+
+        Assert.Equal([":blobcat:", ":blobfox:", ":blobowl:", ":blobsad:", ":blobwave:"], Shortcodes(drawn));
+        Assert.Equal(caret, filled.Bottom);
+        Assert.Equal(loading.X, filled.X);
+        Assert.Equal(7, filled.Height);
+    }
+
+    /// <summary>
     ///     Typing on in a <c>:</c>-word while its read is in flight asks nothing more and keeps the loading row, as does
     ///     the shell changing under it; the answer landing fills the list in at once, with no keystroke, picked on the
     ///     first, the list growing down from where the loading row hung.

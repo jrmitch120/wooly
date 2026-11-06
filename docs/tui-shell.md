@@ -1821,9 +1821,11 @@ typing one in the edit public profile form's bio (#408):
 - **While they are read, the list says so, and fills in as they land (#528).** While the read is in flight a `:`-word
   that would open the list — two letters, the caret at its end — opens it on one row, `reading custom emoji…` in
   `loading`, hung and lined up as the list is, the row where a shortcode would be, with its usual foot; nothing reaches
-  the status row (`IHangingOffering.Awaiting`, `PickList.Note`). It is nothing to pick: `tab`, `⏎`, a click and the
-  wheel on it insert nothing; `esc` and a click outside it close it with the usual memory of the word; every other key
-  goes on to the editor. The answer landing on the drawing thread is one redraw of the shell's (`EmojiByInstance.Landed`),
+  the status row (`IHangingOffering.Awaiting`, `PickList.Note`). It hangs under the line or over it by the room for the
+  tallest the list can become (`HangingWord.MostOffered` rows and its edges), not for its own one row, and the list
+  keeps that side on the word once filled, so it never crosses the word as the matches land. It is nothing to pick:
+  `tab`, `⏎`, a click and the wheel on it insert nothing; `esc` and a click outside it close it with the usual memory
+  of the word; every other key goes on to the editor. The answer landing on the drawing thread is one redraw of the shell's (`EmojiByInstance.Landed`),
   and a list standing open on the loading row of the word the caret is still at the end of takes it up then, with no
   keystroke: it grows from the one row to its matches, picked on the first — down from its top edge under the line, or
   up from its bottom edge where it hangs over it, so the word never moves — the pictures asked for in that same frame,
