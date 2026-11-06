@@ -53,7 +53,9 @@ public class ComposeViewTests
     ///     A reply opens with the typing after its mention however the last compose was left. <c>↑</c> or <c>↓</c>
     ///     between the post's lines has the editor remember the column it went up or down from, which outlives the
     ///     text it was in: put to the end on the next compose, the caret went back to that column instead, and a reply
-    ///     after a post left from the start of a line was typed in front of its own mention.
+    ///     after a post left from the start of a line was typed in front of its own mention. Here a post of two lines
+    ///     goes up to the start of its first, is thrown away (<c>esc</c>, then <c>y</c> to discard it), and a reply
+    ///     is opened and typed into.
     /// </summary>
     [Fact]
     public async Task AReplyOpensAfterItsMentionWhereTheLastComposeWentUpALine()

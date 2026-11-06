@@ -209,6 +209,42 @@ public class ComposeDescriptionTests : IDisposable
         Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
     }
 
+    /// <summary>
+    ///     The editor opened again on a description already written has the typing after it, however it was last left:
+    ///     <c>↑</c> between its lines has the editor remember a column, and put to the end it went back to that column
+    ///     instead (as compose's post did, <see cref="ComposeViewTests" />).
+    /// </summary>
+    [Fact]
+    public async Task InTheWindowTheEditorOpensAgainAfterTheDescriptionWhereItWentUpALine()
+    {
+        using var drawn = await Describing();
+        var editor = drawn.Window.DescriptionField<ComposeEditor>();
+
+        foreach (var letter in "A cat")
+        {
+            drawn.Press(letter);
+        }
+
+        drawn.Press(Terminal.Gui.Input.Key.Enter);
+
+        foreach (var letter in "xyz")
+        {
+            drawn.Press(letter);
+        }
+
+        drawn.Press(Terminal.Gui.Input.Key.CursorLeft);
+        drawn.Press(Terminal.Gui.Input.Key.CursorLeft);
+        drawn.Press(Terminal.Gui.Input.Key.CursorUp);
+        drawn.PressThroughTheApplication(Terminal.Gui.Input.Key.Esc);
+        drawn.PressThroughTheApplication(Terminal.Gui.Input.Key.Enter);
+
+        Assert.IsType<DescriptionScreen>(drawn.Shell.Screen);
+
+        drawn.Press('z');
+
+        Assert.EndsWith("xyzz", editor.Text, StringComparison.Ordinal);
+    }
+
     /// <summary>In the window, <c>↑</c> from the post walks onto the last row and <c>enter</c> there opens the editor.</summary>
     [Fact]
     public async Task InTheWindowTheKeysWalkOntoARowAndOpenTheEditor()

@@ -122,7 +122,8 @@ internal sealed class ComposeEditor(
     ///     <c>↓</c> has <see cref="TextView" /> remember the column it went up or down from, which neither new text nor
     ///     <see cref="TextView.MoveEnd" /> forgets: the caret goes to the last line and then back to that column on it,
     ///     so the reply opened after a post left from the start of a line had its caret in front of its own mention.
-    ///     <c>ctrl-end</c> forgets the column first.
+    ///     <c>ctrl-end</c> forgets the column first. So nothing calls <see cref="TextView.MoveEnd" /> on this editor:
+    ///     every editor opened on text already written goes to its end through here.
     /// </remarks>
     public void CaretToTheEnd() => InvokeCommand(Command.End);
 
