@@ -1788,23 +1788,29 @@ typing one in the edit public profile form's bio (#408):
 - **It is one list any compose field can offer rows to (#335).** Being a list — the pick, the scroll, the box, the keys
   and the pointer — is `PickList<T>` and `PickLines`, once; what a row says, where the list hangs and what picking does
   are the field's. The people to mention are the first such list, and the language list (#340) the second.
+- **The list hung under an editor's word is one list, whatever it offers (#576).** `HangingList` is the list, once per
+  editor: its keys, the pointer, the memory of a word `esc` closed, the placement under the caret on the word's sign
+  with its flip above, the hint along its foot, and replacing the word with the pick as one undoable edit. What a word
+  is, what matches it, what a row says and what a pick writes are an `IHangingOffering`'s, one per kind of word, and
+  the caret is at the end of one kind at most. The people to mention, on an @-word, are the only offering so far
+  (`MentionOffering`), so every rule above and below is theirs.
 - **An open list is always on top of a picture under it (#577).** A list over the content panel's rows — the languages
   hung down over compose's Media rows, the people to mention flipped up over them — hides a picture exactly where it
   covers it, cell by cell, as it hides the text there, on each of the three ways a picture is drawn: Kitty's
   placeholder cells under it are never painted, a sixel is sent again cut round it, and a picture through a Kitty box
-  is placed again cut round it. However the list closes — a pick, `esc`, a click outside it, the caret leaving the word — every picture it covered
-  is back whole where it was, and nothing has moved. The rule is the window's, for anything laid over the panel: one
-  that shows, hides, moves or changes size has the panel drawn again under it (`ShellWindow.Uncovering`), which is what
-  puts back what a list leaves and cuts a picture round what it newly covers. The people to mention flipped over the
-  Media rows used to stay on the terminal after `esc`, a click outside or the caret leaving the word, holes in the
-  pictures and all, until something else redrew the panel. A sixel cut round a list is encoded by Terminal.Gui rather
-  than from the cuts kept for it (ADR-0023), and only while the list cuts it.
+  is placed again cut round it. However the list closes — a pick, `esc`, a click outside it, the caret leaving the
+  word — every picture it covered is back whole where it was, and nothing has moved. The rule is the window's, for
+  anything laid over the panel: one that shows, hides, moves or changes size has the panel drawn again under it
+  (`ShellWindow.Uncovering`), which is what puts back what a list leaves and cuts a picture round what it newly covers.
+  The people to mention flipped over the Media rows used to stay on the terminal after `esc`, a click outside or the
+  caret leaving the word, holes in the pictures and all, until something else redrew the panel. A sixel cut round a
+  list is encoded by Terminal.Gui rather than from the cuts kept for it (ADR-0023), and only while the list cuts it.
 - **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
   on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
   as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that
   word. Closed, it takes nothing: `⏎` adds a line and `esc` throws the draft away, as they always have. Never in the
   warning.
-- **The bio's list is the post's (#408).** `MentionList` is told by the view that lays it beside its editor when it may
+- **The bio's list is the post's (#408).** `HangingList` is told by the view that lays it beside its editor when it may
   open — compose while the typing is in the post, the edit public profile form while it is in front — and that view
   plugs it into its editor's `Ahead`. The people, the matching, the keys and the pointer are all the same; `esc` on it
   closes the list, never the form, and with it closed `esc` leaves the form as it always does.

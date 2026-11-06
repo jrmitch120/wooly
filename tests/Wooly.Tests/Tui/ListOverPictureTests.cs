@@ -294,7 +294,7 @@ public class ListOverPictureTests : IDisposable
 
     private static View Languages(DrawnShell drawn) => List(drawn, LanguageList.Id);
 
-    private static View Mentions(DrawnShell drawn) => List(drawn, MentionList.Id);
+    private static View Mentions(DrawnShell drawn) => List(drawn, HangingList.Id);
 
     private static View List(DrawnShell drawn, string id) =>
         drawn.Window.SubViews.OfType<ComposeView>().Single().SubViews.Single(view => view.Id == id);

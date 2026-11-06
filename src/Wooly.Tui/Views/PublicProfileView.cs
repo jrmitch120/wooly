@@ -43,8 +43,8 @@ internal sealed class PublicProfileView : View
     /// </summary>
     private readonly IPictures? _pictures;
 
-    /// <summary>The people to mention, hung under the @-word being typed in the bio, as under compose's post (#408).</summary>
-    private readonly MentionList _mentions;
+    /// <summary>The list hung under the word being typed in the bio, as under compose's post (#408, #576).</summary>
+    private readonly HangingList _hanging;
 
     /// <summary>The form the fields were last filled from, or none while no form is on top.</summary>
     private PublicProfileScreen? _showing;
@@ -73,14 +73,14 @@ internal sealed class PublicProfileView : View
         _place = new Placement<PublicProfileScreen>(this, shell);
 
         // A right click over a field is esc, which the fields would otherwise keep to themselves, and a click outside
-        // the list of people to mention closes it, as on compose (#373, #335). The list hangs under the bio, which
+        // the list hung under the bio closes it, as on compose (#373, #335). The list hangs under the bio, which
         // answers a question through these rules, so it is made after them.
         _draft = new DraftFields(
             this,
             shell,
             () => _shell.Screen is PublicProfileScreen,
             () => Fields,
-            mouse => _mentions?.ClosedBy(mouse) is true);
+            mouse => _hanging?.ClosedBy(mouse) is true);
 
         CanFocus = true;
         Visible = false;
@@ -111,8 +111,8 @@ internal sealed class PublicProfileView : View
         _bio.Answering = _draft.Answered;
         _bio.ContentsChanged += (_, _) => Change(form => form.RewriteBio(_bio.Text));
 
-        _mentions = new MentionList(theme, shell, _bio, () => _shell.Screen is PublicProfileScreen);
-        _bio.Ahead = _mentions.Took;
+        _hanging = new HangingList(theme, _bio, () => _shell.Screen is PublicProfileScreen, new MentionOffering(shell));
+        _bio.Ahead = _hanging.Took;
 
         // The rows that take no typing: the avatar and the header, a click on either opening the file browser for it
         // (#407), and the toggles, a click on one flipping it.
@@ -137,7 +137,7 @@ internal sealed class PublicProfileView : View
 
         Add(_name, _bio);
         Add([.. _buttons.Values]);
-        Add(_mentions.View);
+        Add(_hanging.View);
 
         _shell.Changed += Refresh;
 
@@ -218,7 +218,7 @@ internal sealed class PublicProfileView : View
 
         // After the bio has been shown or hidden, and on every change of the shell's — a profile switch, or more people
         // arriving — since either can change what the word being typed matches.
-        _mentions.Follow();
+        _hanging.Follow();
 
         SetNeedsDraw();
     }

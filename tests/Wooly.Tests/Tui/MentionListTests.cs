@@ -471,8 +471,8 @@ public class MentionListTests
 
     private static ComposeEditor Editor(ComposedView drawn) => drawn.Editor;
 
-    private static PaintedView List(ComposedView drawn) => drawn.Mentions;
+    private static PaintedView List(ComposedView drawn) => drawn.Hanging;
 
     /// <summary>The list's rows as drawn on the terminal.</summary>
-    private static IReadOnlyList<string> ListRows(ComposedView drawn) => drawn.RowsOf(drawn.Mentions);
+    private static IReadOnlyList<string> ListRows(ComposedView drawn) => drawn.RowsOf(drawn.Hanging);
 }

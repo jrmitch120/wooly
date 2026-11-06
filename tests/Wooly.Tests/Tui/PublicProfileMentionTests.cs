@@ -72,7 +72,7 @@ public class PublicProfileMentionTests
     /// <summary>The list of people to mention, among the form's own views.</summary>
     private static PaintedView List(DrawnShell drawn) =>
         drawn.Window.SubViews.OfType<PublicProfileView>().Single()
-             .SubViews.OfType<PaintedView>().Single(view => view.Id == MentionList.Id);
+             .SubViews.OfType<PaintedView>().Single(view => view.Id == HangingList.Id);
 
     private static void Type(DrawnShell drawn, string text)
     {

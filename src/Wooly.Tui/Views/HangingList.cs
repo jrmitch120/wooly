@@ -1,38 +1,47 @@
 using System.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
-using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Views;
 
 /// <summary>
-///     The list of people to mention, hung under the @-word being typed in an editor (#318): what it matches, which
-///     one is picked, where it sits, and the keys it takes while it is open. Closed, it takes nothing and the editor's
-///     keys are what they always were. Compose's post has one, and so does the edit public profile form's bio (#408):
-///     each view plugs its own into its editor's <see cref="ComposeEditor.Ahead" />.
+///     The list hung under the word being typed in an editor (#318, #576), offering whatever that kind of word calls
+///     for: which one is picked, where it sits, and the keys it takes while it is open. Closed, it takes nothing and the
+///     editor's keys are what they always were. Compose's post has one, and so does the edit public profile form's bio
+///     (#408): each view plugs its own into its editor's <see cref="ComposeEditor.Ahead" />.
 /// </summary>
 /// <remarks>
-///     The word is read from the text as written rather than as wrapped, off the editor's unwrapped caret; where the
-///     list sits is read from where the editor put its caret, since only the editor knows how the text wrapped.
+///     <para>
+///         Being the list is here, once, whatever it offers: the keys and the pointer (<see cref="PickList{T}" />'s),
+///         the memory of a word <c>esc</c> closed, where it hangs, and replacing the word with the pick as one undoable
+///         edit. What a word is, what matches it, what a row says and what a pick writes are each
+///         <see cref="IHangingOffering" />'s — people for an <c>@</c>-word (<see cref="MentionOffering" />).
+///     </para>
+///     <para>
+///         The word is read from the text as written rather than as wrapped, off the editor's unwrapped caret; where
+///         the list sits is read from where the editor put its caret, since only the editor knows how the text wrapped.
+///     </para>
 /// </remarks>
-internal sealed class MentionList
+internal sealed class HangingList
 {
     /// <summary>The list's <c>Id</c> among the views of whichever view lays it beside its editor.</summary>
-    internal const string Id = "mentions";
+    internal const string Id = "hanging";
 
-    private readonly Shell.Shell _shell;
     private readonly ComposeEditor _editor;
 
-    /// <summary>Whether the screen in front offers people to mention in the editor at all, as it stands.</summary>
+    /// <summary>Whether the screen in front offers anything in the editor at all, as it stands.</summary>
     private readonly Func<bool> _offered;
 
-    /// <summary>Who matches the word being typed, best first, as a list to pick from; nobody while it is closed.</summary>
-    private readonly PickList<Mentionable> _list;
+    /// <summary>The kinds of word the list opens on, and what each offers; the caret is at the end of one at most.</summary>
+    private readonly IReadOnlyList<IHangingOffering> _offerings;
 
-    /// <summary>The word the list is open on, and the line it is on in the text as written.</summary>
-    private (int Line, MentionWord Word)? _open;
+    /// <summary>What matches the word being typed, best first, as a list to pick from; nothing while it is closed.</summary>
+    private readonly PickList<HangingOffer> _list;
+
+    /// <summary>The word the list is open on, the line it is on in the text as written, and what offers for it.</summary>
+    private (int Line, HangingWord Word, IHangingOffering By)? _open;
 
     /// <summary>
     ///     The caret in the text as written, as the editor last said it was — the one place that knows, since its own
@@ -45,20 +54,25 @@ internal sealed class MentionList
 
     /// <param name="editor">The editor this list is laid beside in the same view and hangs under.</param>
     /// <param name="offered">
-    ///     Whether the screen in front offers people to mention in <paramref name="editor" />, as it stands: compose
-    ///     while the typing is in the post rather than its warning, or the edit public profile form.
+    ///     Whether the screen in front offers anything in <paramref name="editor" />, as it stands: compose while the
+    ///     typing is in the post rather than its warning, or the edit public profile form.
     /// </param>
-    public MentionList(ITheme theme, Shell.Shell shell, ComposeEditor editor, Func<bool> offered)
+    /// <param name="offerings">The kinds of word the list opens on, each with what it offers.</param>
+    public HangingList(
+        ITheme theme,
+        ComposeEditor editor,
+        Func<bool> offered,
+        params IReadOnlyList<IHangingOffering> offerings)
     {
-        _shell = shell;
         _editor = editor;
         _offered = offered;
+        _offerings = offerings;
 
-        _list = new PickList<Mentionable>(
+        _list = new PickList<HangingOffer>(
             theme,
             Id,
-            (person, picked) => MentionLines.Row(person, picked, _open?.Word.Query ?? string.Empty),
-            MentionLines.Columns,
+            (offer, picked) => offer.Row(picked),
+            offer => offer.Columns,
             Insert,
             Dismiss);
 
@@ -81,30 +95,31 @@ internal sealed class MentionList
 
     /// <summary>
     ///     Reads the word the caret is at the end of again, and opens, narrows or closes the list to match — on every
-    ///     edit and caret move, and whenever the shell has changed under it.
+    ///     edit and caret move, and whenever the shell has changed under it. The pick stays where it was only while the
+    ///     same kind of word asks the same.
     /// </summary>
     public void Follow()
     {
-        var query = _open?.Word.Query;
-        IReadOnlyList<Mentionable> people = [];
+        var was = _open;
+        IReadOnlyList<HangingOffer> offers = [];
 
         _open = null;
 
         if (_editor.Visible && _offered() && Caret() is var (line, column, text))
         {
-            if (MentionWord.At(text, column) is not { } word)
+            if (Word(text, column) is not var (word, offering))
             {
                 _dismissed = null;
             }
             else if (_dismissed != (line, word.Start))
             {
                 _dismissed = null;
-                _open = (line, word);
-                people = _shell.PeopleMatching(word.Query);
+                _open = (line, word, offering);
+                offers = offering.Matching(word);
             }
         }
 
-        _list.Offer(people, keepingThePick: _open?.Word.Query == query);
+        _list.Offer(offers, keepingThePick: _open?.By == was?.By && _open?.Word.Query == was?.Word.Query);
     }
 
     /// <summary>
@@ -118,10 +133,24 @@ internal sealed class MentionList
     /// <returns>Whether the event was spent on closing the list.</returns>
     public bool ClosedBy(Mouse mouse) => _list.ClosedBy(mouse);
 
+    /// <summary>The word of whichever kind the caret at <paramref name="column" /> is at the end of, and what offers for it.</summary>
+    private (HangingWord Word, IHangingOffering By)? Word(string line, int column)
+    {
+        foreach (var offering in _offerings)
+        {
+            if (offering.At(line, column) is { } word)
+            {
+                return (word, offering);
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Closes the list on the word it is open on, which keeps it closed until the caret leaves the word.</summary>
     private void Dismiss()
     {
-        if (_open is var (line, word))
+        if (_open is var (line, word, _))
         {
             _dismissed = (line, word.Start);
         }
@@ -130,21 +159,21 @@ internal sealed class MentionList
     }
 
     /// <summary>
-    ///     Replaces the word with <paramref name="person" />'s mention and a space, through the editor's own editing —
-    ///     so the caret lands after it and one undo puts the word back.
+    ///     Replaces the word with what <paramref name="offer" /> writes, through the editor's own editing — so the caret
+    ///     lands after it and one undo puts the word back.
     /// </summary>
-    private void Insert(Mentionable person)
+    private void Insert(HangingOffer offer)
     {
-        if (_open is not var (_, word))
+        if (_open is not var (_, word, _))
         {
             return;
         }
 
-        var mention = $"{_shell.MentionOf(person)} ";
+        var writes = offer.Writes();
 
         View.Visible = false;
 
-        _editor.ReplaceBeforeCaret(word.Query.Length + 1, mention);
+        _editor.ReplaceBeforeCaret(word.Length, writes);
         Follow();
     }
 
@@ -174,16 +203,16 @@ internal sealed class MentionList
     }
 
     /// <summary>
-    ///     Where the list sits: on the row under the caret, left-aligned on the word's <c>@</c> — or over the line
-    ///     where there is no room under it before the editor's foot. Read from where the editor put its caret, in the
-    ///     wrapped text, so on a line that wrapped it hangs under the row actually being typed on.
+    ///     Where the list sits: on the row under the caret, left-aligned on the word's sign — or over the line where
+    ///     there is no room under it before the editor's foot. Read from where the editor put its caret, in the wrapped
+    ///     text, so on a line that wrapped it hangs under the row actually being typed on.
     /// </summary>
     private Point At()
     {
         var size = Size();
         var caret = _editor.Caret;
 
-        var typed = (_open?.Word.Query.Length ?? 0) + 1;
+        var typed = _open?.Word.Length ?? 1;
         var x = Math.Clamp(caret.X - typed, _editor.Frame.X, Math.Max(_editor.Frame.X, _editor.Frame.Right - size.Width));
         var y = caret.Y + 1 + size.Height <= _editor.Frame.Bottom ? caret.Y + 1 : Math.Max(0, caret.Y - size.Height);
 
