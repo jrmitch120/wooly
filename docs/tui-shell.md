@@ -1840,8 +1840,17 @@ typing one in the edit public profile form's bio (#408):
   whole, so the list says nothing to it itself: it draws before the panel, and the panel, drawing after it, asks for
   what the list drew as on screen along with its own frame, drains what the cache let go of and flushes the image
   store, once a frame for both (`Placing.Over`). The list places its pictures from its own boxes, five custom emoji
-  at most, inside its own view, so they are on top of anything of the panel's under it. Drawn as Kitty's placeholder
-  cells now; through a box, on sixel and Kitty through a box, is #581's.
+  at most, inside its own view, so they are on top of anything of the panel's under it.
+- **Through a box, the list's pictures are its own boxes' (#581).** On sixel and Kitty through a box each row's
+  picture is a `PictureView` inside the list's view, so it is clipped to the list and drawn before the panel, which
+  is cut round the list as for any list (#577). A picture is sent when its row comes onto the list and again only
+  where its place changed: a letter that leaves the rows as they were and the pick moving over them send nothing. A
+  row moved up or down sends its sixel again there, while through Kitty the terminal still holds the picture and it
+  is only placed anew. Closing the list hides its view, its boxes are no longer held, and the driver takes their
+  pictures off the terminal in that frame, so the list opened again sends them again. Only the cache is shared with
+  the panel here: a box sends what it shows under its own id, and the list cuts its sixels into its own
+  `SixelPictures`, so an emoji already drawn in a post through a box is fetched once but sent once for the post and
+  once for the list.
 - **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
   on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
   as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that

@@ -1,6 +1,8 @@
+using System.Drawing;
 using Terminal.Gui.Input;
 using Wooly.Core.Accounts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -67,10 +69,47 @@ public class PublicProfileCustomEmojiTests
     }
 
     /// <summary>
-    ///     The form opened with <c>E</c> on <b>You</b>, and the typing walked down into the bio at its foot — on a
-    ///     terminal drawing Kitty's placeholders from <paramref name="pictures" /> where they are said.
+    ///     On a terminal drawing through a box, sixel or Kitty, the bio's list draws each emoji's picture before its
+    ///     shortcode too (#581): in the two columns after the mark, at a custom emoji's size — and once it closes, none is
+    ///     left on the terminal.
     /// </summary>
-    private static async Task<DrawnShell> InTheBio(FakePictures? pictures = null, FakeTerminalImages? terminal = null)
+    [Theory]
+    [InlineData(PictureWay.Sixel)]
+    [InlineData(PictureWay.Kitty)]
+    public async Task ThroughABox_ARowDrawsItsEmojisPictureBeforeItsShortcode(PictureWay way)
+    {
+        using var drawn = await InTheBio(new FakePictures().HoldingCustomEmoji(FakeInstanceEmoji.Emoji("blobcat")), way: way);
+        using var shown = ShownPictures.Over(drawn, way);
+
+        Assert.Empty(shown.Showing());
+
+        foreach (var letter in "hi :bl")
+        {
+            drawn.PressAsTheLoopDraws(new Key(letter));
+        }
+
+        var list = List(drawn).FrameToScreen();
+
+        Assert.Equal(
+            [new Point(list.X + 3, list.Y + 1), new Point(list.X + 4, list.Y + 1)],
+            shown.Showing().Select(cell => cell.Cell).OrderBy(cell => cell.X));
+        Assert.Equal(" :blobcat:", CustomEmojiTests.Text(drawn, list.Y + 1, list.X + 5, 10));
+
+        drawn.PressAsTheLoopDraws(Key.Esc);
+
+        Assert.False(List(drawn).Visible);
+        Assert.Empty(shown.Showing());
+    }
+
+    /// <summary>
+    ///     The form opened with <c>E</c> on <b>You</b>, and the typing walked down into the bio at its foot — on a
+    ///     terminal drawing pictures <paramref name="way" /> from <paramref name="pictures" /> where they are said, Kitty's
+    ///     placeholders where no way is.
+    /// </summary>
+    private static async Task<DrawnShell> InTheBio(
+        FakePictures? pictures = null,
+        FakeTerminalImages? terminal = null,
+        PictureWay way = PictureWay.Placeholders)
     {
         var built = new AShell
         {
@@ -87,9 +126,16 @@ public class PublicProfileCustomEmojiTests
                 Themes.Plain,
                 built,
                 pictures: pictures,
+                drawsPictures: way is PictureWay.Sixel,
                 kittyImages: terminal,
-                drawsPlaceholders: true,
-                raster: ARaster.Placeholders());
+                drawsPlaceholders: way is PictureWay.Placeholders,
+                answersKitty: way is PictureWay.Kitty,
+                raster: way switch
+                {
+                    PictureWay.Sixel => ARaster.Sixel(),
+                    PictureWay.Kitty => ARaster.Kitty(),
+                    _ => ARaster.Placeholders(),
+                });
 
         drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Profile));
         drawn.Settle();
