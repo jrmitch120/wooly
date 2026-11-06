@@ -137,13 +137,22 @@ public sealed class Drafting
     private Reach Reach => _reach() ?? throw new InvalidOperationException("Nobody is being acted as.");
 
     /// <summary>
-    ///     The custom emoji the instance of the profile acted as offers its people to write, as far as they are known
-    ///     (#578, #579); what landed since the last keystroke only where <paramref name="typed" />. None while nobody is
-    ///     acted as.
+    ///     The custom emoji the instance of the profile acted as offers its people to write, as far as a keystroke has
+    ///     taken them up (#578, #579). None while nobody is acted as.
     /// </summary>
-    /// <param name="typed">Whether a keystroke in the editor asks, rather than a redraw.</param>
-    public IReadOnlyList<CustomEmoji> EmojiToWrite(bool typed) =>
-        _reach() is { } reach ? _emoji.For(reach.Profile, typed) : [];
+    public IReadOnlyList<CustomEmoji> EmojiToWrite() => _reach() is { } reach ? _emoji.For(reach.Profile) : [];
+
+    /// <summary>
+    ///     Takes up the custom emoji the instance of the profile acted as answered with since the last keystroke, on a
+    ///     keystroke in an editor (#579), so they are offered from it on, and never by a redraw on its own.
+    /// </summary>
+    public void TakeUpLandedEmoji()
+    {
+        if (_reach() is { } reach)
+        {
+            _emoji.TakeUp(reach.Profile);
+        }
+    }
 
     /// <summary>
     ///     Asks the instance of the profile acted as for the custom emoji it offers, unless it has answered or is being

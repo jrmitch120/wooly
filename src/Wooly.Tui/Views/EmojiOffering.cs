@@ -31,15 +31,16 @@ internal sealed class EmojiOffering(Drafting.Drafting drafting, PanelPictures pi
 
     public int? In(string line, int caret) => ShortcodeWord.In(line, caret);
 
-    public IReadOnlyList<HangingOffer> Matching(HangingWord word, bool typed, bool newWord)
-    {
-        if (newWord)
-        {
-            drafting.AskForEmoji();
-        }
+    /// <summary>
+    ///     A new word is the one time a word asks the instance, so a read that failed is not asked again on every
+    ///     keystroke.
+    /// </summary>
+    public void Entering() => drafting.AskForEmoji();
 
-        return Ranked(drafting.EmojiToWrite(typed), word);
-    }
+    /// <summary>What landed since the last keystroke is offered from this one, never by a redraw on its own.</summary>
+    public void Typed() => drafting.TakeUpLandedEmoji();
+
+    public IReadOnlyList<HangingOffer> Matching(HangingWord word) => Ranked(drafting.EmojiToWrite(), word);
 
     private IReadOnlyList<HangingOffer> Ranked(IReadOnlyList<CustomEmoji> offered, HangingWord word) =>
     [

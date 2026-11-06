@@ -167,13 +167,13 @@ internal sealed class ComposeView : View
         _editor.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Post);
 
         // The lists hang under the fields they serve, laid in this view after the fields so they draw over them.
-        _hanging = new HangingList(
+        _hanging = HangingList.OfADraft(
             theme,
             _editor,
             () => _shell.Screen is ComposeScreen { WritingTheWarning: false },
-            pictures,
-            new MentionOffering(shell),
-            new EmojiOffering(drafting, pictures));
+            shell,
+            drafting,
+            pictures);
         _editor.Ahead = _hanging.Took;
 
         // ctrl-p is the frame's here as everywhere (ADR-0020, #373), where TextView would take it for a line up.

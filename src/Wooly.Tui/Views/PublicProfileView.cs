@@ -107,13 +107,7 @@ internal sealed class PublicProfileView : View
         _bio.Answering = _draft.Answered;
         _bio.ContentsChanged += (_, _) => Change(form => form.RewriteBio(_bio.Text));
 
-        _hanging = new HangingList(
-            theme,
-            _bio,
-            () => _shell.Screen is PublicProfileScreen,
-            _pictures,
-            new MentionOffering(shell),
-            new EmojiOffering(drafting, _pictures));
+        _hanging = HangingList.OfADraft(theme, _bio, () => _shell.Screen is PublicProfileScreen, shell, drafting, _pictures);
         _bio.Ahead = _hanging.Took;
 
         // The rows that take no typing: the avatar and the header, a click on either opening the file browser for it

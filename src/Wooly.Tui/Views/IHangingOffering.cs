@@ -24,15 +24,24 @@ internal interface IHangingOffering
     /// </summary>
     int? In(string line, int caret) => At(line, caret)?.Start;
 
+    /// <summary>
+    ///     Told, before anything is offered on it, that the list is about to offer on a word of this kind for the first
+    ///     time since the caret came into it: a word the caret stays in — typed on, taken back below what opens it, or
+    ///     gone inside and back to its end — is told once. Nothing is done with it by default.
+    /// </summary>
+    void Entering()
+    {
+    }
+
+    /// <summary>
+    ///     Told, before anything is offered, that a keystroke in the editor follows the word — an edit or a caret move —
+    ///     rather than a redraw on a change of the shell's. Nothing is done with it by default.
+    /// </summary>
+    void Typed()
+    {
+    }
+
     /// <summary>What is on offer for <paramref name="word" />, best first; nothing, which keeps the list closed.</summary>
     /// <param name="word">The word the caret is at the end of.</param>
-    /// <param name="typed">
-    ///     Whether a keystroke in the editor asks — an edit or a caret move — rather than a redraw on a change of the
-    ///     shell's.
-    /// </param>
-    /// <param name="newWord">
-    ///     Whether the list is offering on this word for the first time since the caret came into it: a word the caret
-    ///     stays in — typed on, taken back below what opens it, or gone inside and back to its end — is the same word.
-    /// </param>
-    IReadOnlyList<HangingOffer> Matching(HangingWord word, bool typed, bool newWord);
+    IReadOnlyList<HangingOffer> Matching(HangingWord word);
 }

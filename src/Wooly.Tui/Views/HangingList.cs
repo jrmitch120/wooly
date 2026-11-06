@@ -115,6 +115,20 @@ internal sealed class HangingList
     public PaintedView View => _list.View;
 
     /// <summary>
+    ///     The list a draft's editor hangs — compose's post and the edit public profile form's bio alike: the people to
+    ///     mention on an <c>@</c>-word, and the instance's custom emoji on a <c>:</c>-word (#528).
+    /// </summary>
+    /// <param name="offered">Whether the screen in front offers anything in <paramref name="editor" />, as it stands.</param>
+    public static HangingList OfADraft(
+        ITheme theme,
+        ComposeEditor editor,
+        Func<bool> offered,
+        Shell.Shell shell,
+        Drafting.Drafting drafting,
+        PanelPictures pictures) =>
+        new(theme, editor, offered, pictures, new MentionOffering(shell), new EmojiOffering(drafting, pictures));
+
+    /// <summary>
     ///     Reads the word the caret is at the end of again, and opens, narrows or closes the list to match, whenever the
     ///     shell has changed under it.
     /// </summary>
@@ -158,11 +172,19 @@ internal sealed class HangingList
             && !_dismissed
             && by.At(on, at) is { } word)
         {
-            var newWord = !_offeredIn;
+            if (!_offeredIn)
+            {
+                by.Entering();
+            }
+
+            if (typed)
+            {
+                by.Typed();
+            }
 
             _open = (atLine, word, by);
             _offeredIn = true;
-            offers = by.Matching(word, typed, newWord);
+            offers = by.Matching(word);
         }
 
         _list.Offer(offers, keepingThePick: _open?.By == was?.By && _open?.Word.Query == was?.Word.Query);
