@@ -124,8 +124,17 @@ internal sealed class ComposeEditor(
     ///     so the reply opened after a post left from the start of a line had its caret in front of its own mention.
     ///     <c>ctrl-end</c> forgets the column first. So nothing calls <see cref="TextView.MoveEnd" /> on this editor:
     ///     every editor opened on text already written goes to its end through here.
+    ///     <para>
+    ///         Laid out first, since where the end is depends on where the text wraps. An editor not yet given its room
+    ///         — the bio walked into on a terminal too short to have shown it — wraps to no width and has its end at
+    ///         nought, and the wrap to its real width on the next pass kept the caret there, at the start of the bio.
+    ///     </para>
     /// </remarks>
-    public void CaretToTheEnd() => InvokeCommand(Command.End);
+    public void CaretToTheEnd()
+    {
+        Layout();
+        InvokeCommand(Command.End);
+    }
 
     /// <summary>
     ///     Replaces the <paramref name="length" /> characters before the caret with <paramref name="text" />, as one

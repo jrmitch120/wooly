@@ -260,8 +260,9 @@ public class PublicProfileViewTests
 
     /// <summary>
     ///     On a terminal too short for the whole form, the field the walk is on is always on screen: walked down to the
-    ///     last toggle it is there to be seen, lit, and flipped, the bio below it is there to be typed in, and walked
-    ///     back up the display name is there again (review of #403).
+    ///     last toggle it is there to be seen, lit, and flipped, the bio below it is there to be typed in — at the end
+    ///     of what it holds, as on a tall one, though it was off screen until walked into — and walked back up the
+    ///     display name is there again (review of #403).
     /// </summary>
     [Fact]
     public async Task OnAShortTerminal_TheWalkedFieldIsAlwaysOnScreen()
@@ -287,8 +288,8 @@ public class PublicProfileViewTests
         drawn.Press(new Key('?'));
         drawn.Redraw();
 
-        Assert.Equal("?Writes Wooly.", Form(drawn).Bio);
-        Assert.Contains(drawn.Rows(), row => row.Contains("│  ?Writes Wooly.", StringComparison.Ordinal));
+        Assert.Equal("Writes Wooly.?", Form(drawn).Bio);
+        Assert.Contains(drawn.Rows(), row => row.Contains("│  Writes Wooly.?", StringComparison.Ordinal));
 
         while (Form(drawn).Typing.Part != PublicProfilePart.DisplayName)
         {

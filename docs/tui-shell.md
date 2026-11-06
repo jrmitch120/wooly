@@ -147,7 +147,9 @@ Terminal.Gui 2.5.0's `TextView` remembers the column a press of `↑` or `↓` w
 nor its `MoveEnd` forgets it: put to the end, the caret goes to the last line and then back to that column on it. So an
 editor opened on what is already written — compose's post on a reply's mentions, the description, the bio — goes to its
 end through `ComposeEditor.CaretToTheEnd`, `ctrl-end`'s own command, which forgets the column first; before, a reply
-opened after a post left from the start of a line had its caret in front of its own mention.
+opened after a post left from the start of a line had its caret in front of its own mention. It lays the editor out
+first, since an editor not yet given its room wraps to no width and has its end at nought: the bio walked into on a
+terminal too short to have shown it opened with its caret at its start.
 
 ## Hidden rail
 
