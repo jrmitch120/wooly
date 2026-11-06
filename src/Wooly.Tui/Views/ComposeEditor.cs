@@ -70,6 +70,20 @@ internal sealed class ComposeEditor(
     public Func<Key, bool?>? FromTheClipboard { get; set; }
 
     /// <summary>
+    ///     Whether the hashtags, mentions and addresses written here are painted in their roles as they are typed
+    ///     (#571) — by the rule a post's text is read by, <see cref="BodyText.References" />, so what is written looks
+    ///     the way it will read once sent. Colour only: no character is drawn that was not typed, and nothing here is
+    ///     walked, picked or opened, so caret, selection, wrap and undo are what they were. On for what is read as a
+    ///     post's text is — compose's body (#572), and the edit public profile form's bio (#573), whose references are
+    ///     drawn as a post's are when read and whose hashtags and addresses are walked (ADR-0019) — and off, as it is
+    ///     unless set, for what is never walked, such as an attachment's description.
+    /// </summary>
+    public bool PaintsReferences { get; init; }
+
+    /// <summary>The role of each letter drawn where it is in a reference, as found when the editor last drew.</summary>
+    private WrittenRoles _painted = WrittenRoles.None;
+
+    /// <summary>
     ///     Every visual role Terminal.Gui asks for, answered from the theme: text in <see cref="Role.Body" /> on the
     ///     page, and a selection — which <see cref="TextView" /> draws in its <c>Active</c> role, as the compose
     ///     prototype found (#313) — in <see cref="Role.SelectedText" />. Nothing is left to Terminal.Gui's own scheme,
@@ -95,6 +109,8 @@ internal sealed class ComposeEditor(
     /// </summary>
     protected override bool OnDrawingContent(DrawContext? context)
     {
+        _painted = PaintsReferences ? WrittenRoles.Of(Text, GetAllLines()) : WrittenRoles.None;
+
         var drawn = base.OnDrawingContent(context);
 
         if (Text.Length == 0 && Viewport.Width > 0)
@@ -104,6 +120,28 @@ internal sealed class ComposeEditor(
         }
 
         return drawn;
+    }
+
+    /// <summary>
+    ///     A letter drawn in the normal role takes the role of the reference it is written in, where it is in one. A
+    ///     selected letter is drawn by another hook, so a selection stays <see cref="Role.SelectedText" /> over a
+    ///     reference.
+    /// </summary>
+    /// <remarks>
+    ///     <paramref name="idxRow" /> and <paramref name="idxCol" /> are where the letter is in the text as wrapped:
+    ///     a row of the whole of it, counted from its first, not from the first on screen — so a post scrolled down is
+    ///     looked up where it is written, not where it is drawn.
+    /// </remarks>
+    protected override void OnDrawNormalColor(List<Cell> line, int idxCol, int idxRow)
+    {
+        if (_painted.At(idxRow, idxCol) is { } role)
+        {
+            SetAttribute(theme.For(role));
+
+            return;
+        }
+
+        base.OnDrawNormalColor(line, idxCol, idxRow);
     }
 
     /// <summary>

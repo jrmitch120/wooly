@@ -303,6 +303,19 @@ has to stand out clearly. The built-ins draw the body's text on Catppuccin's Sur
 whose plain answer is not the plain pair. This passes the standing test above, since a reader about to cut or replace
 text has to see which text that is.
 
+## Amendment: the compose editor paints the references written in it (#571)
+
+`docs/tui-shell.md` held that the compose editor stays plain: the three patterns start matching at three different
+points in a word, so text would change colour under the cursor and a would-be mention would light and go out again,
+and a role there would assert something this client had not checked. That is reversed. The light coming on and going
+out is the point, since it is the moment the text becomes, or stops being, what a reader will see; and nothing is
+asserted but the rule a post is read by (`BodyText.References`), with nothing looked up. The editor that #316 gave
+the theme's roles now also draws a hashtag, a mention and an address in `hashtag`, `mention` and `link` as they are
+typed — for a post's body (#572) and the edit public profile form's **Bio** (#573), not an attachment's description
+— in colour only: nothing in an editor is walked, picked or opened. Selected text stays `selected-text` over a
+reference, as the #316 amendment made it. Without colour the `#`, the `@` and the scheme carry each kind, as they do
+when reading, so the standing test above is passed as it is there.
+
 ## Amendment: a step that takes a draft off lands at once (#373)
 
 The selection follows the cursor only once the pressing stops, with one exception: a step along the rail that takes

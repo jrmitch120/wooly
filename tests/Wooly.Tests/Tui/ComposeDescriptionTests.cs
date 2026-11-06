@@ -108,6 +108,31 @@ public class ComposeDescriptionTests : IDisposable
     }
 
     /// <summary>
+    ///     Nothing in a description is ever walked, so its editor paints no references (#572): a hashtag, a mention and
+    ///     an address written in one are drawn in the body role like the rest of it.
+    /// </summary>
+    [Fact]
+    public async Task InTheWindowADescriptionIsDrawnEntirelyInTheBodyRole()
+    {
+        const string Written = "a #cat by @maria@hachyderm.io at https://a.io/x";
+
+        using var drawn = await Describing(Themes.Dark);
+
+        foreach (var letter in Written)
+        {
+            drawn.Press(letter);
+        }
+
+        drawn.Redraw();
+
+        var (row, column) = Find(drawn, Written);
+
+        Assert.All(
+            Enumerable.Range(column, Written.Length),
+            at => Assert.Equal(Themes.Dark.For(Role.Body), drawn.Cell(row, at)));
+    }
+
+    /// <summary>
     ///     A right click over the description editor's field is its <c>esc</c>, as it is over compose's fields and the
     ///     form's (#373, #430): it leaves the editor, back to the draft, and sends the description as leaving does.
     /// </summary>
@@ -313,9 +338,9 @@ public class ComposeDescriptionTests : IDisposable
     /// <summary>
     ///     The window, a picture attached to a fresh compose and ready, and its description editor open over it.
     /// </summary>
-    private async Task<DrawnShell> Describing()
+    private async Task<DrawnShell> Describing(ITheme? theme = null)
     {
-        var drawn = await DrawnShell.Of(100, 30, Themes.Plain, new AShell());
+        var drawn = await DrawnShell.Of(100, 30, theme ?? Themes.Plain, new AShell());
 
         drawn.Shell.Press(ShellKey.C);
         drawn.Redraw();
