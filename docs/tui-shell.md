@@ -2946,8 +2946,9 @@ them. Three things follow from where they are found:
   mention is open. It is colour only: no `‹ ›` is drawn, nothing is walked, picked or opened, and caret, selection,
   wrap and undo are untouched; selected text stays `selected-text` over a reference. The whole text is scanned, not a
   row, so an address wrapped across rows is painted on each. Painting is chosen per editor: on for a post's body (a
-  new post, a reply, a direct message, an edit), off for an attachment's description, which nothing walks; the
-  content-warning field is a field of its own and stays plain.
+  new post, a reply, a direct message, an edit) and for the edit public profile form's **Bio** (#573), whose
+  references are walked once someone reads it (ADR-0019); off for an attachment's description, which nothing walks;
+  the content-warning field is a field of its own and stays plain.
 
 ## A theme
 
