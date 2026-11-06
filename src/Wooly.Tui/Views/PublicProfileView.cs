@@ -284,7 +284,7 @@ internal sealed class PublicProfileView : View
                 break;
 
             case ComposeEditor editor:
-                editor.MoveEnd();
+                editor.CaretToTheEnd();
 
                 break;
         }

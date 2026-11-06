@@ -50,6 +50,30 @@ public class ComposeViewTests
     }
 
     /// <summary>
+    ///     A reply opens with the typing after its mention however the last compose was left. <c>↑</c> or <c>↓</c>
+    ///     between the post's lines has the editor remember the column it went up or down from, which outlives the
+    ///     text it was in: put to the end on the next compose, the caret went back to that column instead, and a reply
+    ///     after a post left from the start of a line was typed in front of its own mention.
+    /// </summary>
+    [Fact]
+    public async Task AReplyOpensAfterItsMentionWhereTheLastComposeWentUpALine()
+    {
+        using var view = await ComposedView.Of(Answering, ComposeFor.Post);
+
+        view.Type("a");
+        view.Press(Key.Enter);
+        view.Press(Key.CursorUp);
+        view.Press(Key.Esc);
+        view.Type("y");
+
+        ComposeRows.Open(view.Shell, ComposeFor.Reply);
+        view.Redraw();
+        view.Type("z");
+
+        Assert.Equal("@ben@hachyderm.io z", view.Compose.Text);
+    }
+
+    /// <summary>
     ///     Not only typing: a paste and an undo are edits too, and the screen's text follows both (#315). How much of a
     ///     paste one undo takes back is the editor's own business, so what is pinned is that the screen ends up where
     ///     the editor does.

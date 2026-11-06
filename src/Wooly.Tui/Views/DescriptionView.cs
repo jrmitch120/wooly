@@ -105,7 +105,7 @@ internal sealed class DescriptionView : View
             _editor.Layout();
             _editor.Text = describing.Description;
             _editor.SetFocus();
-            _editor.MoveEnd();
+            _editor.CaretToTheEnd();
         }
         else if (describing is null && _editor.Visible)
         {
