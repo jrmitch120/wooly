@@ -159,6 +159,36 @@ public class PublicProfileViewTests
     }
 
     /// <summary>
+    ///     Walked back into, the bio has the typing at the end of what it holds, however it was left: <c>↑</c> between its
+    ///     lines has the editor remember a column, and put to the end it went back to that column instead (as compose's
+    ///     post did, <see cref="ComposeViewTests" />).
+    /// </summary>
+    [Fact]
+    public async Task TheBio_WalkedBackInto_TypesAtItsEndWhereItWentUpALine()
+    {
+        using var drawn = await Editing(APublicProfile.With(bio: "One line.", fields: [], account: Me));
+
+        while (Form(drawn).Typing.Part != PublicProfilePart.Bio)
+        {
+            drawn.Press(Key.CursorDown);
+        }
+
+        drawn.Press(Key.Enter);
+        Type(drawn, "xyz");
+        drawn.Press(Key.CursorLeft);
+        drawn.Press(Key.CursorLeft);
+        drawn.Press(Key.CursorUp);
+        drawn.Press(Key.CursorUp);
+
+        Assert.NotEqual(PublicProfilePart.Bio, Form(drawn).Typing.Part);
+
+        drawn.Press(Key.CursorDown);
+        Type(drawn, "!");
+
+        Assert.EndsWith("xyz!", Form(drawn).Bio, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     ///     <c>←</c> and <c>→</c> never walk up or down: on a picture or a toggle they are nobody's, and in the display
     ///     name or the bio they move the caret and stop at either end of what is written rather than carrying the walk
     ///     off to another field. A custom field's label and value, which they do cross between, are
@@ -230,8 +260,9 @@ public class PublicProfileViewTests
 
     /// <summary>
     ///     On a terminal too short for the whole form, the field the walk is on is always on screen: walked down to the
-    ///     last toggle it is there to be seen, lit, and flipped, the bio below it is there to be typed in, and walked
-    ///     back up the display name is there again (review of #403).
+    ///     last toggle it is there to be seen, lit, and flipped, the bio below it is there to be typed in — at the end
+    ///     of what it holds, as on a tall one, though it was off screen until walked into — and walked back up the
+    ///     display name is there again (review of #403).
     /// </summary>
     [Fact]
     public async Task OnAShortTerminal_TheWalkedFieldIsAlwaysOnScreen()
@@ -257,8 +288,8 @@ public class PublicProfileViewTests
         drawn.Press(new Key('?'));
         drawn.Redraw();
 
-        Assert.Equal("?Writes Wooly.", Form(drawn).Bio);
-        Assert.Contains(drawn.Rows(), row => row.Contains("│  ?Writes Wooly.", StringComparison.Ordinal));
+        Assert.Equal("Writes Wooly.?", Form(drawn).Bio);
+        Assert.Contains(drawn.Rows(), row => row.Contains("│  Writes Wooly.?", StringComparison.Ordinal));
 
         while (Form(drawn).Typing.Part != PublicProfilePart.DisplayName)
         {

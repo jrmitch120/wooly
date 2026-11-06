@@ -152,6 +152,29 @@ internal sealed class ComposeEditor(
         new(Frame.X + CurrentColumn - Viewport.X, Frame.Y + CurrentRow - Viewport.Y);
 
     /// <summary>
+    ///     Puts the caret after the last thing written, as <c>ctrl-end</c> does — the place an editor opened on what is
+    ///     already written types from next.
+    /// </summary>
+    /// <remarks>
+    ///     Through <c>ctrl-end</c>'s own command rather than <see cref="TextView.MoveEnd" />. A press of <c>↑</c> or
+    ///     <c>↓</c> has <see cref="TextView" /> remember the column it went up or down from, which neither new text nor
+    ///     <see cref="TextView.MoveEnd" /> forgets: the caret goes to the last line and then back to that column on it,
+    ///     so the reply opened after a post left from the start of a line had its caret in front of its own mention.
+    ///     <c>ctrl-end</c> forgets the column first. So nothing calls <see cref="TextView.MoveEnd" /> on this editor:
+    ///     every editor opened on text already written goes to its end through here.
+    ///     <para>
+    ///         Laid out first, since where the end is depends on where the text wraps. An editor not yet given its room
+    ///         — the bio walked into on a terminal too short to have shown it — wraps to no width and has its end at
+    ///         nought, and the wrap to its real width on the next pass kept the caret there, at the start of the bio.
+    ///     </para>
+    /// </remarks>
+    public void CaretToTheEnd()
+    {
+        Layout();
+        InvokeCommand(Command.End);
+    }
+
+    /// <summary>
     ///     Replaces the <paramref name="length" /> characters before the caret with <paramref name="text" />, as one
     ///     edit — selected and put in the way a paste goes in, rather than as the letter-by-letter typing
     ///     <see cref="TextView.InsertText(string)" /> stands in for — so that one undo puts back what was there.
