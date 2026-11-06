@@ -1807,6 +1807,16 @@ typing one in the edit public profile form's bio (#408):
   `:`-word would open the list — never on composing, nor on a `:` that opens nothing — and kept by instance for the
   session, in memory only, beside the post limits drafting keeps the same way (`EmojiByInstance`), and never refreshed.
   An answer landing raises no redraw of its own, and nothing about the read reaches the status row.
+- **Reading them never nags, never hammers, and costs nothing it need not (#579).** While a read is in flight the list
+  stays closed and nobody asks again. An answer that lands after the keystroke that asked is kept but offered only
+  from the next keystroke in an editor — an edit or a caret move — so a redraw on a change of the shell's (an inbox
+  poll, people to mention landing) never opens the list by itself. A read that answers nothing is asked again on the
+  next new `:`-word, never twice for the same one: a word is new when the caret comes to its end having been at the
+  end of no `:`-word, or another, the time before — the same rule that ends `esc`'s memory, so typing on, deleting
+  back short of two letters, or moving within the word asks nothing. Nothing reaches the status row, in flight, failed or refused; a refused
+  token is said by the reads that fill the screen. An instance that offers none never opens the list and is not asked
+  again. Kept by instance, two profiles on one instance share one read, and switching away and back reads nothing; a
+  profile on another instance is read on its own first `:`-word.
 - **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
   on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
   as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that
