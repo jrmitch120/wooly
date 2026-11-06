@@ -1,7 +1,5 @@
 using System.Net.Http;
-using System.Text.Json;
 using System.Text.Json.Serialization;
-using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Profiles;
 
@@ -30,14 +28,8 @@ public sealed class InstanceEmoji(IHttpClientFactory httpClientFactory) : IInsta
                 [],
                 cancellationToken);
         }
-        // Each of these is the instance not answering, which the port promises as silence; as in InstanceLimits, a
-        // timeout is the HTTP stack cancelling a call nobody asked to cancel, and only that.
-        catch (Exception unanswered) when (unanswered is RateLimitedException
-                                               or TransientNetworkException
-                                               or HttpRequestException
-                                               or JsonException
-                                           || (unanswered is OperationCanceledException
-                                               && !cancellationToken.IsCancellationRequested))
+        // The instance not answering, which the port promises as silence.
+        catch (Exception unanswered) when (RawMastodonCall.Unanswered(unanswered, cancellationToken))
         {
             return null;
         }
