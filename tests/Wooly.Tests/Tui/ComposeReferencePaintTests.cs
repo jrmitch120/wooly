@@ -165,22 +165,6 @@ public class ComposeReferencePaintTests
     ///     The cells of the editor's <paramref name="row" />, from its first column, are each run of text in its role,
     ///     in turn.
     /// </summary>
-    private static void AssertDrawn(ComposedView view, int row, params (string Text, Role Role)[] runs)
-    {
-        var at = view.Editor.FrameToScreen();
-        var drawn = view.Rows()[at.Y + row];
-        var column = at.X;
-
-        foreach (var (text, role) in runs)
-        {
-            Assert.Equal(text, drawn.Substring(column, text.Length));
-
-            for (var i = 0; i < text.Length; i++, column++)
-            {
-                Assert.True(
-                    Themes.Dark.For(role) == view.Cell(at.Y + row, column),
-                    $"'{drawn[column]}' at column {column - at.X} of row {row} is not {role}");
-            }
-        }
-    }
+    private static void AssertDrawn(ComposedView view, int row, params (string Text, Role Role)[] runs) =>
+        DrawnRuns.AssertDrawn(view.Application.Driver!.Contents!, view.Editor, row, Themes.Dark, runs);
 }
