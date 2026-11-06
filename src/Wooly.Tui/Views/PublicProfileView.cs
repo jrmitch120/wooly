@@ -39,7 +39,7 @@ internal sealed class PublicProfileView : View
     ///     whether the pictures are drawn at all (<see cref="Rendering.Drawing.Draws" />) — and what the bio's list draws
     ///     a custom emoji's picture from (#580).
     /// </summary>
-    private readonly OverlayPictures _pictures;
+    private readonly PanelPictures _pictures;
 
     /// <summary>The list hung under the word being typed in the bio, as under compose's post (#408, #576).</summary>
     private readonly HangingList _hanging;
@@ -60,12 +60,12 @@ internal sealed class PublicProfileView : View
         ITheme theme,
         Shell.Shell shell,
         Drafting.Drafting drafting,
-        OverlayPictures? pictures = null)
+        PanelPictures? pictures = null)
     {
         _theme = theme;
         _shell = shell;
         _drafting = drafting;
-        _pictures = pictures ?? OverlayPictures.None;
+        _pictures = pictures ?? PanelPictures.None;
         _place = new Placement<PublicProfileScreen>(this, shell);
 
         // A right click over a field is esc, which the fields would otherwise keep to themselves, and a click outside
@@ -107,13 +107,7 @@ internal sealed class PublicProfileView : View
         _bio.Answering = _draft.Answered;
         _bio.ContentsChanged += (_, _) => Change(form => form.RewriteBio(_bio.Text));
 
-        _hanging = new HangingList(
-            theme,
-            _bio,
-            () => _shell.Screen is PublicProfileScreen,
-            _pictures,
-            new MentionOffering(shell),
-            new EmojiOffering(drafting, _pictures));
+        _hanging = HangingList.OfADraft(theme, _bio, () => _shell.Screen is PublicProfileScreen, shell, drafting, _pictures);
         _bio.Ahead = _hanging.Took;
 
         // The rows that take no typing: the avatar and the header, a click on either opening the file browser for it

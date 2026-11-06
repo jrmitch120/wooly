@@ -225,31 +225,21 @@ internal sealed class Placing
         // What pictures are drawn as this frame, if they are drawn as placeholders at all: the one place the Raster's
         // way is asked about them. Anywhere else nothing is sent that way, so nothing sent is near to be held.
         var drawing = raster.Way is PictureWay.Placeholders ? _placeholders : null;
-        var moving = 0;
+        var moving = page.HasRoom ? Moved(top) : 0;
 
-        // Said before a terminal that draws nothing is let off the rest, so the cache is told every frame there is a
-        // page — but not of a frame with no page to be near.
-        if (page.HasRoom)
+        // What the frame says to the cache and the image store, for every view drawing from them: the panel's alone,
+        // and the one place this asks whose it is.
+        if (_saysTheFrame)
         {
-            moving = Moved(top);
-            Want(page, raster);
+            SayTheFrame(page, raster, drawing);
         }
 
         if (!page.HasRoom || raster.Cell is not { } cell)
         {
             ReleaseAll();
-            LetGoOfBlurs([]);
-            LetGoOfPictures(drawing);
-            Flush();
 
             return [];
         }
-
-        LetGoOfBlurs(drawing is null ? [] : BlursNear(page));
-        LetGoOfPictures(drawing);
-
-        // Whatever the terminal was told to let go of since the last frame, before anything is sent.
-        Flush();
 
         switch (raster.Way)
         {
@@ -258,7 +248,20 @@ internal sealed class Placing
                 // draws placeholders is left on screen under them.
                 ReleaseAll();
 
-                return drawing is null ? [] : Sent(drawing, page, cell);
+                if (drawing is null)
+                {
+                    return [];
+                }
+
+                var placed = Sent(drawing, page, cell);
+
+                // Swept once a frame, by the frame's sayer, after every view drawing through the store has asked.
+                if (_saysTheFrame)
+                {
+                    drawing.LetGoOfSizesNotAsked();
+                }
+
+                return placed;
 
             case PictureWay.Sixel:
                 var shaded = Place(page, (box, inset, at, picture) =>
@@ -317,6 +320,24 @@ internal sealed class Placing
     }
 
     /// <summary>
+    ///     What the content panel's frame says for every view drawing from the one cache and image store, before
+    ///     anything is placed: what is wanted, said before a terminal that draws nothing is let off the rest, so the cache
+    ///     is told every frame there is a page, but not of a frame with no page to be near; then which blurs and pictures
+    ///     the terminal may forget, and the forgetting told, before anything is sent.
+    /// </summary>
+    private void SayTheFrame(Page page, Raster raster, Placeholders? drawing)
+    {
+        if (page.HasRoom)
+        {
+            Want(page, raster);
+        }
+
+        LetGoOfBlurs(drawing is not null && page.HasRoom && raster.Cell is not null ? BlursNear(page) : []);
+        LetGoOfPictures(drawing);
+        _placeholders?.Flush();
+    }
+
+    /// <summary>
     ///     Which way the page has moved since the last frame there was a page — down positive, up negative, and nought
     ///     for one standing still or on the first frame of its rows — remembered as the way the page last moved where
     ///     it moved at all. The one answer to which way the page is going, for what is wanted and what is encoded ahead.
@@ -361,11 +382,6 @@ internal sealed class Placing
     /// </remarks>
     private void Want(Page page, Raster raster)
     {
-        if (!_saysTheFrame)
-        {
-            return;
-        }
-
         var (lines, top, width, height) = page;
 
         var (above, below) = _travel switch
@@ -492,11 +508,6 @@ internal sealed class Placing
             drawing.Prepare(inset, picture, cell);
         }
 
-        if (_saysTheFrame)
-        {
-            drawing.LetGoOfSizesNotAsked();
-        }
-
         return placed;
     }
 
@@ -570,7 +581,7 @@ internal sealed class Placing
     /// </remarks>
     private void LetGoOfBlurs(HashSet<string> near)
     {
-        if (_placeholders is null || !_saysTheFrame)
+        if (_placeholders is null)
         {
             return;
         }
@@ -592,11 +603,6 @@ internal sealed class Placing
     /// </summary>
     private void LetGoOfPictures(Placeholders? drawing)
     {
-        if (!_saysTheFrame)
-        {
-            return;
-        }
-
         var letGo = _pictures.Drain();
 
         if (drawing is null)
@@ -607,18 +613,6 @@ internal sealed class Placing
         foreach (var gone in letGo)
         {
             drawing.Drop(gone);
-        }
-    }
-
-    /// <summary>
-    ///     Tells a Kitty terminal about everything dropped since the last frame, where this says the frame — once a
-    ///     frame, by the panel, for every view drawing through the one image store (<see cref="Over" />).
-    /// </summary>
-    private void Flush()
-    {
-        if (_saysTheFrame)
-        {
-            _placeholders?.Flush();
         }
     }
 

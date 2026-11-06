@@ -39,18 +39,21 @@ public sealed class EmojiByInstance(IInstanceEmoji port, IShellHost host)
     private readonly HashSet<string> _asking = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    ///     The custom emoji <paramref name="profile" />'s instance offers as far as they are known — none until it has
-    ///     said. What landed since the last keystroke is taken up only where <paramref name="typed" />.
+    ///     The custom emoji <paramref name="profile" />'s instance offers as far as a keystroke has taken them up — none
+    ///     until it has said.
     /// </summary>
-    /// <param name="typed">Whether a keystroke in the editor asks, rather than a redraw.</param>
-    public IReadOnlyList<CustomEmoji> For(ActiveProfile profile, bool typed)
+    public IReadOnlyList<CustomEmoji> For(ActiveProfile profile) => _known.GetValueOrDefault(profile.Instance) ?? [];
+
+    /// <summary>
+    ///     Takes up what <paramref name="profile" />'s instance answered since the last keystroke, which a keystroke in
+    ///     the editor does, so that it is offered from then on.
+    /// </summary>
+    public void TakeUp(ActiveProfile profile)
     {
-        if (typed && _landed.Remove(profile.Instance, out var landed))
+        if (_landed.Remove(profile.Instance, out var landed))
         {
             _known[profile.Instance] = landed;
         }
-
-        return _known.GetValueOrDefault(profile.Instance) ?? [];
     }
 
     /// <summary>

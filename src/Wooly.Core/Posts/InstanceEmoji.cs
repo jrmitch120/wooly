@@ -1,7 +1,5 @@
 using System.Net.Http;
-using System.Text.Json;
 using System.Text.Json.Serialization;
-using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Profiles;
 
@@ -30,23 +28,17 @@ public sealed class InstanceEmoji(IHttpClientFactory httpClientFactory) : IInsta
                 [],
                 cancellationToken);
         }
-        // Each of these is the instance not answering, which the port promises as silence; as in InstanceLimits, a
-        // timeout is the HTTP stack cancelling a call nobody asked to cancel, and only that.
-        catch (Exception unanswered) when (unanswered is RateLimitedException
-                                               or TransientNetworkException
-                                               or HttpRequestException
-                                               or JsonException
-                                           || (unanswered is OperationCanceledException
-                                               && !cancellationToken.IsCancellationRequested))
+        // The instance not answering, which the port promises as silence.
+        catch (Exception unanswered) when (RawMastodonCall.Unanswered(unanswered, cancellationToken))
         {
             return null;
         }
 
-        // A bare null is no list, which is no answer either. An instance that leaves out whether its picker shows an
-        // emoji is taken to hide none: only one it says it hides is left out.
+        // A bare null is no list, which is no answer either. Only an emoji the instance says its picker shows is kept:
+        // one that leaves it out has not said it is offered.
         return listed?
             .OfType<EmojiWire>()
-            .Where(emoji => emoji.VisibleInPicker != false
+            .Where(emoji => emoji.VisibleInPicker == true
                             && !string.IsNullOrWhiteSpace(emoji.Shortcode)
                             && !string.IsNullOrWhiteSpace(emoji.StaticUrl))
             .Select(emoji => new CustomEmoji(emoji.Shortcode!, emoji.StaticUrl!))

@@ -9,7 +9,7 @@ namespace Wooly.Tui.Screens;
 ///     What a custom emoji says in the list a <c>:</c>-word hangs (#578, #580): its picture in the two-column box every
 ///     custom emoji is drawn in, fitted whole and centred (ADR-0035), then a space, then its shortcode as written, in the
 ///     custom emoji role, with the letters the word matched picked out as a mention row picks them out
-///     (<see cref="MentionLines" />). Where the <b>Raster</b> draws no pictures, or they are off, the shortcode alone.
+///     (<see cref="PickLines.Lit" />). Where the <b>Raster</b> draws no pictures, or they are off, the shortcode alone.
 ///     The list round them is <see cref="PickLines" />'s.
 /// </summary>
 /// <remarks>
@@ -29,7 +29,10 @@ public static class EmojiLines
     public static Line Row(CustomEmoji emoji, string query, IPictures? pictures, Raster? raster)
     {
         var at = emoji.Shortcode.IndexOf(query, StringComparison.OrdinalIgnoreCase);
-        var written = MentionLines.Lit(emoji.Written, at < 0 ? at : at + 1, query.Length, Role.CustomEmoji);
+
+        // Every span of the shortcode is written for the emoji, so the list's clip holds the shortcode whole.
+        var written = PickLines.Lit(emoji.Written, at < 0 ? at : at + 1, query.Length, Role.CustomEmoji)
+                               .Select(span => span with { CustomEmoji = emoji });
 
         if (!Drawing.Draws(pictures, raster, out _))
         {

@@ -230,9 +230,11 @@ public class FramedRegionTests
         var view = new PaintedView(
             theme,
             (_, _) => lines,
-            pictures,
             (width, height) => Panel.Framed(title, [], width, height, active),
-            raster: () => Raster.Of(application.Driver, placeholders: false, () => null))
+            pictures: new PanelPictures(
+                pictures,
+                placeholders: null,
+                () => Raster.Of(application.Driver, placeholders: false, () => null)))
         {
             Width = Width,
             Height = Height,

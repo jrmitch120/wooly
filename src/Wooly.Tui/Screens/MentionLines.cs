@@ -24,10 +24,10 @@ public static class MentionLines
 
         return
         [
-            .. Lit(person.Name, NameMatch(person.Name, query), query.Length, name),
+            .. PickLines.Lit(person.Name, NameMatch(person.Name, query), query.Length, name),
             new(person.Name.Length > 0 ? NameGap : string.Empty, Role.Body),
             new("@", handle),
-            .. Lit(person.Address, AddressMatch(person.Address, query), query.Length, handle),
+            .. PickLines.Lit(person.Address, AddressMatch(person.Address, query), query.Length, handle),
         ];
     }
 
@@ -59,18 +59,4 @@ public static class MentionLines
     /// <summary>Where in an address <paramref name="query" /> matched, its start first.</summary>
     private static int AddressMatch(string address, string query) =>
         query.Length == 0 ? -1 : address.IndexOf(query, StringComparison.OrdinalIgnoreCase);
-
-    /// <summary>
-    ///     <paramref name="text" /> in <paramref name="role" />, with the match at <paramref name="at" /> as a mention —
-    ///     which is how every row a hanging list offers picks out the letters typed (<see cref="EmojiLines" />).
-    /// </summary>
-    internal static IEnumerable<Span> Lit(string text, int at, int length, Role role) =>
-        at < 0
-            ? [new Span(text, role)]
-            :
-            [
-                new Span(text[..at], role),
-                new Span(text.Substring(at, length), Role.Mention),
-                new Span(text[(at + length)..], role),
-            ];
 }

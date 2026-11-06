@@ -46,7 +46,7 @@ public class PickLinesTests
     /// <summary>
     ///     A picture set into what a row says is set where it is drawn in the box, past the side and the mark (#580) —
     ///     and a custom emoji's box the row has no room for is dropped whole with the rest of what is cut, its picture
-    ///     with it, never cut in half.
+    ///     with it, never cut in half, and the cut marked.
     /// </summary>
     [Fact]
     public void ARowsPictureIsSetPastTheMark_AndDroppedWholeWhereItDoesNotFit()
@@ -64,7 +64,7 @@ public class PickLinesTests
         var narrow = PickLines.Rows(["blobcat"], 0, 0, 3, 5, Pictured);
 
         Assert.Equal([new Inset(drawn, 3, 2, 1)], roomy[1].Insets);
-        Assert.Equal("│▌  │", narrow[1].Text);
+        Assert.Equal("│▌ …│", narrow[1].Text);
         Assert.Empty(narrow[1].Insets);
     }
 

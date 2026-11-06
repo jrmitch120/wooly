@@ -14,14 +14,9 @@ public static class MentionWord
     public static HangingWord? At(string line, int caret)
     {
         caret = Math.Clamp(caret, 0, line.Length);
-        var start = caret;
+        var start = HangingWord.RunBack(line, caret, InAWord);
 
-        while (start > 0 && InAWord(line[start - 1]))
-        {
-            start--;
-        }
-
-        if (start >= caret || line[start] != '@' || (start > 0 && !char.IsWhiteSpace(line[start - 1])))
+        if (start >= caret || line[start] != '@' || !HangingWord.StartsAWord(line, start))
         {
             return null;
         }

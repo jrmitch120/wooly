@@ -816,6 +816,13 @@ a reader walked to in the text, which is only somebody in particular because the
 from the second to the first is a lookup and never a fetch — a bare handle means nothing without an instance to put
 after it, and guessing this profile's own would open somebody else under somebody's name.
 
+**Hanging list**:
+The list hung under the word being typed in a **draft**'s editor — compose's post and the **bio** — offering what that
+kind of word calls for: the people to mention on an `@`-word, the **instance**'s **custom emoji** on a `:`-word (the
+`:` list). One list whatever it offers, with the same keys, clicks and `esc`, so there is one to learn (#576, #528).
+Distinct from the language list, which hangs under compose's Lang header rather than under a word.
+_Avoid_: mention list (for the whole of it), autocomplete, emoji picker
+
 **Reading**:
 What this reader has done to one post — asked past what it is **warned** with, walked to a **reference** inside it — carried
 as one thing, keyed by which post it is (#95). Distinct from **Picked**, which is which post: a post nobody has

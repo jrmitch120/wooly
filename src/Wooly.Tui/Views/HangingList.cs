@@ -49,8 +49,24 @@ internal sealed class HangingList
     /// </summary>
     private Point _unwrapped;
 
-    /// <summary>The word <c>esc</c> closed the list on, by line and start, which keeps it closed until the caret leaves it.</summary>
-    private (int Line, int Start)? _dismissed;
+    /// <summary>
+    ///     The text <see cref="_unwrapped" /> was said in. An edit changes the text before the editor says where it put
+    ///     the caret, and whatever the edit sets off meanwhile (the shell changing, which follows the list again) would
+    ///     read the word off the caret from before the edit; until the editor says, the list is left as it was.
+    /// </summary>
+    private string? _caretIn;
+
+    /// <summary>
+    ///     The word the caret is in, by line and its sign's start, and its kind: at its end, inside it, or in one too short
+    ///     yet to open on. The caret leaving it is what makes the next one a new word.
+    /// </summary>
+    private (int Line, int Start, IHangingOffering By)? _in;
+
+    /// <summary>Whether anything has been offered on the word the caret is in; until it has, the word is a new one.</summary>
+    private bool _offeredIn;
+
+    /// <summary>Whether <c>esc</c> closed the list on the word the caret is in, which keeps it closed until the caret leaves.</summary>
+    private bool _dismissed;
 
     /// <param name="editor">The editor this list is laid beside in the same view and hangs under.</param>
     /// <param name="offered">
@@ -63,7 +79,7 @@ internal sealed class HangingList
         ITheme theme,
         ComposeEditor editor,
         Func<bool> offered,
-        OverlayPictures pictures,
+        PanelPictures pictures,
         params IReadOnlyList<IHangingOffering> offerings)
     {
         _editor = editor;
@@ -85,16 +101,32 @@ internal sealed class HangingList
         View.Width = Dim.Func(_ => Size().Width);
         View.Height = Dim.Func(_ => Size().Height);
 
-        editor.ContentsChanged += (_, _) => Follow(typed: true);
+        // Every edit ends with the editor saying where its caret went, even where it stayed put, so that is when an edit
+        // is followed: not on the edit itself, whose caret is still the one before it.
         editor.UnwrappedCursorPositionChanged += (_, moved) =>
         {
             _unwrapped = moved;
+            _caretIn = editor.Text;
             Follow(typed: true);
         };
     }
 
     /// <summary>The list as drawn, which the view holding the editor lays over it.</summary>
     public PaintedView View => _list.View;
+
+    /// <summary>
+    ///     The list a draft's editor hangs — compose's post and the edit public profile form's bio alike: the people to
+    ///     mention on an <c>@</c>-word, and the instance's custom emoji on a <c>:</c>-word (#528).
+    /// </summary>
+    /// <param name="offered">Whether the screen in front offers anything in <paramref name="editor" />, as it stands.</param>
+    public static HangingList OfADraft(
+        ITheme theme,
+        ComposeEditor editor,
+        Func<bool> offered,
+        Shell.Shell shell,
+        Drafting.Drafting drafting,
+        PanelPictures pictures) =>
+        new(theme, editor, offered, pictures, new MentionOffering(shell), new EmojiOffering(drafting, pictures));
 
     /// <summary>
     ///     Reads the word the caret is at the end of again, and opens, narrows or closes the list to match, whenever the
@@ -109,26 +141,50 @@ internal sealed class HangingList
     /// </summary>
     private void Follow(bool typed)
     {
+        if (_editor.Text != _caretIn)
+        {
+            return;
+        }
+
         var was = _open;
+        var wasIn = _in;
         IReadOnlyList<HangingOffer> offers = [];
 
         _open = null;
+        _in = null;
 
-        if (_editor.Visible && _offered() && Caret() is var (line, column, text))
+        var caret = _editor.Visible && _offered() ? Caret() : null;
+
+        if (caret is var (line, column, text))
         {
-            if (Word(text, column) is not var (word, offering))
-            {
-                _dismissed = null;
-            }
-            else if (_dismissed != (line, word.Start))
-            {
-                var newWord = was is not var (wasLine, wasWord, wasBy)
-                              || (wasLine, wasWord.Start, wasBy) != (line, word.Start, offering);
+            _in = In(line, text, column);
+        }
 
-                _dismissed = null;
-                _open = (line, word, offering);
-                offers = offering.Matching(word, typed, newWord);
+        // The caret leaving the word ends esc's memory of it, and whatever word it comes to next is a new one.
+        if (_in != wasIn)
+        {
+            _dismissed = false;
+            _offeredIn = false;
+        }
+
+        if (caret is var (atLine, at, on)
+            && _in is var (_, _, by)
+            && !_dismissed
+            && by.At(on, at) is { } word)
+        {
+            if (!_offeredIn)
+            {
+                by.Entering();
             }
+
+            if (typed)
+            {
+                by.Typed();
+            }
+
+            _open = (atLine, word, by);
+            _offeredIn = true;
+            offers = by.Matching(word);
         }
 
         _list.Offer(offers, keepingThePick: _open?.By == was?.By && _open?.Word.Query == was?.Word.Query);
@@ -145,14 +201,17 @@ internal sealed class HangingList
     /// <returns>Whether the event was spent on closing the list.</returns>
     public bool ClosedBy(Mouse mouse) => _list.ClosedBy(mouse);
 
-    /// <summary>The word of whichever kind the caret at <paramref name="column" /> is at the end of, and what offers for it.</summary>
-    private (HangingWord Word, IHangingOffering By)? Word(string line, int column)
+    /// <summary>
+    ///     The word of whichever kind the caret at <paramref name="column" /> on <paramref name="text" />, line
+    ///     <paramref name="line" />, is in, by where its sign starts, and what offers for it.
+    /// </summary>
+    private (int Line, int Start, IHangingOffering By)? In(int line, string text, int column)
     {
         foreach (var offering in _offerings)
         {
-            if (offering.At(line, column) is { } word)
+            if (offering.In(text, column) is { } start)
             {
-                return (word, offering);
+                return (line, start, offering);
             }
         }
 
@@ -162,10 +221,7 @@ internal sealed class HangingList
     /// <summary>Closes the list on the word it is open on, which keeps it closed until the caret leaves the word.</summary>
     private void Dismiss()
     {
-        if (_open is var (line, word, _))
-        {
-            _dismissed = (line, word.Start);
-        }
+        _dismissed |= _open is not null;
 
         Follow(typed: true);
     }

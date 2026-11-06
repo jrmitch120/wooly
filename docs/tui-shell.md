@@ -1798,8 +1798,10 @@ typing one in the edit public profile form's bio (#408):
   single undo are the same for both.
 - **It offers custom emoji on a `:`-word (#528, #578).** A `:` starts one only at the start of a line or after
   whitespace; it runs over letters, digits and `_` — a Mastodon shortcode's letters — up to the caret, and opens the
-  list once two of them follow the `:` (`ShortcodeWord`). So `10:30`, `note: x`, `re:thing`, `http://`, `:)` and `:D`
-  open nothing, and typing the closing `:` ends the word and closes the list. The emoji are the instance's own, those
+  list once two of them follow the `:`, and only with the caret at its end, none of them after it (`ShortcodeWord`).
+  So `10:30`, `note: x`, `re:thing`, `http://`, `:)` and `:D` open nothing, the caret moved back inside `:blobcat`
+  closes the list rather than offering to write over half a word, and typing the closing `:` ends the word and closes
+  the list. The emoji are the instance's own, those
   its picker shows (`IInstanceEmoji`, `GET /api/v1/custom_emojis`), matched on the shortcode alone, case ignored:
   those starting with the query, then those holding it, each shorter first then alphabetical, five at most — so a
   shortcode typed in full stays, first. A row is the emoji's picture, a space, then `:shortcode:` in `custom-emoji`
@@ -1812,9 +1814,10 @@ typing one in the edit public profile form's bio (#408):
   stays closed and nobody asks again. An answer that lands after the keystroke that asked is kept but offered only
   from the next keystroke in an editor — an edit or a caret move — so a redraw on a change of the shell's (an inbox
   poll, people to mention landing) never opens the list by itself. A read that answers nothing is asked again on the
-  next new `:`-word, never twice for the same one: a word is new when the caret comes to its end having been at the
-  end of no `:`-word, or another, the time before — the same rule that ends `esc`'s memory, so typing on, deleting
-  back short of two letters, or moving within the word asks nothing. Nothing reaches the status row, in flight, failed
+  next new `:`-word, never twice for the same one: the same word is the same `:` in the same editor, with the caret
+  never having left it — at its end, inside it, or after a `:` with fewer than two letters yet — so typing on,
+  deleting back short of two letters and typing them again, or moving within the word asks nothing; the caret leaving
+  it, past its `:` or out of its letters, makes the next one new. The same rule ends `esc`'s memory of a word. Nothing reaches the status row, in flight, failed
   or refused; a refused token is said by the reads that fill the screen. An instance that offers none never opens the
   list and is not asked again. Kept by instance, two profiles on one instance share one read, and switching away and
   back reads nothing; a profile on another instance is read on its own first `:`-word.
@@ -1833,10 +1836,12 @@ typing one in the edit public profile form's bio (#408):
   drawn in, fitted whole and centred (ADR-0035), after the pick mark and before a space and the shortcode. Whether the
   box is there is the Raster's alone, settled as the list is offered, so the list is sized for it before any picture
   lands: the Stand-in's shade until it does, the picture after, and nothing in the list moves. A row too long for the
-  list is clipped at its edge, the cut marked, the box held whole — dropped whole rather than cut in half where it
-  would not fit (`PickLines`, which keeps a row's insets through the box's side and the mark). The pictures are the
+  list is clipped at its edge, the cut marked, the box and the `:shortcode:` each held whole, as a shortcode is
+  wherever a row is clipped (#524) — dropped whole rather than cut through where it would not fit (`PickLines`, which
+  keeps a row's insets through the box's side and the mark, and holds every run of spans written for one custom emoji
+  together). The pictures are the
   content panel's: one cache, keyed by the emoji's still's address, and one Kitty image store, so an emoji already
-  drawn in a post is neither fetched nor sent again for the list (`OverlayPictures`). The cache takes a frame's wants
+  drawn in a post is neither fetched nor sent again for the list (`PanelPictures`). The cache takes a frame's wants
   whole, so the list says nothing to it itself: it draws before the panel, and the panel, drawing after it, asks for
   what the list drew as on screen along with its own frame, drains what the cache let go of and flushes the image
   store, once a frame for both (`Placing.Over`). The list places its pictures from its own boxes, five custom emoji

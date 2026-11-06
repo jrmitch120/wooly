@@ -54,8 +54,9 @@ public class CustomEmojiReadTests
     }
 
     /// <summary>
-    ///     After a read that answered nothing, more typing in the same word asks nothing; a new <c>:</c>-word asks once
-    ///     more, and that one answering opens the list at the next keystroke.
+    ///     After a read that answered nothing, more typing in the same word asks nothing — nor does taking it back below
+    ///     two letters and typing them again, or the caret going back inside it and out to its end, since the caret never
+    ///     left it; a new <c>:</c>-word asks once more, and that one answering opens the list at the next keystroke.
     /// </summary>
     [Fact]
     public async Task AFailedReadIsAskedAgainOnlyOnANewWord_AndASuccessThenOpensTheList()
@@ -74,6 +75,12 @@ public class CustomEmojiReadTests
         Assert.False(drawn.Hanging.Visible);
 
         drawn.Press(Key.Backspace);
+        drawn.Press(Key.Backspace);
+        drawn.Press(Key.Backspace);
+        drawn.Type("l");
+
+        Assert.Single(emoji.Reads);
+
         drawn.Press(Key.CursorLeft);
         drawn.Press(Key.End);
 

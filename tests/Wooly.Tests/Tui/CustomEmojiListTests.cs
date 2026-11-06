@@ -79,6 +79,32 @@ public class CustomEmojiListTests
     }
 
     /// <summary>
+    ///     The list opens only with the caret at the end of the word: moved back inside it, where the word's letters
+    ///     carry on after the caret, it closes, and picking could not leave the rest of the word behind; back at the end,
+    ///     it opens again.
+    /// </summary>
+    [Fact]
+    public async Task TheListOpensOnlyWithTheCaretAtTheEndOfTheWord()
+    {
+        using var drawn = await Composing("blobcat", "blobfox");
+
+        Type(drawn, "hi :blobcat");
+
+        Assert.True(List(drawn).Visible);
+
+        for (var back = 0; back < "obcat".Length; back++)
+        {
+            drawn.Press(Key.CursorLeft);
+        }
+
+        Assert.False(List(drawn).Visible);
+
+        drawn.Press(Key.End);
+
+        Assert.True(List(drawn).Visible);
+    }
+
+    /// <summary>
     ///     Shortcodes starting with what was typed come before those that only hold it; within each, the shorter come
     ///     first and then the alphabetical, case ignored throughout; and there are five at most.
     /// </summary>
@@ -158,6 +184,25 @@ public class CustomEmojiListTests
         Assert.False(List(drawn).Visible);
     }
 
+    /// <summary>
+    ///     A shortcode too long for the list is held whole by the clip at its edge, as a shortcode is wherever a row is
+    ///     clipped: dropped whole and the drop marked, never cut through, while the rows that fit are whole.
+    /// </summary>
+    [Fact]
+    public async Task AShortcodeTooLongForTheListIsDroppedWhole_NeverCutThrough()
+    {
+        var longest = "blob" + new string('x', 120);
+
+        using var drawn = await Composing("blobcat", longest);
+
+        Type(drawn, ":bl");
+
+        var rows = ListRows(drawn);
+
+        Assert.StartsWith("│▌ :blobcat: ", rows[1], StringComparison.Ordinal);
+        Assert.Matches("^│  … +│$", rows[2]);
+    }
+
     /// <summary>One undo takes the written shortcode back out, and puts back the word it replaced.</summary>
     [Fact]
     public async Task UndoPutsTheWordBack()
@@ -222,6 +267,8 @@ public class CustomEmojiListTests
         Assert.False(List(drawn).Visible);
 
         Type(drawn, "ob");
+        drawn.Press(Key.CursorLeft);
+        drawn.Press(Key.End);
 
         Assert.False(List(drawn).Visible);
 

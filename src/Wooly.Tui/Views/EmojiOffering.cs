@@ -12,7 +12,8 @@ namespace Wooly.Tui.Views;
 /// <remarks>
 ///     Matched on the shortcode alone, ignoring case. Those starting with the query come first, then those only holding
 ///     it; within each, the shorter first, then alphabetically, ignoring case. A shortcode typed in full is the shortest
-///     that starts with itself, so it stays, first. As many as the people to mention at most.
+///     that starts with itself, so it stays, first. As many as a hanging list offers at most
+///     (<see cref="HangingWord.MostOffered" />).
 ///     <para>
 ///         The instance is asked the first time a word wants its emoji, and on a word once at most (#579): a read that
 ///         answered nothing is asked again only on a new word, so a down instance is not asked on every keystroke. What
@@ -24,19 +25,22 @@ namespace Wooly.Tui.Views;
 ///         as the list is offered and as it is drawn alike.
 ///     </para>
 /// </remarks>
-internal sealed class EmojiOffering(Drafting.Drafting drafting, OverlayPictures pictures) : IHangingOffering
+internal sealed class EmojiOffering(Drafting.Drafting drafting, PanelPictures pictures) : IHangingOffering
 {
     public HangingWord? At(string line, int caret) => ShortcodeWord.At(line, caret);
 
-    public IReadOnlyList<HangingOffer> Matching(HangingWord word, bool typed, bool newWord)
-    {
-        if (newWord)
-        {
-            drafting.AskForEmoji();
-        }
+    public int? In(string line, int caret) => ShortcodeWord.In(line, caret);
 
-        return Ranked(drafting.EmojiToWrite(typed), word);
-    }
+    /// <summary>
+    ///     A new word is the one time a word asks the instance, so a read that failed is not asked again on every
+    ///     keystroke.
+    /// </summary>
+    public void Entering() => drafting.AskForEmoji();
+
+    /// <summary>What landed since the last keystroke is offered from this one, never by a redraw on its own.</summary>
+    public void Typed() => drafting.TakeUpLandedEmoji();
+
+    public IReadOnlyList<HangingOffer> Matching(HangingWord word) => Ranked(drafting.EmojiToWrite(), word);
 
     private IReadOnlyList<HangingOffer> Ranked(IReadOnlyList<CustomEmoji> offered, HangingWord word) =>
     [
@@ -44,7 +48,7 @@ internal sealed class EmojiOffering(Drafting.Drafting drafting, OverlayPictures 
                   .OrderBy(emoji => emoji.Shortcode.StartsWith(word.Query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
                   .ThenBy(emoji => emoji.Shortcode.Length)
                   .ThenBy(emoji => emoji.Shortcode, StringComparer.OrdinalIgnoreCase)
-                  .Take(PeopleToMention.Most)
+                  .Take(HangingWord.MostOffered)
                   .Select(emoji => Offer(emoji, word.Query)),
     ];
 
