@@ -184,6 +184,25 @@ public class CustomEmojiListTests
         Assert.False(List(drawn).Visible);
     }
 
+    /// <summary>
+    ///     A shortcode too long for the list is held whole by the clip at its edge, as a shortcode is wherever a row is
+    ///     clipped: dropped whole and the drop marked, never cut through, while the rows that fit are whole.
+    /// </summary>
+    [Fact]
+    public async Task AShortcodeTooLongForTheListIsDroppedWhole_NeverCutThrough()
+    {
+        var longest = "blob" + new string('x', 120);
+
+        using var drawn = await Composing("blobcat", longest);
+
+        Type(drawn, ":bl");
+
+        var rows = ListRows(drawn);
+
+        Assert.StartsWith("│▌ :blobcat: ", rows[1], StringComparison.Ordinal);
+        Assert.Matches("^│  … +│$", rows[2]);
+    }
+
     /// <summary>One undo takes the written shortcode back out, and puts back the word it replaced.</summary>
     [Fact]
     public async Task UndoPutsTheWordBack()

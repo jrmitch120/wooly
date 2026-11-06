@@ -102,33 +102,73 @@ public static class PickLines
     }
 
     /// <summary>
-    ///     As much of <paramref name="line" /> as fits in <paramref name="width" /> columns, the last of its text cut —
-    ///     but a custom emoji's box kept whole or dropped whole with the rest, never cut in half (ADR-0035), and only
-    ///     the pictures whose boxes are kept still set into it.
+    ///     As much of <paramref name="line" /> as fits in <paramref name="width" /> columns, the cut marked <c>…</c>:
+    ///     text cut where it runs out of room, but a custom emoji — its box, or the run of spans its shortcode is written
+    ///     in — held whole, kept whole or dropped whole with the rest, never cut through (ADR-0035, #524, #580), as
+    ///     <see cref="TextWrap.Clip" /> holds a shortcode; and only the pictures whose boxes are kept still set into it.
     /// </summary>
     private static Line Clipped(Line line, int width)
     {
-        var kept = new List<Span>();
-        var left = width;
-
-        foreach (var span in line.Spans)
+        if (line.Width <= width)
         {
-            if (left <= 0 || (span.CustomEmoji is not null && span.Width > left))
-            {
-                break;
-            }
-
-            var cut = Glyphs.Columns(span.Text) <= left ? span.Text : TextWrap.Clip(span.Text, left);
-
-            kept.Add(span with { Text = cut });
-            left -= Glyphs.Columns(cut);
+            return line;
         }
 
-        var used = width - left;
+        var spans = line.Spans;
+        var kept = new List<Span>();
+
+        // A column kept back for the ellipsis, which is always drawn, since the line is cut somewhere.
+        var left = width - 1;
+
+        for (var at = 0; left >= 0 && at < spans.Count;)
+        {
+            var held = Held(spans, at);
+            var columns = spans.Skip(at).Take(held).Sum(span => span.Width);
+
+            if (columns <= left)
+            {
+                kept.AddRange(spans.Skip(at).Take(held));
+                left -= columns;
+                at += held;
+
+                continue;
+            }
+
+            var cut = spans[at].CustomEmoji is null
+                ? spans[at].Text[..Glyphs.Reach(spans[at].Text, 0, spans[at].Text.Length, left)]
+                : string.Empty;
+
+            kept.Add(spans[at] with { Text = $"{cut}…" });
+
+            break;
+        }
+
+        var used = kept.Sum(span => span.Width);
 
         return line.Respanned(kept) with
         {
             Insets = [.. line.Insets.Where(inset => inset.Column + inset.Columns <= used)],
         };
+    }
+
+    /// <summary>
+    ///     How many spans from <paramref name="at" /> are held whole together: the run written for one custom emoji, or
+    ///     the one span alone.
+    /// </summary>
+    private static int Held(IReadOnlyList<Span> spans, int at)
+    {
+        if (spans[at].CustomEmoji is not { } customEmoji)
+        {
+            return 1;
+        }
+
+        var end = at + 1;
+
+        while (end < spans.Count && spans[end].CustomEmoji == customEmoji)
+        {
+            end++;
+        }
+
+        return end - at;
     }
 }

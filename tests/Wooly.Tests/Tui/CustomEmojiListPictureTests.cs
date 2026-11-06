@@ -149,11 +149,12 @@ public class CustomEmojiListPictureTests : IDisposable
     }
 
     /// <summary>
-    ///     A shortcode longer than the list can be wide is clipped at the list's edge, the cut marked, and its picture
-    ///     drawn whole before it: the list no wider than the post, its edge where it always is.
+    ///     A shortcode longer than the list can be wide is held whole by the clip at the list's edge, never cut through:
+    ///     dropped whole, the drop marked, and its picture drawn whole before it — the list no wider than the post, its
+    ///     edge where it always is.
     /// </summary>
     [Fact]
-    public async Task ALongShortcodeIsClippedAtTheListsEdge_ItsPictureWhole()
+    public async Task ALongShortcodeIsDroppedWholeAtTheListsEdge_ItsPictureWhole()
     {
         var longest = "blob" + new string('x', 120);
         var terminal = new FakeTerminalImages();
@@ -169,7 +170,7 @@ public class CustomEmojiListPictureTests : IDisposable
         var row = CustomEmojiTests.Seen(drawn)[list.Y + 1][list.X..list.Right];
 
         Assert.True(list.Right <= Editor(drawn).FrameToScreen().Right);
-        Assert.Matches("^│▌ ░░ :blobx+…│$", row);
+        Assert.Matches("^│▌ ░░ … +│$", row);
         Assert.Equal(
             [list.X + 3, list.X + 4],
             CustomEmojiTests.Placeholders(drawn).Select(cell => cell.Column).Order());

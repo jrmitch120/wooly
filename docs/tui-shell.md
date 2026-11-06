@@ -1836,8 +1836,10 @@ typing one in the edit public profile form's bio (#408):
   drawn in, fitted whole and centred (ADR-0035), after the pick mark and before a space and the shortcode. Whether the
   box is there is the Raster's alone, settled as the list is offered, so the list is sized for it before any picture
   lands: the Stand-in's shade until it does, the picture after, and nothing in the list moves. A row too long for the
-  list is clipped at its edge, the cut marked, the box held whole — dropped whole rather than cut in half where it
-  would not fit (`PickLines`, which keeps a row's insets through the box's side and the mark). The pictures are the
+  list is clipped at its edge, the cut marked, the box and the `:shortcode:` each held whole, as a shortcode is
+  wherever a row is clipped (#524) — dropped whole rather than cut through where it would not fit (`PickLines`, which
+  keeps a row's insets through the box's side and the mark, and holds every run of spans written for one custom emoji
+  together). The pictures are the
   content panel's: one cache, keyed by the emoji's still's address, and one Kitty image store, so an emoji already
   drawn in a post is neither fetched nor sent again for the list (`OverlayPictures`). The cache takes a frame's wants
   whole, so the list says nothing to it itself: it draws before the panel, and the panel, drawing after it, asks for
