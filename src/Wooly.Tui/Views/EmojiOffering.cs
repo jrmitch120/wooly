@@ -14,6 +14,11 @@ namespace Wooly.Tui.Views;
 ///     it; within each, the shorter first, then alphabetically, ignoring case. A shortcode typed in full is the shortest
 ///     that starts with itself, so it stays, first. As many as the people to mention at most.
 ///     <para>
+///         The instance is asked the first time a word wants its emoji, and on a word once at most (#579): a read that
+///         answered nothing is asked again only on a new word, so a down instance is not asked on every keystroke. What
+///         it answers after the keystroke that asked is offered from the next one, never by a redraw on its own.
+///     </para>
+///     <para>
 ///         The pictures are the content panel's (<paramref name="pictures" />), from the one cache, so an emoji already
 ///         drawn in a post is not fetched again. Whether a row has room for one is the panel's <b>Raster</b>'s to say,
 ///         as the list is offered and as it is drawn alike.
@@ -23,15 +28,24 @@ internal sealed class EmojiOffering(Drafting.Drafting drafting, OverlayPictures 
 {
     public HangingWord? At(string line, int caret) => ShortcodeWord.At(line, caret);
 
-    public IReadOnlyList<HangingOffer> Matching(HangingWord word) =>
+    public IReadOnlyList<HangingOffer> Matching(HangingWord word, bool typed, bool newWord)
+    {
+        if (newWord)
+        {
+            drafting.AskForEmoji();
+        }
+
+        return Ranked(drafting.EmojiToWrite(typed), word);
+    }
+
+    private IReadOnlyList<HangingOffer> Ranked(IReadOnlyList<CustomEmoji> offered, HangingWord word) =>
     [
-        .. drafting.EmojiToWrite()
-                   .Where(emoji => emoji.Shortcode.Contains(word.Query, StringComparison.OrdinalIgnoreCase))
-                   .OrderBy(emoji => emoji.Shortcode.StartsWith(word.Query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-                   .ThenBy(emoji => emoji.Shortcode.Length)
-                   .ThenBy(emoji => emoji.Shortcode, StringComparer.OrdinalIgnoreCase)
-                   .Take(PeopleToMention.Most)
-                   .Select(emoji => Offer(emoji, word.Query)),
+        .. offered.Where(emoji => emoji.Shortcode.Contains(word.Query, StringComparison.OrdinalIgnoreCase))
+                  .OrderBy(emoji => emoji.Shortcode.StartsWith(word.Query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                  .ThenBy(emoji => emoji.Shortcode.Length)
+                  .ThenBy(emoji => emoji.Shortcode, StringComparer.OrdinalIgnoreCase)
+                  .Take(PeopleToMention.Most)
+                  .Select(emoji => Offer(emoji, word.Query)),
     ];
 
     private HangingOffer Offer(CustomEmoji emoji, string query) => new(

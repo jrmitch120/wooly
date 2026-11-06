@@ -13,7 +13,7 @@ internal sealed class MentionOffering(Shell.Shell shell) : IHangingOffering
 {
     public HangingWord? At(string line, int caret) => MentionWord.At(line, caret);
 
-    public IReadOnlyList<HangingOffer> Matching(HangingWord word) =>
+    public IReadOnlyList<HangingOffer> Matching(HangingWord word, bool typed, bool newWord) =>
     [
         .. shell.PeopleMatching(word.Query).Select(person => new HangingOffer(
             picked => new Line([.. MentionLines.Row(person, picked, word.Query)]),

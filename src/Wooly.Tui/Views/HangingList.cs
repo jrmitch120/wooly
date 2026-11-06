@@ -85,11 +85,11 @@ internal sealed class HangingList
         View.Width = Dim.Func(_ => Size().Width);
         View.Height = Dim.Func(_ => Size().Height);
 
-        editor.ContentsChanged += (_, _) => Follow();
+        editor.ContentsChanged += (_, _) => Follow(typed: true);
         editor.UnwrappedCursorPositionChanged += (_, moved) =>
         {
             _unwrapped = moved;
-            Follow();
+            Follow(typed: true);
         };
     }
 
@@ -97,11 +97,17 @@ internal sealed class HangingList
     public PaintedView View => _list.View;
 
     /// <summary>
-    ///     Reads the word the caret is at the end of again, and opens, narrows or closes the list to match — on every
-    ///     edit and caret move, and whenever the shell has changed under it. The pick stays where it was only while the
-    ///     same kind of word asks the same.
+    ///     Reads the word the caret is at the end of again, and opens, narrows or closes the list to match, whenever the
+    ///     shell has changed under it.
     /// </summary>
-    public void Follow()
+    public void Follow() => Follow(typed: false);
+
+    /// <summary>
+    ///     Reads the word the caret is at the end of again, and opens, narrows or closes the list to match — on every
+    ///     edit and caret move, <paramref name="typed" />, and whenever the shell has changed under it. The pick stays
+    ///     where it was only while the same kind of word asks the same.
+    /// </summary>
+    private void Follow(bool typed)
     {
         var was = _open;
         IReadOnlyList<HangingOffer> offers = [];
@@ -116,9 +122,12 @@ internal sealed class HangingList
             }
             else if (_dismissed != (line, word.Start))
             {
+                var newWord = was is not var (wasLine, wasWord, wasBy)
+                              || (wasLine, wasWord.Start, wasBy) != (line, word.Start, offering);
+
                 _dismissed = null;
                 _open = (line, word, offering);
-                offers = offering.Matching(word);
+                offers = offering.Matching(word, typed, newWord);
             }
         }
 
@@ -158,7 +167,7 @@ internal sealed class HangingList
             _dismissed = (line, word.Start);
         }
 
-        Follow();
+        Follow(typed: true);
     }
 
     /// <summary>
@@ -177,7 +186,7 @@ internal sealed class HangingList
         View.Visible = false;
 
         _editor.ReplaceBeforeCaret(word.Length, writes);
-        Follow();
+        Follow(typed: true);
     }
 
     /// <summary>The caret in the text as written: its line, its column on it, and that line.</summary>

@@ -52,6 +52,15 @@ internal sealed class FakeInstanceEmoji : IInstanceEmoji
     /// </summary>
     public static FakeInstanceEmoji Refusing(WoolyException refusal) => new([], refusal);
 
+    /// <summary>
+    ///     Whether a read waits to be landed by the test, through <see cref="Held" />, rather than being answered at once
+    ///     (#579) — so a test can type on while the instance has not yet said.
+    /// </summary>
+    public bool Holding { get; set; }
+
+    /// <summary>Every read held while <see cref="Holding" />, in order, each waiting to be landed.</summary>
+    public List<Reading> Held { get; } = [];
+
     /// <summary>The emoji written <paramref name="shortcode" />, as an instance would list it.</summary>
     public static CustomEmoji Emoji(string shortcode) =>
         new(shortcode, $"https://files.example/emoji/{shortcode}.png");
@@ -60,11 +69,46 @@ internal sealed class FakeInstanceEmoji : IInstanceEmoji
     {
         Reads.Add(profile);
 
-        if (_refusal is not null)
+        if (!Holding)
         {
-            return Task.FromException<IReadOnlyList<CustomEmoji>?>(_refusal);
+            return Answer(profile);
         }
 
-        return Task.FromResult(_each is null ? _offered : _each.GetValueOrDefault(profile.Instance));
+        var reading = new Reading(() => Answer(profile));
+
+        Held.Add(reading);
+
+        return reading.Answer;
+    }
+
+    private Task<IReadOnlyList<CustomEmoji>?> Answer(ActiveProfile profile) =>
+        _refusal is not null
+            ? Task.FromException<IReadOnlyList<CustomEmoji>?>(_refusal)
+            : Task.FromResult(_each is null ? _offered : _each.GetValueOrDefault(profile.Instance));
+
+    /// <summary>A read the instance has not answered yet, which the test lands when it chooses.</summary>
+    internal sealed class Reading(Func<Task<IReadOnlyList<CustomEmoji>?>> answer)
+    {
+        private readonly TaskCompletionSource<IReadOnlyList<CustomEmoji>?> _landing = new();
+
+        public Task<IReadOnlyList<CustomEmoji>?> Answer => _landing.Task;
+
+        /// <summary>Answers what the instance offers, or its refusal.</summary>
+        public void Land()
+        {
+            var answered = answer();
+
+            if (answered.IsFaulted)
+            {
+                _landing.SetException(answered.Exception!.InnerExceptions);
+            }
+            else
+            {
+                _landing.SetResult(answered.Result);
+            }
+        }
+
+        /// <summary>Answers nothing, as a rate-limited, unreachable or too-slow instance does.</summary>
+        public void LandNothing() => _landing.SetResult(null);
     }
 }

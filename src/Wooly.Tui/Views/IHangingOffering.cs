@@ -17,5 +17,14 @@ internal interface IHangingOffering
     HangingWord? At(string line, int caret);
 
     /// <summary>What is on offer for <paramref name="word" />, best first; nothing, which keeps the list closed.</summary>
-    IReadOnlyList<HangingOffer> Matching(HangingWord word);
+    /// <param name="word">The word the caret is at the end of.</param>
+    /// <param name="typed">
+    ///     Whether a keystroke in the editor asks — an edit or a caret move — rather than a redraw on a change of the
+    ///     shell's.
+    /// </param>
+    /// <param name="newWord">
+    ///     Whether the caret has only now come to the end of this word: the list followed no word of this kind, or
+    ///     another, the last time it was asked.
+    /// </param>
+    IReadOnlyList<HangingOffer> Matching(HangingWord word, bool typed, bool newWord);
 }
