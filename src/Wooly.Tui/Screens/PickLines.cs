@@ -37,6 +37,22 @@ public static class PickLines
     ];
 
     /// <summary>
+    ///     <paramref name="text" /> in <paramref name="role" />, with the <paramref name="length" /> letters at
+    ///     <paramref name="at" /> — what was typed, where it matched — as a mention, or none where it did not
+    ///     (<paramref name="at" /> below nought): how every row of a list hung under a word picks out the letters typed,
+    ///     a person's (<see cref="MentionLines" />) and a custom emoji's (<see cref="EmojiLines" />) alike.
+    /// </summary>
+    public static IEnumerable<Span> Lit(string text, int at, int length, Role role) =>
+        at < 0
+            ? [new Span(text, role)]
+            :
+            [
+                new Span(text[..at], role),
+                new Span(text.Substring(at, length), Role.Mention),
+                new Span(text[(at + length)..], role),
+            ];
+
+    /// <summary>
     ///     How wide the list wants to be for things whose widest takes <paramref name="widest" /> columns: what that
     ///     row needs, or 40.
     /// </summary>
