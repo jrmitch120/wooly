@@ -166,7 +166,7 @@ public sealed class Drafting
 
     /// <summary>
     ///     Asks the instance of the profile acted as for the custom emoji it offers, unless it has answered or is being
-    ///     asked (#579): the first time they are wanted, which is the caret coming into a <c>:</c>-word, on its bare
+    ///     asked (#579): the first time they are wanted, which is a <c>:</c>-word first typed in, on its bare
     ///     <c>:</c> (#528).
     /// </summary>
     public void AskForEmoji()

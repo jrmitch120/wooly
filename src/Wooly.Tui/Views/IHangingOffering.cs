@@ -26,11 +26,12 @@ internal interface IHangingOffering
     int? In(string line, int caret) => At(line, caret)?.Start;
 
     /// <summary>
-    ///     Told that the caret has come into a word of this kind, as soon as it has — its sign alone, before it has the
-    ///     letters to open on (#528): a word the caret stays in — typed on, taken back below what opens it, or gone
-    ///     inside and back to its end — is told once. Nothing is done with it by default.
+    ///     Told that a word of this kind is being typed, on the first edit that leaves the caret in it — its sign typed
+    ///     at a word's start, before it has the letters to open on, or a letter typed in one already written (#528) — and
+    ///     never on the caret walked or clicked into one alone. A word the caret stays in — typed on, taken back below
+    ///     what opens it, or gone inside and back to its end — is told once. Nothing is done with it by default.
     /// </summary>
-    void Entering()
+    void TypedIn()
     {
     }
 

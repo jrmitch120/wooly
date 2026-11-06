@@ -64,8 +64,8 @@ internal sealed class HangingList
     /// </summary>
     private (int Line, int Start, IHangingOffering By)? _in;
 
-    /// <summary>Whether what offers for the word the caret is in has been told the caret came into it.</summary>
-    private bool _toldIn;
+    /// <summary>Whether what offers for the word the caret is in has been told it was typed in.</summary>
+    private bool _toldTyped;
 
     /// <summary>Whether <c>esc</c> closed the list on the word the caret is in, which keeps it closed until the caret leaves.</summary>
     private bool _dismissed;
@@ -119,9 +119,11 @@ internal sealed class HangingList
         // is followed: not on the edit itself, whose caret is still the one before it.
         editor.UnwrappedCursorPositionChanged += (_, moved) =>
         {
+            var edited = _caretIn is not null && editor.Text != _caretIn;
+
             _unwrapped = moved;
             _caretIn = editor.Text;
-            Follow(typed: true);
+            Follow(typed: true, edited);
         };
     }
 
@@ -153,7 +155,9 @@ internal sealed class HangingList
     ///     edit and caret move, <paramref name="typed" />, and whenever the shell has changed under it. The pick stays
     ///     where it was only while the same kind of word asks the same.
     /// </summary>
-    private void Follow(bool typed)
+    /// <param name="typed">Whether the editor moved its caret, by an edit or a caret move, rather than the shell changing.</param>
+    /// <param name="edited">Whether the editor's text changed on the way, rather than the caret alone moving.</param>
+    private void Follow(bool typed, bool edited = false)
     {
         if (_editor.Text != _caretIn)
         {
@@ -180,16 +184,16 @@ internal sealed class HangingList
         if (_in != wasIn)
         {
             _dismissed = false;
-            _toldIn = false;
+            _toldTyped = false;
             _awaited = null;
         }
 
-        // Told as the caret comes into the word, before it has the letters to open on, so whatever it offers is on its
-        // way by the time it has.
-        if (_in is var (_, _, into) && !_toldIn)
+        // Told on the first edit leaving the caret in the word — its sign typed, before it has the letters to open on,
+        // so whatever it offers is on its way by the time it has — never on the caret walked or clicked into it alone.
+        if (edited && _in is var (_, _, into) && !_toldTyped)
         {
-            _toldIn = true;
-            into.Entering();
+            _toldTyped = true;
+            into.TypedIn();
         }
 
         if (caret is var (atLine, at, on)

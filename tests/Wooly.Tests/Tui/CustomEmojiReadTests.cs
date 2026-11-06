@@ -376,6 +376,60 @@ public class CustomEmojiReadTests
         Assert.False(drawn.Hanging.Visible);
     }
 
+    /// <summary>
+    ///     The read starts on a <c>:</c>-word typed, never on the caret walked alone (#528 story 29): an edit opening on
+    ///     <c>:blobcat:</c> and an unfinished <c>:blob</c> reads nothing as it opens, nor as the caret is walked by the
+    ///     keys or clicked into either word, or to the end of the one that would open the list. The first letter typed
+    ///     there reads, once, standing the list open on its loading row; a bare <c>:</c> typed at a new word's start
+    ///     reads too, once more.
+    /// </summary>
+    [Fact]
+    public async Task WalkingOrClickingIntoAColonWordReadsNothing_AndTypingInOneReadsOnce()
+    {
+        var emoji = FakeInstanceEmoji.Offering("blobcat");
+        emoji.Holding = true;
+
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110", account: "jeff@mastodon.social", content: "hi :blobcat: and :blob")),
+            Emoji = emoji,
+        };
+
+        using var drawn = await ComposedView.Of(built, ComposeFor.Edit);
+
+        Assert.Equal("hi :blobcat: and :blob", drawn.Editor.Text);
+        Assert.Empty(emoji.Reads);
+
+        drawn.Press(Key.CursorLeft);
+        drawn.Press(Key.Home);
+
+        for (var step = 0; step < "hi :blob".Length; step++)
+        {
+            drawn.Press(Key.CursorRight);
+        }
+
+        var editor = drawn.Editor.FrameToScreen();
+
+        drawn.Click(editor.X + "hi :blo".Length, editor.Y);
+        drawn.Click(editor.X + "hi :blobcat: and :bl".Length, editor.Y);
+        drawn.Press(Key.End);
+
+        Assert.Empty(emoji.Reads);
+        Assert.False(drawn.Hanging.Visible);
+
+        drawn.Type("c");
+
+        Assert.Single(emoji.Reads);
+        Assert.Equal(["reading custom emoji…"], Shortcodes(drawn));
+
+        emoji.Held[0].LandNothing();
+        drawn.Settle();
+        drawn.Type(" :");
+
+        Assert.Equal(2, emoji.Reads.Count);
+    }
+
     /// <summary>An instance offering no emoji never opens the list, and is read only once in the session.</summary>
     [Fact]
     public async Task AnInstanceWithNoEmojiNeverOpensTheList_AndIsReadOnce()

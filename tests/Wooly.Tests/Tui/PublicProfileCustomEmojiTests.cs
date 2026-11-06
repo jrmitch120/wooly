@@ -102,20 +102,62 @@ public class PublicProfileCustomEmojiTests
     }
 
     /// <summary>
-    ///     The form opened with <c>E</c> on <b>You</b>, and the typing walked down into the bio at its foot — on a
-    ///     terminal drawing pictures <paramref name="way" /> from <paramref name="pictures" /> where they are said, Kitty's
-    ///     placeholders where no way is.
+    ///     A bio already holding <c>:blobcat:</c> and an unfinished <c>:blob</c> reads nothing as the form opens on it and
+    ///     the typing walks into it, nor as the caret is walked by the keys or clicked into either word, or to the end of
+    ///     the one that would open the list (#528 story 29). The first letter typed there reads, once.
+    /// </summary>
+    [Fact]
+    public async Task WalkingOrClickingIntoAColonWordReadsNothing_AndTypingInOneReadsOnce()
+    {
+        var emoji = FakeInstanceEmoji.Offering("blobcat");
+        emoji.Holding = true;
+
+        using var drawn = await InTheBio(bio: "hi :blobcat: and :blob", emoji: emoji);
+
+        Assert.Equal("hi :blobcat: and :blob", Bio(drawn).Text);
+        Assert.Empty(emoji.Reads);
+
+        drawn.Press(Key.CursorLeft);
+        drawn.Press(Key.Home);
+
+        for (var step = 0; step < "hi :blob".Length; step++)
+        {
+            drawn.Press(Key.CursorRight);
+        }
+
+        var bio = Bio(drawn).FrameToScreen();
+
+        drawn.Click(bio.X + "hi :blo".Length, bio.Y);
+        drawn.Click(bio.X + "hi :blobcat: and :bl".Length, bio.Y);
+        drawn.Press(Key.End);
+
+        Assert.Empty(emoji.Reads);
+        Assert.False(List(drawn).Visible);
+
+        Type(drawn, "c");
+
+        Assert.Single(emoji.Reads);
+        Assert.True(List(drawn).Visible);
+    }
+
+    /// <summary>
+    ///     The form opened with <c>E</c> on <b>You</b> on <paramref name="bio" />, and the typing walked down into the bio
+    ///     at its foot — on a terminal drawing pictures <paramref name="way" /> from <paramref name="pictures" /> where
+    ///     they are said, Kitty's placeholders where no way is — the instance offering <paramref name="emoji" />, or
+    ///     <c>blobcat</c> and <c>thinking</c> where it is not said.
     /// </summary>
     private static async Task<DrawnShell> InTheBio(
         FakePictures? pictures = null,
         FakeTerminalImages? terminal = null,
-        PictureWay way = PictureWay.Placeholders)
+        PictureWay way = PictureWay.Placeholders,
+        string bio = "",
+        FakeInstanceEmoji? emoji = null)
     {
         var built = new AShell
         {
             Accounts = FakeAccountRelationships.Holding(Me),
-            PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(bio: "", account: Me)),
-            Emoji = FakeInstanceEmoji.Offering("blobcat", "thinking"),
+            PublicProfile = FakePublicProfileEditor.Holding(APublicProfile.With(bio: bio, account: Me)),
+            Emoji = emoji ?? FakeInstanceEmoji.Offering("blobcat", "thinking"),
         };
 
         var drawn = pictures is null
