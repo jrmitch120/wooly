@@ -71,16 +71,11 @@ internal sealed class HangingList
     private bool _dismissed;
 
     /// <summary>
-    ///     Whether the list stands open on the word the caret is at the end of, saying what it offers is on its way
-    ///     (<see cref="IHangingOffering.Awaiting" />) — the one time it takes up what came in without a keystroke.
+    ///     The word the list's side and left edge are settled for: the word the caret is in, once the list has stood
+    ///     open on it saying what it offers is on its way (<see cref="IHangingOffering.Awaiting" />), kept until the
+    ///     caret leaves it — so what lands grows the list where it already hangs (nothing jumps).
     /// </summary>
-    private bool _awaiting;
-
-    /// <summary>
-    ///     The word the caret is in, where the list stood open on it saying what it offers is on its way: sided by the
-    ///     tallest it can become from then on, so what lands grows it on the side it already hangs (nothing jumps).
-    /// </summary>
-    private (int Line, int Start, IHangingOffering By)? _awaited;
+    private (int Line, int Start, IHangingOffering By)? _sidedFor;
 
     /// <param name="editor">The editor this list is laid beside in the same view and hangs under.</param>
     /// <param name="offered">
@@ -166,12 +161,14 @@ internal sealed class HangingList
 
         var was = _open;
         var wasIn = _in;
-        var wasAwaiting = _awaiting;
+
+        // Standing open saying what is offered is on its way — the one time the list takes up what came in without a
+        // keystroke.
+        var wasAwaiting = _list.Noting;
         IReadOnlyList<HangingOffer> offers = [];
 
         _open = null;
         _in = null;
-        _awaiting = false;
 
         var caret = _editor.Visible && _offered() ? Caret() : null;
 
@@ -185,7 +182,7 @@ internal sealed class HangingList
         {
             _dismissed = false;
             _toldTyped = false;
-            _awaited = null;
+            _sidedFor = null;
         }
 
         // Told on the first edit leaving the caret in the word — its sign typed, before it has the letters to open on,
@@ -214,8 +211,7 @@ internal sealed class HangingList
             // Nothing matching yet, since what would is on its way: the list stands open saying so.
             if (offers.Count == 0 && by.Awaiting() is { } awaiting)
             {
-                _awaiting = true;
-                _awaited = _in;
+                _sidedFor = _in;
                 _list.Note(awaiting);
 
                 return;
@@ -311,7 +307,7 @@ internal sealed class HangingList
     ///     Whether the list has stood waiting on the word the caret is in, which settles where it hangs on that word —
     ///     its side and its left edge — until the caret leaves it.
     /// </summary>
-    private bool Sided => _awaited is not null && _awaited == _in;
+    private bool Sided => _sidedFor is not null && _sidedFor == _in;
 
     /// <summary>
     ///     The left edge of a list <paramref name="width" /> wide: on the word's sign, or as far left of it as keeps
