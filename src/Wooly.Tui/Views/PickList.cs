@@ -39,19 +39,27 @@ internal sealed class PickList<T>
 
     /// <param name="theme">What answers the roles.</param>
     /// <param name="id">The list's <c>Id</c> among the window's views.</param>
-    /// <param name="row">What a thing says on its row, given whether it is the picked one.</param>
+    /// <param name="row">
+    ///     What a thing says on its row, given whether it is the picked one, any picture on it set at the column it
+    ///     stands at in what it says.
+    /// </param>
     /// <param name="columns">How many columns what a thing says takes, which is what the list is sized to.</param>
     /// <param name="picked">What picking a thing does — by key or by click.</param>
     /// <param name="closed">What closing the list without picking does — by <c>esc</c> or by a click elsewhere.</param>
     /// <param name="picks">What <c>tab</c> is said to do along the list's bottom edge.</param>
+    /// <param name="overlaid">
+    ///     What the list draws the pictures on its rows from, laid over the content panel — a custom emoji's (#580) — or
+    ///     <see langword="null" /> for a list of rows of text alone.
+    /// </param>
     public PickList(
         ITheme theme,
         string id,
-        Func<T, bool, IEnumerable<Span>> row,
+        Func<T, bool, Line> row,
         Func<T, int> columns,
         Action<T> picked,
         Action closed,
-        string picks = "insert")
+        string picks = "insert",
+        OverlayPictures? overlaid = null)
     {
         _columns = columns;
         _picked = picked;
@@ -59,7 +67,8 @@ internal sealed class PickList<T>
 
         View = new PaintedView(
             theme,
-            (width, height) => PickLines.Rows(_things, _at, Scrolled(height), height, width, row, picks))
+            (width, height) => PickLines.Rows(_things, _at, Scrolled(height), height, width, row, picks),
+            overlaid: overlaid)
         {
             Id = id,
             CanFocus = false,

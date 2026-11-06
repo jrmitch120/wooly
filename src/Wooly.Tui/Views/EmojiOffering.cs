@@ -6,7 +6,8 @@ namespace Wooly.Tui.Views;
 
 /// <summary>
 ///     The instance's custom emoji, offered on a <c>:</c>-word (#528, #578): those whose shortcode holds what follows the
-///     <c>:</c>, drawn as their shortcode (<see cref="EmojiLines" />), and picking one writes its shortcode and a space.
+///     <c>:</c>, drawn as their picture and their shortcode (<see cref="EmojiLines" />, #580), and picking one writes its
+///     shortcode and a space.
 /// </summary>
 /// <remarks>
 ///     Matched on the shortcode alone, ignoring case. Those starting with the query come first, then those only holding
@@ -17,8 +18,13 @@ namespace Wooly.Tui.Views;
 ///         answered nothing is asked again only on a new word, so a down instance is not asked on every keystroke. What
 ///         it answers after the keystroke that asked is offered from the next one, never by a redraw on its own.
 ///     </para>
+///     <para>
+///         The pictures are the content panel's (<paramref name="pictures" />), from the one cache, so an emoji already
+///         drawn in a post is not fetched again. Whether a row has room for one is the panel's <b>Raster</b>'s to say,
+///         as the list is offered and as it is drawn alike.
+///     </para>
 /// </remarks>
-internal sealed class EmojiOffering(Drafting.Drafting drafting) : IHangingOffering
+internal sealed class EmojiOffering(Drafting.Drafting drafting, OverlayPictures pictures) : IHangingOffering
 {
     public HangingWord? At(string line, int caret) => ShortcodeWord.At(line, caret);
 
@@ -32,7 +38,7 @@ internal sealed class EmojiOffering(Drafting.Drafting drafting) : IHangingOfferi
         return Ranked(drafting.EmojiToWrite(typed), word);
     }
 
-    private static IReadOnlyList<HangingOffer> Ranked(IReadOnlyList<CustomEmoji> offered, HangingWord word) =>
+    private IReadOnlyList<HangingOffer> Ranked(IReadOnlyList<CustomEmoji> offered, HangingWord word) =>
     [
         .. offered.Where(emoji => emoji.Shortcode.Contains(word.Query, StringComparison.OrdinalIgnoreCase))
                   .OrderBy(emoji => emoji.Shortcode.StartsWith(word.Query, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
@@ -42,8 +48,8 @@ internal sealed class EmojiOffering(Drafting.Drafting drafting) : IHangingOfferi
                   .Select(emoji => Offer(emoji, word.Query)),
     ];
 
-    private static HangingOffer Offer(CustomEmoji emoji, string query) => new(
-        _ => EmojiLines.Row(emoji, query),
-        EmojiLines.Columns(emoji),
+    private HangingOffer Offer(CustomEmoji emoji, string query) => new(
+        _ => EmojiLines.Row(emoji, query, pictures.Pictures, pictures.Raster),
+        EmojiLines.Columns(emoji, pictures.Pictures, pictures.Raster),
         () => $"{emoji.Written} ");
 }

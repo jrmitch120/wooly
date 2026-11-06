@@ -1802,8 +1802,9 @@ typing one in the edit public profile form's bio (#408):
   open nothing, and typing the closing `:` ends the word and closes the list. The emoji are the instance's own, those
   its picker shows (`IInstanceEmoji`, `GET /api/v1/custom_emojis`), matched on the shortcode alone, case ignored:
   those starting with the query, then those holding it, each shorter first then alphabetical, five at most — so a
-  shortcode typed in full stays, first. A row is `:shortcode:` in `custom-emoji` with the letters typed in `mention`;
-  picking writes `:shortcode:` and a space in place of the word, as one undoable edit. They are read the first time a
+  shortcode typed in full stays, first. A row is the emoji's picture, a space, then `:shortcode:` in `custom-emoji`
+  with the letters typed in `mention` (#580); where the Raster draws nothing, or pictures are off, it is the
+  shortcode alone. Picking writes `:shortcode:` and a space in place of the word, as one undoable edit. They are read the first time a
   `:`-word would open the list — never on composing, nor on a `:` that opens nothing — and kept by instance for the
   session, in memory only, beside the post limits drafting keeps the same way (`EmojiByInstance`), and never refreshed.
   An answer landing raises no redraw of its own, and nothing about the read reaches the status row.
@@ -1828,6 +1829,19 @@ typing one in the edit public profile form's bio (#408):
   The people to mention flipped over the Media rows used to stay on the terminal after `esc`, a click outside or the
   caret leaving the word, holes in the pictures and all, until something else redrew the panel. A sixel cut round a
   list is encoded by Terminal.Gui rather than from the cuts kept for it (ADR-0023), and only while the list cuts it.
+- **A row of the `:` list shows its emoji's picture (#580).** In the two-column, one-row box every custom emoji is
+  drawn in, fitted whole and centred (ADR-0035), after the pick mark and before a space and the shortcode. Whether the
+  box is there is the Raster's alone, settled as the list is offered, so the list is sized for it before any picture
+  lands: the Stand-in's shade until it does, the picture after, and nothing in the list moves. A row too long for the
+  list is clipped at its edge, the cut marked, the box held whole — dropped whole rather than cut in half where it
+  would not fit (`PickLines`, which keeps a row's insets through the box's side and the mark). The pictures are the
+  content panel's: one cache, keyed by the emoji's still's address, and one Kitty image store, so an emoji already
+  drawn in a post is neither fetched nor sent again for the list (`OverlayPictures`). The cache takes a frame's wants
+  whole, so the list says nothing to it itself: it draws before the panel, and the panel, drawing after it, asks for
+  what the list drew as on screen along with its own frame, drains what the cache let go of and flushes the image
+  store, once a frame for both (`Placing.Over`). The list places its pictures from its own boxes, five custom emoji
+  at most, inside its own view, so they are on top of anything of the panel's under it. Drawn as Kitty's placeholder
+  cells now; through a box, on sixel and Kitty through a box, is #581's.
 - **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
   on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
   as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that

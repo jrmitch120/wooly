@@ -60,8 +60,14 @@ internal sealed class ComposeView : View
     /// </summary>
     private bool _showing;
 
-    public ComposeView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting)
+    /// <param name="pictures">
+    ///     The content panel's pictures and Raster, which the post's list draws a custom emoji's picture from (#580); none
+    ///     where nobody said.
+    /// </param>
+    public ComposeView(ITheme theme, Shell.Shell shell, Drafting.Drafting drafting, OverlayPictures? pictures = null)
     {
+        pictures ??= OverlayPictures.None;
+
         _shell = shell;
         _drafting = drafting;
         var place = new Placement<ComposeScreen>(this, shell);
@@ -165,8 +171,9 @@ internal sealed class ComposeView : View
             theme,
             _editor,
             () => _shell.Screen is ComposeScreen { WritingTheWarning: false },
+            pictures,
             new MentionOffering(shell),
-            new EmojiOffering(drafting));
+            new EmojiOffering(drafting, pictures));
         _editor.Ahead = _hanging.Took;
 
         // ctrl-p is the frame's here as everywhere (ADR-0020, #373), where TextView would take it for a line up.

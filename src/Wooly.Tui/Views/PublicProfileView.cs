@@ -34,14 +34,12 @@ internal sealed class PublicProfileView : View
     /// <summary>The rows that take no typing — the avatar and the header, and the three toggles — by which they are.</summary>
     private readonly Dictionary<PublicProfilePart, PublicProfileButton> _buttons = [];
 
-    /// <summary>How this terminal paints pixels, which says how tall the avatar's and the header's rows are.</summary>
-    private readonly Func<Raster?> _raster;
-
     /// <summary>
-    ///     Where the pixels come from, which with <see cref="_raster" /> says whether the pictures are drawn at all
-    ///     (<see cref="Rendering.Drawing.Draws" />).
+    ///     The content panel's pictures and Raster: which say how tall the avatar's and the header's rows are, and
+    ///     whether the pictures are drawn at all (<see cref="Rendering.Drawing.Draws" />) — and what the bio's list draws
+    ///     a custom emoji's picture from (#580).
     /// </summary>
-    private readonly IPictures? _pictures;
+    private readonly OverlayPictures _pictures;
 
     /// <summary>The list hung under the word being typed in the bio, as under compose's post (#408, #576).</summary>
     private readonly HangingList _hanging;
@@ -62,14 +60,12 @@ internal sealed class PublicProfileView : View
         ITheme theme,
         Shell.Shell shell,
         Drafting.Drafting drafting,
-        Func<Raster?>? raster = null,
-        IPictures? pictures = null)
+        OverlayPictures? pictures = null)
     {
         _theme = theme;
         _shell = shell;
         _drafting = drafting;
-        _raster = raster ?? (() => null);
-        _pictures = pictures;
+        _pictures = pictures ?? OverlayPictures.None;
         _place = new Placement<PublicProfileScreen>(this, shell);
 
         // A right click over a field is esc, which the fields would otherwise keep to themselves, and a click outside
@@ -115,8 +111,9 @@ internal sealed class PublicProfileView : View
             theme,
             _bio,
             () => _shell.Screen is PublicProfileScreen,
+            _pictures,
             new MentionOffering(shell),
-            new EmojiOffering(drafting));
+            new EmojiOffering(drafting, _pictures));
         _bio.Ahead = _hanging.Took;
 
         // The rows that take no typing: the avatar and the header, a click on either opening the file browser for it
@@ -353,7 +350,7 @@ internal sealed class PublicProfileView : View
     /// </remarks>
     private T Placed<T>(T widget, PublicProfileStop stop)
         where T : View =>
-        _place.Placed(widget, (form, room) => form.At(stop, room, _raster(), _pictures));
+        _place.Placed(widget, (form, room) => form.At(stop, room, _pictures.Raster, _pictures.Pictures));
 
     /// <summary>A change to the form from one of its fields, while it is not being filled.</summary>
     private void Change(Func<PublicProfileScreen, DraftChange> change)

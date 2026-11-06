@@ -56,7 +56,7 @@ public static class PickLines
         int top,
         int height,
         int width,
-        Func<T, bool, IEnumerable<Span>> row,
+        Func<T, bool, Line> row,
         string picks = "insert")
     {
         var keys = Keys(picks);
@@ -84,37 +84,36 @@ public static class PickLines
         return rows;
     }
 
-    /// <summary>One thing, between the box's sides: its mark, and what it says cut to fit.</summary>
-    private static Line Row(IEnumerable<Span> says, bool picked, int inside)
+    /// <summary>
+    ///     One thing, between the box's sides: its mark, and what it says cut to fit — any picture on it moved along
+    ///     with it, to where it is drawn in the box (#580).
+    /// </summary>
+    private static Line Row(Line says, bool picked, int inside)
     {
-        List<Span> spans =
-        [
-            new(picked ? "▌" : " ", picked ? Role.Selection : Role.Body),
-            new(" ", Role.Body),
-            .. says,
-        ];
+        var fitted = Clipped(
+            says.After(new Span(picked ? "▌" : " ", picked ? Role.Selection : Role.Body), new Span(" ", Role.Body)),
+            inside);
 
-        var fitted = Clipped(spans, inside);
-        var used = fitted.Sum(span => span.Width);
-
-        return Line.Of(
-        [
-            new Span("│", Role.PanelBorder),
-            .. fitted,
-            new Span(new string(' ', Math.Max(0, inside - used)), Role.Body),
-            new Span("│", Role.PanelBorder),
-        ]);
+        return fitted
+               .After(new Span("│", Role.PanelBorder))
+               .Then(
+                   new Span(new string(' ', Math.Max(0, inside - fitted.Width)), Role.Body),
+                   new Span("│", Role.PanelBorder));
     }
 
-    /// <summary>As many of <paramref name="spans" /> as fit in <paramref name="width" /> columns, the last one cut.</summary>
-    private static List<Span> Clipped(IEnumerable<Span> spans, int width)
+    /// <summary>
+    ///     As much of <paramref name="line" /> as fits in <paramref name="width" /> columns, the last of its text cut —
+    ///     but a custom emoji's box kept whole or dropped whole with the rest, never cut in half (ADR-0035), and only
+    ///     the pictures whose boxes are kept still set into it.
+    /// </summary>
+    private static Line Clipped(Line line, int width)
     {
         var kept = new List<Span>();
         var left = width;
 
-        foreach (var span in spans)
+        foreach (var span in line.Spans)
         {
-            if (left <= 0)
+            if (left <= 0 || (span.CustomEmoji is not null && span.Width > left))
             {
                 break;
             }
@@ -125,6 +124,11 @@ public static class PickLines
             left -= Glyphs.Columns(cut);
         }
 
-        return kept;
+        var used = width - left;
+
+        return line.Respanned(kept) with
+        {
+            Insets = [.. line.Insets.Where(inset => inset.Column + inset.Columns <= used)],
+        };
     }
 }

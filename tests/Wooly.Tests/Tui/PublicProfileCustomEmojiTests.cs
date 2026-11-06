@@ -42,8 +42,35 @@ public class PublicProfileCustomEmojiTests
         Assert.False(List(drawn).Visible);
     }
 
-    /// <summary>The form opened with <c>E</c> on <b>You</b>, and the typing walked down into the bio at its foot.</summary>
-    private static async Task<DrawnShell> InTheBio()
+    /// <summary>
+    ///     On a terminal drawing Kitty's placeholders, the bio's list draws each emoji's picture before its shortcode, as
+    ///     the post's does (#580): two placeholder cells after the mark, naming the image sent at a custom emoji's size.
+    /// </summary>
+    [Fact]
+    public async Task OnKittyPlaceholders_ARowDrawsItsEmojisPictureBeforeItsShortcode()
+    {
+        var terminal = new FakeTerminalImages();
+
+        using var drawn = await InTheBio(
+            new FakePictures().HoldingCustomEmoji(FakeInstanceEmoji.Emoji("blobcat")),
+            terminal);
+
+        Type(drawn, "hi :bl");
+
+        var list = List(drawn).FrameToScreen();
+        var sent = Assert.Single(terminal.Transmitted, image => (image.Columns, image.Rows) == (2, 1));
+        var cells = CustomEmojiTests.Placeholders(drawn).Where(cell => list.Contains(cell.Column, cell.Row)).ToList();
+
+        Assert.Equal([(list.Y + 1, list.X + 3), (list.Y + 1, list.X + 4)], cells.Select(cell => (cell.Row, cell.Column)));
+        Assert.All(cells, cell => Assert.Equal(sent.Id, cell.Id));
+        Assert.Equal(" :blobcat:", CustomEmojiTests.Text(drawn, list.Y + 1, list.X + 5, 10));
+    }
+
+    /// <summary>
+    ///     The form opened with <c>E</c> on <b>You</b>, and the typing walked down into the bio at its foot — on a
+    ///     terminal drawing Kitty's placeholders from <paramref name="pictures" /> where they are said.
+    /// </summary>
+    private static async Task<DrawnShell> InTheBio(FakePictures? pictures = null, FakeTerminalImages? terminal = null)
     {
         var built = new AShell
         {
@@ -52,7 +79,17 @@ public class PublicProfileCustomEmojiTests
             Emoji = FakeInstanceEmoji.Offering("blobcat", "thinking"),
         };
 
-        var drawn = await DrawnShell.Of(80, 30, Themes.Plain, built);
+        var drawn = pictures is null
+            ? await DrawnShell.Of(80, 30, Themes.Plain, built)
+            : await DrawnShell.Of(
+                80,
+                30,
+                Themes.Plain,
+                built,
+                pictures: pictures,
+                kittyImages: terminal,
+                drawsPlaceholders: true,
+                raster: ARaster.Placeholders());
 
         drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Profile));
         drawn.Settle();

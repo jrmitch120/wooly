@@ -1,3 +1,4 @@
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 
@@ -15,7 +16,7 @@ internal sealed class MentionOffering(Shell.Shell shell) : IHangingOffering
     public IReadOnlyList<HangingOffer> Matching(HangingWord word, bool typed, bool newWord) =>
     [
         .. shell.PeopleMatching(word.Query).Select(person => new HangingOffer(
-            picked => MentionLines.Row(person, picked, word.Query),
+            picked => new Line([.. MentionLines.Row(person, picked, word.Query)]),
             MentionLines.Columns(person),
             () => $"{shell.MentionOf(person)} ")),
     ];
