@@ -1,3 +1,4 @@
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Shell;
 
 namespace Wooly.Tui.Views;
@@ -25,21 +26,30 @@ internal interface IHangingOffering
     int? In(string line, int caret) => At(line, caret)?.Start;
 
     /// <summary>
-    ///     Told, before anything is offered on it, that the list is about to offer on a word of this kind for the first
-    ///     time since the caret came into it: a word the caret stays in — typed on, taken back below what opens it, or
-    ///     gone inside and back to its end — is told once. Nothing is done with it by default.
+    ///     Told that the caret has come into a word of this kind, as soon as it has — its sign alone, before it has the
+    ///     letters to open on (#528): a word the caret stays in — typed on, taken back below what opens it, or gone
+    ///     inside and back to its end — is told once. Nothing is done with it by default.
     /// </summary>
     void Entering()
     {
     }
 
     /// <summary>
-    ///     Told, before anything is offered, that a keystroke in the editor follows the word — an edit or a caret move —
-    ///     rather than a redraw on a change of the shell's. Nothing is done with it by default.
+    ///     Told, before anything is offered, that what came in since may be offered now: on a keystroke in the editor
+    ///     that follows the word — an edit or a caret move — and on a redraw while the list stands open on this same
+    ///     word <see cref="Awaiting" /> it, but never on any other redraw on a change of the shell's, so the list never
+    ///     jumps open by itself. Nothing is done with it by default.
     /// </summary>
-    void Typed()
+    void TakeUp()
     {
     }
+
+    /// <summary>
+    ///     The row the list stands open on, nothing to pick, where nothing is <see cref="Matching" /> the word because
+    ///     what would match it is still on its way — or <see langword="null" />, which keeps the list closed. Nothing is
+    ///     ever on its way by default.
+    /// </summary>
+    Line? Awaiting() => null;
 
     /// <summary>What is on offer for <paramref name="word" />, best first; nothing, which keeps the list closed.</summary>
     /// <param name="word">The word the caret is at the end of.</param>
