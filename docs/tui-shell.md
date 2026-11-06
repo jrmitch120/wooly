@@ -1798,8 +1798,8 @@ typing one in the edit public profile form's bio (#408):
 - **The list hung under an editor's word is one list, whatever it offers (#576).** `HangingList` is the list, once per
   editor: its keys, the pointer, the memory of a word `esc` closed, the placement under the caret on the word's sign
   with its flip above, the hint along its foot, and replacing the word with the pick as one undoable edit. What a word
-  is, what matches it, what a row says and what a pick writes are an `IHangingOffering`'s, one per kind of word, and
-  the caret is at the end of one kind at most. The people to mention, on an @-word, are one offering
+  is, what matches it, what a row says, what a pick writes, and the row the list waits on while what would match is on
+  its way are an `IHangingOffering`'s, one per kind of word, and the caret is at the end of one kind at most. The people to mention, on an @-word, are one offering
   (`MentionOffering`), and every rule above and below is theirs; the instance's custom emoji, on a `:`-word, are the
   other (`EmojiOffering`), whose own rules follow. The keys, the pointer, `esc`'s memory, where it hangs and the
   single undo are the same for both.
@@ -1814,8 +1814,10 @@ typing one in the edit public profile form's bio (#408):
   shortcode typed in full stays, first. A row is the emoji's picture, a space, then `:shortcode:` in `custom-emoji`
   with the letters typed in `mention` (#580); where the Raster draws nothing, or pictures are off, it is the
   shortcode alone. Picking writes `:shortcode:` and a space in place of the word, as one undoable edit. They are read
-  on the first `:` that starts a word, bare, before any shortcode letters follow it (#528) — never on composing, nor on
-  a `:` inside or ending a word, though an emoticon like `:)` may cost that one read — and kept by instance for the
+  on the first `:` typed that starts a word, bare, before any shortcode letters follow it (#528), or on the first letter
+  typed in a `:`-word already written (`IHangingOffering.TypedIn`) — never on composing, nor on the caret walked or
+  clicked into a `:`-word alone (an edit opening on `:blobcat:`, a bio holding one), nor on a `:` inside or ending a
+  word, though an emoticon like `:)` may cost that one read — and kept by instance for the
   session, in memory only, beside the post limits drafting keeps the same way (`EmojiByInstance`), and never refreshed.
   Nothing about the read reaches the status row.
 - **While they are read, the list says so, and fills in as they land (#528).** While the read is in flight a `:`-word
@@ -1823,7 +1825,11 @@ typing one in the edit public profile form's bio (#408):
   `loading`, hung and lined up as the list is, the row where a shortcode would be, with its usual foot; nothing reaches
   the status row (`IHangingOffering.Awaiting`, `PickList.Note`). It hangs under the line or over it by the room for the
   tallest the list can become (`HangingWord.MostOffered` rows and its edges), not for its own one row, and the list
-  keeps that side on the word once filled, so it never crosses the word as the matches land. It is nothing to pick:
+  keeps that side on the word once filled, so it never crosses the word as the matches land. Its left edge is settled
+  the same way: as the narrowest list's (40 columns, or the editor's width), which the loading row is — on the `:`, or
+  as far left of it as keeps 40 columns in the editor — and the list filled on that word is drawn no wider than the room
+  from there to the editor's right edge, a shortcode too long for it cut at the list's edge, so it never moves sideways
+  either. Both hold until the caret leaves the word. It is nothing to pick:
   `tab`, `⏎`, a click and the wheel on it insert nothing; `esc` and a click outside it close it with the usual memory
   of the word; every other key goes on to the editor. The answer landing on the drawing thread is one redraw of the shell's (`EmojiByInstance.Landed`),
   and a list standing open on the loading row of the word the caret is still at the end of takes it up then, with no
