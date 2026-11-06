@@ -138,10 +138,24 @@ public sealed class Drafting
 
     /// <summary>
     ///     The custom emoji the instance of the profile acted as offers its people to write, as far as they are known
-    ///     (#578) — asking it the first time they are wanted, which is a <c>:</c>-word that would open the list. None while
-    ///     nobody is acted as.
+    ///     (#578, #579); what landed since the last keystroke only where <paramref name="typed" />. None while nobody is
+    ///     acted as.
     /// </summary>
-    public IReadOnlyList<CustomEmoji> EmojiToWrite() => _reach() is { } reach ? _emoji.For(reach.Profile) : [];
+    /// <param name="typed">Whether a keystroke in the editor asks, rather than a redraw.</param>
+    public IReadOnlyList<CustomEmoji> EmojiToWrite(bool typed) =>
+        _reach() is { } reach ? _emoji.For(reach.Profile, typed) : [];
+
+    /// <summary>
+    ///     Asks the instance of the profile acted as for the custom emoji it offers, unless it has answered or is being
+    ///     asked (#579): the first time they are wanted, which is a <c>:</c>-word that would open the list.
+    /// </summary>
+    public void AskForEmoji()
+    {
+        if (_reach() is { } reach)
+        {
+            _emoji.Ask(reach.Profile);
+        }
+    }
 
     /// <summary>
     ///     Carries out <paramref name="verb" /> where it is a draft verb, which is the whole of how the shell's verb route
