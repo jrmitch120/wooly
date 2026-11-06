@@ -165,6 +165,41 @@ public class CustomEmojiReadTests
     }
 
     /// <summary>
+    ///     Near the editor's right edge the loading row is pushed left of the <c>:</c> as the list is, to keep it in the
+    ///     editor; the answer landing never moves it sideways, whether what lands is narrower than the loading row's list
+    ///     or wider — a shortcode too long for the room to the right is cut at the list's edge rather than the list
+    ///     moving off the word.
+    /// </summary>
+    [Theory]
+    [InlineData("blobcat")]
+    [InlineData("blobcat_with_a_shortcode_far_too_long_to_fit")]
+    public async Task NearTheRightEdgeTheAnswerLandingNeverMovesTheListSideways(string shortcode)
+    {
+        var emoji = FakeInstanceEmoji.Offering(shortcode);
+        emoji.Holding = true;
+
+        using var drawn = await ComposedView.Of(new AShell { Emoji = emoji });
+        var editor = drawn.Editor.FrameToScreen();
+
+        drawn.Type($"{new string('x', editor.Width - 10)} :bl");
+
+        var loading = drawn.Hanging.FrameToScreen();
+
+        Assert.Equal(["reading custom emoji…"], Shortcodes(drawn));
+        Assert.Equal(editor.Right, loading.Right);
+
+        Assert.Single(emoji.Held).Land();
+        drawn.Settle();
+
+        var filled = drawn.Hanging.FrameToScreen();
+
+        Assert.True(drawn.Hanging.Visible);
+        Assert.Equal(loading.X, filled.X);
+        Assert.Equal(loading.Y, filled.Y);
+        Assert.True(filled.Right <= editor.Right);
+    }
+
+    /// <summary>
     ///     Typing on in a <c>:</c>-word while its read is in flight asks nothing more and keeps the loading row, as does
     ///     the shell changing under it; the answer landing fills the list in at once, with no keystroke, picked on the
     ///     first, the list growing down from where the loading row hung.
