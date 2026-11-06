@@ -101,6 +101,10 @@ internal sealed class PublicProfileView : View
             {
                 WordWrap = true,
 
+                // A bio's references are drawn as a post's are when someone reads it, and its hashtags and addresses
+                // walked (ADR-0019), so they are painted as they are typed, as a post's are (#573).
+                PaintsReferences = true,
+
                 // tab is the frame's here as everywhere (docs/tui-shell.md): it moves the rail's cursor.
                 TabKeyAddsTab = false,
             },

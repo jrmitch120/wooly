@@ -29,7 +29,8 @@ public class ComposeThemeTests
 
         using var view = await Composing(theme);
 
-        view.Type("Hello there");
+        // With a reference of each kind in it, which are painted in roles of their own (#572).
+        view.Type("Hello #there @ben@hachyderm.io https://a.io/x");
 
         var answered = Enum.GetValues<Role>()
                            .SelectMany(role => new[] { theme.For(role), theme.Banded(role) })
