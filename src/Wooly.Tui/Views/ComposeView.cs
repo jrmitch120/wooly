@@ -165,7 +165,8 @@ internal sealed class ComposeView : View
             theme,
             _editor,
             () => _shell.Screen is ComposeScreen { WritingTheWarning: false },
-            new MentionOffering(shell));
+            new MentionOffering(shell),
+            new EmojiOffering(drafting));
         _editor.Ahead = _hanging.Took;
 
         // ctrl-p is the frame's here as everywhere (ADR-0020, #373), where TextView would take it for a line up.

@@ -58,6 +58,7 @@ try
         provider.GetRequiredService<IFollowSuggestions>(),
         provider.GetRequiredService<IRateLimitReport>(),
         provider.GetRequiredService<IInstanceLimits>(),
+        provider.GetRequiredService<IInstanceEmoji>(),
         provider.GetRequiredService<IAccountDefaults>(),
         provider.GetRequiredService<IInboxStream>(),
         provider.GetRequiredService<IPublicProfileEditor>());

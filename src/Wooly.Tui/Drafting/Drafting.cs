@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Posts;
@@ -71,6 +72,9 @@ public sealed class Drafting
     /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
     private readonly LimitsByInstance _limits;
 
+    /// <summary>The custom emoji each instance offers its people to write, asked as a <c>:</c>-word first wants them (#578).</summary>
+    private readonly EmojiByInstance _emoji;
+
     /// <summary>
     ///     What each account acted as posts at by default, asked as the session starts acting as it — the fallback for
     ///     what compose starts on after the config's own preferences (ADR-0024, #339).
@@ -122,6 +126,7 @@ public sealed class Drafting
         _preferred = preferred;
         _limits = new LimitsByInstance(ports.Limits, host);
         _limits.Heard += Measured;
+        _emoji = new EmojiByInstance(ports.Emoji, host);
         _defaults = new DefaultsByProfile(ports.Defaults, host);
         _attachments = new AttachmentCalls(ports.Author, host);
         _attachments.Heard += Progressed;
@@ -130,6 +135,13 @@ public sealed class Drafting
     }
 
     private Reach Reach => _reach() ?? throw new InvalidOperationException("Nobody is being acted as.");
+
+    /// <summary>
+    ///     The custom emoji the instance of the profile acted as offers its people to write, as far as they are known
+    ///     (#578) — asking it the first time they are wanted, which is a <c>:</c>-word that would open the list. None while
+    ///     nobody is acted as.
+    /// </summary>
+    public IReadOnlyList<CustomEmoji> EmojiToWrite() => _reach() is { } reach ? _emoji.For(reach.Profile) : [];
 
     /// <summary>
     ///     Carries out <paramref name="verb" /> where it is a draft verb, which is the whole of how the shell's verb route

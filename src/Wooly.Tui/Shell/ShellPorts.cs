@@ -42,6 +42,10 @@ namespace Wooly.Tui.Shell;
 /// </param>
 /// <param name="RateLimit">What the instance last said is left of the budget, for the rail's foot.</param>
 /// <param name="Limits">How long the instance lets a post be, for compose's count (#319).</param>
+/// <param name="Emoji">
+///     The custom emoji the instance offers its people to write, for the list a <c>:</c>-word hangs in the post and the
+///     bio (#578).
+/// </param>
 /// <param name="Defaults">What the account posts at where nothing else says, for what compose starts on (#339).</param>
 /// <param name="Stream">
 ///     The user stream, which keeps the Inbox badges live for the profile acted as (ADR-0027, #401). Told only what
@@ -63,6 +67,7 @@ public sealed record ShellPorts(
     IFollowSuggestions Suggestions,
     IRateLimitReport RateLimit,
     IInstanceLimits Limits,
+    IInstanceEmoji Emoji,
     IAccountDefaults Defaults,
     IInboxStream Stream,
     IPublicProfileEditor PublicProfile)
