@@ -216,7 +216,7 @@ internal sealed class HangingList
             {
                 _awaiting = true;
                 _awaited = _in;
-                _list.Note(new HangingOffer(_ => awaiting, awaiting.Width, () => string.Empty));
+                _list.Note(awaiting);
 
                 return;
             }
