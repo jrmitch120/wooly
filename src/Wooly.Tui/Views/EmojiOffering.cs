@@ -28,6 +28,8 @@ internal sealed class EmojiOffering(Drafting.Drafting drafting, OverlayPictures 
 {
     public HangingWord? At(string line, int caret) => ShortcodeWord.At(line, caret);
 
+    public int? In(string line, int caret) => ShortcodeWord.In(line, caret);
+
     public IReadOnlyList<HangingOffer> Matching(HangingWord word, bool typed, bool newWord)
     {
         if (newWord)

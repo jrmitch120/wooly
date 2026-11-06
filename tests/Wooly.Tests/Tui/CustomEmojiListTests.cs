@@ -79,6 +79,32 @@ public class CustomEmojiListTests
     }
 
     /// <summary>
+    ///     The list opens only with the caret at the end of the word: moved back inside it, where the word's letters
+    ///     carry on after the caret, it closes, and picking could not leave the rest of the word behind; back at the end,
+    ///     it opens again.
+    /// </summary>
+    [Fact]
+    public async Task TheListOpensOnlyWithTheCaretAtTheEndOfTheWord()
+    {
+        using var drawn = await Composing("blobcat", "blobfox");
+
+        Type(drawn, "hi :blobcat");
+
+        Assert.True(List(drawn).Visible);
+
+        for (var back = 0; back < "obcat".Length; back++)
+        {
+            drawn.Press(Key.CursorLeft);
+        }
+
+        Assert.False(List(drawn).Visible);
+
+        drawn.Press(Key.End);
+
+        Assert.True(List(drawn).Visible);
+    }
+
+    /// <summary>
     ///     Shortcodes starting with what was typed come before those that only hold it; within each, the shorter come
     ///     first and then the alphabetical, case ignored throughout; and there are five at most.
     /// </summary>
@@ -222,6 +248,8 @@ public class CustomEmojiListTests
         Assert.False(List(drawn).Visible);
 
         Type(drawn, "ob");
+        drawn.Press(Key.CursorLeft);
+        drawn.Press(Key.End);
 
         Assert.False(List(drawn).Visible);
 

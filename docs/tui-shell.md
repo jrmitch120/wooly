@@ -1798,8 +1798,10 @@ typing one in the edit public profile form's bio (#408):
   single undo are the same for both.
 - **It offers custom emoji on a `:`-word (#528, #578).** A `:` starts one only at the start of a line or after
   whitespace; it runs over letters, digits and `_` — a Mastodon shortcode's letters — up to the caret, and opens the
-  list once two of them follow the `:` (`ShortcodeWord`). So `10:30`, `note: x`, `re:thing`, `http://`, `:)` and `:D`
-  open nothing, and typing the closing `:` ends the word and closes the list. The emoji are the instance's own, those
+  list once two of them follow the `:`, and only with the caret at its end, none of them after it (`ShortcodeWord`).
+  So `10:30`, `note: x`, `re:thing`, `http://`, `:)` and `:D` open nothing, the caret moved back inside `:blobcat`
+  closes the list rather than offering to write over half a word, and typing the closing `:` ends the word and closes
+  the list. The emoji are the instance's own, those
   its picker shows (`IInstanceEmoji`, `GET /api/v1/custom_emojis`), matched on the shortcode alone, case ignored:
   those starting with the query, then those holding it, each shorter first then alphabetical, five at most — so a
   shortcode typed in full stays, first. A row is the emoji's picture, a space, then `:shortcode:` in `custom-emoji`
@@ -1812,9 +1814,10 @@ typing one in the edit public profile form's bio (#408):
   stays closed and nobody asks again. An answer that lands after the keystroke that asked is kept but offered only
   from the next keystroke in an editor — an edit or a caret move — so a redraw on a change of the shell's (an inbox
   poll, people to mention landing) never opens the list by itself. A read that answers nothing is asked again on the
-  next new `:`-word, never twice for the same one: a word is new when the caret comes to its end having been at the
-  end of no `:`-word, or another, the time before — the same rule that ends `esc`'s memory, so typing on, deleting
-  back short of two letters, or moving within the word asks nothing. Nothing reaches the status row, in flight, failed
+  next new `:`-word, never twice for the same one: the same word is the same `:` in the same editor, with the caret
+  never having left it — at its end, inside it, or after a `:` with fewer than two letters yet — so typing on,
+  deleting back short of two letters and typing them again, or moving within the word asks nothing; the caret leaving
+  it, past its `:` or out of its letters, makes the next one new. The same rule ends `esc`'s memory of a word. Nothing reaches the status row, in flight, failed
   or refused; a refused token is said by the reads that fill the screen. An instance that offers none never opens the
   list and is not asked again. Kept by instance, two profiles on one instance share one read, and switching away and
   back reads nothing; a profile on another instance is read on its own first `:`-word.
