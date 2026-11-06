@@ -297,10 +297,17 @@ internal sealed class HangingList
     /// </summary>
     private Size Size()
     {
-        var caret = _editor.Caret.Y;
         var width = Sided ? _editor.Frame.Right - Left(PickLines.LeastWidth) : _editor.Frame.Width;
 
-        return _list.Within(width, Math.Max(_editor.Frame.Bottom - caret - 1, caret));
+        return _list.Within(width, Room());
+    }
+
+    /// <summary>The more rows there are under the caret's row before the editor's foot, or over it.</summary>
+    private int Room()
+    {
+        var caret = _editor.Caret.Y;
+
+        return Math.Max(_editor.Frame.Bottom - caret - 1, caret);
     }
 
     /// <summary>
@@ -353,11 +360,5 @@ internal sealed class HangingList
     ///     The most rows the list can be drawn in, edges and all, as <see cref="Size" /> would draw it offering
     ///     <see cref="HangingWord.MostOffered" />; never less than the <paramref name="height" /> it is drawn in now.
     /// </summary>
-    private int Tallest(int height)
-    {
-        var caret = _editor.Caret.Y;
-        var room = Math.Max(_editor.Frame.Bottom - caret - 1, caret);
-
-        return Math.Max(height, Math.Min(HangingWord.MostOffered + PickLines.Edges, room));
-    }
+    private int Tallest(int height) => Math.Max(height, Math.Min(HangingWord.MostOffered + PickLines.Edges, Room()));
 }
