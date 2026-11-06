@@ -100,6 +100,22 @@ internal sealed class ShownPictures : IDisposable
         }
     }
 
+    /// <summary>
+    ///     Through a box, every picture shown and the cells it shows in, as of the last frame written — two pictures
+    ///     showing in one cell, as a Kitty placement left under another would, both there.
+    /// </summary>
+    public List<(Point Cell, string Id)> Showing() =>
+        _way switch
+        {
+            PictureWay.Kitty => [.. _placed.SelectMany(placed => placed.Value.SelectMany(Within).Select(cell => (cell, placed.Key)))],
+            PictureWay.Sixel => [.. _boxed.Select(boxed => (boxed.Key, boxed.Value))],
+            _ => throw new InvalidOperationException("Kitty's placeholders are read off the cells, not through a box."),
+        };
+
+    /// <summary>The pixels of the picture the driver holds under <paramref name="id" />, as it was last handed them.</summary>
+    public Terminal.Gui.Drawing.Color[,] Pixels(string id) =>
+        _drawn.Application.Driver!.GetOutputBuffer().GetRasterImages().Single(image => image.Id == id).Pixels!;
+
     public void Dispose()
     {
         _drawn.Window.DrawComplete -= Writing;
