@@ -54,8 +54,8 @@ internal sealed class ComposedView : IDisposable
 
     public ComposeLangField Lang => View.SubViews.OfType<ComposeLangField>().Single();
 
-    /// <summary>The list of people to mention, among the view's own (#366).</summary>
-    public PaintedView Mentions => List(MentionList.Id);
+    /// <summary>The list hung under the word being typed in the post, among the view's own (#366, #576).</summary>
+    public PaintedView Hanging => List(HangingList.Id);
 
     /// <summary>The list of languages, among the view's own (#366).</summary>
     public PaintedView Languages => List(LanguageList.Id);

@@ -45,8 +45,8 @@ internal sealed class ComposeView : View
     /// </summary>
     private readonly ComposeMediaField _media;
 
-    /// <summary>The people to mention, hung under the @-word being typed in the post (#318).</summary>
-    private readonly MentionList _mentions;
+    /// <summary>The list hung under the word being typed in the post: the people to mention on an @-word (#318, #576).</summary>
+    private readonly HangingList _hanging;
 
     /// <summary>The languages, hung under Lang (#340).</summary>
     private readonly LanguageList _languages;
@@ -161,8 +161,12 @@ internal sealed class ComposeView : View
         _editor.HasFocusChanged += (_, focus) => TypingMoved(focus.NewValue, ComposeField.Post);
 
         // The lists hang under the fields they serve, laid in this view after the fields so they draw over them.
-        _mentions = new MentionList(theme, shell, _editor, () => _shell.Screen is ComposeScreen { WritingTheWarning: false });
-        _editor.Ahead = _mentions.Took;
+        _hanging = new HangingList(
+            theme,
+            _editor,
+            () => _shell.Screen is ComposeScreen { WritingTheWarning: false },
+            new MentionOffering(shell));
+        _editor.Ahead = _hanging.Took;
 
         // ctrl-p is the frame's here as everywhere (ADR-0020, #373), where TextView would take it for a line up.
         _editor.KeyBindings.Remove(Key.P.WithCtrl);
@@ -181,13 +185,13 @@ internal sealed class ComposeView : View
             shell,
             () => _shell.Screen is ComposeScreen,
             () => [_editor, _to, _lang, _warning, _media],
-            mouse => _mentions.ClosedBy(mouse) || _languages.ClosedBy(mouse));
+            mouse => _hanging.ClosedBy(mouse) || _languages.ClosedBy(mouse));
 
         // A question open on the status row takes every key ahead of whichever field has the typing, since the fields
         // take their keys before the window sees them (#373).
         _editor.Answering = _to.Answering = _lang.Answering = _warning.Answering = _media.Answering = _draft.Answered;
 
-        Add(_editor, _to, _lang, _warning, _media, _mentions.View, _languages.View);
+        Add(_editor, _to, _lang, _warning, _media, _hanging.View, _languages.View);
 
         _shell.Changed += Refresh;
 
@@ -309,7 +313,7 @@ internal sealed class ComposeView : View
 
         // After the editor has been shown or hidden, and on every change of the shell's — a profile switch, or more
         // people arriving — since either can change what the word being typed matches.
-        _mentions.Follow();
+        _hanging.Follow();
 
         SetNeedsDraw();
     }

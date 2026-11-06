@@ -1788,12 +1788,18 @@ typing one in the edit public profile form's bio (#408):
 - **It is one list any compose field can offer rows to (#335).** Being a list — the pick, the scroll, the box, the keys
   and the pointer — is `PickList<T>` and `PickLines`, once; what a row says, where the list hangs and what picking does
   are the field's. The people to mention are the first such list, and the language list (#340) the second.
+- **The list hung under an editor's word is one list, whatever it offers (#576).** `HangingList` is the list, once per
+  editor: its keys, the pointer, the memory of a word `esc` closed, the placement under the caret on the word's sign
+  with its flip above, the hint along its foot, and replacing the word with the pick as one undoable edit. What a word
+  is, what matches it, what a row says and what a pick writes are an `IHangingOffering`'s, one per kind of word, and
+  the caret is at the end of one kind at most. The people to mention, on an @-word, are the only offering so far
+  (`MentionOffering`), so every rule above and below is theirs.
 - **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
   on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
   as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that
   word. Closed, it takes nothing: `⏎` adds a line and `esc` throws the draft away, as they always have. Never in the
   warning.
-- **The bio's list is the post's (#408).** `MentionList` is told by the view that lays it beside its editor when it may
+- **The bio's list is the post's (#408).** `HangingList` is told by the view that lays it beside its editor when it may
   open — compose while the typing is in the post, the edit public profile form while it is in front — and that view
   plugs it into its editor's `Ahead`. The people, the matching, the keys and the pointer are all the same; `esc` on it
   closes the list, never the form, and with it closed `esc` leaves the form as it always does.
