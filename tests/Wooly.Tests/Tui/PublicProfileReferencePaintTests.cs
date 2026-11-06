@@ -91,22 +91,6 @@ public class PublicProfileReferencePaintTests
     }
 
     /// <summary>The cells of the bio's first row, from its first column, are each run of text in its role, in turn.</summary>
-    private static void AssertDrawn(DrawnShell drawn, params (string Text, Role Role)[] runs)
-    {
-        var at = Bio(drawn).FrameToScreen();
-        var row = drawn.Rows()[at.Y];
-        var column = at.X;
-
-        foreach (var (text, role) in runs)
-        {
-            Assert.Equal(text, row.Substring(column, text.Length));
-
-            for (var i = 0; i < text.Length; i++, column++)
-            {
-                Assert.True(
-                    Themes.Dark.For(role) == drawn.Cell(at.Y, column),
-                    $"'{row[column]}' at column {column - at.X} of the bio is not {role}");
-            }
-        }
-    }
+    private static void AssertDrawn(DrawnShell drawn, params (string Text, Role Role)[] runs) =>
+        DrawnRuns.AssertDrawn(drawn.Application.Driver!.Contents!, Bio(drawn), 0, Themes.Dark, runs);
 }

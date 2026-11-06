@@ -73,17 +73,15 @@ internal sealed class ComposeEditor(
     ///     Whether the hashtags, mentions and addresses written here are painted in their roles as they are typed
     ///     (#571) — by the rule a post's text is read by, <see cref="BodyText.References" />, so what is written looks
     ///     the way it will read once sent. Colour only: no character is drawn that was not typed, and nothing here is
-    ///     walked, picked or opened, so caret, selection, wrap and undo are what they were. On for what is walked as a
-    ///     post's text is once read — compose's body, and the edit public profile form's bio (#573, ADR-0019) — and
-    ///     off, as it is unless set, for what is never walked, such as an attachment's description.
+    ///     walked, picked or opened, so caret, selection, wrap and undo are what they were. On for what is read as a
+    ///     post's text is — compose's body (#572), and the edit public profile form's bio (#573), whose references are
+    ///     drawn as a post's are when read and whose hashtags and addresses are walked (ADR-0019) — and off, as it is
+    ///     unless set, for what is never walked, such as an attachment's description.
     /// </summary>
     public bool PaintsReferences { get; init; }
 
-    /// <summary>
-    ///     The role of each letter drawn, a row of the editor at a time and a letter of the row at a time, where it is
-    ///     in a reference — <see langword="null" /> where it is not — as found when the editor last drew.
-    /// </summary>
-    private Role?[][] _painted = [];
+    /// <summary>The role of each letter drawn where it is in a reference, as found when the editor last drew.</summary>
+    private WrittenRoles _painted = WrittenRoles.None;
 
     /// <summary>
     ///     Every visual role Terminal.Gui asks for, answered from the theme: text in <see cref="Role.Body" /> on the
@@ -111,7 +109,7 @@ internal sealed class ComposeEditor(
     /// </summary>
     protected override bool OnDrawingContent(DrawContext? context)
     {
-        _painted = PaintsReferences ? Painted(Text, GetAllLines()) : [];
+        _painted = PaintsReferences ? WrittenRoles.Of(Text, GetAllLines()) : WrittenRoles.None;
 
         var drawn = base.OnDrawingContent(context);
 
@@ -130,14 +128,13 @@ internal sealed class ComposeEditor(
     ///     reference.
     /// </summary>
     /// <remarks>
-    ///     <paramref name="idxRow" /> and <paramref name="idxCol" /> are where the letter is drawn, on the rows the
-    ///     text wrapped to. The references were found on the whole text, as a post's are (#83), so the letter is looked
-    ///     up where it is written in that — which is what keeps an address wrapped across rows one address.
+    ///     <paramref name="idxRow" /> and <paramref name="idxCol" /> are where the letter is in the text as wrapped:
+    ///     a row of the whole of it, counted from its first, not from the first on screen — so a post scrolled down is
+    ///     looked up where it is written, not where it is drawn.
     /// </remarks>
     protected override void OnDrawNormalColor(List<Cell> line, int idxCol, int idxRow)
     {
-        if (idxRow >= 0 && idxRow < _painted.Length && idxCol >= 0 && idxCol < _painted[idxRow].Length
-            && _painted[idxRow][idxCol] is { } role)
+        if (_painted.At(idxRow, idxCol) is { } role)
         {
             SetAttribute(theme.For(role));
 
@@ -146,54 +143,6 @@ internal sealed class ComposeEditor(
 
         base.OnDrawNormalColor(line, idxCol, idxRow);
     }
-
-    /// <summary>
-    ///     The role of each letter on each of <paramref name="rows" /> — the editor's rows, wrapped where it wraps —
-    ///     from the references found in the whole of <paramref name="text" />.
-    /// </summary>
-    /// <remarks>
-    ///     A row's letters are found in the text in turn, stepping over whatever whitespace the wrap took up between
-    ///     them, since the rows are all the editor says about where it broke the text. Whitespace is in no reference,
-    ///     so a space the wrap kept or dropped can never put a letter of one out of place.
-    /// </remarks>
-    private static Role?[][] Painted(string text, List<List<Cell>> rows)
-    {
-        var roles = new Role?[text.Length];
-
-        foreach (var reference in BodyText.References(text))
-        {
-            Array.Fill(roles, reference.Role, reference.At, reference.Text.Length);
-        }
-
-        var painted = new Role?[rows.Count][];
-        var at = 0;
-
-        for (var row = 0; row < rows.Count; row++)
-        {
-            painted[row] = new Role?[rows[row].Count];
-
-            for (var column = 0; column < rows[row].Count; column++)
-            {
-                var letter = rows[row][column].Grapheme;
-
-                while (at < text.Length && !Written(text, at, letter) && char.IsWhiteSpace(text[at]))
-                {
-                    at++;
-                }
-
-                if (letter.Length > 0 && Written(text, at, letter))
-                {
-                    painted[row][column] = roles[at];
-                    at += letter.Length;
-                }
-            }
-        }
-
-        return painted;
-    }
-
-    private static bool Written(string text, int at, string letter) =>
-        at + letter.Length <= text.Length && string.CompareOrdinal(text, at, letter, 0, letter.Length) == 0;
 
     /// <summary>
     ///     Where the caret is, in the coordinates the editor's own frame is laid in — on the row the text wrapped it

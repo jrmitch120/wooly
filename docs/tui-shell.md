@@ -2945,10 +2945,12 @@ them. Three things follow from where they are found:
   mention is painted whether or not it resolves — nothing is looked up while typing — and while the list of people to
   mention is open. It is colour only: no `‹ ›` is drawn, nothing is walked, picked or opened, and caret, selection,
   wrap and undo are untouched; selected text stays `selected-text` over a reference. The whole text is scanned, not a
-  row, so an address wrapped across rows is painted on each. Painting is chosen per editor: on for a post's body (a
-  new post, a reply, a direct message, an edit) and for the edit public profile form's **Bio** (#573), whose
-  references are walked once someone reads it (ADR-0019); off for an attachment's description, which nothing walks;
-  the content-warning field is a field of its own and stays plain.
+  row, so an address wrapped across rows is painted on each, and a post scrolled down is painted on the rows scrolled
+  to. Painting is chosen per editor: on for a post's body (#572: a new post, a reply, a direct message, an edit) and
+  for the edit public profile form's **Bio** (#573), whose references are drawn as a post's are when someone reads it,
+  and whose hashtags and addresses are walked (ADR-0019); off for an attachment's description, which nothing walks;
+  the content-warning field is a field of its own and stays plain. ADR-0014's amendment for #571 records the
+  reversal.
 
 ## A theme
 

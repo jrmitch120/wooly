@@ -1,3 +1,5 @@
+using Terminal.Gui.Drivers;
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
@@ -110,6 +112,81 @@ public class ComposeReferencePaintTests
         AssertDrawn(view, 1, (address[broken..], Role.Link), (" ok", Role.Body));
     }
 
+    /// <summary>
+    ///     A wide emoji, a joined emoji sequence, or a letter typed with a combining accent, which the editor draws
+    ///     composed, before a reference leaves the reference painted, and everything after it.
+    /// </summary>
+    [Theory]
+    [InlineData("\U0001F600")]
+    [InlineData("\U0001F469\u200D\U0001F4BB")]
+    [InlineData("e\u0301")]
+    public async Task AWideOrCombinedLetterBeforeAReferenceLeavesItPainted(string letter)
+    {
+        using var view = await ComposedView.Of();
+
+        Write(view, "hi " + letter + " #rustlang ok @ben@hachyderm.io");
+
+        AssertDrawn(
+            view,
+            0,
+            ("hi " + letter + " ", Role.Body),
+            ("#rustlang", Role.Hashtag),
+            (" ok ", Role.Body),
+            ("@ben@hachyderm.io", Role.Mention));
+    }
+
+    /// <summary>
+    ///     A letter typed with a combining accent on the first row leaves an address wrapped across the rows after it
+    ///     painted on each.
+    /// </summary>
+    [Fact]
+    public async Task ACombinedLetterBeforeAWrappedAddressLeavesItPaintedOnEachRow()
+    {
+        using var view = await ComposedView.Of();
+
+        var width = view.Editor.Viewport.Width;
+        var address = "https://example.com/" + new string('a', width);
+
+        // The accent typed, and the rest pasted in one go, so the editor wraps it once.
+        view.Type("e\u0301");
+        view.Paste(" " + address + " ok");
+
+        Assert.Contains("e\u0301", view.Editor.Text, StringComparison.Ordinal);
+
+        // The address does not fit beside the letter, so the editor breaks it from the next row on.
+        var at = view.Editor.FrameToScreen();
+        var broken = view.Rows()[at.Y + 1].Substring(at.X, width).TrimEnd().Length;
+
+        Assert.InRange(broken, "https://example.com/".Length, address.Length - 1);
+
+        AssertDrawn(view, 0, ("e\u0301", Role.Body));
+        AssertDrawn(view, 1, (address[..broken], Role.Link));
+        AssertDrawn(view, 2, (address[broken..], Role.Link), (" ok", Role.Body));
+    }
+
+    /// <summary>
+    ///     A post taller than the editor, scrolled down to its last row, paints the references on the rows scrolled to,
+    ///     and only those written there.
+    /// </summary>
+    [Fact]
+    public async Task AReferenceOnARowScrolledToIsPainted()
+    {
+        using var view = await ComposedView.Of();
+
+        var rows = view.Editor.Viewport.Height;
+
+        view.Paste(string.Join('\n', Enumerable.Range(1, rows * 2).Select(row => $"row {row}")));
+        view.Press(Key.Enter);
+        view.Type("hi #rustlang");
+
+        Assert.True(view.Editor.Viewport.Y > 0, "the editor has not scrolled");
+
+        var last = view.Editor.CurrentRow - view.Editor.Viewport.Y;
+
+        AssertDrawn(view, last, ("hi ", Role.Body), ("#rustlang", Role.Hashtag));
+        AssertDrawn(view, last - 1, ($"row {rows * 2}", Role.Body));
+    }
+
     /// <summary>Deleting into a tag, or typing a space inside it, un-paints what is no longer a reference.</summary>
     [Fact]
     public async Task WhatIsNoLongerAReferenceIsNoLongerPainted()
@@ -162,25 +239,63 @@ public class ComposeReferencePaintTests
     }
 
     /// <summary>
+    ///     A direct message — a reply to one, which goes to the same people — opens on the mentions it is delivered to,
+    ///     and they are painted.
+    /// </summary>
+    [Fact]
+    public async Task ADirectMessagesMentionsArePainted()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "220", account: "ben@hachyderm.io", visibility: PostVisibility.Direct)),
+        };
+
+        using var view = await ComposedView.Of(built, ComposeFor.Reply);
+
+        Assert.Equal(PostVisibility.Direct, view.Compose.Visibility);
+        AssertDrawn(view, 0, ("@ben@hachyderm.io", Role.Mention), (" ", Role.Body));
+    }
+
+    /// <summary>An edit of a post already sent opens on its text, and the references in it are painted.</summary>
+    [Fact]
+    public async Task AnEditsOpeningTextIsPainted()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110", account: "jeff@mastodon.social", content: "hi #rustlang at https://a.io/x")),
+        };
+
+        using var view = await ComposedView.Of(built, ComposeFor.Edit);
+
+        AssertDrawn(
+            view,
+            0,
+            ("hi ", Role.Body),
+            ("#rustlang", Role.Hashtag),
+            (" at ", Role.Body),
+            ("https://a.io/x", Role.Link));
+    }
+
+    /// <summary>
+    ///     Each letter of <paramref name="text" /> typed in turn, a letter outside the keyboard's plane — an emoji —
+    ///     included, as the terminal hands it over: as one key.
+    /// </summary>
+    private static void Write(ComposedView view, string text)
+    {
+        foreach (var letter in text.EnumerateRunes())
+        {
+            view.Window.NewKeyDownEvent(letter.IsBmp ? new Key((char)letter.Value) : new Key((KeyCode)letter.Value));
+        }
+
+        view.Redraw();
+    }
+
+    /// <summary>
     ///     The cells of the editor's <paramref name="row" />, from its first column, are each run of text in its role,
     ///     in turn.
     /// </summary>
-    private static void AssertDrawn(ComposedView view, int row, params (string Text, Role Role)[] runs)
-    {
-        var at = view.Editor.FrameToScreen();
-        var drawn = view.Rows()[at.Y + row];
-        var column = at.X;
-
-        foreach (var (text, role) in runs)
-        {
-            Assert.Equal(text, drawn.Substring(column, text.Length));
-
-            for (var i = 0; i < text.Length; i++, column++)
-            {
-                Assert.True(
-                    Themes.Dark.For(role) == view.Cell(at.Y + row, column),
-                    $"'{drawn[column]}' at column {column - at.X} of row {row} is not {role}");
-            }
-        }
-    }
+    private static void AssertDrawn(ComposedView view, int row, params (string Text, Role Role)[] runs) =>
+        DrawnRuns.AssertDrawn(view.Application.Driver!.Contents!, view.Editor, row, Themes.Dark, runs);
 }
