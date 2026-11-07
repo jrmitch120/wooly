@@ -397,3 +397,14 @@ ImageSharp moved to 4.x after all. A clone of this repository still builds: with
 warns in a Debug build, and the build and tests carry on. A Release build fails without one, so CI and the release
 workflow pass the key from the `SIXLABORS_LICENSE_KEY` repository secret, and a local Release build finds it in a
 git-ignored `sixlabors.lic` at the repository root (`Directory.Build.props`).
+
+## Amendment: a picture landing draws over the screen rather than clearing it (scroll hitches over custom emoji)
+
+A burst of arrivals was announced as one redraw, as above, but a forced one: the screen cleared and every view drawn
+again, which sends every cell and every sixel on the page to the terminal again. Custom emoji double what lands as a
+scroll reaches new posts — each emoji and avatar a picture of its own — so a scroll into them sent the whole page again
+for each burst, and those frames were most of the slow ones. A landing now marks every view to be drawn again and draws
+over what is there (`PicturesLanding`): the page's text is written again as before, but no sixel already on screen is
+sent again, by the rule ADR-0023's amendment for #372 sends one by — only the picture that landed. On Kitty, which sent
+no picture again on a redraw, a landing writes what it did. The views are marked through the application's one top
+view, under which every view drawing a picture sits; a second runnable or a popover would need marking too.

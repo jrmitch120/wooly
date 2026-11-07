@@ -102,17 +102,7 @@ internal sealed class FakePictures : IPictures
     /// </summary>
     public FakePictures HoldingPhotograph(string mediaId, int width, int height)
     {
-        var pixels = new Color[width, height];
-
-        for (var x = 0; x < width; x++)
-        {
-            for (var y = 0; y < height; y++)
-            {
-                pixels[x, y] = new Color((x * 7 + y * 3) % 256, (x * y) % 256, (x * 13 + y * 11) % 256);
-            }
-        }
-
-        _held[mediaId] = new Picture(pixels);
+        _held[mediaId] = APicture.Photograph(width, height);
 
         return this;
     }

@@ -2,6 +2,7 @@ using System.Drawing;
 using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
+using Wooly.Core;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Media;
@@ -9,6 +10,7 @@ using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
 
@@ -20,6 +22,8 @@ namespace Wooly.Tests.Tui;
 /// </summary>
 public class PictureResendTests : IDisposable
 {
+    private static readonly CustomEmoji Php = new("php", "https://files.mastodon.social/emoji/php.png");
+
     private readonly TemporaryDirectory _files = new();
 
     public void Dispose() => _files.Dispose();
@@ -43,6 +47,48 @@ public class PictureResendTests : IDisposable
         }
 
         Assert.Contains(drawn.Rows(), row => row.Contains("5 / 1500", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     A picture landing sends itself, and none of the pictures already on screen again: a scroll into posts whose
+    ///     custom emoji and avatars land one burst after another had every sixel on the page sent again for each burst.
+    /// </summary>
+    [Fact]
+    public async Task APictureLandingSendsItselfAndNoneAlreadyOnScreen()
+    {
+        var pictures = new FakePictures().Holding("m1", 800, 200);
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            50,
+            Themes.Dark,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110"),
+                    APost.With(
+                        id: "220",
+                        content: "I write :php: daily",
+                        customEmoji: [Php],
+                        media: [APost.APicture("m1", shape: new PictureShape(800, 200))])),
+            },
+            pictures: pictures,
+            drawsPictures: true);
+
+        Assert.Equal(1, drawn.SixelsSent());
+
+        pictures.HoldingCustomEmoji(Php);
+        await Task.Run(new PicturesLanding(drawn.Application).Landed, TestContext.Current.CancellationToken);
+        drawn.Application.TimedEvents!.RunTimers();
+
+        var sent = drawn.Application.Driver!.GetOutput().GetLastOutput();
+        var images = drawn.Application.Driver.GetOutputBuffer().GetRasterImages();
+        var emoji = Assert.Single(images, image => image.DestinationCells.Size == new Size(CustomEmojiBox.Columns, CustomEmojiBox.Rows));
+        var photograph = Assert.Single(images, image => image != emoji);
+
+        Assert.Equal(1, drawn.SixelsSent());
+        Assert.Contains(emoji.EncodedSixel!, sent, StringComparison.Ordinal);
+        Assert.DoesNotContain(photograph.EncodedSixel!, sent, StringComparison.Ordinal);
     }
 
     /// <summary>Typing the post sends none of the pictures on the rows under Media again either.</summary>

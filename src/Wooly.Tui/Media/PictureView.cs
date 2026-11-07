@@ -193,7 +193,8 @@ internal sealed class PictureView : ImageView, IPictureBox
         // The image view's own id, which is the one the driver keeps it under from frame to frame.
         var id = $"ImageView_{GetHashCode()}";
 
-        var resend = !OnScreen(buffer, id, sixel, cells);
+        var clip = ClipHandedUnder(buffer.Clip, cells);
+        var resend = !OnScreen(buffer, id, sixel, cells, clip);
 
         SetAttribute(UnderThePicture);
 
@@ -202,14 +203,27 @@ internal sealed class PictureView : ImageView, IPictureBox
             AddStr(0, row, new string(' ', Viewport.Width));
         }
 
-        buffer.AddRasterImage(new RasterImageCommand
+        // The driver takes the clip as it stands when the picture is added, and draws it in as many pieces as that
+        // has rectangles over it.
+        var standing = buffer.Clip;
+
+        buffer.Clip = clip;
+
+        try
         {
-            Id = id,
-            Pixels = sixel.Pixels,
-            EncodedSixel = sixel.Encoded,
-            DestinationCells = cells,
-            IsDirty = resend,
-        });
+            buffer.AddRasterImage(new RasterImageCommand
+            {
+                Id = id,
+                Pixels = sixel.Pixels,
+                EncodedSixel = sixel.Encoded,
+                DestinationCells = cells,
+                IsDirty = resend,
+            });
+        }
+        finally
+        {
+            buffer.Clip = standing;
+        }
 
         _sentOver = buffer.Contents;
         _overdrawn = false;
@@ -254,14 +268,39 @@ internal sealed class PictureView : ImageView, IPictureBox
     ///         </item>
     ///     </list>
     /// </remarks>
-    private bool OnScreen(IOutputBuffer buffer, string id, Sixel sixel, Rectangle cells) =>
+    private bool OnScreen(IOutputBuffer buffer, string id, Sixel sixel, Rectangle cells, Region? clip) =>
         !_overdrawn
         && buffer.Contents is { } contents
         && ReferenceEquals(contents, _sentOver)
         && Held(buffer, id) is { IsDirty: false, AlwaysRender: false } held
         && ReferenceEquals(held.EncodedSixel, sixel.Encoded)
         && held.DestinationCells == cells
-        && LetDraw(buffer.Clip, cells).SequenceEqual(LetDraw(held.Clip, cells));
+        && LetDraw(clip, cells).SequenceEqual(LetDraw(held.Clip, cells));
+
+    /// <summary>
+    ///     The clip the picture in <paramref name="cells" /> is handed to the driver under: just its own cells, where
+    ///     <paramref name="clip" /> lets it draw in every one of them, and <paramref name="clip" /> where it does not.
+    /// </summary>
+    /// <remarks>
+    ///     A clip is held as rectangles, and the driver draws a picture in one piece for each of them it overlaps,
+    ///     encoding each piece again on the spot rather than sending the sixel it was handed. A custom emoji's box, drawn
+    ///     before the avatar beside it, takes its two cells out of the clip and leaves the avatar's rows over two
+    ///     rectangles though none of it is covered — so every avatar and photograph in a row with a custom emoji was
+    ///     encoded again on every frame that sent it, which is what made a scroll over them hitch.
+    /// </remarks>
+    private static Region? ClipHandedUnder(Region? clip, Rectangle cells)
+    {
+        if (clip is null)
+        {
+            return null;
+        }
+
+        var outside = new Region(cells);
+
+        outside.Exclude(clip);
+
+        return outside.IsEmpty() ? new Region(cells) : clip;
+    }
 
     /// <summary>The image the driver holds under <paramref name="id" />, or <see langword="null" /> where it holds none.</summary>
     private static RasterImageCommand? Held(IOutputBuffer buffer, string id) =>

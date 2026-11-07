@@ -242,3 +242,18 @@ takes a cut being prepared off its list only where it is still the one there. Me
 medians over five runs before and after: sixel photographs 26.9 and 27.5 ms down a notch every 16 ms, 24.0 and 23.5 ms
 down back to back, 17.5 and 16.1 ms up; sixel custom emoji 34.1 and 32.2, 23.3 and 23.1, 18.7 and 18.8 ms; Kitty
 photographs in a box 17.5 and 17.6 ms down, 15.0 and 14.0 ms up — the same, within run-to-run noise.
+
+## Amendment: a sixel wholly on the page is handed over under a clip of its own cells (scroll hitches over custom emoji)
+
+"Handed to the driver ready" did not hold beside a custom emoji. Terminal.Gui takes the clip as it stands when a raster
+image is added, and draws the image in one piece for each of the clip's rectangles it overlaps, encoding each piece on
+the spot rather than sending the sixel it was handed. A custom emoji's 2×1 box, drawn before the avatar or photograph
+beside it, takes its two cells out of the clip, and a clip is held as rectangles: the picture's rows then lie over two
+of them though none of it is covered. So every avatar and photograph in a row with a custom emoji was cut in two and
+encoded twice on the UI thread on every frame that sent it — measured over a scrolled feed of custom emoji, 808 pictures
+encoded again by the driver, none without the emoji, and Terminal.Gui's encoder a fifth of the UI thread's time.
+
+A picture whose cells the clip lets it draw in every one of is now handed over under a clip of just those cells
+(`PictureView.ClipHandedUnder`), and goes out as the one sixel it was encoded as. One the clip does not wholly let draw
+— a list hung over it, or anything else taking some of its cells — keeps the clip as it stands and is cut by the driver
+as before, which is rare and lasts only while that is so.

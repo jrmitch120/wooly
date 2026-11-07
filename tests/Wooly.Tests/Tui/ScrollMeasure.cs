@@ -1,7 +1,11 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using Terminal.Gui.Drivers;
+using Wooly.Core;
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 using Wooly.Tui.Views;
@@ -14,10 +18,11 @@ namespace Wooly.Tests.Tui;
 ///     test — the numbers are what #292 asks to be compared before and after — so it is skipped unless asked for.
 /// </summary>
 /// <remarks>
-///     Run with
-///     <c>WOOLY_MEASURE=1 dotnet test --project tests/Wooly.Tests -c Release -- --filter-class Wooly.Tests.Tui.ScrollMeasure --show-live-output on</c>.
+///     Run from <c>tests/Wooly.Tests/bin/Release/net10.0</c>, after a Release build, with
+///     <c>WOOLY_MEASURE=1 ./Wooly.Tests -class Wooly.Tests.Tui.ScrollMeasure -showLiveOutput</c> — or <c>-method</c> and
+///     one measurement's full name for that one alone. <c>dotnet test</c> prints nothing a passing test writes.
 ///     The terminal is 120×50 and the photographs are busy ones at the size <c>PictureDecoder</c> holds them, as #287's
-///     were measured.
+///     were measured — but for <see cref="AScrollAsPicturesLand" />, at 140×50 with its pictures fetched as it scrolls.
 /// </remarks>
 public class ScrollMeasure(ITestOutputHelper output)
 {
@@ -266,6 +271,153 @@ public class ScrollMeasure(ITestOutputHelper output)
 
         await Pages(drawn);
     }
+
+    /// <summary>
+    ///     A scroll into posts whose pictures land as it goes, as the client scrolls: fetched off the UI thread through
+    ///     the real cache, landing in bursts through <see cref="PicturesLanding" />, and the loop run a pass at a time,
+    ///     a notch a frame in flicks of twelve with a pause between, paced at 16 ms. Every post has an avatar and four of
+    ///     forty custom emoji in its words and name, and every third a photograph. Each way of drawing at each length of
+    ///     feed: a frame's time, what it allocates, and what is written to the terminal — on the frames a picture landed
+    ///     in and over the whole scroll (#584, and the hitches over custom emoji before it). On Kitty's placeholders a
+    ///     picture is encoded off the UI thread and comes in through the same landing, as in the client, and what is
+    ///     written counts the pictures transmitted, as the base64 the terminal is sent.
+    /// </summary>
+    [Theory(Skip = "A measurement, not a test. Set WOOLY_MEASURE=1 to run it.", SkipUnless = nameof(Enabled))]
+    [InlineData(PictureWay.Sixel, 40)]
+    [InlineData(PictureWay.Sixel, 200)]
+    [InlineData(PictureWay.Sixel, 800)]
+    [InlineData(PictureWay.Kitty, 40)]
+    [InlineData(PictureWay.Kitty, 200)]
+    [InlineData(PictureWay.Kitty, 800)]
+    [InlineData(PictureWay.Placeholders, 40)]
+    [InlineData(PictureWay.Placeholders, 200)]
+    [InlineData(PictureWay.Placeholders, 800)]
+    public async Task AScrollAsPicturesLand(PictureWay way, int posts)
+    {
+        PicturesLanding? landing = null;
+
+        using var pictures = new Pictures(
+            async (address, _, cancellation) =>
+            {
+                // As a file server answers: somewhere between 40 and 160 ms, the same each time for an address.
+                await Task.Delay(40 + Math.Abs(address.GetHashCode() % 120), cancellation);
+
+                return Fetched.Of(
+                    address.Contains("/emoji/", StringComparison.Ordinal) ? Busy(128, 128)
+                    : address.Contains("/avatars/", StringComparison.Ordinal) ? Busy(400, 400)
+                    : Busy(800, 600));
+            },
+            () => landing?.Landed());
+
+        var customEmoji = Enumerable.Range(0, 40)
+            .Select(at => new CustomEmoji($"e{at}", $"https://files.example/emoji/e{at}.png"))
+            .ToArray();
+
+        var feed = Enumerable.Range(1, posts)
+            .Select(at =>
+            {
+                var used = Enumerable.Range(0, 4).Select(nth => customEmoji[((at * 3) + nth) % customEmoji.Length]).ToArray();
+
+                return APost.With(
+                    id: $"{at}0",
+                    account: $"user{at}@mastodon.social",
+                    author: $"User {used[3].Written}",
+                    content: $"Post {at} {used[0].Written} with {used[1].Written} some {used[2].Written} words to wrap",
+                    avatarUrl: $"https://files.example/avatars/{at}.png",
+                    media: at % 3 == 0 ? [APost.APicture($"m{at}", shape: new PictureShape(800, 600))] : null,
+                    customEmoji: used,
+                    authorCustomEmoji: used);
+            })
+            .ToArray();
+
+        var terminal = new FakeTerminalImages();
+
+        using var drawn = await DrawnShell.Of(
+            140,
+            50,
+            Themes.Dark,
+            new AShell { Timelines = FakeTimelineReader.Holding(feed) },
+            pictures: pictures,
+            drawsPictures: way == PictureWay.Sixel,
+            kittyImages: terminal,
+            drawsPlaceholders: way == PictureWay.Placeholders,
+            answersKitty: way == PictureWay.Kitty,
+            encoding: work => Task.Run(work),
+            encoded: () => landing?.Landed());
+
+        landing = new PicturesLanding(drawn.Application);
+
+        // Whatever landed before there was a landing to tell is drawn with the first pass.
+        landing.Landed();
+
+        // Counted on the UI thread alone, which is the one every frame is written and every picture transmitted on.
+        long written = 0;
+        var transmitted = 0;
+        var draws = 0;
+
+        drawn.Application.LayoutAndDrawComplete += (_, _) =>
+        {
+            draws++;
+            written += drawn.Application.Driver!.GetOutput().GetLastOutput().Length;
+
+            for (; transmitted < terminal.Transmitted.Count; transmitted++)
+            {
+                written += (terminal.Transmitted[transmitted].Png.Length + 2) / 3 * 4;
+            }
+        };
+
+        var frames = new List<(double Milliseconds, long Allocated, long Written, bool Landed)>();
+
+        for (var frame = 0; frame < 400; frame++)
+        {
+            if (frame % 24 < 12)
+            {
+                drawn.WheelUndrawn(RailLines.Width + 4, 3);
+            }
+
+            var before = written;
+            var allocated = GC.GetAllocatedBytesForCurrentThread();
+            var clock = Stopwatch.StartNew();
+
+            // The loop's pass, as DrawnShell.Iterate makes it, with the timers apart: a landing draws in them.
+            drawn.Application.RaiseIteration();
+            drawn.Application.Driver!.GetInputProcessor().ProcessQueue();
+            drawn.Application.LayoutAndDraw();
+
+            var drawsBefore = draws;
+
+            drawn.Application.TimedEvents!.RunTimers();
+
+            clock.Stop();
+            frames.Add((
+                clock.Elapsed.TotalMilliseconds,
+                GC.GetAllocatedBytesForCurrentThread() - allocated,
+                written - before,
+                draws > drawsBefore));
+
+            // Slept rather than awaited, so that every pass runs on the thread the application was begun on.
+            if (TimeSpan.FromMilliseconds(16) - clock.Elapsed is { TotalMilliseconds: > 0 } rest)
+            {
+                Thread.Sleep(rest);
+            }
+        }
+
+        var times = frames.Select(each => each.Milliseconds).Order().ToList();
+        var landings = frames.Where(each => each.Landed).ToList();
+
+        output.WriteLine(
+            $"{way}, {posts} posts: a frame median {times[times.Count / 2]:F1} ms, p90 {times[times.Count * 9 / 10]:F1}, "
+            + $"worst {times[^1]:F1}; {frames.Count(each => each.Milliseconds > 50)} of {frames.Count} over 50 ms; "
+            + $"{frames.Select(each => each.Allocated).Order().ElementAt(frames.Count / 2) / 1024} KB allocated a frame; "
+            + $"{landings.Count} frames a landing drew in wrote {landings.Sum(each => each.Written) / 1024} KB, "
+            + $"the whole scroll {frames.Sum(each => each.Written) / 1024} KB.");
+    }
+
+    /// <summary>A busy photograph as a PNG, at the size given — one per size, made once.</summary>
+    private static byte[] Busy(int width, int height) =>
+        BusyPngs.GetOrAdd((width, height), size => APicture.Png(APicture.Photograph(size.Width, size.Height)));
+
+    private static readonly ConcurrentDictionary<(int Width, int Height), byte[]> BusyPngs = new();
 
     /// <summary>The median of <paramref name="counts" /> and the most of them, said.</summary>
     private static string Spread(IEnumerable<int> counts)

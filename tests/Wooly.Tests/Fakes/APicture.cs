@@ -29,6 +29,47 @@ internal static class APicture
         return new Picture(pixels);
     }
 
+    /// <summary>
+    ///     A busy photograph <paramref name="width" /> by <paramref name="height" />: every pixel different from its
+    ///     neighbours, which is what makes encoding it cost what a real one does.
+    /// </summary>
+    public static Picture Photograph(int width, int height)
+    {
+        var pixels = new Color[width, height];
+
+        for (var x = 0; x < width; x++)
+        {
+            for (var y = 0; y < height; y++)
+            {
+                pixels[x, y] = new Color((x * 7 + y * 3) % 256, (x * y) % 256, (x * 13 + y * 11) % 256);
+            }
+        }
+
+        return new Picture(pixels);
+    }
+
+    /// <summary><paramref name="picture" /> as a PNG file, as a server would send it.</summary>
+    public static byte[] Png(Picture picture)
+    {
+        using var image = new Image<Rgba32>(picture.Width, picture.Height);
+
+        for (var x = 0; x < picture.Width; x++)
+        {
+            for (var y = 0; y < picture.Height; y++)
+            {
+                var pixel = picture.Pixels[x, y];
+
+                image[x, y] = new Rgba32(pixel.R, pixel.G, pixel.B, pixel.A);
+            }
+        }
+
+        using var bytes = new MemoryStream();
+
+        image.SaveAsPng(bytes);
+
+        return bytes.ToArray();
+    }
+
     /// <summary>A colour as its four channels, which an assertion prints where two differ, as a colour is not.</summary>
     public static (byte R, byte G, byte B, byte A) Rgba(Color colour) => (colour.R, colour.G, colour.B, colour.A);
 
