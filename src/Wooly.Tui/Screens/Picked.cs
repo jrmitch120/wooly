@@ -14,6 +14,13 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public delegate IReadOnlyList<Line> Draws<in T>(T thing, int at, int room);
 
+/// <summary>
+///     How one thing's rows come to be stamped: the thing, which ordinal it is, and whether it is the one picked out —
+///     for a list that keeps its things' stamped rows from one frame to the next rather than drawing and stamping them
+///     each time (<see cref="KeptRows" />).
+/// </summary>
+public delegate IReadOnlyList<Line> Stamps<in T>(T thing, int at, bool picked);
+
 /// <summary>What a screen's reader walks with <c>j</c> and <c>k</c>, said without saying what it is a list of.</summary>
 /// <remarks>
 ///     What lets <see cref="Screen.Move" /> and <see cref="Screen.Pick" /> be the same two lines for every screen
@@ -283,13 +290,19 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     /// </remarks>
     /// <param name="from">Which of these things the run begins at, counted from the first of them.</param>
     /// <param name="howMany">How many of them are in it.</param>
-    public IReadOnlyList<Line> Rows(int width, Draws<T> draw, Ordinals ordinals, int from, int howMany)
+    public IReadOnlyList<Line> Rows(int width, Draws<T> draw, Ordinals ordinals, int from, int howMany) =>
+        Rows((thing, at, picked) => Stamped.Rows(draw(thing, at, Stamped.Room(width)), at, picked), ordinals, from, howMany);
+
+    /// <inheritdoc cref="Rows(int, Draws{T}, Ordinals, int, int)" />
+    /// <summary>The same, with each thing's stamped rows come by as <paramref name="stamp" /> says.</summary>
+    /// <param name="stamp">How one thing's stamped rows are come by.</param>
+    public IReadOnlyList<Line> Rows(Stamps<T> stamp, Ordinals ordinals, int from, int howMany)
     {
         var lines = new List<Line>();
 
         for (var at = from; at < from + howMany; at++)
         {
-            lines.AddRange(RowsOf(at, width, draw, ordinals));
+            lines.AddRange(RowsOf(at, stamp, ordinals));
             lines.Add(Line.Rule());
         }
 
@@ -333,14 +346,16 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     ///     things is theirs; stamping the things' own rows is still not.
     /// </remarks>
     /// <param name="at">Which of these things, counted from the first of them rather than from the screen's own first.</param>
-    public IReadOnlyList<Line> RowsOf(int at, int width, Draws<T> draw, Ordinals ordinals = default)
+    public IReadOnlyList<Line> RowsOf(int at, int width, Draws<T> draw, Ordinals ordinals = default) =>
+        RowsOf(at, (thing, ordinal, picked) => Stamped.Rows(draw(thing, ordinal, Stamped.Room(width)), ordinal, picked), ordinals);
+
+    /// <inheritdoc cref="RowsOf(int, int, Draws{T}, Ordinals)" />
+    /// <param name="stamp">How the thing's stamped rows are come by.</param>
+    public IReadOnlyList<Line> RowsOf(int at, Stamps<T> stamp, Ordinals ordinals = default)
     {
         var ordinal = ordinals.From + at;
 
-        return Stamped.Rows(
-            draw(_things[at], ordinal, Stamped.Room(width)),
-            ordinal,
-            ordinal == (ordinals.Picked ?? ordinals.From + At));
+        return stamp(_things[at], ordinal, ordinal == (ordinals.Picked ?? ordinals.From + At));
     }
 }
 

@@ -32,6 +32,8 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     // was passed on under, since that is the thing on the list rather than the post inside it (#84).
     private readonly Picked<Post> _posts = new(posts);
 
+    private readonly KeptRows _kept = new();
+
     /// <inheritdoc />
     public int At => _posts.At;
 
@@ -103,7 +105,7 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     ///     the account screen, whose first thing is the header block rather than a post (<see cref="Ordinals" />).
     /// </param>
     public IReadOnlyList<Line> Rows(Drawing drawing, Ordinals ordinals = default) =>
-        _posts.Rows(drawing.Width, Feed(drawing), ordinals);
+        _posts.Rows(Kept(drawing), ordinals, from: 0, howMany: Count);
 
     /// <inheritdoc cref="Rows" />
     /// <summary>
@@ -123,7 +125,7 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     /// <param name="from">Which of these posts the run begins at, counted from the first of them.</param>
     /// <param name="howMany">How many of them are in it.</param>
     public IReadOnlyList<Line> Run(Drawing drawing, Ordinals ordinals, int from, int howMany) =>
-        _posts.Rows(drawing.Width, Feed(drawing), ordinals, from, howMany);
+        _posts.Rows(Kept(drawing), ordinals, from, howMany);
 
     /// <inheritdoc cref="Rows" />
     /// <summary>The <paramref name="at" />th post's rows on their own, with no rule after them.</summary>
@@ -131,7 +133,7 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     ///     For the post screen, which puts a heading of its own between the post it is about and the answers to it.
     ///     Splicing rows between posts is that screen's; stamping the posts' own rows is still not.
     /// </remarks>
-    public IReadOnlyList<Line> RowsOf(int at, Drawing drawing) => _posts.RowsOf(at, drawing.Width, Feed(drawing));
+    public IReadOnlyList<Line> RowsOf(int at, Drawing drawing) => _posts.RowsOf(at, Kept(drawing));
 
     /// <summary>
     ///     The <paramref name="at" />th post's rows, drawn the screen's own way rather than as a feed row — which one
@@ -148,12 +150,20 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     /// </remarks>
     public IReadOnlyList<Line> RowsOf(int at, int width, Draws<Post> draw) => _posts.RowsOf(at, width, draw);
 
-    /// <summary>How a post on this list draws itself, with what its reader has done to it filled in.</summary>
+    /// <summary>
+    ///     How a post on this list comes by its stamped rows: kept from the frame before where nothing they are drawn
+    ///     from has changed, and drawn where it has as a feed row (<see cref="PostLines.Feed" />), with what its reader
+    ///     has done to it filled in (#584).
+    /// </summary>
     /// <remarks>
     ///     The drawing goes through as it came, narrowed to the room the gutter leaves: this list adds nothing to it
     ///     and takes nothing out of it, so a fact the shell puts on one reaches a row here without this file being
     ///     touched (#148).
     /// </remarks>
-    private Draws<Post> Feed(Drawing drawing) =>
-        (post, at, room) => PostLines.Feed(post, drawing.In(room), screen.ReadingOf(post, at));
+    private Stamps<Post> Kept(Drawing drawing)
+    {
+        _kept.KeepOnly(_posts.All);
+
+        return (post, at, picked) => _kept.Rows(post, at, picked, drawing, screen.ReadingOf(post, at));
+    }
 }

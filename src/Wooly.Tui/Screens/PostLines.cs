@@ -369,6 +369,16 @@ public static class PostLines
     }
 
     /// <summary>
+    ///     The whole of what a feed row says of the clock: how long ago the post it shows was posted, read as it was
+    ///     asked past or not (<see cref="OnShow" />). A post's rows kept from one frame to the next are laid out again
+    ///     when this changes, and only then, for the clock (<see cref="KeptRows" />).
+    /// </summary>
+    internal static string FeedAge(Post post, Reading reading, DateTimeOffset now) =>
+        Age(OnShow.Of(post, reading).Shown, now);
+
+    private static string Age(Post post, DateTimeOffset now) => Elapsed.Since(post.PostedAt, now);
+
+    /// <summary>
     ///     Two rows: the name with the audience and how long ago pushed to the right of it, then the handle — with the
     ///     author's avatar standing beside both. The right-hand pair is laid out first and the name gets whatever is
     ///     left, because a name is the thing there is most of and the least harm in cutting.
@@ -384,7 +394,7 @@ public static class PostLines
         var avatar = Avatar.Byline(post.Account, post.AvatarUrl, drawing.Pictures, drawing.Raster);
         var room = Math.Max(0, drawing.Width - avatar.Width);
 
-        var tail = new Span($"{Audience(post.Visibility)} {Elapsed.Since(post.PostedAt, drawing.Now)}", Role.Audience);
+        var tail = new Span($"{Audience(post.Visibility)} {Age(post, drawing.Now)}", Role.Audience);
 
         // Measured as drawn, its custom emoji two columns each where the Raster draws, so the tail is pushed to the
         // same column whatever the name holds (#524).
