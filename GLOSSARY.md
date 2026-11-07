@@ -752,7 +752,7 @@ things that asked about it (ADR-0025's amendment for #584). A **Reading** is kep
 poll's choices by which they are rather than the screen's own set of them. Lists that do not read on lay their rows out
 afresh, which costs what the list is: a search is one page of results, and a post screen's own post is one post. The
 lists of people — those who boosted or favourited, follows and followers, follow requests — read on too and do not yet
-keep their rows, a few rows a person (`AccountLines.Block`).
+keep their rows, a few rows a person (`AccountLines.Block`, #586).
 Distinct from the **Page**, which is which rows are in front of the reader: kept rows are every thing's, on the page or
 not.
 _Avoid_: cache, memo, render cache
