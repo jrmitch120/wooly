@@ -17,7 +17,7 @@ public delegate IReadOnlyList<Line> Draws<in T>(T thing, int at, int room);
 /// <summary>
 ///     How one thing's rows come to be stamped: the thing, which ordinal it is, and whether it is the one picked out —
 ///     for a list that keeps its things' stamped rows from one frame to the next rather than drawing and stamping them
-///     each time (<see cref="KeptRows" />).
+///     each time (<see cref="KeptRows{T}" />).
 /// </summary>
 public delegate IReadOnlyList<Line> Stamps<in T>(T thing, int at, bool picked);
 

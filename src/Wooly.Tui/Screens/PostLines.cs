@@ -371,7 +371,7 @@ public static class PostLines
     /// <summary>
     ///     The whole of what a feed row says of the clock: how long ago the post it shows was posted, read as it was
     ///     asked past or not (<see cref="OnShow" />). A post's rows kept from one frame to the next are laid out again
-    ///     when this changes, and only then, for the clock (<see cref="KeptRows" />).
+    ///     when this changes, and only then, for the clock (<see cref="KeptRows{T}" />).
     /// </summary>
     internal static string FeedAge(Post post, Reading reading, DateTimeOffset now) =>
         Age(OnShow.Of(post, reading).Shown, now);

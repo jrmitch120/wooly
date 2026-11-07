@@ -32,7 +32,7 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     // was passed on under, since that is the thing on the list rather than the post inside it (#84).
     private readonly Picked<Post> _posts = new(posts);
 
-    private readonly KeptRows _kept = new();
+    private readonly KeptRows<Post> _kept = new();
 
     /// <inheritdoc />
     public int At => _posts.At;
@@ -164,6 +164,17 @@ public sealed class PostList(Screen screen, IReadOnlyList<Post> posts) : IPicked
     {
         _kept.KeepOnly(_posts.All);
 
-        return (post, at, picked) => _kept.Rows(post, at, picked, drawing, screen.ReadingOf(post, at));
+        return (post, at, picked) =>
+        {
+            var reading = screen.ReadingOf(post, at);
+
+            return _kept.Rows(
+                post,
+                at,
+                picked,
+                drawing,
+                (ReadAs.Of(reading), PostLines.FeedAge(post, reading, drawing.Now)),
+                (under, room) => PostLines.Feed(post, under.In(room), reading));
+        };
     }
 }
