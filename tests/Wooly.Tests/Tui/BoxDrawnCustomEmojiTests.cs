@@ -200,6 +200,39 @@ public class BoxDrawnCustomEmojiTests
         }
     }
 
+    /// <summary>
+    ///     On sixel an avatar beside a name with a custom emoji in it goes to the terminal as the sixel it was encoded as,
+    ///     whole. The emoji's box takes its two cells out of what the avatar's rows may be drawn over, which left the
+    ///     avatar's clip in two pieces though none of it was covered; the driver cut it along them and encoded each piece
+    ///     again on every frame that sent it, which is what made a scroll over custom emoji hitch.
+    /// </summary>
+    [Fact]
+    public async Task OnSixelAPictureBesideACustomEmojiIsSentAsTheSixelItWasEncodedAs()
+    {
+        using var drawn = await DrawnShell.Of(
+            80,
+            Tall,
+            Themes.Dark,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110"),
+                    APost.With(
+                        id: "220",
+                        author: "Jeff :php:",
+                        avatarUrl: "https://files.mastodon.social/avatars/jeff.png",
+                        authorCustomEmoji: [Php])),
+            },
+            pictures: new FakePictures().HoldingCustomEmoji(Php).HoldingAvatarOf("jeff@mastodon.social"),
+            drawsPictures: true);
+
+        var sent = drawn.Application.Driver!.GetOutput().GetLastOutput();
+        var images = drawn.Application.Driver.GetOutputBuffer().GetRasterImages();
+
+        Assert.Contains(images, image => EmojiSized(image.DestinationCells));
+        Assert.All(images, image => Assert.Contains(image.EncodedSixel!, sent, StringComparison.Ordinal));
+    }
+
     public static TheoryData<PictureWay> BoxWays() => [PictureWay.Sixel, PictureWay.Kitty];
 
     /// <summary>Whether <paramref name="cells" /> are a custom emoji's two columns by one.</summary>
