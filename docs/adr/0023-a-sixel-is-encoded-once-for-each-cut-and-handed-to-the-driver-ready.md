@@ -254,5 +254,6 @@ encoded twice on the UI thread on every frame that sent it — measured over a s
 encoded again by the driver, none without the emoji, and Terminal.Gui's encoder a fifth of the UI thread's time.
 
 A picture whose cells the clip lets it draw in every one of is now handed over under a clip of just those cells
-(`PictureView.Handed`), and goes out as the one sixel it was encoded as. One something really covers, a list hung over
-it, keeps the clip as it stands and is cut by the driver as before, which is rare and lasts only while the list is open.
+(`PictureView.ClipHandedUnder`), and goes out as the one sixel it was encoded as. One the clip does not wholly let draw
+— a list hung over it, or anything else taking some of its cells — keeps the clip as it stands and is cut by the driver
+as before, which is rare and lasts only while that is so.

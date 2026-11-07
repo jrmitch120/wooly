@@ -193,7 +193,7 @@ internal sealed class PictureView : ImageView, IPictureBox
         // The image view's own id, which is the one the driver keeps it under from frame to frame.
         var id = $"ImageView_{GetHashCode()}";
 
-        var clip = Handed(buffer.Clip, cells);
+        var clip = ClipHandedUnder(buffer.Clip, cells);
         var resend = !OnScreen(buffer, id, sixel, cells, clip);
 
         SetAttribute(UnderThePicture);
@@ -288,7 +288,7 @@ internal sealed class PictureView : ImageView, IPictureBox
     ///     rectangles though none of it is covered — so every avatar and photograph in a row with a custom emoji was
     ///     encoded again on every frame that sent it, which is what made a scroll over them hitch.
     /// </remarks>
-    private static Region? Handed(Region? clip, Rectangle cells)
+    private static Region? ClipHandedUnder(Region? clip, Rectangle cells)
     {
         if (clip is null)
         {

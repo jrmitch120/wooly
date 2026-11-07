@@ -404,5 +404,7 @@ A burst of arrivals was announced as one redraw, as above, but a forced one: the
 again, which sends every cell and every sixel on the page to the terminal again. Custom emoji double what lands as a
 scroll reaches new posts — each emoji and avatar a picture of its own — so a scroll into them sent the whole page again
 for each burst, and those frames were most of the slow ones. A landing now marks every view to be drawn again and draws
-over what is there (`PicturesLanding`), which sends only what changed: the picture that landed, and the rows its box
-filled in. A sixel already on screen stays, by the rule ADR-0023's amendment for #372 sends one again by.
+over what is there (`PicturesLanding`): the page's text is written again as before, but no sixel already on screen is
+sent again, by the rule ADR-0023's amendment for #372 sends one by — only the picture that landed. On Kitty, which sent
+no picture again on a redraw, a landing writes what it did. The views are marked through the application's one top
+view, under which every view drawing a picture sits; a second runnable or a popover would need marking too.

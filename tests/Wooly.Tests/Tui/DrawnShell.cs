@@ -64,6 +64,9 @@ internal sealed class DrawnShell : IDisposable
     ///     known by name, still draws through a box — at <paramref name="raster" />'s cell where it says one.
     /// </param>
     /// <param name="encoding">Where a picture is encoded for a Kitty terminal, where a test is about when; on the spot if not.</param>
+    /// <param name="encoded">
+    ///     What is done once a picture is encoded for a Kitty terminal, as the client draws again; nothing if not.
+    /// </param>
     /// <param name="frames">What wraps each frame in synchronized output, closed by the application as it is in the client.</param>
     /// <param name="raster">
     ///     How the terminal paints pixels, said outright, where a test is about pictures on a terminal that has
@@ -87,6 +90,7 @@ internal sealed class DrawnShell : IDisposable
         bool drawsPlaceholders = false,
         bool answersKitty = false,
         Action<Action>? encoding = null,
+        Action? encoded = null,
         SynchronizedFrames? frames = null,
         Raster? raster = null,
         Func<Raster>? answers = null,
@@ -121,7 +125,7 @@ internal sealed class DrawnShell : IDisposable
         // Encoded on the spot rather than off the UI thread, so that a picture is sent on the frame that first wants it.
         var placeholders = new Placeholders(
             kittyImages ?? new FakeTerminalImages(),
-            () => { },
+            encoded ?? (() => { }),
             encoding ?? (work => work()));
 
         var window = new ShellWindow(

@@ -230,6 +230,9 @@ public class BoxDrawnCustomEmojiTests
         var images = drawn.Application.Driver.GetOutputBuffer().GetRasterImages();
 
         Assert.Contains(images, image => EmojiSized(image.DestinationCells));
+        Assert.Contains(
+            images,
+            image => image.DestinationCells.Size == new Size(Avatar.BylineColumns(ARaster.Sixel()), Avatar.BylineRows));
         Assert.All(images, image => Assert.Contains(image.EncodedSixel!, sent, StringComparison.Ordinal));
     }
 
