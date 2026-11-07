@@ -741,6 +741,17 @@ the same as having nothing to pick *from* — a compose editor, the keymap and a
 outside the rule rather than permanently inside it.
 _Avoid_: cursor, selection, highlight, current row
 
+**Kept rows**:
+A thing's stamped rows on a list that reads on as the reader scrolls — a feed, a thread, an account's posts, the inbox,
+the direct messages — kept from one frame to the next and laid out again only where something they are drawn from has
+changed (`KeptRows`, #584): the thing itself, its ordinal and whether it is **Picked**, the **Drawing** but for the
+clock, the **Page** and the pictures, what its screen says of it as a value — its **Reading**, whether it is unread, how
+long ago it says — and every question laying it out asked of the pictures, kept only while each is answered the same.
+So a frame costs what the page costs rather than what the list does, and a picture landing lays out again only the
+things that asked about it. Distinct from the **Page**, which is which rows are in front of the reader: kept rows are
+every thing's, on the page or not.
+_Avoid_: cache, memo, render cache
+
 **Page**:
 Which of a screen's rows are in front of the reader: the row the content region begins on, together with whether it is
 still following what is **Picked** or has been walked away from it with `↓`/`↑` (#51). Both halves at once, because a
