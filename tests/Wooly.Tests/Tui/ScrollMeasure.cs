@@ -17,8 +17,9 @@ namespace Wooly.Tests.Tui;
 ///     test — the numbers are what #292 asks to be compared before and after — so it is skipped unless asked for.
 /// </summary>
 /// <remarks>
-///     Run with
-///     <c>WOOLY_MEASURE=1 dotnet test --project tests/Wooly.Tests -c Release -- --filter-class Wooly.Tests.Tui.ScrollMeasure --show-live-output on</c>.
+///     Run from <c>tests/Wooly.Tests/bin/Release/net10.0</c>, after a Release build, with
+///     <c>WOOLY_MEASURE=1 ./Wooly.Tests -class Wooly.Tests.Tui.ScrollMeasure -showLiveOutput</c> — or <c>-method</c> and
+///     one measurement's full name for that one alone. <c>dotnet test</c> prints nothing a passing test writes.
 ///     The terminal is 120×50 and the photographs are busy ones at the size <c>PictureDecoder</c> holds them, as #287's
 ///     were measured — but for <see cref="AScrollAsPicturesLand" />, at 140×50 with its pictures fetched as it scrolls.
 /// </remarks>
