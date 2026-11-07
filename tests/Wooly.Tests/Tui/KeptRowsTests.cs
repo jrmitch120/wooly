@@ -87,6 +87,108 @@ public class KeptRowsTests
     }
 
     /// <summary>
+    ///     A list that grows as it is read lays out its things once and keeps them: a long inbox or list of
+    ///     conversations drawn a second time allocates a fraction of what drawing it the first time did.
+    /// </summary>
+    [Theory]
+    [InlineData("notifications")]
+    [InlineData("conversations")]
+    public void ALongListDrawnAgainAllocatesAFractionOfDrawingItFirst(string list)
+    {
+        var screen = Long(list, things: 800);
+        var drawing = new Drawing(60, Posted.AddMinutes(5), new FakePictures(), ARaster.Kitty());
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        screen.Lines(drawing);
+        var first = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        before = GC.GetAllocatedBytesForCurrentThread();
+        screen.Lines(drawing);
+        var again = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.True(again < first / 5, $"Drawn first, {first / 1024} KB; drawn again, {again / 1024} KB.");
+    }
+
+    /// <summary>
+    ///     On the inbox and the list of conversations too, the rows kept after a change are the rows laid out afresh.
+    /// </summary>
+    [Theory]
+    [InlineData("notifications", "nothing")]
+    [InlineData("notifications", "the pick moves")]
+    [InlineData("notifications", "a reference is walked to")]
+    [InlineData("notifications", "an avatar lands")]
+    [InlineData("notifications", "the minute turns")]
+    [InlineData("conversations", "nothing")]
+    [InlineData("conversations", "the pick moves")]
+    [InlineData("conversations", "a reference is walked to")]
+    [InlineData("conversations", "an avatar lands")]
+    [InlineData("conversations", "the minute turns")]
+    public void TheRowsKeptOnAListThatGrowsAreTheRowsLaidOutAfresh(string list, string change)
+    {
+        var pictures = new FakePictures();
+        var before = new Drawing(60, Posted.AddSeconds(30), pictures, ARaster.Kitty(), Height: 40);
+        var after = change == "the minute turns" ? before with { Now = Posted.AddSeconds(90) } : before;
+
+        void Changing(Screen screen)
+        {
+            switch (change)
+            {
+                case "the pick moves":
+                    screen.Move(1);
+                    break;
+                case "a reference is walked to":
+                    Assert.True(screen.WalkReference(1));
+                    break;
+                case "an avatar lands":
+                    pictures.HoldingAvatarOf("ann@mastodon.social");
+                    break;
+            }
+        }
+
+        var kept = Long(list, things: 3);
+
+        kept.Lines(before);
+        Changing(kept);
+
+        var fresh = Long(list, things: 3);
+
+        Changing(fresh);
+
+        Assert.Equal(Described(fresh.Lines(after)), Described(kept.Lines(after)));
+    }
+
+    /// <summary>
+    ///     An inbox or a list of conversations <paramref name="things" /> long, every one about a post by Ann with a
+    ///     link in it, posted when the feed's posts were.
+    /// </summary>
+    private static Screen Long(string list, int things)
+    {
+        Post Said(int at) =>
+            APost.With(
+                id: $"{at}0",
+                account: "ann@mastodon.social",
+                author: "Ann",
+                content: $"See https://example.com/{at} about the flock",
+                avatarUrl: "https://files.mastodon.social/avatars/ann.png") with { PostedAt = Posted };
+
+        return list switch
+        {
+            "notifications" => new NotificationsScreen(
+            [
+                .. Enumerable.Range(1, things).Select(at => ANotification.Alone(
+                    ANotification.With(id: $"{at}", account: "ann@mastodon.social", author: "Ann", post: Said(at)) with
+                    {
+                        ReceivedAt = Posted,
+                    })),
+            ]),
+            _ => new DirectMessagesScreen(
+            [
+                .. Enumerable.Range(1, things).Select(at => AConversation.With(id: $"{at}", latest: Said(at))),
+            ]),
+        };
+    }
+
+    /// <summary>
     ///     A feed holding one of everything a post's rows can be drawn from: an avatar, custom emoji in the name and
     ///     the words, a photograph with a blur, a warning over its words, a poll, and a link preview.
     /// </summary>

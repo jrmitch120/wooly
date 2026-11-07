@@ -80,6 +80,13 @@ public static class NotificationGroupLines
     }
 
     /// <summary>
+    ///     The whole of what a group's own rows say of the clock: how long ago its newest notification came. Its rows
+    ///     kept from one frame to the next are laid out again when this changes, and only then, for the clock
+    ///     (<see cref="KeptRows{T}" />).
+    /// </summary>
+    internal static string Age(NotificationGroup group, DateTimeOffset now) => Elapsed.Since(group.NewestAt, now);
+
+    /// <summary>
     ///     The names line: who, what in the kind's colour, and — at the right — the unread mark and the age of the
     ///     group's newest notification. The names give way first where the row is narrow. The who and the what stand
     ///     for the group's actors (<see cref="NamesPart" />); the space, the mark and the age for nothing.
@@ -91,7 +98,7 @@ public static class NotificationGroupLines
     public static Line Names(NotificationGroup group, bool unread, Drawing drawing)
     {
         var width = drawing.Width;
-        var age = Elapsed.Since(group.NewestAt, drawing.Now);
+        var age = Age(group, drawing.Now);
 
         // The word, as an unread conversation carries it, and for the same reason (ConversationLines.With) — and so
         // that it reads with no colour (ADR-0014).

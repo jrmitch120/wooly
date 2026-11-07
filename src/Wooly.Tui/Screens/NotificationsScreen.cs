@@ -33,6 +33,8 @@ public sealed class NotificationsScreen(
 {
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
+    private readonly KeptRows<NotificationGroup> _kept = new();
+
     // Named by the group's own key, which is not the id of the post it is about (GLOSSARY.md) — and is what a refresh
     // puts the reader back on (#84). Each key once, under its newest: the instance groups a page at a time, so a list
     // read on, and the cache holding it, can name a group twice (#465).
@@ -317,18 +319,37 @@ public sealed class NotificationsScreen(
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(WithFoot(_groups.Rows(drawing.Width, Draw)));
+        _kept.KeepOnly(_groups.All);
+        lines.AddRange(WithFoot(_groups.Rows(Kept, default, from: 0, howMany: _groups.Count)));
 
         return lines;
+
+        // Kept from the frame before where nothing they are drawn from has changed (#584): what the reader has done
+        // to the post under it, whether it is unread, and how long ago it and its post say.
+        IReadOnlyList<Line> Kept(NotificationGroup group, int at, bool picked)
+        {
+            var unread = IsUnread(group);
+            var reading = group.Post is { } post ? ReadingOf(post, at) : default;
+
+            return _kept.Rows(
+                group,
+                at,
+                picked,
+                drawing,
+                (unread,
+                    ReadAs.Of(reading),
+                    NotificationGroupLines.Age(group, drawing.Now),
+                    group.Post is { } shown ? PostLines.FeedAge(shown, reading, drawing.Now) : null),
+                (under, room) => Draw(group, unread, reading, under, room));
+        }
 
         // What happened, and under it the post it happened to — indented, so that the row saying who did what reads
         // as the heading of the two rather than as another message in the list.
         // The drawing goes down whole. Before #148 this site named four arguments and passed three, so a reader who
         // had asked for hide_drawn_caption got it honoured everywhere but here — which is the failure #148 is about
         // rather than a preference this screen was exempt from (#71).
-        IReadOnlyList<Line> Draw(NotificationGroup group, int at, int room)
+        static IReadOnlyList<Line> Draw(NotificationGroup group, bool unread, Reading reading, Drawing drawing, int room)
         {
-            var unread = IsUnread(group);
             var inner = Math.Max(1, room - 2);
             var rows = new List<Line>();
 
@@ -351,7 +372,7 @@ public sealed class NotificationsScreen(
                 // is drawn by the same rule (#452).
                 var drawn = post.IsMine
                     ? PostLines.Preview(post, drawing.In(inner))
-                    : PostLines.Feed(post, drawing.In(inner), ReadingOf(post, at));
+                    : PostLines.Feed(post, drawing.In(inner), reading);
 
                 rows.AddRange(drawn.Select(line => line.After(new Span("  ", Role.Body))));
             }

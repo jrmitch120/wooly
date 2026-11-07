@@ -27,6 +27,8 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     // puts the reader back on (#84).
     private readonly Picked<Conversation> _conversations = new(conversations);
 
+    private readonly KeptRows<Conversation> _kept = new();
+
     /// <inheritdoc />
     public override string Crumb => "Direct messages";
 
@@ -164,13 +166,29 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
             lines.Add(Line.Blank);
         }
 
-        lines.AddRange(WithFoot(_conversations.Rows(drawing.Width, Draw)));
+        _kept.KeepOnly(_conversations.All);
+        lines.AddRange(WithFoot(_conversations.Rows(Kept, default, from: 0, howMany: _conversations.Count)));
 
         return lines;
 
+        // Kept from the frame before where nothing they are drawn from has changed (#584): the reference walked to in
+        // the last thing said, and how long ago that says.
+        IReadOnlyList<Line> Kept(Conversation conversation, int at, bool picked)
+        {
+            var reading = new Reading(Reference: ReferenceOn(at));
+
+            return _kept.Rows(
+                conversation,
+                at,
+                picked,
+                drawing,
+                (ReadAs.Of(reading), conversation.Latest is { } latest ? PostLines.FeedAge(latest, reading, drawing.Now) : null),
+                (under, room) => Draw(conversation, reading, under, room));
+        }
+
         // Who it is with, and under it the last thing said — indented, so that the row naming the conversation reads
         // as the heading of the two rather than as another message in the list.
-        IReadOnlyList<Line> Draw(Conversation conversation, int at, int room)
+        static IReadOnlyList<Line> Draw(Conversation conversation, Reading reading, Drawing drawing, int room)
         {
             var indent = new Span("  ", Role.Body);
 
@@ -183,7 +201,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
                 ? PostLines.Feed(
                     latest,
                     drawing.In(Math.Max(1, room - 2)),
-                    new Reading(Reference: ReferenceOn(at)),
+                    reading,
                     saysHowToAskPast: false)
                 : [Line.Of(ConversationLines.NothingLeft, Role.Muted)];
 
