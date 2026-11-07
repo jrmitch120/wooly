@@ -116,7 +116,7 @@ internal sealed class KeptRows<T>
 
             foreach (var (drawn, answer) in recorder.Of)
             {
-                if (!ReferenceEquals(now.Of(drawn), answer))
+                if (!answer.Is(now.Of(drawn)))
                 {
                     return false;
                 }
@@ -135,7 +135,7 @@ internal sealed class KeptRows<T>
 
         private sealed class Recorder(IPictures pictures) : IPictures
         {
-            public List<(Drawn Drawn, Picture? Answer)> Of { get; } = [];
+            public List<(Drawn Drawn, Answered Answer)> Of { get; } = [];
 
             public List<(Drawn Drawn, Unshowable? Answer)> WhyNot { get; } = [];
 
@@ -143,7 +143,7 @@ internal sealed class KeptRows<T>
             {
                 var answer = pictures.Of(drawn);
 
-                Of.Add((drawn, answer));
+                Of.Add((drawn, new Answered(answer)));
 
                 return answer;
             }
@@ -161,6 +161,23 @@ internal sealed class KeptRows<T>
                 pictures.Want(frame, raster, columns);
 
             public IReadOnlyList<string> Drain() => pictures.Drain();
+        }
+
+        /// <summary>
+        ///     A picture laying a thing out was answered with, held weakly: the rows of a screen under the one in front
+        ///     are kept and not drawn, and holding the picture would keep its pixels past the cache's budget until that
+        ///     screen was walked back out of (ADR-0025). One the cache let go of and nothing else holds is gone, which
+        ///     answers differently from anything the cache can answer now.
+        /// </summary>
+        private sealed class Answered(Picture? picture)
+        {
+            private readonly WeakReference<Picture>? _picture = picture is null ? null : new(picture);
+
+            /// <summary>Whether <paramref name="now" /> is the very picture answered then — or none, where none was.</summary>
+            public bool Is(Picture? now) =>
+                _picture is null
+                    ? now is null
+                    : now is not null && _picture.TryGetTarget(out var then) && ReferenceEquals(then, now);
         }
     }
 }

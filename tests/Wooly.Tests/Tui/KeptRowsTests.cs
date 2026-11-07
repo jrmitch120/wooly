@@ -87,6 +87,44 @@ public class KeptRowsTests
     }
 
     /// <summary>
+    ///     A screen's kept rows hold on to no picture the cache has let go of: a screen under the one in front is not
+    ///     drawn, so whatever its rows held would stay in memory past the cache's budget until it was walked back out of
+    ///     (ADR-0025).
+    /// </summary>
+    [Fact]
+    public async Task KeptRowsHoldOnToNoPictureTheCacheHasLetGoOf()
+    {
+        var pictures = new FakePictures().HoldingPhotograph("m2", 80, 60);
+        var feed = await Feed();
+
+        var held = LaidOutHolding(feed, pictures);
+
+        pictures.Forgetting("m2");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        Assert.False(held.TryGetTarget(out _), "The photograph the cache let go of was still held.");
+        GC.KeepAlive(feed);
+    }
+
+    /// <summary>
+    ///     <paramref name="feed" /> laid out once with the photograph <c>m2</c> held, and that photograph, weakly — apart,
+    ///     so that nothing on the test's own stack holds it.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference<Picture> LaidOutHolding(Shell feed, FakePictures pictures)
+    {
+        var drawing = new Drawing(60, Posted.AddSeconds(30), pictures, ARaster.Kitty(), Height: 40);
+
+        feed.Screen.Lines(drawing);
+
+        var photograph = APost.APicture("m2", shape: new PictureShape(800, 600), blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj");
+
+        return new WeakReference<Picture>(pictures.Of(Drawn.Attached(photograph))!);
+    }
+
+    /// <summary>
     ///     A list that grows as it is read lays out its things once and keeps them: a long inbox or list of
     ///     conversations drawn a second time allocates a fraction of what drawing it the first time did.
     /// </summary>
