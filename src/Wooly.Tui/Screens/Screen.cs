@@ -404,14 +404,25 @@ public abstract class Screen
     internal IReadOnlyList<Line> LaidOut(Drawing drawing)
     {
         var lines = Lines(drawing);
+        var boxed = new HashSet<Reference>();
 
-        _boxed =
-        [
-            .. lines.SelectMany(line => line.Spans)
-                    .Select(span => span.Reference)
-                    .OfType<Reference>()
-                    .Where(reference => reference.Role is Role.Media),
-        ];
+        // Looped rather than queried: every span of every row on the screen is looked at, each frame, and a query
+        // boxing each one's reference made that the most a frame allocated over a long feed once its rows were kept
+        // (#584).
+        for (var row = 0; row < lines.Count; row++)
+        {
+            var spans = lines[row].Spans;
+
+            for (var at = 0; at < spans.Count; at++)
+            {
+                if (spans[at].Reference is { Role: Role.Media } reference)
+                {
+                    boxed.Add(reference);
+                }
+            }
+        }
+
+        _boxed = boxed;
 
         return lines;
     }
