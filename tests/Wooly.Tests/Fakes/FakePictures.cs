@@ -178,6 +178,17 @@ internal sealed class FakePictures : IPictures
         return this;
     }
 
+    /// <summary>
+    ///     Says that the cache no longer holds the picture <paramref name="id" /> names, as one let go of to stay inside
+    ///     its budget: asked for, it is not there.
+    /// </summary>
+    public FakePictures Forgetting(string id)
+    {
+        _held.Remove(id);
+
+        return this;
+    }
+
     private FakePictures Held(string id, int width, int height)
     {
         _held[id] = new Picture(new Color[width, height]);

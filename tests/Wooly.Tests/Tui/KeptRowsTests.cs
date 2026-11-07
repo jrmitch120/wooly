@@ -1,7 +1,14 @@
+using System.Collections;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Text;
 using Wooly.Core;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
+using Wooly.Tui.Media;
+using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
@@ -16,6 +23,219 @@ public class KeptRowsTests
     [
         .. Enumerable.Range(0, 8).Select(at => new CustomEmoji($"e{at}", $"https://files.example/emoji/e{at}.png")),
     ];
+
+    private static readonly CustomEmoji Php = new("php", "https://files.mastodon.social/emoji/php.png");
+
+    /// <summary>When every post on the feed was posted: half a minute before the first frame.</summary>
+    private static readonly DateTimeOffset Posted = new(2026, 7, 29, 12, 0, 0, TimeSpan.Zero);
+
+    /// <summary>
+    ///     After any change, the rows a screen kept are exactly the rows a screen laying them out afresh draws: the one
+    ///     drawn before the change and drawn again after it, against one that never saw them before the change. Every
+    ///     thing a post's rows are drawn from is changed by one of these.
+    /// </summary>
+    [Theory]
+    [InlineData("nothing")]
+    [InlineData("the pick moves")]
+    [InlineData("a warning is asked past")]
+    [InlineData("a poll's answer is chosen")]
+    [InlineData("a reference is walked to")]
+    [InlineData("a picture lands")]
+    [InlineData("a custom emoji lands")]
+    [InlineData("a picture is refused")]
+    [InlineData("a picture is let go of")]
+    [InlineData("the panel is narrowed")]
+    [InlineData("the terminal draws no pictures")]
+    [InlineData("the cell changes")]
+    [InlineData("the captions are hidden")]
+    [InlineData("the minute turns")]
+    [InlineData("the day turns")]
+    public async Task TheRowsKeptAreTheRowsLaidOutAfresh(string change)
+    {
+        var pictures = new FakePictures().HoldingAvatarOf("ben@mastodon.social");
+
+        if (change == "a picture is let go of")
+        {
+            pictures.HoldingPhotograph("m2", 80, 60);
+        }
+
+        var blurs = new Blurs();
+        var before = new Drawing(60, Posted.AddSeconds(30), pictures, ARaster.Kitty(), Blurs: blurs, Height: 40);
+        var after = change switch
+        {
+            "the panel is narrowed" => before with { Width = 44 },
+            "the terminal draws no pictures" => before with { Raster = null },
+            "the cell changes" => before with { Raster = ARaster.Kitty(new CellSize(10, 24)) },
+            "the captions are hidden" => before with { HideDrawnCaption = true },
+            "the minute turns" => before with { Now = Posted.AddSeconds(90) },
+            "the day turns" => before with { Now = Posted.AddDays(1) },
+            _ => before,
+        };
+
+        var kept = await Feed();
+
+        Before(kept, change);
+        kept.Screen.Lines(before);
+        Change(kept, change, pictures);
+
+        var fresh = await Feed();
+
+        Before(fresh, change);
+        Change(fresh, change, pictures);
+
+        Assert.Equal(Described(fresh.Screen.Lines(after)), Described(kept.Screen.Lines(after)));
+    }
+
+    /// <summary>
+    ///     A feed holding one of everything a post's rows can be drawn from: an avatar, custom emoji in the name and
+    ///     the words, a photograph with a blur, a warning over its words, a poll, and a link preview.
+    /// </summary>
+    private static async Task<Shell> Feed()
+    {
+        Post Posting(string id, string account, string content, IReadOnlyList<PostMedia>? media = null) =>
+            APost.With(
+                id: id,
+                account: account,
+                author: "Ben :php:",
+                content: content,
+                avatarUrl: $"https://files.mastodon.social/avatars/{id}.png",
+                media: media,
+                customEmoji: [Php],
+                authorCustomEmoji: [Php]) with { PostedAt = Posted };
+
+        return await new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                Posting("1", "ben@mastodon.social", "Shearing :php: today"),
+                Posting(
+                    "2",
+                    "ann@mastodon.social",
+                    "The flock",
+                    [APost.APicture("m2", shape: new PictureShape(800, 600), blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj")]),
+                Posting("3", "cat@mastodon.social", "The ending") with { ContentWarning = "spoilers" },
+                Posting("4", "dan@mastodon.social", "Which?") with { Poll = APost.APoll() },
+                Posting("5", "eve@mastodon.social", "Read https://example.com/wool") with
+                {
+                    LinkPreview = APost.ALinkPreview(),
+                }),
+        }.Opened();
+    }
+
+    /// <summary>
+    ///     Picks the post <paramref name="change" /> is made to, before the screen is first drawn — so that the pick
+    ///     moving is not what lays it out again.
+    /// </summary>
+    private static void Before(Shell shell, string change)
+    {
+        var to = change switch
+        {
+            "a warning is asked past" => 2,
+            "a poll's answer is chosen" => 3,
+            "a reference is walked to" => 4,
+            _ => 0,
+        };
+
+        shell.Screen.Move(to);
+    }
+
+    /// <summary>Makes <paramref name="change" /> to <paramref name="shell" />'s feed or to the pictures it draws.</summary>
+    private static void Change(Shell shell, string change, FakePictures pictures)
+    {
+        switch (change)
+        {
+            case "the pick moves":
+                shell.Screen.Move(1);
+                break;
+            case "a warning is asked past":
+                Assert.True(shell.Screen.Reveal());
+                break;
+            case "a poll's answer is chosen":
+                Assert.True(shell.Screen.Toggle(1));
+                break;
+            case "a reference is walked to":
+                Assert.True(shell.Screen.WalkReference(1));
+                break;
+            case "a picture lands":
+                pictures.HoldingPhotograph("m2", 80, 60);
+                break;
+            case "a custom emoji lands":
+                pictures.HoldingCustomEmoji(Php);
+                break;
+            case "a picture is refused":
+                pictures.Refusing("m2", Unshowable.Failed);
+                break;
+            case "a picture is let go of":
+                pictures.Forgetting("m2");
+                break;
+        }
+    }
+
+    /// <summary>
+    ///     Every row whole, as text: each thing it holds said through its public properties, all the way down — and a
+    ///     picture by which picture it is rather than by its pixels, since a row kept is a row holding the very same
+    ///     one. Said this way rather than compared as records, whose lists compare as the lists they are.
+    /// </summary>
+    private static string Described(IReadOnlyList<Line> lines)
+    {
+        var described = new StringBuilder();
+
+        foreach (var line in lines)
+        {
+            Describe(line, described, depth: 0);
+            described.AppendLine();
+        }
+
+        return described.ToString();
+    }
+
+    private static void Describe(object? value, StringBuilder described, int depth)
+    {
+        switch (value)
+        {
+            case null:
+                described.Append("null");
+                return;
+            case Picture picture:
+                described.Append("picture#").Append(RuntimeHelpers.GetHashCode(picture));
+                return;
+            case string or Enum or ValueType when value.GetType().IsPrimitive || value is string or Enum:
+                described.Append(value);
+                return;
+            case IEnumerable many when depth < 8:
+                described.Append('[');
+
+                foreach (var each in many)
+                {
+                    Describe(each, described, depth + 1);
+                    described.Append(", ");
+                }
+
+                described.Append(']');
+                return;
+        }
+
+        if (depth >= 8)
+        {
+            described.Append(value);
+            return;
+        }
+
+        described.Append(value.GetType().Name).Append(" { ");
+
+        foreach (var property in value.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (property.GetIndexParameters().Length > 0)
+            {
+                continue;
+            }
+
+            described.Append(property.Name).Append(" = ");
+            Describe(property.GetValue(value), described, depth + 1);
+            described.Append(", ");
+        }
+
+        described.Append('}');
+    }
 
     /// <summary>
     ///     A notch of the wheel over a long feed allocates about what one over a short feed does: what a frame costs is
