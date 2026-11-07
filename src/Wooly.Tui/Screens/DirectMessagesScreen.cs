@@ -27,7 +27,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     // puts the reader back on (#84).
     private readonly Picked<Conversation> _conversations = new(conversations);
 
-    private readonly KeptRows<Conversation> _kept = new();
+    private readonly KeptRows<Conversation, (ReadAs, string?)> _kept = new();
 
     /// <inheritdoc />
     public override string Crumb => "Direct messages";
@@ -167,13 +167,13 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         }
 
         _kept.KeepOnly(_conversations.All);
-        lines.AddRange(WithFoot(_conversations.Rows(Kept, default, from: 0, howMany: _conversations.Count)));
+        lines.AddRange(WithFoot(_conversations.Rows(Stamp)));
 
         return lines;
 
         // Kept from the frame before where nothing they are drawn from has changed (#584): the reference walked to in
         // the last thing said, and how long ago that says.
-        IReadOnlyList<Line> Kept(Conversation conversation, int at, bool picked)
+        IReadOnlyList<Line> Stamp(Conversation conversation, int at, bool picked)
         {
             var reading = new Reading(Reference: ReferenceOn(at));
 

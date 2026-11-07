@@ -17,7 +17,7 @@ public delegate IReadOnlyList<Line> Draws<in T>(T thing, int at, int room);
 /// <summary>
 ///     How one thing's rows come to be stamped: the thing, which ordinal it is, and whether it is the one picked out —
 ///     for a list that keeps its things' stamped rows from one frame to the next rather than drawing and stamping them
-///     each time (<see cref="KeptRows{T}" />).
+///     each time (<see cref="KeptRows{T, TAlso}" />).
 /// </summary>
 public delegate IReadOnlyList<Line> Stamps<in T>(T thing, int at, bool picked);
 
@@ -292,6 +292,12 @@ public sealed class Picked<T>(IReadOnlyList<T> things) : IPicked
     /// <param name="howMany">How many of them are in it.</param>
     public IReadOnlyList<Line> Rows(int width, Draws<T> draw, Ordinals ordinals, int from, int howMany) =>
         Rows((thing, at, picked) => Stamped.Rows(draw(thing, at, Stamped.Room(width)), at, picked), ordinals, from, howMany);
+
+    /// <inheritdoc cref="Rows(int, Draws{T}, Ordinals)" />
+    /// <summary>Every thing's rows, with each thing's stamped rows come by as <paramref name="stamp" /> says.</summary>
+    /// <param name="stamp">How one thing's stamped rows are come by.</param>
+    public IReadOnlyList<Line> Rows(Stamps<T> stamp, Ordinals ordinals = default) =>
+        Rows(stamp, ordinals, from: 0, howMany: Count);
 
     /// <inheritdoc cref="Rows(int, Draws{T}, Ordinals, int, int)" />
     /// <summary>The same, with each thing's stamped rows come by as <paramref name="stamp" /> says.</summary>

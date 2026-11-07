@@ -32,19 +32,27 @@ namespace Wooly.Tui.Screens;
 ///     </list>
 /// </remarks>
 /// <typeparam name="T">What the list holds, told apart by which one it is rather than by what it says.</typeparam>
-internal sealed class KeptRows<T>
+/// <typeparam name="TAlso">What else its screen draws a thing's rows from, compared by what it says.</typeparam>
+/// <remarks>
+///     The drawing's height is part of what rows are kept by though no list's rows are drawn from it, so that a row
+///     drawn from it one day is never kept wrongly: a terminal made taller or shorter lays a list out once more, which
+///     is rare. Asked on the UI thread only, as every screen's rows are.
+/// </remarks>
+internal sealed class KeptRows<T, TAlso>
     where T : class
+    where TAlso : IEquatable<TAlso>
 {
     private readonly Dictionary<T, Kept> _kept = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>The drawing last asked under, and it as rows are kept by: made once a frame rather than once a thing.</summary>
+    private (Drawing Asked, Drawing KeptBy)? _drawing;
 
     /// <summary>
     ///     <paramref name="thing" />'s rows, stamped as the <paramref name="at" />th thing on the screen, picked out or
     ///     not: those kept from before where nothing they are drawn from has changed, and laid out afresh by
     ///     <paramref name="layOut" /> where it has.
     /// </summary>
-    /// <param name="alsoDrawnFrom">
-    ///     Whatever else the screen draws the thing's rows from, as a value compared by what it says.
-    /// </param>
+    /// <param name="alsoDrawnFrom">Whatever else the screen draws the thing's rows from.</param>
     /// <param name="layOut">
     ///     How the thing's own rows are laid out, under the drawing given and in the room its gutter leaves it.
     /// </param>
@@ -53,10 +61,15 @@ internal sealed class KeptRows<T>
         int at,
         bool picked,
         Drawing drawing,
-        object alsoDrawnFrom,
+        TAlso alsoDrawnFrom,
         Func<Drawing, int, IReadOnlyList<Line>> layOut)
     {
-        var drawnFrom = new DrawnFrom(at, picked, drawing with { Now = default, Top = 0, Pictures = null }, alsoDrawnFrom);
+        if (_drawing is not { } last || !ReferenceEquals(last.Asked, drawing))
+        {
+            _drawing = last = (drawing, drawing with { Now = default, Top = 0, Pictures = null });
+        }
+
+        var drawnFrom = new DrawnFrom(at, picked, last.KeptBy, alsoDrawnFrom);
 
         if (_kept.TryGetValue(thing, out var kept) && kept.DrawnFrom == drawnFrom && kept.Asked.SameNow(drawing.Pictures))
         {
@@ -90,7 +103,7 @@ internal sealed class KeptRows<T>
     private sealed record Kept(DrawnFrom DrawnFrom, Asked Asked, IReadOnlyList<Line> Rows);
 
     /// <summary>Everything a thing's rows are drawn from but the thing and the pictures.</summary>
-    private sealed record DrawnFrom(int At, bool Picked, Drawing Drawing, object AlsoDrawnFrom);
+    private sealed record DrawnFrom(int At, bool Picked, Drawing Drawing, TAlso AlsoDrawnFrom);
 
     /// <summary>
     ///     What laying out one thing asked of the pictures, and what it was answered: asked through
@@ -180,14 +193,4 @@ internal sealed class KeptRows<T>
                     : now is not null && _picture.TryGetTarget(out var then) && ReferenceEquals(then, now);
         }
     }
-}
-
-/// <summary>
-///     What a reader has done to a post, as a value compared by what it says — its poll's choices by which they are,
-///     where <see cref="Reading" /> holds the screen's own set of them, changed as they are made.
-/// </summary>
-internal readonly record struct ReadAs(bool Revealed, Reference? Reference, string? Chosen)
-{
-    public static ReadAs Of(Reading reading) =>
-        new(reading.Revealed, reading.Reference, reading.Chosen is { } chosen ? string.Join(',', chosen.Order()) : null);
 }

@@ -217,3 +217,18 @@ than by what has been fetched. Measured with `ScrollMeasure` over twelve photogr
 120×50, a notch costs what it did (a median of 16 to 18 ms down and 13 to 14 ms up over five runs, against 15 to 23 ms
 and 13 to 15 ms before), and sends about a third of the bytes (67 KB on average, against 209 KB), because a box is
 smaller than the picture as decoded.
+
+## Amendment: a list's kept rows ask the cache again, and hold what it answered weakly (#584)
+
+A screen's rows were laid out afresh every frame, every post on it, so a scroll slowed as a feed grew — 52 ms a frame
+over 800 posts. A list that reads on as it is scrolled now keeps each thing's rows from one frame to the next (**Kept
+rows**, `KeptRows`), and a thing's rows depend on the cache: a box is a picture once the picture has landed, a stand-in
+before. So what laying a thing out asked of the cache is kept with its rows — each `Of` and `WhyNot`, and its answer —
+and the rows are kept only while each question is answered the same. A picture landing, refused or let go of lays out
+again just the things that asked about it; the cache itself is unchanged, asked a few more lookups a frame.
+
+The pictures answered are held weakly. A screen under the one in front keeps its rows and is not drawn, and holding
+them would keep pixels the cache let go of past its budget until the screen was walked back out of. One nothing else
+holds is gone, which answers differently from anything the cache answers now, so the rows are laid out again the next
+time the screen is drawn. What kept rows do hold is each **Stand-in**'s blur, 32 pixels square, which is what a stand-in
+drawn on a screen under the one in front held before too, for as long as it was drawn.

@@ -748,8 +748,13 @@ changed (`KeptRows`, #584): the thing itself, its ordinal and whether it is **Pi
 clock, the **Page** and the pictures, what its screen says of it as a value — its **Reading**, whether it is unread, how
 long ago it says — and every question laying it out asked of the pictures, kept only while each is answered the same.
 So a frame costs what the page costs rather than what the list does, and a picture landing lays out again only the
-things that asked about it. Distinct from the **Page**, which is which rows are in front of the reader: kept rows are
-every thing's, on the page or not.
+things that asked about it (ADR-0025's amendment for #584). A **Reading** is kept by as what it says (`ReadAs`), its
+poll's choices by which they are rather than the screen's own set of them. Lists that do not read on lay their rows out
+afresh, which costs what the list is: a search is one page of results, and a post screen's own post is one post. The
+lists of people — those who boosted or favourited, follows and followers, follow requests — read on too and do not yet
+keep their rows, a few rows a person (`AccountLines.Block`).
+Distinct from the **Page**, which is which rows are in front of the reader: kept rows are every thing's, on the page or
+not.
 _Avoid_: cache, memo, render cache
 
 **Page**:

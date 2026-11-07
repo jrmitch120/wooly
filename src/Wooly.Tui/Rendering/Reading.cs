@@ -34,3 +34,17 @@ public readonly record struct Reading(
     bool Revealed = false,
     Reference? Reference = null,
     IReadOnlySet<int>? Chosen = null);
+
+/// <summary>
+///     A <see cref="Reading" /> as a value compared by what it says, for rows kept by it (<see cref="Screens.KeptRows{T, TAlso}" />):
+///     its poll's choices by which they are, where a Reading holds the screen's own set of them, changed as they are
+///     made — and none chosen said as none at all, since empty and absent say the same thing.
+/// </summary>
+internal readonly record struct ReadAs(bool Revealed, Reference? Reference, string? Chosen)
+{
+    public static ReadAs Of(Reading reading) =>
+        new(
+            reading.Revealed,
+            reading.Reference,
+            reading.Chosen is { Count: > 0 } chosen ? string.Join(',', chosen.Order()) : null);
+}

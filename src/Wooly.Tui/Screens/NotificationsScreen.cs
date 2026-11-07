@@ -33,7 +33,7 @@ public sealed class NotificationsScreen(
 {
     private readonly HashSet<string> _unread = new(unread ?? new HashSet<string>(), StringComparer.Ordinal);
 
-    private readonly KeptRows<NotificationGroup> _kept = new();
+    private readonly KeptRows<NotificationGroup, (bool, ReadAs, string, string?)> _kept = new();
 
     // Named by the group's own key, which is not the id of the post it is about (GLOSSARY.md) — and is what a refresh
     // puts the reader back on (#84). Each key once, under its newest: the instance groups a page at a time, so a list
@@ -320,13 +320,13 @@ public sealed class NotificationsScreen(
         }
 
         _kept.KeepOnly(_groups.All);
-        lines.AddRange(WithFoot(_groups.Rows(Kept, default, from: 0, howMany: _groups.Count)));
+        lines.AddRange(WithFoot(_groups.Rows(Stamp)));
 
         return lines;
 
         // Kept from the frame before where nothing they are drawn from has changed (#584): what the reader has done
         // to the post under it, whether it is unread, and how long ago it and its post say.
-        IReadOnlyList<Line> Kept(NotificationGroup group, int at, bool picked)
+        IReadOnlyList<Line> Stamp(NotificationGroup group, int at, bool picked)
         {
             var unread = IsUnread(group);
             var reading = group.Post is { } post ? ReadingOf(post, at) : default;

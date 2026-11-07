@@ -82,7 +82,7 @@ public static class NotificationGroupLines
     /// <summary>
     ///     The whole of what a group's own rows say of the clock: how long ago its newest notification came. Its rows
     ///     kept from one frame to the next are laid out again when this changes, and only then, for the clock
-    ///     (<see cref="KeptRows{T}" />).
+    ///     (<see cref="KeptRows{T, TAlso}" />).
     /// </summary>
     internal static string Age(NotificationGroup group, DateTimeOffset now) => Elapsed.Since(group.NewestAt, now);
 
