@@ -103,27 +103,8 @@ try
     // fetch is relying on.
     using var files = new HttpClient { Timeout = Pictures.Patience };
 
-    // A picture lands on whatever thread finished fetching it, and drawing is the application's. Redrawn rather than
-    // told to the shell, because nothing about the shell has changed — the same rows are wanted, with the box that
-    // was waiting now filled in.
-    //
-    // One redraw for a burst, not one each: pictures arrive together, a forced redraw re-encodes every picture on
-    // screen, and doing that once per arrival is what a reader sees as flicker.
-    var redrawing = 0;
-
-    void Redraw()
-    {
-        if (Interlocked.Exchange(ref redrawing, 1) == 1)
-        {
-            return;
-        }
-
-        application.Invoke(() =>
-        {
-            Interlocked.Exchange(ref redrawing, 0);
-            application.LayoutAndDraw(true);
-        });
-    }
+    // A picture lands on whatever thread finished fetching it, and drawing is the application's.
+    var landing = new PicturesLanding(application);
 
     // Ghostty and kitty say who they are in the environment, which is known before the first frame — and they are the
     // terminals known to draw Kitty's placeholders, which WezTerm takes and then prints as boxes (#292, ADR-0022).
@@ -140,12 +121,12 @@ try
     // Disposed before the application is, which is what takes every picture this run sent off the terminal.
     using var placeholders = new Placeholders(
         new KittyImages(sequence => application.Driver?.GetOutput().Write(sequence)),
-        Redraw,
+        landing.Landed,
         work => Task.Run(work));
 
     // Handed the frame's room by the content region each time it says what it wants, rather than asking the window
     // for it, so nothing the cache does calls back into the window (#359).
-    using var pictures = Pictures.Over(files, Redraw);
+    using var pictures = Pictures.Over(files, landing.Landed);
 
     // Each frame with pictures in it written whole, where the terminal can hold one back until it is (#342).
     var frames = new SynchronizedFrames(sequence => application.Driver?.GetOutput().Write(sequence));

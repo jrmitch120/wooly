@@ -9,6 +9,7 @@ using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
+using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
 
@@ -43,6 +44,43 @@ public class PictureResendTests : IDisposable
         }
 
         Assert.Contains(drawn.Rows(), row => row.Contains("5 / 1500", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     A picture landing sends itself, and none of the pictures already on screen again: a scroll into posts whose
+    ///     custom emoji and avatars land one burst after another had every sixel on the page sent again for each burst.
+    /// </summary>
+    [Fact]
+    public async Task APictureLandingSendsItselfAndNoneAlreadyOnScreen()
+    {
+        var php = new Wooly.Core.CustomEmoji("php", "https://files.mastodon.social/emoji/php.png");
+        var pictures = new FakePictures().Holding("m1", 800, 200);
+
+        using var drawn = await DrawnShell.Of(
+            80,
+            50,
+            Themes.Dark,
+            new AShell
+            {
+                Timelines = FakeTimelineReader.Holding(
+                    APost.With(id: "110"),
+                    APost.With(
+                        id: "220",
+                        content: "I write :php: daily",
+                        customEmoji: [php],
+                        media: [APost.APicture("m1", shape: new PictureShape(800, 200))])),
+            },
+            pictures: pictures,
+            drawsPictures: true);
+
+        Assert.Equal(1, drawn.SixelsSent());
+
+        pictures.HoldingCustomEmoji(php);
+        await Task.Run(new PicturesLanding(drawn.Application).Landed, TestContext.Current.CancellationToken);
+        drawn.Application.TimedEvents!.RunTimers();
+
+        Assert.Equal(2, drawn.Application.Driver!.GetOutputBuffer().GetRasterImages().Count);
+        Assert.Equal(1, drawn.SixelsSent());
     }
 
     /// <summary>Typing the post sends none of the pictures on the rows under Media again either.</summary>
