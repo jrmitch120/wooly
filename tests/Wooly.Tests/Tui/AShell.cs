@@ -35,6 +35,7 @@ internal sealed class AShell
         Suggestions = FakeFollowSuggestions.Offering();
         RateLimit = FakeRateLimitReport.Silent();
         Limits = FakeInstanceLimits.Setting();
+        Emoji = FakeInstanceEmoji.Offering();
         Defaults = FakeAccountDefaults.Setting();
     }
 
@@ -61,6 +62,9 @@ internal sealed class AShell
     public FakeRateLimitReport RateLimit { get; set; }
 
     public FakeInstanceLimits Limits { get; set; }
+
+    /// <summary>The custom emoji the instance offers its people to write (#578): none, unless a test says so.</summary>
+    public FakeInstanceEmoji Emoji { get; set; }
 
     /// <summary>
     ///     The user stream (#401), which never comes up unless a test says so — so a shell keeps polling, as it did
@@ -196,6 +200,7 @@ internal sealed class AShell
         Suggestions,
         RateLimit,
         Limits,
+        Emoji,
         Defaults,
         Stream,
         PublicProfile);
@@ -270,7 +275,7 @@ internal sealed class AShell
         + Messages.Listings.Count + Messages.Shown.Count + Messages.MarkedRead.Count
         + Search.Searches.Count + Search.FollowedSearches.Count
         + Suggestions.Reads.Count + Suggestions.Dismissals.Count
-        + Limits.Reads.Count + Defaults.Reads.Count
+        + Limits.Reads.Count + Emoji.Reads.Count + Defaults.Reads.Count
         + PublicProfile.Reads.Count + PublicProfile.Saves.Count;
 
     /// <summary>
@@ -281,7 +286,7 @@ internal sealed class AShell
     [
         .. Timelines.Tokens, .. Author.Tokens, .. Engagement.Tokens, .. Accounts.Tokens, .. Notifications.Tokens,
         .. Messages.Tokens, .. Search.Tokens, .. Suggestions.Tokens,
-        .. Limits.Tokens, .. Defaults.Tokens, .. PublicProfile.Tokens,
+        .. Limits.Tokens, .. Emoji.Tokens, .. Defaults.Tokens, .. PublicProfile.Tokens,
     ];
 
     /// <summary>A shell that has already opened onto its first destination.</summary>

@@ -83,6 +83,12 @@ internal sealed class ShellWindow : Window
     /// </summary>
     private readonly IReadOnlyList<View> _overlays;
 
+    /// <summary>
+    ///     What the content panel draws pictures with, and the views laid over it draw theirs from, wanting of the cache
+    ///     with the panel's frame (#580).
+    /// </summary>
+    private readonly PanelPictures _pictures;
+
     /// <summary>The rail, which <see cref="Railed" /> takes away and puts back.</summary>
     private readonly PaintedView _rail;
 
@@ -266,6 +272,8 @@ internal sealed class ShellWindow : Window
         // It is a panel titled with the breadcrumb (ADR-0021), its edges laid round its viewport, so the width every
         // screen is drawn at and every picture's box are the inside of it less the margin: 57 columns at an 80-column
         // terminal, of a viewport 58 wide (#495).
+        _pictures = new PanelPictures(pictures, placeholders, raster);
+
         _content = new PaintedView(
             theme,
             // Laid out under the Raster the region settled the frame by, read rather than asked again here, so that a
@@ -286,7 +294,6 @@ internal sealed class ShellWindow : Window
                 {
                     Top = _content.Top,
                 }),
-            pictures,
             // No rows of the panel's own: the view paints only the frame's edges, round the screen's rows.
             (width, height) => WithTheHiddenRailsMark(Panel.Framed(
                 ChromeLines.Breadcrumb(shell.Crumbs, shell.SpinnerFrame, width),
@@ -294,9 +301,8 @@ internal sealed class ShellWindow : Window
                 width,
                 height,
                 active: true)),
-            placeholders,
             frames,
-            raster)
+            _pictures)
         {
             Id = ContentId,
             X = Pos.Func(_ => Left),
@@ -333,9 +339,9 @@ internal sealed class ShellWindow : Window
         // back as "the view where the data will be retrieved".
         _overlays =
         [
-            new ComposeView(theme, shell, shell.Drafting),
-            new DescriptionView(theme, shell, shell.Drafting, () => _content.Raster),
-            new PublicProfileView(theme, shell, shell.Drafting, () => _content.Raster, pictures),
+            new ComposeView(theme, shell, shell.Drafting, _pictures),
+            new DescriptionView(theme, shell, shell.Drafting, _pictures),
+            new PublicProfileView(theme, shell, shell.Drafting, _pictures),
         ];
 
         foreach (var overlay in _overlays)
@@ -344,6 +350,11 @@ internal sealed class ShellWindow : Window
             overlay.Y = Pos.Func(content => ViewportOrigin(content).Y, _content);
             overlay.Width = Dim.Func(content => content?.Viewport.Width ?? 0, _content);
             overlay.Height = Dim.Func(content => content?.Viewport.Height ?? 0, _content);
+
+            foreach (var laid in overlay.SubViews)
+            {
+                Uncovering(laid);
+            }
         }
 
         var status = new PaintedView(theme, (width, _) =>
@@ -1362,6 +1373,30 @@ internal sealed class ShellWindow : Window
         var bottom = _content.FrameToScreen().Bottom - 1;
 
         return _shell.ShowsRail && at == new Point(shell.X + RailLines.ToggleColumn, bottom);
+    }
+
+    /// <summary>
+    ///     Has the content panel drawn again whenever <paramref name="laid" />, a view laid over it, shows, hides, moves
+    ///     or changes size — a pick list opening, closing or following its word above all (#577). Under a list is
+    ///     whatever the panel paints there, the pictures on its rows among it; only the panel drawn again puts back
+    ///     what a list leaves, and only the panel drawn again places its pictures around what a list newly covers.
+    /// </summary>
+    /// <remarks>
+    ///     A view hidden or moved has the view holding it drawn again, and nothing beside: what it leaves is the panel's,
+    ///     and an overlay draws nothing of its own there. So a list flipped over the Media rows and closed by <c>esc</c>
+    ///     stayed on the terminal, holes in the pictures under it and all. Opening wants the panel too: a picture left as
+    ///     it was, uncut, still claims the cells the list now covers — a Kitty placement sits over them, and the driver
+    ///     leaves any blank cell on the terminal's own background inside a sixel unwritten, which is every blank cell of
+    ///     the list in a built-in theme. Drawn again, the panel is drawn with the overlays on top
+    ///     (<see cref="OnDrawingSubViews" />), and a list keeps the cells it covers out of what the panel paints:
+    ///     placeholder cells there go unpainted, and a sixel is sent and a Kitty placement put again cut round the list,
+    ///     to the cell. A shell change draws the whole window again anyway; this is for what moves a list
+    ///     without one — a key the list takes, a click it is closed by, the caret leaving its word.
+    /// </remarks>
+    private void Uncovering(View laid)
+    {
+        laid.VisibleChanged += (_, _) => _content.SetNeedsDraw();
+        laid.FrameChanged += (_, _) => _content.SetNeedsDraw();
     }
 
     /// <summary>

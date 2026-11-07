@@ -37,6 +37,22 @@ public static class PickLines
     ];
 
     /// <summary>
+    ///     <paramref name="text" /> in <paramref name="role" />, with the <paramref name="length" /> letters at
+    ///     <paramref name="at" /> — what was typed, where it matched — as a mention, or none where it did not
+    ///     (<paramref name="at" /> below nought): how every row of a list hung under a word picks out the letters typed,
+    ///     a person's (<see cref="MentionLines" />) and a custom emoji's (<see cref="EmojiLines" />) alike.
+    /// </summary>
+    public static IEnumerable<Span> Lit(string text, int at, int length, Role role) =>
+        at < 0
+            ? [new Span(text, role)]
+            :
+            [
+                new Span(text[..at], role),
+                new Span(text.Substring(at, length), Role.Mention),
+                new Span(text[(at + length)..], role),
+            ];
+
+    /// <summary>
     ///     How wide the list wants to be for things whose widest takes <paramref name="widest" /> columns: what that
     ///     row needs, or 40.
     /// </summary>
@@ -56,7 +72,7 @@ public static class PickLines
         int top,
         int height,
         int width,
-        Func<T, bool, IEnumerable<Span>> row,
+        Func<T, bool, Line> row,
         string picks = "insert")
     {
         var keys = Keys(picks);
@@ -84,47 +100,91 @@ public static class PickLines
         return rows;
     }
 
-    /// <summary>One thing, between the box's sides: its mark, and what it says cut to fit.</summary>
-    private static Line Row(IEnumerable<Span> says, bool picked, int inside)
+    /// <summary>
+    ///     One thing, between the box's sides: its mark, and what it says cut to fit — any picture on it moved along
+    ///     with it, to where it is drawn in the box (#580).
+    /// </summary>
+    private static Line Row(Line says, bool picked, int inside)
     {
-        List<Span> spans =
-        [
-            new(picked ? "▌" : " ", picked ? Role.Selection : Role.Body),
-            new(" ", Role.Body),
-            .. says,
-        ];
+        var fitted = Clipped(
+            says.After(new Span(picked ? "▌" : " ", picked ? Role.Selection : Role.Body), new Span(" ", Role.Body)),
+            inside);
 
-        var fitted = Clipped(spans, inside);
-        var used = fitted.Sum(span => span.Width);
-
-        return Line.Of(
-        [
-            new Span("│", Role.PanelBorder),
-            .. fitted,
-            new Span(new string(' ', Math.Max(0, inside - used)), Role.Body),
-            new Span("│", Role.PanelBorder),
-        ]);
+        return fitted
+               .After(new Span("│", Role.PanelBorder))
+               .Then(
+                   new Span(new string(' ', Math.Max(0, inside - fitted.Width)), Role.Body),
+                   new Span("│", Role.PanelBorder));
     }
 
-    /// <summary>As many of <paramref name="spans" /> as fit in <paramref name="width" /> columns, the last one cut.</summary>
-    private static List<Span> Clipped(IEnumerable<Span> spans, int width)
+    /// <summary>
+    ///     As much of <paramref name="line" /> as fits in <paramref name="width" /> columns, the cut marked <c>…</c>:
+    ///     text cut where it runs out of room, but a custom emoji — its box, or the run of spans its shortcode is written
+    ///     in — held whole, kept whole or dropped whole with the rest, never cut through (ADR-0035, #524, #580), as
+    ///     <see cref="TextWrap.Clip" /> holds a shortcode; and only the pictures whose boxes are kept still set into it.
+    /// </summary>
+    private static Line Clipped(Line line, int width)
     {
-        var kept = new List<Span>();
-        var left = width;
-
-        foreach (var span in spans)
+        if (line.Width <= width)
         {
-            if (left <= 0)
-            {
-                break;
-            }
-
-            var cut = Glyphs.Columns(span.Text) <= left ? span.Text : TextWrap.Clip(span.Text, left);
-
-            kept.Add(span with { Text = cut });
-            left -= Glyphs.Columns(cut);
+            return line;
         }
 
-        return kept;
+        var spans = line.Spans;
+        var kept = new List<Span>();
+
+        // A column kept back for the ellipsis, which is always drawn, since the line is cut somewhere.
+        var left = width - 1;
+
+        for (var at = 0; left >= 0 && at < spans.Count;)
+        {
+            var held = Held(spans, at);
+            var columns = spans.Skip(at).Take(held).Sum(span => span.Width);
+
+            if (columns <= left)
+            {
+                kept.AddRange(spans.Skip(at).Take(held));
+                left -= columns;
+                at += held;
+
+                continue;
+            }
+
+            var cut = spans[at].CustomEmoji is null
+                ? spans[at].Text[..Glyphs.Reach(spans[at].Text, 0, spans[at].Text.Length, left)]
+                : string.Empty;
+
+            kept.Add(spans[at] with { Text = $"{cut}…" });
+
+            break;
+        }
+
+        var used = kept.Sum(span => span.Width);
+
+        return line.Respanned(kept) with
+        {
+            Insets = [.. line.Insets.Where(inset => inset.Column + inset.Columns <= used)],
+        };
+    }
+
+    /// <summary>
+    ///     How many spans from <paramref name="at" /> are held whole together: the run written for one custom emoji, or
+    ///     the one span alone.
+    /// </summary>
+    private static int Held(IReadOnlyList<Span> spans, int at)
+    {
+        if (spans[at].CustomEmoji is not { } customEmoji)
+        {
+            return 1;
+        }
+
+        var end = at + 1;
+
+        while (end < spans.Count && spans[end].CustomEmoji == customEmoji)
+        {
+            end++;
+        }
+
+        return end - at;
     }
 }

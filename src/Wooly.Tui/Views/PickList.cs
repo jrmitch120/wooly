@@ -28,6 +28,9 @@ internal sealed class PickList<T>
     /// <summary>What is on offer, in order; nothing while the list is closed.</summary>
     private IReadOnlyList<T> _things = [];
 
+    /// <summary>What the list stands open saying in place of things to pick (<see cref="Note" />); nothing otherwise.</summary>
+    private Line? _note;
+
     /// <summary>Which of <see cref="_things" /> <c>tab</c> or <c>⏎</c> would pick.</summary>
     private int _at;
 
@@ -39,19 +42,27 @@ internal sealed class PickList<T>
 
     /// <param name="theme">What answers the roles.</param>
     /// <param name="id">The list's <c>Id</c> among the window's views.</param>
-    /// <param name="row">What a thing says on its row, given whether it is the picked one.</param>
+    /// <param name="row">
+    ///     What a thing says on its row, given whether it is the picked one, any picture on it set at the column it
+    ///     stands at in what it says.
+    /// </param>
     /// <param name="columns">How many columns what a thing says takes, which is what the list is sized to.</param>
     /// <param name="picked">What picking a thing does — by key or by click.</param>
     /// <param name="closed">What closing the list without picking does — by <c>esc</c> or by a click elsewhere.</param>
     /// <param name="picks">What <c>tab</c> is said to do along the list's bottom edge.</param>
+    /// <param name="overlaid">
+    ///     What the list draws the pictures on its rows from, laid over the content panel — a custom emoji's (#580) — or
+    ///     <see langword="null" /> for a list of rows of text alone.
+    /// </param>
     public PickList(
         ITheme theme,
         string id,
-        Func<T, bool, IEnumerable<Span>> row,
+        Func<T, bool, Line> row,
         Func<T, int> columns,
         Action<T> picked,
         Action closed,
-        string picks = "insert")
+        string picks = "insert",
+        PanelPictures? overlaid = null)
     {
         _columns = columns;
         _picked = picked;
@@ -59,7 +70,10 @@ internal sealed class PickList<T>
 
         View = new PaintedView(
             theme,
-            (width, height) => PickLines.Rows(_things, _at, Scrolled(height), height, width, row, picks))
+            (width, height) => _note is { } note
+                ? PickLines.Rows([note], picked: -1, top: 0, height, width, (line, _) => line, picks)
+                : PickLines.Rows(_things, _at, Scrolled(height), height, width, row, picks),
+            over: overlaid)
         {
             Id = id,
             CanFocus = false,
@@ -72,8 +86,11 @@ internal sealed class PickList<T>
     /// <summary>The list as drawn, which the window lays over the field.</summary>
     public PaintedView View { get; }
 
-    /// <summary>Whether the list is open, which is whether it has anything on offer.</summary>
-    public bool Open => _things.Count > 0;
+    /// <summary>Whether the list is open, which is whether it has anything on offer or stands open on a note.</summary>
+    public bool Open => _things.Count > 0 || Noting;
+
+    /// <summary>Whether the list stands open on a <see cref="Note" />, with nothing to pick.</summary>
+    public bool Noting => _note is not null;
 
     /// <summary>
     ///     Puts <paramref name="things" /> on offer, opening the list on them or, where there are none, closing it.
@@ -83,9 +100,13 @@ internal sealed class PickList<T>
     /// </summary>
     public void Offer(IReadOnlyList<T> things, bool keepingThePick, int picking = 0)
     {
-        _things = things;
+        // A note has no pick to keep: the things that follow it open picked as a list opening does.
+        var noted = Noting;
 
-        if (!keepingThePick || things.Count == 0)
+        _things = things;
+        _note = null;
+
+        if (!keepingThePick || things.Count == 0 || noted)
         {
             _at = picking;
             _top = 0;
@@ -93,10 +114,23 @@ internal sealed class PickList<T>
 
         _at = Math.Clamp(_at, 0, Math.Max(0, things.Count - 1));
 
-        View.Visible = Open;
-        View.SetNeedsLayout();
-        View.SetNeedsDraw();
-        View.SuperView?.SetNeedsDraw();
+        Shown();
+    }
+
+    /// <summary>
+    ///     Opens the list on <paramref name="note" /> alone, said rather than offered: drawn where a thing's row is,
+    ///     unmarked, with the list's usual foot, and sized to it as to a thing. Nothing picks it — <c>tab</c>,
+    ///     <c>⏎</c>, a click and the wheel on it are spent on nothing — and <c>↑</c>/<c>↓</c>, with nothing to move,
+    ///     go on to the field; <c>esc</c> and a click elsewhere close the list as ever.
+    /// </summary>
+    public void Note(Line note)
+    {
+        _things = [];
+        _note = note;
+        _at = 0;
+        _top = 0;
+
+        Shown();
     }
 
     /// <summary>
@@ -106,11 +140,12 @@ internal sealed class PickList<T>
     /// </summary>
     public Size Within(int width, int height)
     {
-        var widest = _things.Select(_columns).DefaultIfEmpty().Max();
+        var widest = _note is { } note ? note.Width : _things.Select(_columns).DefaultIfEmpty().Max();
+        var rows = Noting ? 1 : _things.Count;
 
         return new Size(
             Math.Min(PickLines.Width(widest), width),
-            Math.Min(_things.Count, Math.Max(1, height - PickLines.Edges)) + PickLines.Edges);
+            Math.Min(rows, Math.Max(1, height - PickLines.Edges)) + PickLines.Edges);
     }
 
     /// <summary>
@@ -127,6 +162,11 @@ internal sealed class PickList<T>
 
         if (key == Key.CursorDown || key == Key.CursorUp)
         {
+            if (Noting)
+            {
+                return false;
+            }
+
             Move((_at + (key == Key.CursorDown ? 1 : -1) + _things.Count) % _things.Count);
 
             return true;
@@ -144,7 +184,10 @@ internal sealed class PickList<T>
             return false;
         }
 
-        _picked(_things[_at]);
+        if (!Noting)
+        {
+            _picked(_things[_at]);
+        }
 
         return true;
     }
@@ -189,9 +232,10 @@ internal sealed class PickList<T>
     /// <summary>A mouse event on the list itself: a click on a thing picks it, and a notch moves the pick.</summary>
     private bool Pointed(Mouse mouse)
     {
-        if (!Open)
+        // A note is only said: every press on it is the list's, and picks nothing.
+        if (!Open || Noting)
         {
-            return false;
+            return Open;
         }
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
@@ -219,6 +263,14 @@ internal sealed class PickList<T>
         // Every other press on the list is the list's — a right click above all, which is nothing here (#307) rather
         // than the esc it is elsewhere.
         return true;
+    }
+
+    private void Shown()
+    {
+        View.Visible = Open;
+        View.SetNeedsLayout();
+        View.SetNeedsDraw();
+        View.SuperView?.SetNeedsDraw();
     }
 
     private void Move(int to)

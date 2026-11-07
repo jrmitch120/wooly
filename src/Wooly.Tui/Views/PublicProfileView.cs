@@ -34,17 +34,15 @@ internal sealed class PublicProfileView : View
     /// <summary>The rows that take no typing — the avatar and the header, and the three toggles — by which they are.</summary>
     private readonly Dictionary<PublicProfilePart, PublicProfileButton> _buttons = [];
 
-    /// <summary>How this terminal paints pixels, which says how tall the avatar's and the header's rows are.</summary>
-    private readonly Func<Raster?> _raster;
-
     /// <summary>
-    ///     Where the pixels come from, which with <see cref="_raster" /> says whether the pictures are drawn at all
-    ///     (<see cref="Rendering.Drawing.Draws" />).
+    ///     The content panel's pictures and Raster: which say how tall the avatar's and the header's rows are, and
+    ///     whether the pictures are drawn at all (<see cref="Rendering.Drawing.Draws" />) — and what the bio's list draws
+    ///     a custom emoji's picture from (#580).
     /// </summary>
-    private readonly IPictures? _pictures;
+    private readonly PanelPictures _pictures;
 
-    /// <summary>The people to mention, hung under the @-word being typed in the bio, as under compose's post (#408).</summary>
-    private readonly MentionList _mentions;
+    /// <summary>The list hung under the word being typed in the bio, as under compose's post (#408, #576).</summary>
+    private readonly HangingList _hanging;
 
     /// <summary>The form the fields were last filled from, or none while no form is on top.</summary>
     private PublicProfileScreen? _showing;
@@ -62,25 +60,23 @@ internal sealed class PublicProfileView : View
         ITheme theme,
         Shell.Shell shell,
         Drafting.Drafting drafting,
-        Func<Raster?>? raster = null,
-        IPictures? pictures = null)
+        PanelPictures? pictures = null)
     {
         _theme = theme;
         _shell = shell;
         _drafting = drafting;
-        _raster = raster ?? (() => null);
-        _pictures = pictures;
+        _pictures = pictures ?? PanelPictures.None;
         _place = new Placement<PublicProfileScreen>(this, shell);
 
         // A right click over a field is esc, which the fields would otherwise keep to themselves, and a click outside
-        // the list of people to mention closes it, as on compose (#373, #335). The list hangs under the bio, which
+        // the list hung under the bio closes it, as on compose (#373, #335). The list hangs under the bio, which
         // answers a question through these rules, so it is made after them.
         _draft = new DraftFields(
             this,
             shell,
             () => _shell.Screen is PublicProfileScreen,
             () => Fields,
-            mouse => _mentions?.ClosedBy(mouse) is true);
+            mouse => _hanging?.ClosedBy(mouse) is true);
 
         CanFocus = true;
         Visible = false;
@@ -115,8 +111,8 @@ internal sealed class PublicProfileView : View
         _bio.Answering = _draft.Answered;
         _bio.ContentsChanged += (_, _) => Change(form => form.RewriteBio(_bio.Text));
 
-        _mentions = new MentionList(theme, shell, _bio, () => _shell.Screen is PublicProfileScreen);
-        _bio.Ahead = _mentions.Took;
+        _hanging = HangingList.OfADraft(theme, _bio, () => _shell.Screen is PublicProfileScreen, shell, drafting, _pictures);
+        _bio.Ahead = _hanging.Took;
 
         // The rows that take no typing: the avatar and the header, a click on either opening the file browser for it
         // (#407), and the toggles, a click on one flipping it.
@@ -141,7 +137,7 @@ internal sealed class PublicProfileView : View
 
         Add(_name, _bio);
         Add([.. _buttons.Values]);
-        Add(_mentions.View);
+        Add(_hanging.View);
 
         _shell.Changed += Refresh;
 
@@ -222,7 +218,7 @@ internal sealed class PublicProfileView : View
 
         // After the bio has been shown or hidden, and on every change of the shell's — a profile switch, or more people
         // arriving — since either can change what the word being typed matches.
-        _mentions.Follow();
+        _hanging.Follow();
 
         SetNeedsDraw();
     }
@@ -352,7 +348,7 @@ internal sealed class PublicProfileView : View
     /// </remarks>
     private T Placed<T>(T widget, PublicProfileStop stop)
         where T : View =>
-        _place.Placed(widget, (form, room) => form.At(stop, room, _raster(), _pictures));
+        _place.Placed(widget, (form, room) => form.At(stop, room, _pictures.Raster, _pictures.Pictures));
 
     /// <summary>A change to the form from one of its fields, while it is not being filled.</summary>
     private void Change(Func<PublicProfileScreen, DraftChange> change)

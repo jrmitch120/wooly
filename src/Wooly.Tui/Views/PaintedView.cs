@@ -36,6 +36,9 @@ internal sealed class PaintedView : View
     private readonly SynchronizedFrames? _frames;
     private readonly Func<Raster> _raster;
 
+    /// <summary>Whether this view is laid over the content panel, drawing pictures from what the panel has.</summary>
+    private readonly bool _overlaid;
+
     /// <summary>
     ///     What this paints over the rows this frame: the pictures drawn as placeholders, and the custom emoji no box
     ///     was left for, with the row each starts on and, for a placeholder, its image id.
@@ -70,22 +73,22 @@ internal sealed class PaintedView : View
 
     /// <param name="theme">What answers the roles.</param>
     /// <param name="rows">The rows to draw, given how much room there is.</param>
-    /// <param name="pictures">
-    ///     Where the pixels for a drawn attachment come from, or <see langword="null" /> for a region that shows no
-    ///     posts — the rail and the two chrome rows, which reserve no boxes and would never ask.
-    /// </param>
     /// <param name="frame">
     ///     The panel this region is drawn inside, given the whole of the view's width and height — <see cref="Panel" />'s
     ///     rows, of which only the edges are painted — or <see langword="null" /> for a region with no frame.
     /// </param>
-    /// <param name="placeholders">
-    ///     What a Kitty terminal holds, for drawing pictures as placeholder cells rather than through a box, or
-    ///     <see langword="null" /> to draw every picture through a box (ADR-0022).
-    /// </param>
     /// <param name="frames">What wraps a frame this view draws in synchronized output, if anything does.</param>
-    /// <param name="raster">
-    ///     How this terminal paints pixels, asked once a frame as the frame is settled (<see cref="Raster" />), or
-    ///     <see langword="null" /> for a terminal that draws none.
+    /// <param name="pictures">
+    ///     What the pictures are drawn with — the cache, the Kitty image store (ADR-0022) and how the terminal paints
+    ///     pixels, asked once a frame as the frame is settled (<see cref="Raster" />) — for the content panel, which
+    ///     says each frame's wants for itself and for the views over it; or <see langword="null" /> for a region that
+    ///     shows no posts — the rail and the two chrome rows, which reserve no boxes and would never ask.
+    /// </param>
+    /// <param name="over">
+    ///     Where this view is laid over the content panel and draws pictures of its own — a pick list's custom emoji
+    ///     (#580) — the panel's, which it draws them with as the panel last settled them: placed from boxes of its own
+    ///     (<see cref="Placing.Over" />), and wanted of the cache with the panel's frame. Never with
+    ///     <paramref name="pictures" />.
     /// </param>
     /// <remarks>
     ///     A frame is laid on a one-cell <c>Padding</c> round the view, so everything measured off
@@ -96,14 +99,14 @@ internal sealed class PaintedView : View
     public PaintedView(
         ITheme theme,
         Func<int, int, IReadOnlyList<Line>> rows,
-        IPictures? pictures = null,
         Func<int, int, IReadOnlyList<Line>>? frame = null,
-        Placeholders? placeholders = null,
         SynchronizedFrames? frames = null,
-        Func<Raster>? raster = null)
+        PanelPictures? pictures = null,
+        PanelPictures? over = null)
     {
         _theme = theme;
-        _raster = raster ?? (() => Raster.None);
+        _overlaid = over is not null;
+        _raster = over is not null ? () => over.Raster : pictures is not null ? pictures.Asked : () => Raster.None;
         _frames = frames;
         _rows = rows;
         _frame = frame;
@@ -114,13 +117,33 @@ internal sealed class PaintedView : View
         }
 
         // Every box added to this view now, before anything is drawn (Placing.MostBoxes says why).
-        _placing = pictures is null
-            ? null
-            : new Placing(
-                pictures,
+        if (over is { Pictures: { } underneath })
+        {
+            _placing = Placing.Over(
+                underneath,
                 () => PictureView.AddedTo(this),
                 new SixelPictures(backdrop: Backdrop),
-                placeholders);
+                over.Placeholders,
+                PanelPictures.MostCustomEmojiBoxes);
+
+            over.DrawingOver(this);
+        }
+        else if (pictures is not null)
+        {
+            pictures.Drawing(this);
+
+            if (pictures.Pictures is { } cache)
+            {
+                _placing = new Placing(
+                    cache,
+                    () => PictureView.AddedTo(this),
+                    new SixelPictures(backdrop: Backdrop),
+                    pictures.Placeholders)
+                {
+                    WantedOver = () => pictures.Wanted,
+                };
+            }
+        }
     }
 
     /// <summary>
@@ -195,6 +218,12 @@ internal sealed class PaintedView : View
 
     /// <summary>Whether the frame's right edge is a <b>Scrollbar</b> where the rows don't fit, in any style.</summary>
     private bool HasScrollbar => ScrollbarStyle is not ScrollbarStyle.None;
+
+    /// <summary>
+    ///     Every picture the rows the last frame settled want, left to right and top to bottom — what a view laid over
+    ///     the content panel has the panel ask for (<see cref="PanelPictures" />). None before the first.
+    /// </summary>
+    public IReadOnlyList<Drawn> Wanted { get; private set; } = [];
 
     /// <summary>
     ///     How this terminal paints pixels as of the last frame settled, or <see cref="Media.Raster.None" /> before the
@@ -902,11 +931,15 @@ internal sealed class PaintedView : View
             // Nothing can be drawn, so nothing may be left drawn either: a box still showing from the last size this
             // view had would be a picture over whatever replaces it, and a blur held would be held for nothing.
             _placed = _placing?.Frame([], _top, width, height, Raster) ?? [];
+            Wanted = [];
 
             return;
         }
 
         var lines = Rows(width, height);
+
+        // Only for a view laid over the panel, since only the panel asks: its own rows are many, and are asked whole.
+        Wanted = _overlaid ? [.. lines.SelectMany(line => line.Wanted)] : [];
 
         // Every picture wanted of the cache, every box placed or let go of, and every picture sent or forgotten, from
         // the scroll worked out here and by the Raster's way (#361, #362, #363).

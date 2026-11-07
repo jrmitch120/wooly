@@ -1,3 +1,4 @@
+using Wooly.Core;
 using Wooly.Core.Accounts;
 using Wooly.Core.Conversations;
 using Wooly.Core.Posts;
@@ -71,6 +72,9 @@ public sealed class Drafting
     /// <summary>How long each instance lets a post be, asked as posts are first written there (#319).</summary>
     private readonly LimitsByInstance _limits;
 
+    /// <summary>The custom emoji each instance offers its people to write, asked as a <c>:</c>-word first wants them (#578).</summary>
+    private readonly EmojiByInstance _emoji;
+
     /// <summary>
     ///     What each account acted as posts at by default, asked as the session starts acting as it — the fallback for
     ///     what compose starts on after the config's own preferences (ADR-0024, #339).
@@ -122,6 +126,10 @@ public sealed class Drafting
         _preferred = preferred;
         _limits = new LimitsByInstance(ports.Limits, host);
         _limits.Heard += Measured;
+        _emoji = new EmojiByInstance(ports.Emoji, host);
+
+        // One redraw, which fills in a list standing open on the word that waited for them and opens no other (#528).
+        _emoji.Landed += () => _reach()?.Changed();
         _defaults = new DefaultsByProfile(ports.Defaults, host);
         _attachments = new AttachmentCalls(ports.Author, host);
         _attachments.Heard += Progressed;
@@ -130,6 +138,44 @@ public sealed class Drafting
     }
 
     private Reach Reach => _reach() ?? throw new InvalidOperationException("Nobody is being acted as.");
+
+    /// <summary>
+    ///     The custom emoji the instance of the profile acted as offers its people to write, as far as a keystroke has
+    ///     taken them up (#578, #579). None while nobody is acted as.
+    /// </summary>
+    public IReadOnlyList<CustomEmoji> EmojiToWrite() => _reach() is { } reach ? _emoji.For(reach.Profile) : [];
+
+    /// <summary>
+    ///     Whether the instance of the profile acted as is being asked for the custom emoji it offers, and has not yet
+    ///     answered (#528): what the list says while it stands waiting on them.
+    /// </summary>
+    public bool ReadingEmoji() => _reach() is { } reach && _emoji.Asking(reach.Profile);
+
+    /// <summary>
+    ///     Takes up the custom emoji the instance of the profile acted as answered with since the last keystroke, on a
+    ///     keystroke in an editor (#579) or as they land under a list standing open waiting on them (#528), so they are
+    ///     offered from then on, and never by any other redraw.
+    /// </summary>
+    public void TakeUpLandedEmoji()
+    {
+        if (_reach() is { } reach)
+        {
+            _emoji.TakeUp(reach.Profile);
+        }
+    }
+
+    /// <summary>
+    ///     Asks the instance of the profile acted as for the custom emoji it offers, unless it has answered or is being
+    ///     asked (#579): the first time they are wanted, which is a <c>:</c>-word first typed in, on its bare
+    ///     <c>:</c> (#528).
+    /// </summary>
+    public void AskForEmoji()
+    {
+        if (_reach() is { } reach)
+        {
+            _emoji.Ask(reach.Profile);
+        }
+    }
 
     /// <summary>
     ///     Carries out <paramref name="verb" /> where it is a draft verb, which is the whole of how the shell's verb route

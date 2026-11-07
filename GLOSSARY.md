@@ -241,6 +241,8 @@ the next cell or two and moves nothing past them (ADR-0031). Distinct from being
 A small picture an **instance** defines for itself and its people write as a **shortcode**, in a post's words, its
 warning, a display name, a **bio**, a **custom field**, a poll's options. Every post and account carries the ones it
 uses. Where nothing can be drawn, the shortcode stays as written, set apart so it reads as a picture that was meant.
+An instance also offers its own people the ones they may write, leaving out any it hides from its picker; a hidden one
+still draws wherever something lists it.
 Distinct from a Unicode emoji, which is a character every terminal draws as text.
 _Avoid_: emoji (on its own), emote, sticker
 
@@ -815,6 +817,13 @@ the instance resolved them (`username@instance`) and sent down with the post; a 
 a reader walked to in the text, which is only somebody in particular because the post's list says so (#85). Crossing
 from the second to the first is a lookup and never a fetch — a bare handle means nothing without an instance to put
 after it, and guessing this profile's own would open somebody else under somebody's name.
+
+**Hanging list**:
+The list hung under the word being typed in a **draft**'s editor — compose's post and the **bio** — offering what that
+kind of word calls for: the people to mention on an `@`-word, the **instance**'s **custom emoji** on a `:`-word (the
+`:` list). One list whatever it offers, with the same keys, clicks and `esc`, so there is one to learn (#576, #528).
+Distinct from the language list, which hangs under compose's Lang header rather than under a word.
+_Avoid_: mention list (for the whole of it), autocomplete, emoji picker
 
 **Reading**:
 What this reader has done to one post — asked past what it is **warned** with, walked to a **reference** inside it — carried

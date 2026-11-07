@@ -19,6 +19,20 @@ namespace Wooly.Core.Http;
 /// </summary>
 internal static class RawMastodonCall
 {
+    /// <summary>
+    ///     Whether <paramref name="thrown" /> by a <see cref="Get{T}" /> is the instance not answering — a rate limit, an
+    ///     unreachable instance, a refusal, a body that is not what the endpoint documents, or a timeout — which an
+    ///     adapter promising silence for it catches with this, the one list of them. A timeout is the HTTP stack
+    ///     cancelling a call nobody asked to cancel, and only that: a cancellation the caller asked for is still the
+    ///     caller's.
+    /// </summary>
+    public static bool Unanswered(Exception thrown, CancellationToken cancellationToken) =>
+        thrown is Errors.RateLimitedException
+            or Errors.TransientNetworkException
+            or HttpRequestException
+            or JsonException
+        || (thrown is OperationCanceledException && !cancellationToken.IsCancellationRequested);
+
     /// <summary>Reads <paramref name="path" /> from the profile's instance and deserializes the body it answers with.</summary>
     /// <param name="path">The endpoint's path below the instance, without a leading slash — e.g. <c>api/v1/…</c>.</param>
     /// <param name="query">

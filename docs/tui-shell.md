@@ -1795,12 +1795,100 @@ typing one in the edit public profile form's bio (#408):
 - **It is one list any compose field can offer rows to (#335).** Being a list — the pick, the scroll, the box, the keys
   and the pointer — is `PickList<T>` and `PickLines`, once; what a row says, where the list hangs and what picking does
   are the field's. The people to mention are the first such list, and the language list (#340) the second.
+- **The list hung under an editor's word is one list, whatever it offers (#576).** `HangingList` is the list, once per
+  editor: its keys, the pointer, the memory of a word `esc` closed, the placement under the caret on the word's sign
+  with its flip above, the hint along its foot, and replacing the word with the pick as one undoable edit. What a word
+  is, what matches it, what a row says, what a pick writes, and the row the list waits on while what would match is on
+  its way are an `IHangingOffering`'s, one per kind of word, and the caret is at the end of one kind at most. The people to mention, on an @-word, are one offering
+  (`MentionOffering`), and every rule above and below is theirs; the instance's custom emoji, on a `:`-word, are the
+  other (`EmojiOffering`), whose own rules follow. The keys, the pointer, `esc`'s memory, where it hangs and the
+  single undo are the same for both.
+- **It offers custom emoji on a `:`-word (#528, #578).** A `:` starts one only at the start of a line or after
+  whitespace; it runs over letters, digits and `_` — a Mastodon shortcode's letters — up to the caret, and opens the
+  list once two of them follow the `:`, and only with the caret at its end, none of them after it (`ShortcodeWord`).
+  So `10:30`, `note: x`, `re:thing`, `http://`, `:)` and `:D` open nothing, the caret moved back inside `:blobcat`
+  closes the list rather than offering to write over half a word, and typing the closing `:` ends the word and closes
+  the list. The emoji are the instance's own, those
+  its picker shows (`IInstanceEmoji`, `GET /api/v1/custom_emojis`), matched on the shortcode alone, case ignored:
+  those starting with the query, then those holding it, each shorter first then alphabetical, five at most — so a
+  shortcode typed in full stays, first. A row is the emoji's picture, a space, then `:shortcode:` in `custom-emoji`
+  with the letters typed in `mention` (#580); where the Raster draws nothing, or pictures are off, it is the
+  shortcode alone. Picking writes `:shortcode:` and a space in place of the word, as one undoable edit. They are read
+  on the first `:` typed that starts a word, bare, before any shortcode letters follow it (#528), or on the first letter
+  typed in a `:`-word already written (`IHangingOffering.TypedIn`) — never on composing, nor on the caret walked or
+  clicked into a `:`-word alone (an edit opening on `:blobcat:`, a bio holding one), nor on a `:` inside or ending a
+  word, though an emoticon like `:)` may cost that one read — and kept by instance for the
+  session, in memory only, beside the post limits drafting keeps the same way (`EmojiByInstance`), and never refreshed.
+  Nothing about the read reaches the status row.
+- **While they are read, the list says so, and fills in as they land (#528).** While the read is in flight a `:`-word
+  that would open the list — two letters, the caret at its end — opens it on one row, `reading custom emoji…` in
+  `loading`, hung and lined up as the list is, the row where a shortcode would be, with its usual foot; nothing reaches
+  the status row (`IHangingOffering.Awaiting`, `PickList.Note`). It hangs under the line or over it by the room for the
+  tallest the list can become (`HangingWord.MostOffered` rows and its edges), not for its own one row, and the list
+  keeps that side on the word once filled, so it never crosses the word as the matches land. Its left edge is settled
+  the same way: as the narrowest list's (40 columns, or the editor's width), which the loading row is — on the `:`, or
+  as far left of it as keeps 40 columns in the editor — and the list filled on that word is drawn no wider than the room
+  from there to the editor's right edge, a shortcode too long for it cut at the list's edge, so it never moves sideways
+  either. Both hold until the caret leaves the word. It is nothing to pick:
+  `tab`, `⏎`, a click and the wheel on it insert nothing; `esc` and a click outside it close it with the usual memory
+  of the word; every other key goes on to the editor. The answer landing on the drawing thread is one redraw of the shell's (`EmojiByInstance.Landed`),
+  and a list standing open on the loading row of the word the caret is still at the end of takes it up then, with no
+  keystroke: it grows from the one row to its matches, picked on the first — down from its top edge under the line, or
+  up from its bottom edge where it hangs over it, so the word never moves — the pictures asked for in that same frame,
+  their room settled before their pixels (#580). A failure, or an instance offering none, just closes the loading row.
+- **Reading them never nags, never hammers, and costs nothing it need not (#579).** While a read is in flight nobody
+  asks again. An answer that lands where no loading row is waiting on it — the caret has left the word or gone back
+  inside it, or `esc` closed the row — is kept but offered only from the next keystroke in an editor, an edit or a
+  caret move, so a redraw on a change of the shell's (an inbox poll, people to mention landing) never opens the list by
+  itself. A read that answers nothing is asked again on the
+  next new `:`-word, never twice for the same one: the same word is the same `:` in the same editor, with the caret
+  never having left it — at its end, inside it, or after a `:` with fewer than two letters yet — so typing on,
+  deleting back short of two letters and typing them again, or moving within the word asks nothing; the caret leaving
+  it, past its `:` or out of its letters, makes the next one new. The same rule ends `esc`'s memory of a word. Nothing reaches the status row, in flight, failed
+  or refused; a refused token is said by the reads that fill the screen. An instance that offers none never opens the
+  list and is not asked again. Kept by instance, two profiles on one instance share one read, and switching away and
+  back reads nothing; a profile on another instance is read on its own first `:`-word.
+- **An open list is always on top of a picture under it (#577).** A list over the content panel's rows — the languages
+  hung down over compose's Media rows, the people to mention flipped up over them — hides a picture exactly where it
+  covers it, cell by cell, as it hides the text there, on each of the three ways a picture is drawn: Kitty's
+  placeholder cells under it are never painted, a sixel is sent again cut round it, and a picture through a Kitty box
+  is placed again cut round it. However the list closes — a pick, `esc`, a click outside it, the caret leaving the
+  word — every picture it covered is back whole where it was, and nothing has moved. The rule is the window's, for
+  anything laid over the panel: one that shows, hides, moves or changes size has the panel drawn again under it
+  (`ShellWindow.Uncovering`), which is what puts back what a list leaves and cuts a picture round what it newly covers.
+  The people to mention flipped over the Media rows used to stay on the terminal after `esc`, a click outside or the
+  caret leaving the word, holes in the pictures and all, until something else redrew the panel. A sixel cut round a
+  list is encoded by Terminal.Gui rather than from the cuts kept for it (ADR-0023), and only while the list cuts it.
+- **A row of the `:` list shows its emoji's picture (#580).** In the two-column, one-row box every custom emoji is
+  drawn in, fitted whole and centred (ADR-0035), after the pick mark and before a space and the shortcode. Whether the
+  box is there is the Raster's alone, settled as the list is offered, so the list is sized for it before any picture
+  lands: the Stand-in's shade until it does, the picture after, and nothing in the list moves. A row too long for the
+  list is clipped at its edge, the cut marked, the box and the `:shortcode:` each held whole, as a shortcode is
+  wherever a row is clipped (#524) — dropped whole rather than cut through where it would not fit (`PickLines`, which
+  keeps a row's insets through the box's side and the mark, and holds every run of spans written for one custom emoji
+  together). The pictures are the
+  content panel's: one cache, keyed by the emoji's still's address, and one Kitty image store, so an emoji already
+  drawn in a post is neither fetched nor sent again for the list (`PanelPictures`). The cache takes a frame's wants
+  whole, so the list says nothing to it itself: it draws before the panel, and the panel, drawing after it, asks for
+  what the list drew as on screen along with its own frame, drains what the cache let go of and flushes the image
+  store, once a frame for both (`Placing.Over`). The list places its pictures from its own boxes, five custom emoji
+  at most, inside its own view, so they are on top of anything of the panel's under it.
+- **Through a box, the list's pictures are its own boxes' (#581).** On sixel and Kitty through a box each row's
+  picture is a `PictureView` inside the list's view, so it is clipped to the list and drawn before the panel, which
+  is cut round the list as for any list (#577). A picture is sent when its row comes onto the list and again only
+  where its place changed: a letter that leaves the rows as they were and the pick moving over them send nothing. A
+  row moved up or down sends its sixel again there, while through Kitty the terminal still holds the picture and it
+  is only placed anew. Closing the list hides its view, its boxes are no longer held, and the driver takes their
+  pictures off the terminal in that frame, so the list opened again sends them again. Only the cache is shared with
+  the panel here: a box sends what it shows under its own id, and the list cuts its sixels into its own
+  `SixelPictures`, so an emoji already drawn in a post through a box is fetched once but sent once for the post and
+  once for the list.
 - **Its keys come ahead of the editor's, only while it is open.** `tab`/`⏎` replace the word with `@user` for somebody
   on the profile's own instance or `@user@instance` for anybody else, and a space. The word is selected and replaced
   as one edit, the way a paste goes in, so one undo puts the word back. `esc` closes the list for the rest of that
   word. Closed, it takes nothing: `⏎` adds a line and `esc` throws the draft away, as they always have. Never in the
   warning.
-- **The bio's list is the post's (#408).** `MentionList` is told by the view that lays it beside its editor when it may
+- **The bio's list is the post's (#408).** `HangingList` is told by the view that lays it beside its editor when it may
   open — compose while the typing is in the post, the edit public profile form while it is in front — and that view
   plugs it into its editor's `Ahead`. The people, the matching, the keys and the pointer are all the same; `esc` on it
   closes the list, never the form, and with it closed `esc` leaves the form as it always does.
@@ -2886,7 +2974,7 @@ is drawn reversed instead (#316).
 | `panel-border` / `panel-border-active` | A panel's frame, and the frame of the panel you are in: the content panel, and the rail group holding the cursor | the box characters; which group is active is carried by the cursor's entry's band in colour, and by `▶` on it without |
 | `scrollbar` | The **Scrollbar**'s thumb on the content panel's right edge, on a track drawn in `panel-border` so the thumb stands out by contrast. Both built-ins draw it in `panel-border-active`'s colour (#500) | the thumb's glyph — `█`, or the `scrollbar` preference's `┃`, `▌` or `▐` (#505) — against the track's `│` |
 | `panel-title` | A panel's title on its top edge: a rail group's name, and the crumb being stood on at the end of the content panel's trail, told from the crumbs walked through by foreground | position, on the edge — the current crumb is always the last, and the trail elides from the left |
-| `loading` | Something under way that the reader waits on, said in words: the sign-in screen's wait for the browser | the words |
+| `loading` | Something under way that the reader waits on, said in words: the sign-in screen's wait for the browser, and the `:` list's `reading custom emoji…` while the instance is asked (#528) | the words |
 | `spinner` | The fetch mark a space after the content panel's trail — one star spinner frame, in 2 columns held whether or not it is drawn. Both built-ins draw it in `rail-unread`'s colour | a spinner frame, moving, drawn only while a fetch is in flight |
 | `destructive` | A delete affordance and its confirmation | the word |
 | `error` | A failure the shell has to say out loud | the word |

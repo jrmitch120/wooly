@@ -83,7 +83,7 @@ public class ComposeReferencePaintTests
 
         view.Type("hi @ma");
 
-        Assert.True(view.Mentions.Visible);
+        Assert.True(view.Hanging.Visible);
         AssertDrawn(view, 0, ("hi ", Role.Body), ("@ma", Role.Mention));
 
         view.Type("x@nowhere.example");

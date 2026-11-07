@@ -76,9 +76,22 @@ internal sealed class Placing
     private readonly BoxPictures _boxPictures;
 
     /// <summary>
-    ///     Every box: the first <see cref="MostBoxes" /> for every picture but custom emoji, and the rest theirs.
+    ///     Every box: the first <see cref="_mostBoxes" /> for every picture but custom emoji, and the rest theirs.
     /// </summary>
     private readonly List<IPictureBox> _boxes = [];
+
+    /// <summary>How many of <see cref="_boxes" /> are for every picture but custom emoji, the first of them.</summary>
+    private readonly int _mostBoxes;
+
+    /// <summary>How many of <see cref="_boxes" /> are for custom emoji, the rest of them.</summary>
+    private readonly int _mostCustomEmojiBoxes;
+
+    /// <summary>
+    ///     Whether this says what each frame wants of the cache and hears what it let go of — the content panel's,
+    ///     which says it for the views laid over the panel too — or only places what its rows ask for, for one of
+    ///     those views (<see cref="Over" />).
+    /// </summary>
+    private readonly bool _saysTheFrame;
 
     /// <summary>
     ///     The Stand-in blurs a Kitty terminal has been handed to hold, by <see cref="Drawn.Id" />, as of the last
@@ -117,17 +130,60 @@ internal sealed class Placing
         Func<IPictureBox> box,
         SixelPictures sixels,
         Placeholders? placeholders = null)
+        : this(pictures, box, sixels, placeholders, MostBoxes, MostCustomEmojiBoxes, saysTheFrame: true)
+    {
+    }
+
+    private Placing(
+        IPictures pictures,
+        Func<IPictureBox> box,
+        SixelPictures sixels,
+        Placeholders? placeholders,
+        int mostBoxes,
+        int mostCustomEmojiBoxes,
+        bool saysTheFrame)
     {
         _pictures = pictures;
         _sixels = sixels;
         _placeholders = placeholders;
         _boxPictures = sixels.Boxes;
+        _mostBoxes = mostBoxes;
+        _mostCustomEmojiBoxes = mostCustomEmojiBoxes;
+        _saysTheFrame = saysTheFrame;
 
-        for (var at = 0; at < MostBoxes + MostCustomEmojiBoxes; at++)
+        for (var at = 0; at < mostBoxes + mostCustomEmojiBoxes; at++)
         {
             _boxes.Add(box());
         }
     }
+
+    /// <summary>
+    ///     What is wanted of the cache this frame by the views laid over the view this places for — a pick list's
+    ///     custom emoji (#580) — all of it on screen, said with this frame's own as one (<see cref="Want" />). None where
+    ///     nobody said.
+    /// </summary>
+    public Func<IReadOnlyList<Drawn>> WantedOver { get; init; } = () => [];
+
+    /// <summary>
+    ///     Places the pictures of a view laid over the content panel — a pick list's — from boxes of its own, at most
+    ///     <paramref name="customEmojiBoxes" /> custom emoji through a box at once and no other picture, and as
+    ///     placeholder cells through the same Kitty image store as the panel's, so that a picture both draw is sent once
+    ///     (#580).
+    /// </summary>
+    /// <remarks>
+    ///     It says nothing to the cache of its own, nor to the image store of what the cache let go of: the cache takes a
+    ///     frame's wants whole, and anything a second view said apart would abandon what the panel had asked for, and the
+    ///     panel's what this had. So the panel says what this one's rows want with its own (<see cref="WantedOver" />),
+    ///     drains what the cache let go of, and flushes and sweeps the image store, once a frame for both — after the
+    ///     view laid over it has drawn, since Terminal.Gui draws that first.
+    /// </remarks>
+    public static Placing Over(
+        IPictures pictures,
+        Func<IPictureBox> box,
+        SixelPictures sixels,
+        Placeholders? placeholders,
+        int customEmojiBoxes) =>
+        new(pictures, box, sixels, placeholders, mostBoxes: 0, customEmojiBoxes, saysTheFrame: false);
 
     /// <summary>
     ///     Says that the rows the next frame hands over are another lot, or the same lot come back to — either way,
@@ -169,31 +225,21 @@ internal sealed class Placing
         // What pictures are drawn as this frame, if they are drawn as placeholders at all: the one place the Raster's
         // way is asked about them. Anywhere else nothing is sent that way, so nothing sent is near to be held.
         var drawing = raster.Way is PictureWay.Placeholders ? _placeholders : null;
-        var moving = 0;
+        var moving = page.HasRoom ? Moved(top) : 0;
 
-        // Said before a terminal that draws nothing is let off the rest, so the cache is told every frame there is a
-        // page — but not of a frame with no page to be near.
-        if (page.HasRoom)
+        // What the frame says to the cache and the image store, for every view drawing from them: the panel's alone,
+        // and the one place this asks whose it is.
+        if (_saysTheFrame)
         {
-            moving = Moved(top);
-            Want(page, raster);
+            SayTheFrame(page, raster, drawing);
         }
 
         if (!page.HasRoom || raster.Cell is not { } cell)
         {
             ReleaseAll();
-            LetGoOfBlurs([]);
-            LetGoOfPictures(drawing);
-            _placeholders?.Flush();
 
             return [];
         }
-
-        LetGoOfBlurs(drawing is null ? [] : BlursNear(page));
-        LetGoOfPictures(drawing);
-
-        // Whatever the terminal was told to let go of since the last frame, before anything is sent.
-        _placeholders?.Flush();
 
         switch (raster.Way)
         {
@@ -202,7 +248,20 @@ internal sealed class Placing
                 // draws placeholders is left on screen under them.
                 ReleaseAll();
 
-                return drawing is null ? [] : Sent(drawing, page, cell);
+                if (drawing is null)
+                {
+                    return [];
+                }
+
+                var placed = Sent(drawing, page, cell);
+
+                // Swept once a frame, by the frame's sayer, after every view drawing through the store has asked.
+                if (_saysTheFrame)
+                {
+                    drawing.LetGoOfSizesNotAsked();
+                }
+
+                return placed;
 
             case PictureWay.Sixel:
                 var shaded = Place(page, (box, inset, at, picture) =>
@@ -258,6 +317,24 @@ internal sealed class Placing
         }
 
         return [];
+    }
+
+    /// <summary>
+    ///     What the content panel's frame says for every view drawing from the one cache and image store, before
+    ///     anything is placed: what is wanted, said before a terminal that draws nothing is let off the rest, so the cache
+    ///     is told every frame there is a page, but not of a frame with no page to be near; then which blurs and pictures
+    ///     the terminal may forget, and the forgetting told, before anything is sent.
+    /// </summary>
+    private void SayTheFrame(Page page, Raster raster, Placeholders? drawing)
+    {
+        if (page.HasRoom)
+        {
+            Want(page, raster);
+        }
+
+        LetGoOfBlurs(drawing is not null && page.HasRoom && raster.Cell is not null ? BlursNear(page) : []);
+        LetGoOfPictures(drawing);
+        _placeholders?.Flush();
     }
 
     /// <summary>
@@ -363,6 +440,7 @@ internal sealed class Placing
         // on — so that the cache decodes to it without ever asking the window (#359).
         _pictures.Want(
             [
+                .. WantedOver().Select(drawn => new WantedPicture(drawn, OnScreen: true)),
                 .. spans.Values
                         .OrderBy(Distance)
                         .Select(span => new WantedPicture(span.Drawn, OnScreen: Distance(span) == 0)),
@@ -429,8 +507,6 @@ internal sealed class Placing
         {
             drawing.Prepare(inset, picture, cell);
         }
-
-        drawing.LetGoOfSizesNotAsked();
 
         return placed;
     }
@@ -558,7 +634,7 @@ internal sealed class Placing
         var drawing = new int?[wanted.Count];
 
         foreach (var (customEmoji, from, count) in (ReadOnlySpan<(bool, int, int)>)
-                 [(false, 0, MostBoxes), (true, MostBoxes, MostCustomEmojiBoxes)])
+                 [(false, 0, _mostBoxes), (true, _mostBoxes, _mostCustomEmojiBoxes)])
         {
             List<int> theirs =
                 [.. Enumerable.Range(0, wanted.Count).Where(at => wanted[at].Inset.Drawn.IsCustomEmoji == customEmoji)];
