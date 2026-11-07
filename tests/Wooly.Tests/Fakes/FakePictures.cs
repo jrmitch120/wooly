@@ -112,8 +112,27 @@ internal sealed class FakePictures : IPictures
     {
         Asked.Add(drawn.Id);
 
-        return _held.GetValueOrDefault(drawn.Id)
-            ?? _avatars.FirstOrDefault(avatar => Drawn.Avatar(avatar.Key, drawn.Address) == drawn).Value;
+        return _held.GetValueOrDefault(drawn.Id) ?? AvatarOf(drawn);
+    }
+
+    /// <summary>
+    ///     The avatar <paramref name="drawn" /> is, where it is one that has arrived — found by the account its id names,
+    ///     rather than by trying every account held, which a feed of hundreds of posts asks hundreds of times a frame.
+    /// </summary>
+    private Picture? AvatarOf(Drawn drawn)
+    {
+        const string avatar = "avatar:";
+
+        if (!drawn.Id.StartsWith(avatar, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var account = drawn.Id[avatar.Length..].Split(' ')[0];
+
+        return _avatars.TryGetValue(account, out var picture) && Drawn.Avatar(account, drawn.Address) == drawn
+            ? picture
+            : null;
     }
 
     /// <inheritdoc />
