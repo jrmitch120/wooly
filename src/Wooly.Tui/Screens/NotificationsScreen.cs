@@ -221,7 +221,8 @@ public sealed class NotificationsScreen(
     ///     that one actor's account, and on its names line it opens the group's actors, as <c>w</c> does. Any other part
     ///     is left to every screen's answer (<see cref="Screen.Clicked" />), so that the boost, favorite and reply of the
     ///     <b>Counts</b> of a post drawn whole are <c>b</c>, <c>f</c> and <c>r</c> on it, as anywhere else (#595); their
-    ///     parts are below the names line's, so never taken for a face or the names. Anywhere else — the gaps between
+    ///     parts and the names line's are handed out apart (<see cref="RunPart" />), so never taken for a face or the
+    ///     names. Anywhere else — the gaps between
     ///     faces, the <c>+N</c>, the age, the rest of the post, a preview of the reader's own, which draws no counts — it
     ///     picks the group and nothing more, and a double click there is <c>⏎</c>, which opens the post.
     /// </summary>
@@ -229,7 +230,7 @@ public sealed class NotificationsScreen(
     {
         switch (item, part)
         {
-            case (not null, NotificationGroupLines.NamesPart):
+            case (not null, _) when RunParts.Of(part) == RunPart.Names:
                 return Verb.OpenActor;
 
             case (not null, >= 0 and var face):

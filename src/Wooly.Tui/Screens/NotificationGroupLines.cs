@@ -22,13 +22,6 @@ public static class NotificationGroupLines
     private const int Named = 2;
 
     /// <summary>
-    ///     What the names and the kind's sentence on a names line stand for (<see cref="Span.Item" />): the group's
-    ///     actors, which a click there opens (#456). Below nought, so it cannot be taken for a face of the strip, each
-    ///     of which stands for its slot (<see cref="AvatarStrip" />).
-    /// </summary>
-    public const int NamesPart = -1;
-
-    /// <summary>
     ///     Whether the group's post is drawn whole by the one actor who wrote it — a mention, or a post from somebody the
     ///     reader asked to be told about — and so headed by the kind alone (#450). Decided by who wrote the post rather
     ///     than by the kind, so a kind this client has no word for is drawn by the same rule.
@@ -82,7 +75,7 @@ public static class NotificationGroupLines
     /// <summary>
     ///     The names line: who, what in the kind's colour, and — at the right — the unread mark and the age of the
     ///     group's newest notification. The names give way first where the row is narrow. The who and the what stand
-    ///     for the group's actors (<see cref="NamesPart" />); the space, the mark and the age for nothing.
+    ///     for the group's actors (<see cref="RunPart.Names" />); the space, the mark and the age for nothing.
     /// </summary>
     /// <remarks>
     ///     The names' custom emoji drawn as each actor's byline draws them, and the row measured as drawn, so the
@@ -105,8 +98,8 @@ public static class NotificationGroupLines
         var used = name.Width + Glyphs.Columns(did) + Glyphs.Columns(mark);
 
         return name.Respanned([
-            .. name.Spans.Select(span => span with { Item = NamesPart }),
-            new Span(did, look.Role) { Item = NamesPart },
+            .. name.Spans.Select(span => span with { Item = RunPart.Names.Item() }),
+            new Span(did, look.Role) { Item = RunPart.Names.Item() },
             new Span(new string(' ', Math.Max(1, width - used - Glyphs.Columns(age))), Role.Muted),
             .. unread ? [new Span(mark, Role.RailUnread)] : Array.Empty<Span>(),
             new Span(age, Role.Muted),
