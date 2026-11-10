@@ -264,13 +264,21 @@ public abstract class Screen
     ///     stands for, carried out on the <paramref name="item" />th thing once that is picked out (#376).
     /// </summary>
     /// <remarks>
-    ///     Nothing by default, which leaves the click to pick the thing out, as on every screen. Answered with a verb
+    ///     By default the boost, favorite and reply of a post's <b>Counts</b>, which are <c>b</c>, <c>f</c> and <c>r</c>
+    ///     on the post they are drawn under (<see cref="PostLines.Clicked" />, #593, #594): answered once here, so
+    ///     that every screen drawing posts answers them without saying so, and a screen added later inherits them. A
+    ///     screen taking clicks of its own leaves the parts it does not own to this, as Notifications does (#595). Asked
+    ///     whatever the thing is: the shell carries a key that acts on a post out only where what the click picked is
+    ///     one (<see cref="Picked" />), so a screen drawing posts it does not pick — the conversations list — need not
+    ///     say so, and its clicks there only pick (#592).
+    ///     Nothing anywhere else, which leaves the click to pick the thing out, as on every screen. Answered with a verb
     ///     rather than carried out here, so a click and the key it stands for are one thing done one way.
     /// </remarks>
     /// <param name="item">The thing the row is part of (<see cref="Line.Item" />), if any.</param>
     /// <param name="part">What the run under the pointer stands for (<see cref="Span.Item" />), if anything.</param>
     /// <param name="chorded">Whether ctrl or shift was held.</param>
-    public virtual Verb Clicked(int? item, int? part, bool chorded) => Verb.None;
+    public virtual Verb Clicked(int? item, int? part, bool chorded) =>
+        item is null ? Verb.None : PostLines.Clicked(part);
 
     /// <summary>
     ///     The post the reader has picked out, or <see langword="null" /> where this screen has no posts on it. What

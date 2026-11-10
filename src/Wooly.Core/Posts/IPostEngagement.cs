@@ -30,6 +30,7 @@ public interface IPostEngagement
     ///     carries it. A caller asked about one post and is answered about that post, so the id it gets back is the id
     ///     everything else names that post by.
     /// </returns>
+    /// <exception cref="Errors.MarkRefusedException">The instance would not take the mark, and said why.</exception>
     Task<Post> Mark(
         ActiveProfile profile,
         string postId,

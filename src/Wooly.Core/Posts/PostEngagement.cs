@@ -38,7 +38,19 @@ public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPost
         cancellationToken.ThrowIfCancellationRequested();
 
         var client = clientFactory.CreateClient(profile.Instance, profile.AccessToken);
-        var marked = await Apply(client, postId, mark, wanted);
+        Status marked;
+
+        try
+        {
+            marked = await Apply(client, postId, mark, wanted);
+        }
+        catch (ServerErrorException refusal)
+        {
+            // Named as a vote's refusal is, and for the TUI's sake: its enquiry says a WoolyException over what the
+            // reader was reading and says nothing else at all, so a mark turned down in the API client's own exception
+            // left the post as it was with no word of why (#596). The CLI prints the same words either way.
+            throw new MarkRefusedException(refusal);
+        }
 
         // Boosting answers with the boost rather than the post boosted; every other mark answers with the post itself.
         return PostWire.ToPost(marked.Reblog ?? marked, profile);
@@ -98,9 +110,8 @@ public sealed class PostEngagement(IMastodonClientFactory clientFactory) : IPost
         }
         catch (ServerErrorException refusal)
         {
-            // The one refusal here that is turned into something this client names. Unlike a mark, a vote cannot be
-            // tried again differently — the instance has settled it — and both front ends have to be able to say so
-            // in the instance's own words rather than fall over on somebody else's exception type.
+            // A vote cannot be tried again differently — the instance has settled it — and both front ends have to be
+            // able to say so in the instance's own words rather than fall over on somebody else's exception type.
             throw new VoteRefusedException(refusal);
         }
     }

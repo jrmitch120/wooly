@@ -43,4 +43,21 @@ public static class Verbs
         or Verb.AcceptRequest or Verb.RejectRequest or Verb.OpenAsker or Verb.OpenConversation or Verb.OpenResult
         or Verb.ActAs or Verb.MakeDefault or Verb.RemoveProfile or Verb.SignInAgain
         or Verb.Describe or Verb.ToggleSensitive;
+
+    /// <summary>
+    ///     Whether <paramref name="verb" /> puts one of a post's marks on or takes it off, whichever it is not wearing
+    ///     (ADR-0009) — so that a second of it undoes the first.
+    /// </summary>
+    public static bool IsAMark(this Verb verb) => verb is Verb.Boost or Verb.Favorite or Verb.Pin or Verb.Bookmark;
+
+    /// <summary>
+    ///     Whether <paramref name="verb" /> acts on the post <b>Picked</b> (<see cref="Screens.Screen.Picked" />), and so
+    ///     on nothing where what is picked is no post: a mark or a reply.
+    /// </summary>
+    /// <remarks>
+    ///     What settles whether a click on a post's <b>Counts</b> is its key there or only picks (#592): asked of what the
+    ///     click picked rather than of which screen it was on, so that no screen has to say it draws posts it does not
+    ///     pick.
+    /// </remarks>
+    public static bool ActsOnAPost(this Verb verb) => verb is Verb.Reply || verb.IsAMark();
 }

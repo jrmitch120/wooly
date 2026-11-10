@@ -264,6 +264,12 @@ A post kept to come back to, seen by nobody but the account that kept it: unlike
 and no count moves. One of `Post.Marks`, the fourth beside boost, favorite and pin, and Mastodon's own word.
 _Avoid_: save, saved post, star
 
+**Counts**:
+The line at the foot of a post saying how many times it has been boosted, favorited and replied to, with whether the
+reader's own boost and favorite are among them, and its **bookmark** and pin beside them. Its boost, favorite and reply
+are also controls: a click on one is the key for it, on that post.
+_Avoid_: action bar, buttons, stats, engagement line
+
 **Bookmarks**, **Favorites** (runs):
 The posts an account has bookmarked, or favorited, as a run of their own: newest mark first, ordered by when the mark was
 put on rather than when the post was written, and private to the account. Read by asking for the run, as the **Pinned**
