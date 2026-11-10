@@ -114,3 +114,24 @@ count moves and the author is not told — which is the instance's business and 
 "`Post` still carries no 'you have boosted this' flag", above, was overtaken before this amendment by `Post.Marks`,
 which the TUI needed to draw a post's state before a key is pressed; `Bookmarked` is the fourth field on it. Showing the
 marks in the CLI's own output is still left for all four at once.
+
+## Amendment: a mark's refusal is named too (ticket #596)
+
+The vote amendment above says a mark refused needed no retyping, since the CLI prints Mastonet's `ServerErrorException`
+in the instance's own words, and that no other call here had the vote's problem. The TUI had it all along. Its
+`Enquiry` says a `WoolyException` as a notice and catches nothing else, and the task a key or a click on the **Counts**
+starts is never awaited by anybody who would see it fail, so a boost of a followers-only post, a pin of somebody else's
+or a mark on a post the instance no longer has left the post as it was and said nothing at all — not a notice, not a
+crash, not a line in a log. That a refused mark "cannot be tried differently" was never the test; whether the reader is
+told is, and they were not. It went unnoticed because the TUI's own test of a refusal (#593) stood a `WoolyException`
+in for what the port throws, which is the one shape that was already said.
+
+So `Mark` now names the refusal as `Vote` does: a `ServerErrorException` out of any of the eight endpoints becomes
+`MarkRefusedException`, which carries the instance's words and nothing of this client's. Nothing is added to them, unlike
+the vote's "The instance would not take that vote.", because the CLI printed the bare words for six verbs and then eight
+and a script reading stderr may hold them; the CLI's handler takes a `WoolyException`'s message as the whole report, so
+`post boost` and the rest print the same line with the same exit code they did. What is retyped is still only what the
+instance said in its own words: a rate limit, a refused token and a failure to answer are named lower down, before
+Mastonet sees the response, and are untouched. `Show`, `Thread` and the actors' reads are left as they were. They are
+reads rather than marks, and a thread or a list of actors refused in the TUI has the same gap a mark had; that is
+noted rather than closed here, since what a screen that could not be read should say is not what a mark should.

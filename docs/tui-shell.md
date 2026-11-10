@@ -851,8 +851,9 @@ one back, and voting on one, are both built now (#69, #74):
   printed rather than from the zero the API counts by.
 - **A refusal is a notice, not a crash.** An instance that will not take a vote — a second one, above all — says why,
   and that answer is named as a failure of this client's own (`VoteRefusedException`) so the shell draws it over what
-  the reader was reading. It is the one refusal in `PostEngagement` that is retyped rather than passed on; nothing else
-  there can be refused in a way the reader cannot simply try differently.
+  the reader was reading. It was the one refusal in `PostEngagement` retyped rather than passed on until a refused mark
+  was found to be said by nobody in the shell, and was named `MarkRefusedException` for the same reason (#596,
+  ADR-0009).
 - **A role-emission contract test is worth having** — one that walks every `Role` and asserts some view can produce
   it, the thing that would have caught `Role.Poll` sitting dead in the contract in the first place.
 - **A poll goes behind the post's content warning, on the terms its text does** (#119). A post carrying one draws no
