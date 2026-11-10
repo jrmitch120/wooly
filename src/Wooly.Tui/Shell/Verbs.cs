@@ -48,11 +48,6 @@ public static class Verbs
     ///     Whether <paramref name="verb" /> puts one of a post's marks on or takes it off, whichever it is not wearing
     ///     (ADR-0009) — so that a second of it undoes the first.
     /// </summary>
-    /// <remarks>
-    ///     What spends the double click a click on a post's <b>Counts</b> turns out to be the first half of (#593): a
-    ///     second click there would take off the boost the first put on, where a double click on any other run that
-    ///     stands for a key is that click twice, as two slower clicks would be.
-    /// </remarks>
     public static bool IsAMark(this Verb verb) => verb is Verb.Boost or Verb.Favorite or Verb.Pin or Verb.Bookmark;
 
     /// <summary>

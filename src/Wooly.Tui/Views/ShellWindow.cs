@@ -140,33 +140,10 @@ internal sealed class ShellWindow : Window
     private RailState _toggledTo;
 
     /// <summary>
-    ///     Whether the last click was spent declining an open question, which spends the double click it turns out to be
-    ///     the first half of (#291).
+    ///     What the last click was spent on, which the double click it turns out to be the first half of is told by
+    ///     (<see cref="DoubleClicked" />, <see cref="RestOfASpentPair" />).
     /// </summary>
-    private bool _clickDeclinedQuestion;
-
-    /// <summary>
-    ///     Whether the last click was spent toggling the rail, which spends the double click it turns out to be the
-    ///     first half of too: the toggle moved what was under the pointer, so the second click lands on whatever took
-    ///     the mark's place — on the scrolled compact rail, a row of the content (#443).
-    /// </summary>
-    private bool _clickToggledRail;
-
-    /// <summary>
-    ///     Whether the last click was spent on a mark — the boost or favorite of a post's <b>Counts</b> — which spends
-    ///     the double click it turns out to be the first half of too: a second click there would take off the mark the
-    ///     first put on, or put on again the one it took off, so a double click marks once (#593).
-    /// </summary>
-    private bool _clickMarked;
-
-    /// <summary>
-    ///     Where the last click was, and until when a second click there would be the pair Terminal.Gui makes a double
-    ///     click of, where that click put another screen in front — the compose screen the <c>↩</c> of a post's
-    ///     <b>Counts</b> opens (#594). The rest of the pair is spent before any view is asked
-    ///     (<see cref="RestOfASpentPair" />): the screen in front was not what the reader aimed the second click at, and
-    ///     it would land on whatever of the new one is drawn there, a choice on To or a place in the body.
-    /// </summary>
-    private SpentPair? _clickPutAScreenInFront;
+    private LastClick _lastClick = LastClick.Nothing;
 
     /// <summary>
     ///     How long after a click a second one at the same cell is the pair of a double click: Terminal.Gui's own
@@ -174,13 +151,6 @@ internal sealed class ShellWindow : Window
     ///     Terminal.Gui keeps the interpreter internal.
     /// </summary>
     private static readonly TimeSpan RepeatedClick = TimeSpan.FromMilliseconds(500);
-
-    /// <summary>
-    ///     The reference the last click walked to, which the double click it turns out to be the first half of opens
-    ///     (#479): the brackets that click drew may have moved the row a column on or wrapped a long address anew, so
-    ///     what is under the pointer by the second click is not asked again.
-    /// </summary>
-    private Reference? _clickWalkedTo;
 
     /// <summary>
     ///     The row of the content a press with the left button picked up, held from the press until the button is let go,
@@ -558,13 +528,9 @@ internal sealed class ShellWindow : Window
     private bool Clicked(Point at, bool chorded)
     {
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
-        _clickDeclinedQuestion = _shell.DeclineOpenQuestion();
-        _clickToggledRail = false;
-        _clickMarked = false;
-        _clickPutAScreenInFront = null;
-        _clickWalkedTo = null;
+        _lastClick = new LastClick { DeclinedQuestion = _shell.DeclineOpenQuestion() };
 
-        if (_clickDeclinedQuestion)
+        if (_lastClick.DeclinedQuestion)
         {
             return true;
         }
@@ -589,7 +555,7 @@ internal sealed class ShellWindow : Window
             var was = _shell.RailState;
 
             _ = Do(ShellKey.Backslash);
-            _clickToggledRail = was != _shell.RailState;
+            _lastClick = new LastClick { ToggledRail = was != _shell.RailState };
 
             return true;
         }
@@ -606,18 +572,24 @@ internal sealed class ShellWindow : Window
             if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded) is not Verb.None and var spent)
             {
                 _content.Hold();
-                _clickMarked = spent.IsAMark();
 
-                if (!ReferenceEquals(front, _shell.Screen))
+                // A mark spends the double click it is the first half of, since a second click there would undo it
+                // (#593); a double click on any other run that stands for a key is that click twice, as two slower
+                // clicks would be. One that put another screen in front spends the rest of its pair before that screen
+                // can take it (#594).
+                _lastClick = new LastClick
                 {
-                    _clickPutAScreenInFront = new SpentPair(at, _clock.GetUtcNow() + RepeatedClick);
-                }
+                    Marked = spent.IsAMark(),
+                    PutAScreenInFront = ReferenceEquals(front, _shell.Screen)
+                        ? null
+                        : new SpentPair(at, _clock.GetUtcNow() + RepeatedClick),
+                };
             }
             else if (reference is { } walked && _content.ItemAt(at) is { } item)
             {
                 _content.Hold();
                 _shell.PickReference(item, walked);
-                _clickWalkedTo = _shell.Screen.Reference;
+                _lastClick = new LastClick { WalkedTo = _shell.Screen.Reference };
             }
             else
             {
@@ -660,23 +632,17 @@ internal sealed class ShellWindow : Window
     private bool DoubleClicked(Point at, bool chorded)
     {
         // Spent once: a later pair must not be swallowed by a question its own first click never saw.
-        var declined = _clickDeclinedQuestion;
-        var toggled = _clickToggledRail;
-        var marked = _clickMarked;
-        var walked = _clickWalkedTo;
-        _clickDeclinedQuestion = false;
-        _clickToggledRail = false;
-        _clickMarked = false;
-        _clickWalkedTo = null;
+        var last = _lastClick;
+        _lastClick = LastClick.Nothing;
 
-        if (declined || toggled || marked || _shell.DeclineOpenQuestion())
+        if (last.DeclinedQuestion || last.ToggledRail || last.Marked || _shell.DeclineOpenQuestion())
         {
             return true;
         }
 
         // A pair whose first click walked to a reference is the ⏎ that opens it, wherever its brackets left the second
         // click: picking again under the pointer would let the reference go and open the thing instead (#479).
-        if (walked is not null && walked == _shell.Screen.Reference)
+        if (last.WalkedTo is { } walked && walked == _shell.Screen.Reference)
         {
             _ = Do(ShellKey.Enter);
 
@@ -1219,7 +1185,7 @@ internal sealed class ShellWindow : Window
     /// </remarks>
     private void RestOfASpentPair(Mouse mouse)
     {
-        if (mouse.Handled || _clickPutAScreenInFront is not { } pair)
+        if (mouse.Handled || _lastClick.PutAScreenInFront is not { } pair)
         {
             return;
         }
@@ -1233,7 +1199,7 @@ internal sealed class ShellWindow : Window
 
             if ((mouse.Flags & (MouseFlags.LeftButtonClicked | MouseFlags.LeftButtonDoubleClicked)) != 0)
             {
-                _clickPutAScreenInFront = null;
+                _lastClick = _lastClick with { PutAScreenInFront = null };
             }
 
             return;
@@ -1242,14 +1208,14 @@ internal sealed class ShellWindow : Window
         // Anything elsewhere, or slower, means Terminal.Gui will make no pair: the next press is the new screen's.
         if (mouse.ScreenPosition != pair.At || _clock.GetUtcNow() > pair.Until)
         {
-            _clickPutAScreenInFront = null;
+            _lastClick = _lastClick with { PutAScreenInFront = null };
 
             return;
         }
 
         if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed))
         {
-            _clickPutAScreenInFront = pair with { Pressed = true };
+            _lastClick = _lastClick with { PutAScreenInFront = pair with { Pressed = true } };
             mouse.Handled = true;
         }
     }
@@ -1257,12 +1223,6 @@ internal sealed class ShellWindow : Window
     /// <summary>Any of what the left button reports: its press, its let-go and the clicks Terminal.Gui makes of them.</summary>
     private const MouseFlags AnyLeft = MouseFlags.LeftButtonPressed | MouseFlags.LeftButtonReleased
         | MouseFlags.LeftButtonClicked | MouseFlags.LeftButtonDoubleClicked | MouseFlags.LeftButtonTripleClicked;
-
-    /// <summary>
-    ///     A click that put another screen in front (<see cref="RestOfASpentPair" />): where it was, until when a press
-    ///     there is the second of its pair, and whether that press has come and been spent.
-    /// </summary>
-    private sealed record SpentPair(Point At, DateTimeOffset Until, bool Pressed = false);
 
     /// <summary>
     ///     The click a drag ends in, taken before any view is asked wherever it lands (story 58): it is the drop,
