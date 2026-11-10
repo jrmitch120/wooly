@@ -427,6 +427,80 @@ public class CountsClickTests
     }
 
     /// <summary>
+    ///     Only the rest of a pair is spent: a second click on the cell once the time a pair is made in has gone is the
+    ///     compose screen's, as any click on it is — under the pointer here, the body below the handle, which takes the
+    ///     caret off the end of the handle, where the reply opened with it.
+    /// </summary>
+    [Fact]
+    public async Task ASlowerSecondClickOnTheReplyCountIsTheComposeScreens()
+    {
+        var (drawn, counts) = await RepliedByClick();
+
+        using (drawn)
+        {
+            drawn.Built.Clock.Advance(TimeSpan.FromMilliseconds(600));
+            drawn.Click(counts.X, counts.Y);
+            drawn.Press(new Key('x'));
+
+            Assert.NotEqual("@ben@hachyderm.io x", Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Text);
+        }
+    }
+
+    /// <summary>
+    ///     Nor is a quick second click on another cell, which Terminal.Gui makes no pair of: a click on <c>direct</c>
+    ///     chooses it on To.
+    /// </summary>
+    [Fact]
+    public async Task AQuickSecondClickElsewhereIsTheComposeScreens()
+    {
+        var (drawn, _) = await RepliedByClick();
+
+        using (drawn)
+        {
+            var to = RowOf(drawn, "○ direct");
+
+            drawn.Click(ColumnOf(drawn, to, "○ direct"), to);
+
+            Assert.Equal(PostVisibility.Direct, Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Visibility);
+        }
+    }
+
+    /// <summary>
+    ///     A second click whose press came quickly enough to be spent is spent whole, however slowly it is let go —
+    ///     Terminal.Gui then making a click of it rather than a pair, or a pair long after the first click — so that the
+    ///     compose screen is never handed a let-go and a click without the press they began with.
+    /// </summary>
+    [Theory]
+    [InlineData(600, false)]
+    [InlineData(300, true)]
+    public async Task ASecondClickWhosePressWasSpentIsSpentWhole(int heldFor, bool paired)
+    {
+        var (drawn, counts) = await RepliedByClick();
+
+        using (drawn)
+        {
+            drawn.Built.Clock.Advance(TimeSpan.FromMilliseconds(300));
+            drawn.Point(counts.X, counts.Y, MouseFlags.LeftButtonPressed);
+            drawn.Built.Clock.Advance(TimeSpan.FromMilliseconds(heldFor));
+            drawn.Point(counts.X, counts.Y, MouseFlags.LeftButtonReleased);
+            drawn.Point(
+                counts.X,
+                counts.Y,
+                paired ? MouseFlags.LeftButtonDoubleClicked : MouseFlags.LeftButtonClicked);
+            drawn.Press(new Key('x'));
+
+            Assert.Equal("@ben@hachyderm.io x", Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Text);
+
+            // And the click after it is the compose screen's again, taking the caret off the end.
+            drawn.Built.Clock.Advance(TimeSpan.FromMilliseconds(600));
+            drawn.Click(counts.X, counts.Y);
+            drawn.Press(new Key('y'));
+
+            Assert.NotEqual("@ben@hachyderm.io xy", Assert.IsType<ComposeScreen>(drawn.Shell.Screen).Text);
+        }
+    }
+
+    /// <summary>
     ///     A reply by click goes no wider than one by key: in a conversation the compose screen opens on <c>direct</c>,
     ///     with the warning of the message answered, as <c>r</c> opens it.
     /// </summary>
@@ -561,6 +635,31 @@ public class CountsClickTests
 
         Assert.IsType<ConversationScreen>(drawn.Shell.Screen);
         Assert.Empty(drawn.Built.Engagement.Marks);
+    }
+
+    /// <summary>
+    ///     A reply to Ben's post put in front by a click on its <c>↩</c>, the caret at the end of the handle, so that a
+    ///     click the compose screen is handed shows by where the next letter goes. The cell clicked is where the
+    ///     <c>↩</c> was, which on the compose screen is the body under the handle.
+    /// </summary>
+    private static async Task<(DrawnShell Drawn, Point Counts)> RepliedByClick()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110"),
+                APost.With(id: "220", account: "ben@hachyderm.io", content: "Two sheep")),
+        };
+
+        var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built);
+        var row = CountsOf(drawn, "Two sheep");
+        var counts = new Point(ColumnOf(drawn, row, "↩"), row);
+
+        drawn.Click(counts.X, counts.Y);
+        drawn.Settle();
+        Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        return (drawn, counts);
     }
 
     /// <summary>Two posts on Home, the second the one clicked.</summary>

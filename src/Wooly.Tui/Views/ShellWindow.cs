@@ -166,11 +166,12 @@ internal sealed class ShellWindow : Window
     ///     (<see cref="RestOfASpentPair" />): the screen in front was not what the reader aimed the second click at, and
     ///     it would land on whatever of the new one is drawn there, a choice on To or a place in the body.
     /// </summary>
-    private (Point At, DateTimeOffset Until)? _clickPutAScreenInFront;
+    private SpentPair? _clickPutAScreenInFront;
 
     /// <summary>
     ///     How long after a click a second one at the same cell is the pair of a double click: Terminal.Gui's own
-    ///     <c>MouseInterpreter.RepeatedClickThreshold</c>, left at its default.
+    ///     <c>MouseInterpreter.RepeatedClickThreshold</c>, left at its default. Said again here rather than read, since
+    ///     Terminal.Gui keeps the interpreter internal.
     /// </summary>
     private static readonly TimeSpan RepeatedClick = TimeSpan.FromMilliseconds(500);
 
@@ -609,7 +610,7 @@ internal sealed class ShellWindow : Window
 
                 if (!ReferenceEquals(front, _shell.Screen))
                 {
-                    _clickPutAScreenInFront = (at, _clock.GetUtcNow() + RepeatedClick);
+                    _clickPutAScreenInFront = new SpentPair(at, _clock.GetUtcNow() + RepeatedClick);
                 }
             }
             else if (reference is { } walked && _content.ItemAt(at) is { } item)
@@ -1209,9 +1210,12 @@ internal sealed class ShellWindow : Window
     ///     there would take the press for its own, a reply's To choosing or its body placing the caret.
     /// </summary>
     /// <remarks>
-    ///     Spent only at the cell clicked and inside the time a pair is made in, so that a click anywhere else, or a
-    ///     slower one, is a click on the new screen as any other is. A press is the pair's until it turns out not to be,
-    ///     which Terminal.Gui, counting clicks on the let-go, says only after the press is reported.
+    ///     A press is spent only at the cell clicked and inside the time a pair is made in, so that a click anywhere else,
+    ///     or a slower one, is a click on the new screen as any other is. A press is the pair's until it turns out not to
+    ///     be, which Terminal.Gui, counting clicks on the let-go, says only after the press is reported — so once one is
+    ///     spent, the rest of its click is spent with it, its let-go and whatever click Terminal.Gui makes of that, however
+    ///     slowly it is let go: a press held past the time makes a single click of it rather than the pair, and the new
+    ///     screen is never handed a let-go and a click without the press they began with.
     /// </remarks>
     private void RestOfASpentPair(Mouse mouse)
     {
@@ -1220,25 +1224,45 @@ internal sealed class ShellWindow : Window
             return;
         }
 
-        // A click Terminal.Gui did not make a pair of was a slower one, and is the new screen's.
-        if (mouse.ScreenPosition != pair.At || _clock.GetUtcNow() > pair.Until
-            || mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
+        if (pair.Pressed)
+        {
+            if ((mouse.Flags & AnyLeft) != 0)
+            {
+                mouse.Handled = true;
+            }
+
+            if ((mouse.Flags & (MouseFlags.LeftButtonClicked | MouseFlags.LeftButtonDoubleClicked)) != 0)
+            {
+                _clickPutAScreenInFront = null;
+            }
+
+            return;
+        }
+
+        // Anything elsewhere, or slower, means Terminal.Gui will make no pair: the next press is the new screen's.
+        if (mouse.ScreenPosition != pair.At || _clock.GetUtcNow() > pair.Until)
         {
             _clickPutAScreenInFront = null;
 
             return;
         }
 
-        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed))
         {
-            _clickPutAScreenInFront = null;
-            mouse.Handled = true;
-        }
-        else if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) || mouse.Flags.HasFlag(MouseFlags.LeftButtonReleased))
-        {
+            _clickPutAScreenInFront = pair with { Pressed = true };
             mouse.Handled = true;
         }
     }
+
+    /// <summary>Any of what the left button reports: its press, its let-go and the clicks Terminal.Gui makes of them.</summary>
+    private const MouseFlags AnyLeft = MouseFlags.LeftButtonPressed | MouseFlags.LeftButtonReleased
+        | MouseFlags.LeftButtonClicked | MouseFlags.LeftButtonDoubleClicked | MouseFlags.LeftButtonTripleClicked;
+
+    /// <summary>
+    ///     A click that put another screen in front (<see cref="RestOfASpentPair" />): where it was, until when a press
+    ///     there is the second of its pair, and whether that press has come and been spent.
+    /// </summary>
+    private sealed record SpentPair(Point At, DateTimeOffset Until, bool Pressed = false);
 
     /// <summary>
     ///     The click a drag ends in, taken before any view is asked wherever it lands (story 58): it is the drop,
