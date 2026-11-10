@@ -218,9 +218,12 @@ public sealed class NotificationsScreen(
 
     /// <summary>
     ///     A click on a group means more than picking it out in two places (#456): on a face in its avatar strip it opens
-    ///     that one actor's account, and on its names line it opens the group's actors, as <c>w</c> does. Anywhere else
-    ///     — the gaps between faces, the <c>+N</c>, the age, the post — it picks the group and nothing more, and a
-    ///     double click there is <c>⏎</c>, which opens the post.
+    ///     that one actor's account, and on its names line it opens the group's actors, as <c>w</c> does. Any other part
+    ///     is left to every screen's answer (<see cref="Screen.Clicked" />), so that the boost, favorite and reply of the
+    ///     <b>Counts</b> of a post drawn whole are <c>b</c>, <c>f</c> and <c>r</c> on it, as anywhere else (#595); their
+    ///     parts are below the names line's, so never taken for a face or the names. Anywhere else — the gaps between
+    ///     faces, the <c>+N</c>, the age, the rest of the post, a preview of the reader's own, which draws no counts — it
+    ///     picks the group and nothing more, and a double click there is <c>⏎</c>, which opens the post.
     /// </summary>
     public override Verb Clicked(int? item, int? part, bool chorded)
     {
@@ -235,7 +238,7 @@ public sealed class NotificationsScreen(
                 return Verb.OpenFace;
 
             default:
-                return Verb.None;
+                return base.Clicked(item, part, chorded);
         }
     }
 

@@ -266,7 +266,8 @@ public abstract class Screen
     /// <remarks>
     ///     By default the boost, favorite and reply of a post's <b>Counts</b>, which are <c>b</c>, <c>f</c> and <c>r</c>
     ///     on the post they are drawn under (<see cref="PostLines.Clicked" />, #593, #594): answered once here, so
-    ///     that every screen drawing posts answers them without saying so, and a screen added later inherits them.
+    ///     that every screen drawing posts answers them without saying so, and a screen added later inherits them. A
+    ///     screen taking clicks of its own leaves the parts it does not own to this, as Notifications does (#595).
     ///     Nothing anywhere else, which leaves the click to pick the thing out, as on every screen. Answered with a verb
     ///     rather than carried out here, so a click and the key it stands for are one thing done one way.
     /// </remarks>

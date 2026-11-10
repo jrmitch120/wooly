@@ -1,4 +1,5 @@
 using Wooly.Core.Notifications;
+using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
@@ -132,6 +133,54 @@ public class ShellNotificationGroupClickTests
         Assert.Empty(built.Notifications.ActorReads);
     }
 
+    /// <summary>
+    ///     The <b>Counts</b> of a post a notification carries answer a click as they do anywhere else (#595): a click on
+    ///     <c>↺</c> or <c>☆</c> picks the group and asks the instance to put the mark on its post, as <c>b</c> or
+    ///     <c>f</c> would there, and opens no actor.
+    /// </summary>
+    [Theory]
+    [InlineData("↺", PostMark.Boost)]
+    [InlineData("☆", PostMark.Favorite)]
+    public async Task ClickingACountOnANotificationsPostMarksIt(string glyph, PostMark mark)
+    {
+        var (built, drawn) = await On(Several(), Mention());
+
+        var counts = RowOf(drawn, "↩", after: RowOf(drawn, "Third sheep"));
+
+        drawn.Click(drawn.Rows()[counts].IndexOf(glyph, StringComparison.Ordinal), counts);
+        drawn.Settle();
+
+        var notifications = Assert.IsType<NotificationsScreen>(drawn.Shell.Screen);
+
+        Assert.Equal("mention", notifications.PickedGroup?.Key);
+        Assert.Equal(
+            new FakePostEngagement.Marked("personal", "330", mark, Wanted: true),
+            Assert.Single(built.Engagement.Marks));
+        Assert.Empty(built.Accounts.Reads);
+        Assert.Empty(built.Notifications.ActorReads);
+    }
+
+    /// <summary>A click on <c>↩</c> there picks the group and puts up the reply to its post that <c>r</c> would.</summary>
+    [Fact]
+    public async Task ClickingTheReplyCountOnANotificationsPostRepliesToIt()
+    {
+        var (built, drawn) = await On(Several(), Mention());
+
+        var notifications = drawn.Shell.Screen;
+        var counts = RowOf(drawn, "↩", after: RowOf(drawn, "Third sheep"));
+
+        drawn.Click(drawn.Rows()[counts].IndexOf("↩", StringComparison.Ordinal), counts);
+        drawn.Settle();
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Assert.Equal("mention", Assert.IsType<NotificationsScreen>(notifications).PickedGroup?.Key);
+        Assert.Equal(ComposeFor.Reply, compose.Purpose);
+        Assert.Equal("330", compose.About?.Id);
+        Assert.Empty(built.Engagement.Marks);
+        Assert.Empty(built.Accounts.Reads);
+    }
+
     /// <summary>A group of three, two in the instance's sample, about the reader's post that reads "Hello world".</summary>
     private static NotificationGroup Several() =>
         ANotification.Group(key: "several", newestId: "36", count: 3, actors: ["Alice", "Bob"]);
@@ -143,6 +192,15 @@ public class ShellNotificationGroupClickTests
             newestId: "35",
             actors: ["Dan"],
             post: APost.With(id: "220", account: "jeff@mastodon.social", author: "Jeff", content: "Second sheep", isMine: true));
+
+    /// <summary>A mention, whose post is somebody else's and so drawn whole, <b>Counts</b> and all.</summary>
+    private static NotificationGroup Mention() =>
+        ANotification.Group(
+            key: "mention",
+            kind: NotificationKind.Mention,
+            newestId: "34",
+            actors: ["Carol"],
+            post: APost.With(id: "330", account: "carol@hachyderm.io", author: "Carol", content: "Third sheep"));
 
     /// <summary>
     ///     The terminal column a face's middle is drawn in, in the strip under the names line on <paramref name="names" />, whose names start with <paramref name="first" />:
