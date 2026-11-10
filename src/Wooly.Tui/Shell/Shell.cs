@@ -2111,14 +2111,17 @@ public sealed class Shell
     /// <param name="item">The thing the row clicked is part of, if any.</param>
     /// <param name="part">What the run clicked stands for, if anything.</param>
     /// <param name="chorded">Whether ctrl or shift was held.</param>
-    /// <returns>Whether the click meant anything more, and was spent on it; if not it is left to pick.</returns>
-    public bool Click(int? item, int? part, bool chorded)
+    /// <returns>
+    ///     What the click meant more and was spent on — which a double click on a mark is told by (#593) — or
+    ///     <see cref="Verb.None" /> where it meant nothing more, and is left to pick.
+    /// </returns>
+    public Verb Click(int? item, int? part, bool chorded)
     {
         var verb = Screen.Clicked(item, part, chorded);
 
         if (verb == Verb.None)
         {
-            return false;
+            return Verb.None;
         }
 
         if (item is { } at)
@@ -2126,7 +2129,7 @@ public sealed class Shell
             Screen.Pick(at);
         }
 
-        return Do(verb, answer: null);
+        return Do(verb, answer: null) ? verb : Verb.None;
     }
 
     /// <summary>

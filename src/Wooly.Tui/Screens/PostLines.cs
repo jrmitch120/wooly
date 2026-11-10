@@ -2,6 +2,7 @@ using Wooly.Core;
 using Wooly.Core.Posts;
 using Wooly.Tui.Media;
 using Wooly.Tui.Rendering;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tui.Screens;
@@ -46,6 +47,17 @@ public static class PostLines
     ///     applies.
     /// </summary>
     private const string BookmarkMark = "⚑";
+
+    /// <summary>
+    ///     What the boost run of a post's <b>Counts</b> stands for (<see cref="Span.Item" />): <c>b</c>, which a click
+    ///     there is (#593). Below <see cref="NotificationGroupLines.NamesPart" />, so that on the notifications screen,
+    ///     whose faces stand for their slots from nought up and whose names line stands for that, a count is never taken
+    ///     for either.
+    /// </summary>
+    public const int BoostPart = -2;
+
+    /// <summary>What the favorite run of a post's <b>Counts</b> stands for: <c>f</c>, as <see cref="BoostPart" /> is <c>b</c>.</summary>
+    public const int FavoritePart = -3;
 
     /// <summary>
     ///     What a post whose media the instance marked sensitive says where its attachments would have been, on a post
@@ -1082,20 +1094,39 @@ public static class PostLines
     ///     Whether each count says what it counts. A feed has room for the glyph and the number and a reader scanning
     ///     one does not need the word; the post screen has room for both.
     /// </param>
+    /// <remarks>
+    ///     The boost and the favorite are controls as well (GLOSSARY.md's <b>Counts</b>, #593): each run, glyph, number
+    ///     and word, stands for its key (<see cref="BoostPart" />, <see cref="FavoritePart" />), which
+    ///     <see cref="Clicked" /> reads back. The gaps, the bookmark's slot and <c>pinned</c> stand for nothing, and a
+    ///     click there picks the post: a slot that is blank while the mark is off is no target to take a mark off by.
+    /// </remarks>
     private static Line Counts(Post post, bool spelledOut) => Line.Of([
         new Span(
             $"{BoostMark(post.Marks.Boosted)} {Number.Of(post.Boosts)}{Word(" boosts", spelledOut)}",
-            post.Marks.Boosted ? Role.BoostMine : Role.Boost),
+            post.Marks.Boosted ? Role.BoostMine : Role.Boost) { Item = BoostPart },
         new Span("   ", Role.Muted),
         new Span(
             $"{FavoriteMark(post.Marks.Favorited)} {Number.Of(post.Favorites)}{Word(" favorites", spelledOut)}",
-            post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite),
+            post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite) { Item = FavoritePart },
         new Span("   ", Role.Muted),
         new Span($"↩ {Number.Of(post.Replies)}{Word(" replies", spelledOut)}", Role.Replies),
         new Span("   ", Role.Muted),
         Bookmarked(post, spelledOut),
         new Span(post.Marks.Pinned ? "   pinned" : string.Empty, Role.Muted),
     ]);
+
+    /// <summary>
+    ///     What a click on a run of a post's <b>Counts</b> means (#593): <c>b</c> on the boost, <c>f</c> on the
+    ///     favorite, and nothing anywhere else, which leaves the click to pick. Said here, beside the drawing that tags
+    ///     the runs, so that every screen drawing posts answers them alike (<see cref="Screen.Clicked" />).
+    /// </summary>
+    /// <param name="part">What the run clicked stands for (<see cref="Span.Item" />), if anything.</param>
+    public static Verb Clicked(int? part) => part switch
+    {
+        BoostPart => Verb.Boost,
+        FavoritePart => Verb.Favorite,
+        _ => Verb.None,
+    };
 
     /// <summary>
     ///     The bookmark's slot: <see cref="BookmarkMark" /> where the reader has bookmarked the post, and blank space

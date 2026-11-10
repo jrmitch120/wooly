@@ -153,6 +153,13 @@ internal sealed class ShellWindow : Window
     private bool _clickToggledRail;
 
     /// <summary>
+    ///     Whether the last click was spent on a mark — the boost or favorite of a post's <b>Counts</b> — which spends
+    ///     the double click it turns out to be the first half of too: a second click there would take off the mark the
+    ///     first put on, or put on again the one it took off, so a double click marks once (#593).
+    /// </summary>
+    private bool _clickMarked;
+
+    /// <summary>
     ///     The reference the last click walked to, which the double click it turns out to be the first half of opens
     ///     (#479): the brackets that click drew may have moved the row a column on or wrapped a long address anew, so
     ///     what is under the pointer by the second click is not asked again.
@@ -536,6 +543,7 @@ internal sealed class ShellWindow : Window
         // A click anywhere declines a confirmation or closes a filter prompt, and is not carried out (story 30, 31).
         _clickDeclinedQuestion = _shell.DeclineOpenQuestion();
         _clickToggledRail = false;
+        _clickMarked = false;
         _clickWalkedTo = null;
 
         if (_clickDeclinedQuestion)
@@ -576,9 +584,10 @@ internal sealed class ShellWindow : Window
             // the pointer — before the pick lets go of a reference bracketed on the same row, and moves what follows it.
             var reference = _content.ReferenceAt(at);
 
-            if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded))
+            if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded) is not Verb.None and var spent)
             {
                 _content.Hold();
+                _clickMarked = spent.IsAMark();
             }
             else if (reference is { } walked && _content.ItemAt(at) is { } item)
             {
@@ -617,7 +626,9 @@ internal sealed class ShellWindow : Window
     /// <remarks>
     ///     Terminal.Gui reports the pair's first click on its own before the pair, so a pair whose first click was spent
     ///     on an open question is spent with it, and opens nothing behind the question it closed (story 30, 31) — and a
-    ///     pair whose first click toggled the rail is that toggle and nothing more, wherever the second lands (#443).
+    ///     pair whose first click toggled the rail is that toggle and nothing more, wherever the second lands (#443). So
+    ///     is a pair whose first click was a mark, the boost or favorite of a post's <b>Counts</b>: a click on it again
+    ///     would undo it, so the pair marks once (#593).
     /// </remarks>
     /// <param name="at">Where the second click was.</param>
     /// <param name="chorded">Whether ctrl or shift was held, as for <see cref="Clicked" />.</param>
@@ -627,12 +638,14 @@ internal sealed class ShellWindow : Window
         // Spent once: a later pair must not be swallowed by a question its own first click never saw.
         var declined = _clickDeclinedQuestion;
         var toggled = _clickToggledRail;
+        var marked = _clickMarked;
         var walked = _clickWalkedTo;
         _clickDeclinedQuestion = false;
         _clickToggledRail = false;
+        _clickMarked = false;
         _clickWalkedTo = null;
 
-        if (declined || toggled || _shell.DeclineOpenQuestion())
+        if (declined || toggled || marked || _shell.DeclineOpenQuestion())
         {
             return true;
         }
@@ -659,7 +672,7 @@ internal sealed class ShellWindow : Window
         // On a run that stands for a key of its own it is a click there and nothing more, as a second click there
         // would have been had it come slower: Terminal.Gui reports the second of two quick clicks on one cell only as
         // the pair, so two quick clicks on an attachment's x took one row off and described the next (review of #372).
-        if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded))
+        if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded) is not Verb.None)
         {
             _content.Hold();
 
