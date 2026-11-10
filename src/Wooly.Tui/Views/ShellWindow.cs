@@ -160,6 +160,21 @@ internal sealed class ShellWindow : Window
     private bool _clickMarked;
 
     /// <summary>
+    ///     Where the last click was, and until when a second click there would be the pair Terminal.Gui makes a double
+    ///     click of, where that click put another screen in front — the compose screen the <c>↩</c> of a post's
+    ///     <b>Counts</b> opens (#594). The rest of the pair is spent before any view is asked
+    ///     (<see cref="RestOfASpentPair" />): the screen in front was not what the reader aimed the second click at, and
+    ///     it would land on whatever of the new one is drawn there, a choice on To or a place in the body.
+    /// </summary>
+    private (Point At, DateTimeOffset Until)? _clickPutAScreenInFront;
+
+    /// <summary>
+    ///     How long after a click a second one at the same cell is the pair of a double click: Terminal.Gui's own
+    ///     <c>MouseInterpreter.RepeatedClickThreshold</c>, left at its default.
+    /// </summary>
+    private static readonly TimeSpan RepeatedClick = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>
     ///     The reference the last click walked to, which the double click it turns out to be the first half of opens
     ///     (#479): the brackets that click drew may have moved the row a column on or wrapped a long address anew, so
     ///     what is under the pointer by the second click is not asked again.
@@ -246,6 +261,7 @@ internal sealed class ShellWindow : Window
                 // The thumb's drag first: while it is held every event is its own, its let-go's click on the rail's
                 // mark or a margin included (#503).
                 application.Mouse.MouseEvent += (_, mouse) => ThumbDragged(mouse);
+                application.Mouse.MouseEvent += (_, mouse) => RestOfASpentPair(mouse);
                 application.Mouse.MouseEvent += (_, mouse) => Dropped(mouse);
                 application.Mouse.MouseEvent += (_, mouse) => InTheMargins(mouse);
                 application.Mouse.MouseEvent += (_, mouse) => AtTheToggleMark(mouse);
@@ -544,6 +560,7 @@ internal sealed class ShellWindow : Window
         _clickDeclinedQuestion = _shell.DeclineOpenQuestion();
         _clickToggledRail = false;
         _clickMarked = false;
+        _clickPutAScreenInFront = null;
         _clickWalkedTo = null;
 
         if (_clickDeclinedQuestion)
@@ -583,11 +600,17 @@ internal sealed class ShellWindow : Window
             // A click on a reference walks to it inside the thing it picks, read off the rows as they were drawn under
             // the pointer — before the pick lets go of a reference bracketed on the same row, and moves what follows it.
             var reference = _content.ReferenceAt(at);
+            var front = _shell.Screen;
 
             if (_shell.Click(_content.ItemAt(at), _content.SpanItemAt(at), chorded) is not Verb.None and var spent)
             {
                 _content.Hold();
                 _clickMarked = spent.IsAMark();
+
+                if (!ReferenceEquals(front, _shell.Screen))
+                {
+                    _clickPutAScreenInFront = (at, _clock.GetUtcNow() + RepeatedClick);
+                }
             }
             else if (reference is { } walked && _content.ItemAt(at) is { } item)
             {
@@ -1177,6 +1200,44 @@ internal sealed class ShellWindow : Window
             driver.FillRect(driver.Screen);
             driver.SetAttribute(was);
         };
+    }
+
+    /// <summary>
+    ///     The second click of a double click whose first put another screen in front (#594) — its press, its let-go and
+    ///     the pair Terminal.Gui reports — taken before any view is asked and spent, as a pair whose first click toggled
+    ///     the rail is (<see cref="DoubleClicked" />): the first click's screen is in front of the cell now, and its view
+    ///     there would take the press for its own, a reply's To choosing or its body placing the caret.
+    /// </summary>
+    /// <remarks>
+    ///     Spent only at the cell clicked and inside the time a pair is made in, so that a click anywhere else, or a
+    ///     slower one, is a click on the new screen as any other is. A press is the pair's until it turns out not to be,
+    ///     which Terminal.Gui, counting clicks on the let-go, says only after the press is reported.
+    /// </remarks>
+    private void RestOfASpentPair(Mouse mouse)
+    {
+        if (mouse.Handled || _clickPutAScreenInFront is not { } pair)
+        {
+            return;
+        }
+
+        // A click Terminal.Gui did not make a pair of was a slower one, and is the new screen's.
+        if (mouse.ScreenPosition != pair.At || _clock.GetUtcNow() > pair.Until
+            || mouse.Flags.HasFlag(MouseFlags.LeftButtonClicked))
+        {
+            _clickPutAScreenInFront = null;
+
+            return;
+        }
+
+        if (mouse.Flags.HasFlag(MouseFlags.LeftButtonDoubleClicked))
+        {
+            _clickPutAScreenInFront = null;
+            mouse.Handled = true;
+        }
+        else if (mouse.Flags.HasFlag(MouseFlags.LeftButtonPressed) || mouse.Flags.HasFlag(MouseFlags.LeftButtonReleased))
+        {
+            mouse.Handled = true;
+        }
     }
 
     /// <summary>

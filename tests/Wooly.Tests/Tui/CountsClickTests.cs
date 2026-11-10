@@ -4,15 +4,17 @@ using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
+using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
 using static Wooly.Tests.Tui.ContentClicks;
 
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     The boost and favorite of a post's <b>Counts</b> are controls (#593): a click on one picks the post and is the
-///     key for it, <c>b</c> or <c>f</c>, carried out on that post through the path the key takes. Sent at cells of a
-///     headless terminal, as the content click tests are, and read off what the fake post engagement was asked.
+///     The boost, favorite and reply of a post's <b>Counts</b> are controls (#593, #594): a click on one picks the post
+///     and is the key for it, <c>b</c>, <c>f</c> or <c>r</c>, carried out on that post through the path the key takes.
+///     Sent at cells of a headless terminal, as the content click tests are, and read off what the fake post engagement
+///     was asked and what compose screen was put in front.
 /// </summary>
 public class CountsClickTests
 {
@@ -359,6 +361,185 @@ public class CountsClickTests
         Assert.Equal("220", Assert.Single(built.Engagement.Marks).PostId);
         Assert.Equal(top, drawn.Content.Top);
         Assert.Equal(counts, RowOf(drawn, "↺ 7"));
+    }
+
+    /// <summary>
+    ///     A click on <c>↩</c> on a post that is not picked picks it and puts up the compose screen <c>r</c> would, a
+    ///     reply to that post addressed to its author (#594).
+    /// </summary>
+    [Fact]
+    public async Task ClickingTheReplyCountOnAPostNotPickedRepliesToIt()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110"),
+                APost.With(id: "220", account: "ben@hachyderm.io", content: "Two sheep")),
+        };
+
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built);
+
+        var feed = drawn.Shell.Screen;
+        var counts = CountsOf(drawn, "Two sheep");
+
+        drawn.Click(ColumnOf(drawn, counts, "↩"), counts);
+        drawn.Settle();
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Assert.Equal("220", feed.Picked?.Id);
+        Assert.Equal(ComposeFor.Reply, compose.Purpose);
+        Assert.Equal("220", compose.About?.Id);
+        Assert.Equal("@ben@hachyderm.io ", compose.Text);
+        Assert.Empty(built.Engagement.Marks);
+    }
+
+    /// <summary>
+    ///     A double click on <c>↩</c> opens one compose screen, and its second click is spent with its first: the first
+    ///     put the reply in front, under the pointer, and the second would otherwise land on whatever of it is drawn
+    ///     there — a choice on To, or the body, where it put the caret in the middle of the author's handle.
+    /// </summary>
+    [Fact]
+    public async Task ADoubleClickOnTheReplyCountOpensOneComposeAndClicksNothingOnIt()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110"),
+                APost.With(id: "220", account: "ben@hachyderm.io", content: "Two sheep")),
+        };
+
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built);
+
+        var feed = drawn.Shell.Screen;
+        var counts = CountsOf(drawn, "Two sheep");
+
+        drawn.DoubleClick(ColumnOf(drawn, counts, "↩"), counts);
+        drawn.Settle();
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        drawn.Press(new Key('x'));
+
+        Assert.Equal([feed.Crumb, compose.Crumb], drawn.Shell.Crumbs);
+        Assert.Equal("220", compose.About?.Id);
+        Assert.Equal("@ben@hachyderm.io x", compose.Text);
+    }
+
+    /// <summary>
+    ///     A reply by click goes no wider than one by key: in a conversation the compose screen opens on <c>direct</c>,
+    ///     with the warning of the message answered, as <c>r</c> opens it.
+    /// </summary>
+    [Fact]
+    public async Task InAConversationTheReplyKeepsItsAudienceAndWarning()
+    {
+        var built = new AShell
+        {
+            Messages = FakeDirectMessages.Threading(AConversation.Thread(
+                AConversation.With(id: "7"),
+                AConversation.DirectPost(id: "110", content: "Are you about?"),
+                AConversation.DirectPost(id: "111", content: "All week") with { ContentWarning = "plans" })),
+        };
+
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built);
+
+        drawn.Shell.Rail.GoTo(drawn.Shell.Rail.Of(DestinationKind.Messages));
+        built.Host.Drain();
+        drawn.Press(Key.Enter);
+        built.Host.Drain();
+        drawn.Redraw();
+
+        var thread = Assert.IsType<ConversationScreen>(drawn.Shell.Screen);
+        var counts = CountsOf(drawn, "plans");
+
+        drawn.Click(ColumnOf(drawn, counts, "↩"), counts);
+        drawn.Settle();
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Assert.Equal("111", thread.Picked?.Id);
+        Assert.Equal("111", compose.About?.Id);
+        Assert.Equal(PostVisibility.Direct, compose.Visibility);
+        Assert.Equal("plans", compose.Warning);
+    }
+
+    /// <summary>On a boost the reply answers the post boosted, whose counts are the ones drawn, as <c>r</c> does.</summary>
+    [Fact]
+    public async Task OnABoostTheReplyAnswersThePostBoosted()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(
+                APost.With(id: "110"),
+                APost.With(
+                    id: "220",
+                    account: "ben@hachyderm.io",
+                    boosted: APost.With(id: "330", account: "ann@hachyderm.io", content: "Two sheep"))),
+        };
+
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built);
+
+        var counts = CountsOf(drawn, "Two sheep");
+
+        drawn.Click(ColumnOf(drawn, counts, "↩"), counts);
+        drawn.Settle();
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Assert.Equal("330", compose.About?.Id);
+        Assert.Equal("@ann@hachyderm.io ", compose.Text);
+    }
+
+    /// <summary>
+    ///     The subject post's spelled-out <c>1 replies</c> is the same control, word and all: a click on <c>replies</c>
+    ///     picks the subject from the parent picked above it and replies to it.
+    /// </summary>
+    [Fact]
+    public async Task OnThePostScreenTheSpelledOutRepliesRepliesToTheSubject()
+    {
+        var built = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(APost.With(id: "110", content: "The reply") with { Replies = 1 }),
+            Engagement = FakePostEngagement.Threaded(
+                APost.With(id: "110", content: "The reply") with { Replies = 1 },
+                [APost.With(id: "100", content: "The question")]),
+        };
+
+        using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built);
+
+        drawn.Press(Key.Enter);
+        drawn.Settle();
+        drawn.Click(OverContent, RowOf(drawn, "The question"));
+
+        var post = Assert.IsType<PostScreen>(drawn.Shell.Screen);
+        var counts = RowOf(drawn, "1 replies");
+
+        drawn.Click(ColumnOf(drawn, counts, "1 replies") + 4, counts);
+        drawn.Settle();
+
+        var compose = Assert.IsType<ComposeScreen>(drawn.Shell.Screen);
+
+        Assert.Equal("110", post.Picked?.Id);
+        Assert.Equal("110", compose.About?.Id);
+    }
+
+    /// <summary>
+    ///     Where <c>r</c> would not be carried out on the post clicked, a click on <c>↩</c> only picks: the conversations
+    ///     list, whose rows are conversations, has no post for it to answer.
+    /// </summary>
+    [Fact]
+    public async Task WhereReplyIsNotCarriedOutTheClickOnTheReplyCountOnlyPicks()
+    {
+        using var drawn = await On("messages");
+
+        var messages = Assert.IsType<DirectMessagesScreen>(drawn.Shell.Screen);
+        var counts = RowOf(drawn, "↩", after: ContentRowOf(drawn, 1));
+
+        drawn.Click(ColumnOf(drawn, counts, "↩"), counts);
+        drawn.Settle();
+
+        Assert.Same(messages, drawn.Shell.Screen);
+        Assert.Equal("8", messages.PickedConversation?.Id);
     }
 
     /// <summary>Two posts on Home, the second the one clicked.</summary>

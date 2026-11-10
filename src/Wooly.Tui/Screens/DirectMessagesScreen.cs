@@ -98,8 +98,8 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
 
     /// <summary>
     ///     Nothing, which leaves every click to pick the conversation: the last post drawn under it carries its
-    ///     <b>Counts</b>, but a row here is a conversation, and <c>b</c> and <c>f</c> have no post to act on, so a click on
-    ///     its boost or favorite is no more than a click on the row (#593).
+    ///     <b>Counts</b>, but a row here is a conversation, and <c>b</c>, <c>f</c> and <c>r</c> have no post to act on, so
+    ///     a click on its boost, favorite or reply is no more than a click on the row (#593, #594).
     /// </summary>
     public override Verb Clicked(int? item, int? part, bool chorded) => Verb.None;
 

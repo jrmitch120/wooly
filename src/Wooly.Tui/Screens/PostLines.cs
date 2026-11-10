@@ -59,6 +59,9 @@ public static class PostLines
     /// <summary>What the favorite run of a post's <b>Counts</b> stands for: <c>f</c>, as <see cref="BoostPart" /> is <c>b</c>.</summary>
     public const int FavoritePart = -3;
 
+    /// <summary>What the reply run of a post's <b>Counts</b> stands for: <c>r</c>, which opens a reply (#594).</summary>
+    public const int ReplyPart = -4;
+
     /// <summary>
     ///     What a post whose media the instance marked sensitive says where its attachments would have been, on a post
     ///     carrying no warning of its own to say it (#113).
@@ -1095,9 +1098,9 @@ public static class PostLines
     ///     one does not need the word; the post screen has room for both.
     /// </param>
     /// <remarks>
-    ///     The boost and the favorite are controls as well (GLOSSARY.md's <b>Counts</b>, #593): each run, glyph, number
-    ///     and word, stands for its key (<see cref="BoostPart" />, <see cref="FavoritePart" />), which
-    ///     <see cref="Clicked" /> reads back. The gaps, the bookmark's slot and <c>pinned</c> stand for nothing, and a
+    ///     The boost, the favorite and the reply are controls as well (GLOSSARY.md's <b>Counts</b>, #593, #594): each
+    ///     run, glyph, number and word, stands for its key (<see cref="BoostPart" />, <see cref="FavoritePart" />,
+    ///     <see cref="ReplyPart" />), which <see cref="Clicked" /> reads back. The gaps, the bookmark's slot and <c>pinned</c> stand for nothing, and a
     ///     click there picks the post: a slot that is blank while the mark is off is no target to take a mark off by.
     /// </remarks>
     private static Line Counts(Post post, bool spelledOut) => Line.Of([
@@ -1109,7 +1112,7 @@ public static class PostLines
             $"{FavoriteMark(post.Marks.Favorited)} {Number.Of(post.Favorites)}{Word(" favorites", spelledOut)}",
             post.Marks.Favorited ? Role.FavoriteMine : Role.Favorite) { Item = FavoritePart },
         new Span("   ", Role.Muted),
-        new Span($"↩ {Number.Of(post.Replies)}{Word(" replies", spelledOut)}", Role.Replies),
+        new Span($"↩ {Number.Of(post.Replies)}{Word(" replies", spelledOut)}", Role.Replies) { Item = ReplyPart },
         new Span("   ", Role.Muted),
         Bookmarked(post, spelledOut),
         new Span(post.Marks.Pinned ? "   pinned" : string.Empty, Role.Muted),
@@ -1117,14 +1120,16 @@ public static class PostLines
 
     /// <summary>
     ///     What a click on a run of a post's <b>Counts</b> means (#593): <c>b</c> on the boost, <c>f</c> on the
-    ///     favorite, and nothing anywhere else, which leaves the click to pick. Said here, beside the drawing that tags
-    ///     the runs, so that every screen drawing posts answers them alike (<see cref="Screen.Clicked" />).
+    ///     favorite, <c>r</c> on the reply (#594), and nothing anywhere else, which leaves the click to pick. Said here,
+    ///     beside the drawing that tags the runs, so that every screen drawing posts answers them alike
+    ///     (<see cref="Screen.Clicked" />).
     /// </summary>
     /// <param name="part">What the run clicked stands for (<see cref="Span.Item" />), if anything.</param>
     public static Verb Clicked(int? part) => part switch
     {
         BoostPart => Verb.Boost,
         FavoritePart => Verb.Favorite,
+        ReplyPart => Verb.Reply,
         _ => Verb.None,
     };
 

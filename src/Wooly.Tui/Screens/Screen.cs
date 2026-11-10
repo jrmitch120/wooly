@@ -264,11 +264,11 @@ public abstract class Screen
     ///     stands for, carried out on the <paramref name="item" />th thing once that is picked out (#376).
     /// </summary>
     /// <remarks>
-    ///     By default the boost and favorite of a post's <b>Counts</b>, which are <c>b</c> and <c>f</c> on the post
-    ///     they are drawn under (<see cref="PostLines.Clicked" />, #593): answered once here, so that every screen
-    ///     drawing posts answers them without saying so, and a screen added later inherits them. Nothing anywhere else,
-    ///     which leaves the click to pick the thing out, as on every screen. Answered with a verb rather than carried
-    ///     out here, so a click and the key it stands for are one thing done one way.
+    ///     By default the boost, favorite and reply of a post's <b>Counts</b>, which are <c>b</c>, <c>f</c> and <c>r</c>
+    ///     on the post they are drawn under (<see cref="PostLines.Clicked" />, #593, #594): answered once here, so
+    ///     that every screen drawing posts answers them without saying so, and a screen added later inherits them.
+    ///     Nothing anywhere else, which leaves the click to pick the thing out, as on every screen. Answered with a verb
+    ///     rather than carried out here, so a click and the key it stands for are one thing done one way.
     /// </remarks>
     /// <param name="item">The thing the row is part of (<see cref="Line.Item" />), if any.</param>
     /// <param name="part">What the run under the pointer stands for (<see cref="Span.Item" />), if anything.</param>
