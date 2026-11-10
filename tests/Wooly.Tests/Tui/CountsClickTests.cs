@@ -186,13 +186,14 @@ public class CountsClickTests
     }
 
     /// <summary>
-    ///     The bookmark's slot, <c>pinned</c>, and the gaps between the runs are no controls: a click on any of them
-    ///     picks the post and marks nothing.
+    ///     The bookmark's slot, <c>pinned</c>, the gaps between the runs and the blank row above them are no controls: a
+    ///     click on any of them picks the post and marks nothing — above the boost too, in the very column it is drawn in.
     /// </summary>
     [Theory]
     [InlineData("bookmark")]
     [InlineData("pinned")]
     [InlineData("gap")]
+    [InlineData("above")]
     public async Task ClickingTheRestOfTheCountsOnlyPicks(string where)
     {
         var built = new AShell
@@ -209,14 +210,20 @@ public class CountsClickTests
         using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built);
 
         var counts = CountsOf(drawn, "Two sheep");
-        var column = where switch
+        var (column, row) = where switch
         {
-            "bookmark" => ColumnOf(drawn, counts, "⚑"),
-            "pinned" => ColumnOf(drawn, counts, "pinned") + 2,
-            _ => ColumnOf(drawn, counts, "☆") - 2,
+            "bookmark" => (ColumnOf(drawn, counts, "⚑"), counts),
+            "pinned" => (ColumnOf(drawn, counts, "pinned") + 2, counts),
+            "above" => (ColumnOf(drawn, counts, "↺"), counts - 1),
+            _ => (ColumnOf(drawn, counts, "☆") - 2, counts),
         };
 
-        drawn.Click(column, counts);
+        if (where is "above" or "gap")
+        {
+            Assert.Equal(' ', drawn.Rows()[row][column]);
+        }
+
+        drawn.Click(column, row);
         drawn.Settle();
 
         Assert.Equal("220", drawn.Shell.Screen.Picked?.Id);
