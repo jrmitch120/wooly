@@ -1,4 +1,6 @@
 using System.Drawing;
+using Mastonet;
+using Mastonet.Entities;
 using Terminal.Gui.Input;
 using Wooly.Core.Errors;
 using Wooly.Core.Posts;
@@ -232,24 +234,45 @@ public class CountsClickTests
 
     /// <summary>
     ///     The instance has the last word, as for the key (ADR-0009): a mark it turns down is said on the status row in
-    ///     its own words, nothing having been refused ahead of time.
+    ///     its own words, nothing having been refused ahead of time, and the post is left as it was. The same whether it
+    ///     was asked by a click on the counts or by <c>b</c>. The refusal is the one the post engagement throws, the API
+    ///     client's own exception named as a <see cref="MarkRefusedException" />, which before it was named the shell
+    ///     dropped unsaid (#596).
     /// </summary>
-    [Fact]
-    public async Task AMarkTheInstanceRefusesIsSaidInItsWords()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AMarkTheInstanceRefusesIsSaidInItsWords(bool clicked)
     {
         var built = Two();
-        built.Engagement = FakePostEngagement.Refusing(new Refusal("This action is not allowed"));
+        built.Engagement = FakePostEngagement.Refusing(
+            new MarkRefusedException(new ServerErrorException(new Error { Description = "This action is not allowed" })));
 
         using var drawn = await DrawnShell.Of(80, Tall, Themes.Plain, built);
 
-        var counts = CountsOf(drawn, "Two sheep");
-
-        drawn.Click(ColumnOf(drawn, counts, "↺"), counts);
+        // Picked first either way, so that what is compared after is the counts alone and not the pick's bar beside them.
+        var body = RowOf(drawn, "Two sheep");
+        drawn.Click(ColumnOf(drawn, body, "Two sheep"), body);
         drawn.Settle();
 
-        Assert.Single(built.Engagement.Marks);
+        var counts = CountsOf(drawn, "Two sheep");
+        var before = drawn.Rows()[counts];
+
+        if (clicked)
+        {
+            drawn.Click(ColumnOf(drawn, counts, "↺"), counts);
+        }
+        else
+        {
+            drawn.Press(Key.B);
+        }
+
+        drawn.Settle();
+
+        Assert.Equal("220", Assert.Single(built.Engagement.Marks).PostId);
         Assert.Equal("This action is not allowed", drawn.Shell.Notice);
         Assert.True(drawn.Shell.NoticeIsError);
+        Assert.Equal(before, drawn.Rows()[counts]);
     }
 
     /// <summary>
@@ -687,7 +710,4 @@ public class CountsClickTests
 
         return column;
     }
-
-    /// <summary>An instance's refusal, in its own words, of the kind a front end says rather than treats as a defect.</summary>
-    private sealed class Refusal(string words) : WoolyException(words);
 }

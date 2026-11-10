@@ -106,6 +106,28 @@ public class PostEngagementTests
         Assert.False(post.Marks.Favorited);
     }
 
+    /// <summary>
+    ///     A mark the instance turns down — a boost of a post only its followers may see, a pin of somebody else's — is
+    ///     something the reader is told, in the instance's own words and nothing of this client's, so that both front
+    ///     ends can say it rather than one of them dropping it unsaid (#596).
+    /// </summary>
+    [Fact]
+    public async Task Mark_ReportsTheInstancesRefusalInItsOwnWords()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.UnprocessableEntity, "This action is not allowed"));
+
+        var refusal = await Assert.ThrowsAsync<MarkRefusedException>(
+            () => NewEngagement(network).Mark(
+                Profile,
+                "110",
+                PostMark.Boost,
+                wanted: true,
+                TestContext.Current.CancellationToken));
+
+        Assert.Equal("This action is not allowed", refusal.Message);
+    }
+
     [Fact]
     public async Task Show_ReadsThePostTheIdNames()
     {

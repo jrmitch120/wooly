@@ -139,8 +139,7 @@ public class PostEngagementCommandTests : IDisposable
     public void Mark_ReportsWhatTheInstanceRefusedInTheInstancesOwnWords()
     {
         AddProfile();
-        _posts = FakePostEngagement.Refusing(
-            new ServerErrorException(new Error { Description = "Validation failed: cannot be pinned" }));
+        _posts = FakePostEngagement.Refusing(Refused("Validation failed: cannot be pinned"));
 
         var run = Run(["post", "pin", "110"]);
 
@@ -151,22 +150,47 @@ public class PostEngagementCommandTests : IDisposable
 
     /// <summary>
     ///     A bookmark refused is any mark refused: the same exit code, nothing on stdout, and the instance's own words on
-    ///     stderr — the favorite verbs beside it say it the same way.
+    ///     stderr — every verb and its undo say it the same way.
     /// </summary>
     [Theory]
+    [InlineData("boost")]
+    [InlineData("unboost")]
     [InlineData("favorite")]
+    [InlineData("unfavorite")]
+    [InlineData("pin")]
+    [InlineData("unpin")]
     [InlineData("bookmark")]
     [InlineData("unbookmark")]
     public void Mark_ReportsARefusedMarkTheSameWayWhicheverMarkItWas(string verb)
     {
         AddProfile();
-        _posts = FakePostEngagement.Refusing(new ServerErrorException(new Error { Description = "Record not found" }));
+        _posts = FakePostEngagement.Refusing(Refused("Record not found"));
 
         var run = Run(["post", verb, "110"]);
 
         Assert.Equal((int)ExitCode.Error, run.ExitCode);
         Assert.Empty(run.Output.Trim());
         Assert.Contains("Record not found", run.ErrorOutput);
+    }
+
+    /// <summary>
+    ///     Naming a refused mark for the TUI's sake changed nothing the CLI says (#596): the line and the exit code are
+    ///     the ones the API client's own exception was printed with before the post engagement named it.
+    /// </summary>
+    [Fact]
+    public void Mark_ReportsANamedRefusalExactlyAsTheApiClientsOwnWasReported()
+    {
+        AddProfile();
+        var unnamed = new ServerErrorException(new Error { Description = "This action is not allowed" });
+
+        _posts = FakePostEngagement.Refusing(unnamed);
+        var before = Run(["post", "boost", "110"]);
+
+        _posts = FakePostEngagement.Refusing(new MarkRefusedException(unnamed));
+        var after = Run(["post", "boost", "110"]);
+
+        Assert.Equal(before, after);
+        Assert.Equal("error: This action is not allowed", after.ErrorOutput.Trim());
     }
 
     [Fact]
@@ -1225,6 +1249,10 @@ public class PostEngagementCommandTests : IDisposable
             Assert.DoesNotContain("toot", output);
         }
     }
+
+    /// <summary>A mark refused as the post engagement says it: the API client's own exception, named (#596).</summary>
+    private static MarkRefusedException Refused(string words) =>
+        new(new ServerErrorException(new Error { Description = words }));
 
     private void AddProfile(string name = "personal", string instance = "mastodon.social") =>
         Run(["profile", "add", name, "--instance", instance, "--token", $"token-{name}"]);
