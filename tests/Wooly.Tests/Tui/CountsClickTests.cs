@@ -542,6 +542,27 @@ public class CountsClickTests
         Assert.Equal("8", messages.PickedConversation?.Id);
     }
 
+    /// <summary>
+    ///     Where the click on a count only picks, a double click there is the plain pick's: a click and then <c>⏎</c>,
+    ///     which on the conversations list opens the conversation clicked, as a double click anywhere else on its row
+    ///     does — nothing having been spent on a mark with no post to put it on.
+    /// </summary>
+    [Theory]
+    [InlineData("↺")]
+    [InlineData("↩")]
+    public async Task WhereTheKeyIsNotCarriedOutADoubleClickOnACountOpensTheThing(string glyph)
+    {
+        using var drawn = await On("messages");
+
+        var counts = RowOf(drawn, "↩", after: ContentRowOf(drawn, 1));
+
+        drawn.DoubleClick(ColumnOf(drawn, counts, glyph), counts);
+        drawn.Settle();
+
+        Assert.IsType<ConversationScreen>(drawn.Shell.Screen);
+        Assert.Empty(drawn.Built.Engagement.Marks);
+    }
+
     /// <summary>Two posts on Home, the second the one clicked.</summary>
     private static AShell Two() => new()
     {

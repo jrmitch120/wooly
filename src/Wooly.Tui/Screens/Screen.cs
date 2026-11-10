@@ -267,7 +267,10 @@ public abstract class Screen
     ///     By default the boost, favorite and reply of a post's <b>Counts</b>, which are <c>b</c>, <c>f</c> and <c>r</c>
     ///     on the post they are drawn under (<see cref="PostLines.Clicked" />, #593, #594): answered once here, so
     ///     that every screen drawing posts answers them without saying so, and a screen added later inherits them. A
-    ///     screen taking clicks of its own leaves the parts it does not own to this, as Notifications does (#595).
+    ///     screen taking clicks of its own leaves the parts it does not own to this, as Notifications does (#595). Asked
+    ///     whatever the thing is: the shell carries a key that acts on a post out only where what the click picked is
+    ///     one (<see cref="Picked" />), so a screen drawing posts it does not pick — the conversations list — need not
+    ///     say so, and its clicks there only pick (#592).
     ///     Nothing anywhere else, which leaves the click to pick the thing out, as on every screen. Answered with a verb
     ///     rather than carried out here, so a click and the key it stands for are one thing done one way.
     /// </remarks>

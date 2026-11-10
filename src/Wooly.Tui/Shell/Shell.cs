@@ -2129,6 +2129,14 @@ public sealed class Shell
             Screen.Pick(at);
         }
 
+        // A key that acts on a post is the click's only where the thing picked is one (#592): the conversations list
+        // draws each conversation's last post with its Counts, but picks the conversation, and b, f and r have nothing
+        // there to act on — so the click is a pick and nothing more, and its double click is the pick's ⏎.
+        if (verb.ActsOnAPost() && Screen.Picked is null)
+        {
+            return Verb.None;
+        }
+
         return Do(verb, answer: null) ? verb : Verb.None;
     }
 
