@@ -79,9 +79,9 @@ internal static class SearchReport
     /// <summary>
     ///     One hashtag: the tag as <c>timeline tag</c> takes it, and how much use it has had. No web address, unlike an
     ///     account — the tag itself is what the next command takes, and a line of address under every tag on a list read
-    ///     down is noise.
+    ///     down is noise. <c>trends</c> writes its trending hashtags with this too, a trending hashtag being a hashtag.
     /// </summary>
-    private static void Write(IAnsiConsole console, Hashtag hashtag)
+    internal static void Write(IAnsiConsole console, Hashtag hashtag)
     {
         console.MarkupLineInterpolated($"[bold]#{hashtag.Name}[/]");
 

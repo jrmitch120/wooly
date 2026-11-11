@@ -30,7 +30,8 @@ internal static class SearchJson
         JsonOutput.Write(console, document);
     }
 
-    private static HashtagDocument Of(Hashtag hashtag) => new(
+    /// <summary>A hashtag as every command writes one — <c>trends</c> as much as <c>search</c>.</summary>
+    internal static HashtagDocument Of(Hashtag hashtag) => new(
         hashtag.Name,
         hashtag.RecentPosts,
         hashtag.RecentAccounts,
@@ -47,7 +48,7 @@ internal static class SearchJson
         [property: JsonPropertyName("posts")] IReadOnlyList<PostDocument>? Posts);
 
     /// <param name="Name">Bare, with no leading <c>#</c>, which is how <c>timeline tag</c> takes one.</param>
-    private sealed record HashtagDocument(
+    internal sealed record HashtagDocument(
         [property: JsonPropertyName("hashtag")] string Name,
         [property: JsonPropertyName("recentPosts")] long RecentPosts,
         [property: JsonPropertyName("recentAccounts")] long RecentAccounts,
