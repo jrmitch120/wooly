@@ -171,7 +171,7 @@ public static class Keymap
         (ShellKey.Enter, AddProfileScreen) => Verb.Continue,
         (ShellKey.Enter, ProfilesScreen) => Verb.ActAs,
         (ShellKey.Enter, SearchScreen) => Verb.Find,
-        (ShellKey.Enter, SearchResultsScreen) => Verb.OpenResult,
+        (ShellKey.Enter, SearchResultsScreen or SectionScreen) => Verb.OpenResult,
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
         (ShellKey.Enter, FollowsScreen follows) => follows.IsTyping ? Verb.FilterDone : Verb.OpenPerson,
         (ShellKey.Enter, DiscoverScreen) => Verb.OpenPerson,
@@ -249,7 +249,8 @@ public static class Keymap
         // included (#489, #490). Notifications, where w is who did what the row reports, and the account screen's
         // header block, where it is their follows, have taken it above; a screen with no post on it leaves w nobody's
         // rather than bound to a verb with nothing to act on.
-        (ShellKey.W, FeedScreen or PostScreen or ConversationScreen or SearchResultsScreen or AccountScreen) =>
+        (ShellKey.W, FeedScreen or PostScreen or ConversationScreen or SearchResultsScreen or SectionScreen
+            or AccountScreen) =>
             Verb.OpenPostActors,
 
         // And s on a post's actors, which have two sides as a follow list does — and nowhere on a notification group's,

@@ -70,3 +70,18 @@ shared yet, which is an empty, whole timeline. **Anywhere further on — a later
 timeline**, keeping what arrived, as an empty page does: the link was trending when its first page was read and has
 stopped since, and failing the read would cost the reader the posts already in hand. The adapter decides this rather
 than each caller, so the TUI reading on and the CLI paging through `--limit` end in the same place.
+
+## Amendment: a list paged by offset reads on from the same `Onward` (#604)
+
+A search narrowed to one kind, and each kind of trend (#606), are lists the instance pages by `offset` rather than by
+`max_id`, and the TUI reads them on as it reads every other list. **The offset goes inside `Onward`**, as one more thing
+it can say inside, rather than beside it: `ReadingOn`, `Subject.ReadOn` and the shell's reading on stay typed on the one
+opaque value, and a screen cannot tell which kind of paging is behind its list. **`OffsetReading` is the one copy of
+the end condition for these lists**, in `Wooly.Core.Paging` beside `PagedReading`: given a limit, where to read on from
+and a read of one page by limit and offset — which the port already takes, the CLI naming both outright — it answers
+the page and the next `Onward`. A page shorter than the limit is the end; a page at least as long is not, an instance
+putting an exact-match hashtag ahead of the forty it ranked (ADR-0011's amendment), and the next page starts at the
+offset plus the limit, never plus the count. A page is one call, so a rate limit refuses it whole and is raised rather
+than answered as a partial fetch — there is nothing in hand to keep — and the TUI waits it out as it waits every call
+out, keeping the list it has. The alternative, a `ReadOn` on every port that pages this way, was a second read per port
+each carrying its own copy of "short page ends it"; the port answers a page, and only this says which page is next.

@@ -774,7 +774,8 @@ thing whose start is on the page — or, where no thing's start is, the topmost 
 nothing else with that press, bar `←`/`→`, which go on to enter its **Reference**s (#51). A thing's start is the first
 row of its content — a post's warning, text or attachment, under its boost line, notification strip and byline — or,
 for a thing with no content, such as an account's header block or a follow, its first row. It is not a **Section**
-heading, which heads a run of things rather than one.
+heading, which heads a run of things rather than one — unless the heading is a thing of its own, as a search's is
+(#604), when it is reclaimed like any other thing with no content.
 _Avoid_: snap, jump back, heading (for a thing's start)
 
 **Section**:
@@ -786,7 +787,10 @@ every other row says which thing it is part of, so the sections a reader can see
 are the same sections by construction, with no screen keeping a second count of its own (`Sections`, `Scroll.ToSection`).
 The list underneath is not sectioned at all — one `Picked` across the lot, in the order it is drawn — so a section is a
 way of *reading* a list rather than a way of holding one. A heading carries how many are under it where that total is a
-fact (`── 7 accounts ──`); a run with nothing in it draws no heading, and so is no section.
+fact (`── 7 accounts ──`), or `N+` where it is a page the instance served full (`── 20+ posts ──`); a run with
+nothing in it draws no heading, and so is no section. On a search's results a heading is itself walked to and opened:
+`⏎` or a click pushes that section alone, crumbed `Search › cats › Posts`, where it is **read on** past the preview
+(#604). `[` and `]` still land on a section's first thing, never its heading.
 _Avoid_: kind (which is what a search result *is*, not where it sits), tab, group, category, fold
 
 **Reference**:

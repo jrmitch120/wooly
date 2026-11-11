@@ -36,6 +36,8 @@ public class ScreenKeyTests
         "search-hashtag",
         "search-typing",
         "search-nothing",
+        "section-account",
+        "section-nothing",
         "follows",
         "follows-empty",
         "actors",
@@ -67,6 +69,7 @@ public class ScreenKeyTests
         "account-post",
         "notifications-mention",
         "search-post",
+        "section-post",
         "conversation",
     ];
 
@@ -209,6 +212,7 @@ public class ScreenKeyTests
         ("messages-empty", "messages", ["⏎:open", "m:mark read"]),
         ("requests-empty", "requests", ["⏎:read them", "a:accept", "x:reject"]),
         ("search-nothing", "search-account", ["⏎:open"]),
+        ("section-nothing", "section-account", ["⏎:open"]),
         ("follows-empty", "follows", ["⏎:open"]),
         ("actors-empty", "actors", ["⏎:open"]),
         ("discover-empty", "discover", ["⏎:open", "F:follow", "d:dismiss"]),
@@ -274,6 +278,7 @@ public class ScreenKeyTests
     [InlineData("messages-empty", "j/k:conversation g:refresh tab:destination `:group ↓/↑:row ?:keys")]
     [InlineData("requests-empty", "j/k:request g:refresh tab:destination `:group ↓/↑:row ?:keys")]
     [InlineData("search-nothing", "j/k:result /:search again tab:destination `:group ↓/↑:row ?:keys")]
+    [InlineData("section-nothing", "j/k:result /:search again tab:destination `:group ↓/↑:row ?:keys")]
     [InlineData("discover-empty", "j/k:person g:refresh tab:destination `:group ↓/↑:row ?:keys")]
     [InlineData("profiles-empty", "j/k:profile a:add esc:back ↓/↑:row ?:keys")]
     public void Keys_OnAnEmptyScreenAreTheOnesThatStillDoSomething(string state, string row) =>
@@ -368,6 +373,15 @@ public class ScreenKeyTests
 
             case "search-post":
                 return Searched(new SearchResults { Posts = [post] });
+
+            case "section-account":
+                return new SectionScreen(SearchKind.Accounts, [new Result.OfAccount(AnAccount.With())], "Nothing found.");
+
+            case "section-nothing":
+                return new SectionScreen(SearchKind.Accounts, [], "Nothing found.");
+
+            case "section-post":
+                return new SectionScreen(SearchKind.Posts, [new Result.OfPost(post)], "Nothing found.");
 
             case "messages":
                 return new DirectMessagesScreen([AConversation.With(latest: post)]);

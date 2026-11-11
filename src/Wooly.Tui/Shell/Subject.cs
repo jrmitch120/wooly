@@ -6,6 +6,7 @@ using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
+using Wooly.Core.Search;
 using Wooly.Core.Timelines;
 using Wooly.Tui.Screens;
 using Entry = Wooly.Tui.Shell.Destination;
@@ -779,6 +780,86 @@ public abstract record Subject
             Screen standing,
             Onward from) =>
             TimelineReadsOn(Timeline.Tag(Hashtag)).From(ask, ports, profile, from);
+    }
+
+    /// <summary>
+    ///     A search narrowed to one kind (#604): what was searched for, asked again of that kind alone, a page of
+    ///     <see cref="NarrowedPage" /> at a time, and <b>read on</b> by offset as the page nears the end of what is in
+    ///     hand — opened from the kind's heading on the mixed results, which ask twenty.
+    /// </summary>
+    /// <remarks>
+    ///     Never held, as a search is not: what an instance finds is its answer now. The accounts on every page carry
+    ///     where the reader stands with them, asked once for the page as the mixed results ask it, and drawn silent
+    ///     where that was refused (#204).
+    /// </remarks>
+    /// <param name="Asked">What was searched for, as it was typed.</param>
+    /// <param name="Kind">Which kind of result it is narrowed to.</param>
+    public sealed record Narrowed(string Asked, SearchKind Kind) : Subject
+    {
+        /// <summary>
+        ///     How many a narrowed search asks for at a time: the most an instance serves of one kind in one answer, a
+        ///     narrowed search being where more is read (#604).
+        /// </summary>
+        public const int NarrowedPage = SearchPage.MostPerKind;
+
+        /// <inheritdoc />
+        internal override async Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing)
+        {
+            var read = await ask.Of(token => Page(ports, profile, from: null, token));
+
+            return new Found.Drawn(() => new SectionScreen(Kind, read.Items, $"Nothing found for {Asked}.")
+            {
+                ReadingOn = new ReadingOn(read.Onward),
+            });
+        }
+
+        /// <inheritdoc />
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
+            new OnwardRead<Result>((ports, profile, at, token) => Page(ports, profile, at, token))
+                .From(ask, ports, profile, from);
+
+        /// <summary>
+        ///     The page of the kind <paramref name="from" /> says, or the first — asked by offset, which only a search
+        ///     of one kind can be paged by — with the accounts on it stood.
+        /// </summary>
+        private Task<Fetch<Result>> Page(ShellPorts ports, ActiveProfile profile, Onward? from, CancellationToken token) =>
+            OffsetReading.Read(
+                NarrowedPage,
+                from,
+                async (limit, offset, asking) =>
+                {
+                    // The first page sends no offset, an instance starting there anyway.
+                    var query = SearchQuery.For(
+                        DirectQuery.Asking(Asked),
+                        Kind,
+                        SearchPage.Of(limit, offset > 0 ? offset : null));
+
+                    var found = await ports.Search.Find(profile, query, asking);
+
+                    IReadOnlyList<Result> results = Kind switch
+                    {
+                        SearchKind.Accounts =>
+                        [
+                            .. (await ports.StoodOrSilent(profile, found.Accounts ?? [], asking))
+                            .Select(Result (account) => new Result.OfAccount(account)),
+                        ],
+                        SearchKind.Hashtags =>
+                            [.. (found.Hashtags ?? []).Select(Result (hashtag) => new Result.OfHashtag(hashtag))],
+                        _ => [.. (found.Posts ?? []).Select(Result (post) => new Result.OfPost(post))],
+                    };
+
+                    return results;
+                },
+                token);
     }
 
     /// <summary>

@@ -121,17 +121,17 @@ public class ShellContentClickTests
     }
 
     /// <summary>
-    ///     A row that is part of nothing — the rule and blank between two posts, a section heading, and the space under
-    ///     the last thing — changes nothing at all.
+    ///     A row that is part of nothing — the rule and blank between two posts, the blank under a section heading, and
+    ///     the space under the last thing — changes nothing at all. A search's heading is not one: it is walked to and
+    ///     opened like a result, and a click on it opens it (#604, <c>ShellNarrowedSearchTests</c>).
     /// </summary>
     [Theory]
     [InlineData("rule")]
     [InlineData("blank")]
     [InlineData("below")]
-    [InlineData("heading")]
     public async Task AClickOnARowOfNothingChangesNothing(string row)
     {
-        var searched = row is "heading" or "blank";
+        var searched = row is "blank";
 
         using var drawn = searched ? await Searched() : await DrawnShell.Of(80, Tall, Themes.Plain, Two());
 
@@ -145,7 +145,6 @@ public class ShellContentClickTests
         {
             "rule" => RowOf(drawn, "──────", after: RowOf(drawn, "Hello world")),
             "below" => Tall - 3,
-            "heading" => RowOf(drawn, "2 hashtags"),
             // The blank between a heading and the first thing under it.
             _ => RowOf(drawn, "2 hashtags") + 1,
         };
