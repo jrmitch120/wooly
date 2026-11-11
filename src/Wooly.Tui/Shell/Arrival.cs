@@ -170,11 +170,10 @@ public sealed class Arrival(
     {
         switch (destination)
         {
-            // A prompt, which asks the instance for nothing until something has been typed into it.
+            // A prompt, with what is trending on the instance under it — read afresh on every arrival, the prompt
+            // standing for it at once so that the field takes letters while it is read (#605).
             case { Kind: DestinationKind.Search }:
-                Arrives?.Invoke(new SearchScreen());
-
-                return Task.CompletedTask;
+                return Bring(new Subject.Trending(), Move.Arrive);
 
             // The profile's own account, which is one account rather than a list of anything — standing on an empty
             // screen under the destination's own name until it arrives, as every arrival does.

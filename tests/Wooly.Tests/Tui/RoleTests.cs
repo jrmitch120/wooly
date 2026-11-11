@@ -720,19 +720,19 @@ public partial class RoleTests
     }
 
     /// <summary>
-    ///     The search prompt's first row is its label, and the rest of the row is left to the field laid over it (#608)
-    ///     — a real one, whose caret is the terminal's own, so the row paints no caret of its own.
+    ///     The search prompt's box leaves the room inside its middle row, after the glass, to the field laid over it
+    ///     (#608, #605) — a real one, whose caret is the terminal's own, so the row paints no caret of its own.
     /// </summary>
     [Fact]
-    public void Search_LeavesTheRestOfItsFirstRowToTheField()
+    public void Search_LeavesTheInsideOfItsBoxToTheField()
     {
-        var screen = new SearchScreen();
+        var screen = new SearchScreen("mastodon.social");
 
-        var prompt = screen.Lines(new Drawing(61, Now))[0];
+        var prompt = screen.Lines(new Drawing(61, Now))[2];
 
-        Assert.Equal("Search: ", prompt.Text);
-        Assert.DoesNotContain(prompt.Spans, span => span.Role == Role.Selection);
-        Assert.Equal(new System.Drawing.Rectangle(8, 0, 53, 1), screen.FieldAt(61));
+        Assert.Equal(" │ ⌕ ", prompt.Text[..5]);
+        Assert.DoesNotContain(prompt.Spans, span => span.Role == Role.Selection && span.Text.Length > 0);
+        Assert.Equal(new System.Drawing.Rectangle(5, 2, 54, 1), screen.FieldAt(61));
 
         // And what was found is a screen of its own that takes no letters, so it draws no prompt to put a caret in —
         // the breadcrumb says what was asked (#600).

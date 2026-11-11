@@ -32,7 +32,7 @@ public class WholeCharacterTypingTests
         drawn.Press(Key.Backspace);
 
         Assert.Equal(word + " ", drawn.SearchField.Text);
-        Assert.Contains(drawn.Rows(), row => row.Contains($"Search: {word} ", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains($"⌕ {word} ", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -48,6 +48,6 @@ public class WholeCharacterTypingTests
         drawn.Press(new Key((KeyCode)0x1F411));
 
         Assert.Equal("🐑", drawn.SearchField.Text);
-        Assert.Contains(drawn.Rows(), row => row.Contains("Search: 🐑", StringComparison.Ordinal));
+        Assert.Contains(drawn.Rows(), row => row.Contains("⌕ 🐑", StringComparison.Ordinal));
     }
 }

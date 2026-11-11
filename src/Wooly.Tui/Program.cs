@@ -14,6 +14,7 @@ using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
+using Wooly.Core.Trends;
 using Wooly.Tui;
 using Wooly.Tui.Clipboard;
 using Wooly.Tui.Drafting;
@@ -55,6 +56,7 @@ try
         provider.GetRequiredService<INotificationInbox>(),
         provider.GetRequiredService<IDirectMessages>(),
         provider.GetRequiredService<IInstanceSearch>(),
+        provider.GetRequiredService<ITrends>(),
         provider.GetRequiredService<IFollowSuggestions>(),
         provider.GetRequiredService<IRateLimitReport>(),
         provider.GetRequiredService<IInstanceLimits>(),

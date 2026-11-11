@@ -472,7 +472,7 @@ public class KeymapTests
     public void ASpaceMeansNothingOffTheFileBrowser()
     {
         Assert.Equal(Verb.None, Means(" ", Feed()));
-        Assert.Equal(Verb.None, Means(" ", new SearchScreen()));
+        Assert.Equal(Verb.None, Means(" ", new SearchScreen("mastodon.social")));
         Assert.Equal(Verb.None, Means(" ", new ComposeScreen(ComposeFor.Post)));
     }
 

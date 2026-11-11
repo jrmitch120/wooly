@@ -90,6 +90,12 @@ internal sealed class ShellWindow : Window
     private readonly IReadOnlyList<View> _drafts;
 
     /// <summary>
+    ///     The search field's view among <see cref="_overlays" />, told where each frame left the page so that the field
+    ///     scrolls with the prompt's rows rather than staying where they were (#605).
+    /// </summary>
+    private readonly SearchView _search;
+
+    /// <summary>
     ///     What the content panel draws pictures with, and the views laid over it draw theirs from, wanting of the cache
     ///     with the panel's frame (#580).
     /// </summary>
@@ -344,7 +350,9 @@ internal sealed class ShellWindow : Window
             new PublicProfileView(theme, shell, shell.Drafting, _pictures),
         ];
 
-        _overlays = [.. _drafts, new SearchView(theme, shell, Room)];
+        _search = new SearchView(theme, shell, Room, () => _content.Top);
+
+        _overlays = [.. _drafts, _search];
 
         foreach (var overlay in _overlays)
         {
@@ -435,6 +443,13 @@ internal sealed class ShellWindow : Window
     {
         if (_content.NeedsDraw)
         {
+            // The search field is laid on the page where the prompt's row has scrolled to, so the page is settled
+            // before it draws rather than after (#605).
+            if (_search.Visible)
+            {
+                _content.SettleAhead();
+            }
+
             foreach (var overlay in _overlays.Where(overlay => overlay.Visible))
             {
                 overlay.SetNeedsDraw();
@@ -1092,6 +1107,8 @@ internal sealed class ShellWindow : Window
     /// <param name="screenful">How many rows the page is.</param>
     private void Paged(int under, int screenful)
     {
+        _search.Paged();
+
         if (!_pageToTell)
         {
             return;

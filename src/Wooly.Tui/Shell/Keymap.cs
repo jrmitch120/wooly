@@ -171,6 +171,10 @@ public static class Keymap
         (ShellKey.Enter, AddProfileScreen) => Verb.Continue,
         (ShellKey.Enter, ProfilesScreen) => Verb.ActAs,
         (ShellKey.Enter, SearchResultsScreen or SectionScreen) => Verb.OpenResult,
+
+        // And on the search prompt with a trend picked, where ⏎ opens it as a search result opens; on the field the
+        // field takes ⏎ itself, and searches (#605).
+        (ShellKey.Enter, SearchScreen) => Verb.OpenResult,
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
         (ShellKey.Enter, FollowsScreen follows) => follows.IsTyping ? Verb.FilterDone : Verb.OpenPerson,
         (ShellKey.Enter, DiscoverScreen) => Verb.OpenPerson,
@@ -209,6 +213,10 @@ public static class Keymap
         (ShellKey.J, _) => Verb.PreviousPost,
         (ShellKey.Home, _) => Verb.ToTheTop,
         (ShellKey.End, _) => Verb.ToTheFoot,
+        // The field at the top of the search prompt is the top of what is walked there, so ↓ from it walks into the
+        // trends and ↑ from the first trend walks back onto it — where everywhere else they move the page (#605).
+        (ShellKey.Down, SearchScreen { OnTheField: true }) => Verb.NextPost,
+        (ShellKey.Up, SearchScreen { OnTheFirstTrend: true }) => Verb.PreviousPost,
         (ShellKey.Down, _) => Verb.ScrollDown,
         (ShellKey.Up, _) => Verb.ScrollUp,
         (ShellKey.PageDown, _) => Verb.PageDown,
@@ -249,7 +257,7 @@ public static class Keymap
         // header block, where it is their follows, have taken it above; a screen with no post on it leaves w nobody's
         // rather than bound to a verb with nothing to act on.
         (ShellKey.W, FeedScreen or PostScreen or ConversationScreen or SearchResultsScreen or SectionScreen
-            or AccountScreen) =>
+            or SearchScreen or AccountScreen) =>
             Verb.OpenPostActors,
 
         // And s on a post's actors, which have two sides as a follow list does — and nowhere on a notification group's,

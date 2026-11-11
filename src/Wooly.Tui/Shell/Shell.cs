@@ -1093,15 +1093,27 @@ public sealed class Shell
     ///     Goes to search, which is a frame key rather than a screen's (<c>docs/tui-shell.md</c>): it means the same
     ///     thing everywhere, and from the search destination itself — its results, or anything opened from them — it
     ///     means a fresh prompt rather than nothing, otherwise the one place the key is most likely to be pressed is the
-    ///     one place it does nothing (#600). The prompt itself never gets here: it takes <c>/</c> as a letter. Either
-    ///     way it puts the stack back to one screen, so a touched draft anywhere on it is asked about first, as the
-    ///     rail's ways out ask (#373, #426).
+    ///     one place it does nothing (#600). The prompt's field never gets here: it takes <c>/</c> as a letter. With a
+    ///     trend picked under it, it means the field, with what it holds kept (#605). Otherwise it puts the stack back
+    ///     to one screen, so a touched draft anywhere on it is asked about first, as the rail's ways out ask (#373,
+    ///     #426).
     /// </summary>
     /// <remarks>
     ///     Arrived at afresh, as choosing it on the rail arrives, rather than a prompt put up here by hand: what arriving
     ///     at Search does is one thing, said once in <see cref="Arrival.At" />.
     /// </remarks>
-    public void Search() =>
+    public void Search()
+    {
+        // With a trend picked under the prompt, the field is up there with whatever it holds: carrying on typing is
+        // one key from anywhere under it, rather than starting again (#605).
+        if (Screen is SearchScreen { OnTheField: false } prompt)
+        {
+            prompt.ToTheField();
+            StatusRow.Clear();
+
+            return;
+        }
+
         Leaving(0, () =>
         {
             if (Rail.Showing.Kind == DestinationKind.Search)
@@ -1116,6 +1128,7 @@ public sealed class Shell
 
             Rail.GoTo(Rail.Of(DestinationKind.Search));
         });
+    }
 
     /// <summary>
     ///     <c>⏎</c> in the search field: <paramref name="query" />, what the field held, asked of the instance — or

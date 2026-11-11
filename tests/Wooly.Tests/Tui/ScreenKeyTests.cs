@@ -70,6 +70,7 @@ public class ScreenKeyTests
         "notifications-mention",
         "search-post",
         "section-post",
+        "trend-post",
         "conversation",
     ];
 
@@ -300,10 +301,10 @@ public class ScreenKeyTests
     /// </summary>
     /// <remarks>
     ///     Read off the screen rather than listed here: a screen that says what it walks is a screen that can be asked
-    ///     whether it is empty, and that is the fact the rule turns on. The four exempt are the ones whose walk always
+    ///     whether it is empty, and that is the fact the rule turns on. The five exempt are the ones whose walk always
     ///     holds something — an account screen has the person themselves at the top of it, a post screen the post it is
-    ///     about, a conversation exists because somebody said something in it, and the file browser always has
-    ///     <c>..</c> to go up by (#376).
+    ///     about, a conversation exists because somebody said something in it, the file browser always has <c>..</c>
+    ///     to go up by (#376), and the search prompt always has its field at the top of the trends (#605).
     /// </remarks>
     [Fact]
     public void EveryScreenThatWalksAnythingIsAskedTheEmptyRule()
@@ -313,6 +314,7 @@ public class ScreenKeyTests
         var never = new[]
         {
             typeof(AccountScreen), typeof(PostScreen), typeof(ConversationScreen), typeof(FileBrowserScreen),
+            typeof(SearchScreen),
         };
 
         var walks = typeof(Screen).Assembly.GetTypes()
@@ -360,7 +362,16 @@ public class ScreenKeyTests
                 return account;
 
             case "search-typing":
-                return new SearchScreen();
+                return new SearchScreen("mastodon.social");
+
+            // A trending post under the search prompt's field, picked: post keys act on it there (#605).
+            case "trend-post":
+                var prompt = new SearchScreen("mastodon.social");
+
+                prompt.Trending([], [], [post]);
+                prompt.Move(1);
+
+                return prompt;
 
             case "search-account":
                 return Searched(new SearchResults { Accounts = [AnAccount.With()] });

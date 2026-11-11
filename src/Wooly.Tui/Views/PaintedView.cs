@@ -698,6 +698,14 @@ internal sealed class PaintedView : View
         _settledThisFrame = true;
     }
 
+    /// <summary>
+    ///     The frame about to be drawn settled now, ahead of the views laid over this one — which Terminal.Gui draws
+    ///     first — so that a view laid where the page has scrolled to is laid there before it draws, rather than a frame
+    ///     late: the search field, which scrolls with the prompt's rows (#605). The draw that follows settles nothing
+    ///     again.
+    /// </summary>
+    internal void SettleAhead() => SettleOnce();
+
     protected override void OnDrawComplete(DrawContext? context)
     {
         _settledThisFrame = false;

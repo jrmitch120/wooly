@@ -164,7 +164,7 @@ public class CrumbTests
                 return new FollowRequestsScreen([AnAccount.With()]);
 
             case "search":
-                return new SearchScreen();
+                return new SearchScreen("mastodon.social");
 
             case "search-cats":
                 return new SearchResultsScreen(Asked, new SearchResults { Hashtags = [AHashtag.With()] });

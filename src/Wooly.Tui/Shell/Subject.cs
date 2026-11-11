@@ -8,6 +8,7 @@ using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
+using Wooly.Core.Trends;
 using Wooly.Tui.Screens;
 using Entry = Wooly.Tui.Shell.Destination;
 using Person = Wooly.Core.Accounts.Account;
@@ -780,6 +781,73 @@ public abstract record Subject
             Screen standing,
             Onward from) =>
             TimelineReadsOn(Timeline.Tag(Hashtag)).From(ask, ports, profile, from);
+    }
+
+    /// <summary>
+    ///     The instance's <b>Trend</b>s under the empty search prompt (#605): ten trending hashtags, ten trending links
+    ///     and three trending posts, read afresh on every arrival at Search — by the rail or by <c>/</c> — and drawn
+    ///     under the field of the prompt standing for them.
+    /// </summary>
+    /// <remarks>
+    ///     Never held: what is trending is the instance's answer now, and arriving again is asking again. Coming back to
+    ///     the prompt from what it opened — <c>esc</c>, or its crumb — is no arrival, and finds the trends it was left
+    ///     with on the screen it left, asking nothing.
+    ///     <para>
+    ///         The prompt stands for them at once, its field usable while they are read; a read refused leaves it so,
+    ///         with the reason on the status row as any refused read is said.
+    ///     </para>
+    /// </remarks>
+    public sealed record Trending : Subject
+    {
+        /// <inheritdoc />
+        internal override Screen Placeholder(Move move, ActiveProfile profile) => new SearchScreen(profile.Instance);
+
+        /// <inheritdoc />
+        /// <remarks>
+        ///     Three calls under one enquiry, one kind at a time, so that the trends go up once and whole rather than a
+        ///     kind at a time under a reader already walking them.
+        /// </remarks>
+        internal override async Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing)
+        {
+            var hashtags = await ask.Of(token =>
+                ports.Trends.Hashtags(profile, TrendPage.Of(SearchScreen.TrendingHashtags), token));
+            var links = await ask.Of(token =>
+                ports.Trends.Links(profile, TrendPage.Of(SearchScreen.TrendingLinks), token));
+            var posts = await ask.Of(token =>
+                ports.Trends.Posts(profile, TrendPage.Of(SearchScreen.TrendingPosts), token));
+
+            return new UnderThePrompt(hashtags, links, posts, profile.Instance);
+        }
+
+        /// <summary>The trends read, and the prompt they are drawn under.</summary>
+        /// <param name="Hashtags">The trending hashtags.</param>
+        /// <param name="Links">The trending links.</param>
+        /// <param name="Posts">The trending posts.</param>
+        /// <param name="Instance">The instance acted as, which titles a prompt made for them where none was standing.</param>
+        private sealed record UnderThePrompt(
+            IReadOnlyList<Core.Search.Hashtag> Hashtags,
+            IReadOnlyList<TrendingLink> Links,
+            IReadOnlyList<Post> Posts,
+            string Instance) : Found
+        {
+            /// <inheritdoc />
+            /// <remarks>
+            ///     Read into the prompt standing for them, which is already up — so that whatever has been typed into its
+            ///     field while they were read stays typed.
+            /// </remarks>
+            public override Screen Becomes(Screen? standing)
+            {
+                var prompt = standing as SearchScreen ?? new SearchScreen(Instance);
+
+                prompt.Trending(Hashtags, Links, Posts);
+
+                return prompt;
+            }
+        }
     }
 
     /// <summary>

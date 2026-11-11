@@ -30,13 +30,19 @@ internal abstract class OneLineField(ITheme theme, Role text, Func<string> hint)
     public Func<Key, bool>? Answering { get; set; }
 
     /// <summary>
+    ///     The role what is typed is drawn in: the field's own, unless a kind of field draws it otherwise while it is not
+    ///     taking letters — the search field, dimmed while a trend under it is picked (#605).
+    /// </summary>
+    protected virtual Role TextRole => text;
+
+    /// <summary>
     ///     Every visual role Terminal.Gui asks for, answered from the theme: text in the field's own role, and a
     ///     selection — the <c>Active</c> role, as it is in the editor — in <see cref="Role.SelectedText" />, so every
     ///     field selects alike.
     /// </summary>
     protected override bool OnGettingAttributeForRole(in VisualRole role, ref Attribute currentAttribute)
     {
-        currentAttribute = role == VisualRole.Active ? theme.For(Role.SelectedText) : theme.For(text);
+        currentAttribute = role == VisualRole.Active ? theme.For(Role.SelectedText) : theme.For(TextRole);
 
         return true;
     }

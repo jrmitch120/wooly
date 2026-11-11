@@ -307,7 +307,7 @@ public class SectionTests
     /// <summary>And never while the prompt is taking letters, where every key on the row would be typed instead.</summary>
     [Fact]
     public void ASearchScreenSaysNothingOfSectionsWhileThePromptIsTakingLetters() =>
-        Assert.DoesNotContain(new SearchScreen().Keys, key => key.Key == "[/]");
+        Assert.DoesNotContain(new SearchScreen("mastodon.social").Keys, key => key.Key == "[/]");
 
     /// <summary>
     ///     Whether a row is a rule between two things — a heading is drawn out of the same glyph and is not one.
