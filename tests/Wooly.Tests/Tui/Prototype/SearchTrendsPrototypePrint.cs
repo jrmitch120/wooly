@@ -4,26 +4,36 @@ using Wooly.Tui.Screens;
 
 namespace Wooly.Tests.Tui.Prototype;
 
-/// <summary>PROTOTYPE (#602): prints each trends layout to /tmp/wooly-602 for eyeballing. Not a test.</summary>
+/// <summary>PROTOTYPE (#602): prints each prompt style, typing and not, to /tmp/wooly-602 for eyeballing. Not a test.</summary>
 public class SearchTrendsPrototypePrint
 {
     [Fact]
     public void Print()
     {
         Directory.CreateDirectory("/tmp/wooly-602");
+        var lines = new List<string>();
 
-        for (var layout = 0; layout < 4; layout++)
+        for (var style = 0; style < 4; style++)
         {
-            var search = new SearchScreen();
-
-            foreach (var width in new[] { 80, 100 })
+            foreach (var query in new[] { "", "cats" })
             {
-                var lines = search.Lines(new Drawing(Width: width, Now: AShell.Now));
-                File.WriteAllLines($"/tmp/wooly-602/{(char)('A' + layout)}-{width}.txt",
-                    [$"{lines.Count} rows", .. lines.Select(line => line.Text)]);
+                var search = new SearchScreen();
+
+                foreach (var letter in query)
+                {
+                    search.Type(letter);
+                }
+
+                lines.Add($"=== style {style + 1}, '{query}', typing ===");
+                lines.AddRange(search.Lines(new Drawing(Width: 72, Now: AShell.Now)).Take(7).Select(line => line.Text));
+                search.Move(1);
+                lines.Add($"=== style {style + 1}, '{query}', on a trend (IsTyping={search.IsTyping}) ===");
+                lines.AddRange(search.Lines(new Drawing(Width: 72, Now: AShell.Now)).Take(7).Select(line => line.Text));
             }
 
-            SearchTrendsPrototype.Next();
+            SearchTrendsPrototype.NextPrompt();
         }
+
+        File.WriteAllLines("/tmp/wooly-602/prompts.txt", lines);
     }
 }

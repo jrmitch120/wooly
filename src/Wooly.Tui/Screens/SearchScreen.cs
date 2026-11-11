@@ -44,7 +44,7 @@ public sealed class SearchScreen : Screen
     }
 
     /// <summary>PROTOTYPE (#602): whether the prompt is showing trends rather than results.</summary>
-    private bool Trending => IsTyping && Asked is null;
+    private bool Trending => _typing && Asked is null;
 
     private bool _typing = true;
 
@@ -112,7 +112,8 @@ public sealed class SearchScreen : Screen
         : [];
 
     /// <inheritdoc />
-    public override bool IsTyping => _typing;
+    /// <remarks>PROTOTYPE (#602): only while the pick is on the prompt; on a trend, letters are keys.</remarks>
+    public override bool IsTyping => _typing && (Asked is not null || _results.Out is Result.OfPrompt);
 
     /// <summary>What has been typed so far, which is what <c>⏎</c> asks the instance for.</summary>
     public string Query { get; private set; } = string.Empty;
@@ -159,12 +160,6 @@ public sealed class SearchScreen : Screen
     public override void Type(char letter)
     {
         Query += letter;
-
-        // PROTOTYPE (#602): F3 decides whether a letter takes the pick back to the prompt.
-        if (Trending && SearchTrendsPrototype.TypingReturns)
-        {
-            _results.Pick(0);
-        }
     }
 
     /// <inheritdoc />
@@ -310,6 +305,14 @@ public sealed class SearchScreen : Screen
             return reach.Open(new Subject.Tag(hashtag.Name));
         }
 
+        // PROTOTYPE (#602).
+        if (_results.Out is Result.OfLink(var link))
+        {
+            reach.Say($"PROTOTYPE: would open the posts sharing {link.Url}", isError: false);
+
+            return Task.CompletedTask;
+        }
+
         return Opens is { } post ? reach.Open(new Subject.Thread(post)) : Task.CompletedTask;
     }
 
@@ -411,7 +414,8 @@ public sealed class SearchScreen : Screen
     private IReadOnlyList<Line> TrendLines(Drawing drawing)
     {
         var width = drawing.Width;
-        var lines = new List<Line>();
+        // A blank above the field, so it never sits against the panel's top edge.
+        var lines = new List<Line> { Line.Blank };
         var nameColumn = SearchTrendsPrototype.NameColumn;
 
         for (var at = 0; at < _results.Count; at++)
@@ -441,7 +445,7 @@ public sealed class SearchScreen : Screen
 
         IReadOnlyList<Line> Draw(Result result, int at, int room) => result switch
         {
-            Result.OfPrompt => [Prompt(room)],
+            Result.OfPrompt => SearchTrendsPrototype.Prompt(Query, room, focused: _results.Out is Result.OfPrompt),
             Result.OfHashtag(var tag) => [SearchTrendsPrototype.TagRow(tag, room, nameColumn)],
             Result.OfPost(var post) when SearchTrendsPrototype.CompactPosts =>
                 [SearchTrendsPrototype.CompactPost(post, room)],

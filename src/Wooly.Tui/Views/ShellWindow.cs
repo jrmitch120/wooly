@@ -415,7 +415,7 @@ internal sealed class ShellWindow : Window
             }
             else
             {
-                Screens.SearchTrendsPrototype.ToggleTypingReturns();
+                Screens.SearchTrendsPrototype.NextPrompt();
             }
 
             _shell.StatusRow.SayForAMoment(Screens.SearchTrendsPrototype.Label);
@@ -727,7 +727,9 @@ internal sealed class ShellWindow : Window
     ///     front, rather than a letter for whatever it is typing into (#376, #447).
     /// </summary>
     private bool TakenAheadOfTheTyping(Key key) =>
-        ShellKeys.Of(key) is (ShellKey.Space or ShellKey.Backslash) and var pressed
+        // PROTOTYPE (#602): [ and ] move between sections on search's prompt too, rather than being typed.
+        (_shell.Screen is Screens.SearchScreen && ShellKeys.Of(key) is ShellKey.LeftBracket or ShellKey.RightBracket)
+        || ShellKeys.Of(key) is (ShellKey.Space or ShellKey.Backslash) and var pressed
         && Keymap.Means(pressed, _shell.Screen) != Verb.None;
 
     /// <summary>

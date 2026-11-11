@@ -30,19 +30,80 @@ public static class SearchTrendsPrototype
 
     private static int _at;
 
-    /// <summary>Whether a letter typed while a trend is picked takes the pick back to the prompt.</summary>
-    public static bool TypingReturns { get; private set; }
+    private static readonly string[] Prompts =
+    [
+        "1 plain: Search: label, caret",
+        "2 boxed: a rounded field, its border lit while typing",
+        "3 underlined: ⌕ and a full-width rule under it, lit while typing",
+        "4 headed: a Search heading over the field, placeholder inside",
+    ];
+
+    private static int _prompt;
+
+    /// <summary>The placeholder an empty field shows.</summary>
+    private const string Placeholder = "A word, a #hashtag, an @account, or a link";
 
     /// <summary>Whether trending posts are drawn one row apiece.</summary>
     public static bool CompactPosts => Layouts[_at].CompactPosts;
 
     /// <summary>What the status row says on a switch.</summary>
     public static string Label =>
-        $"PROTOTYPE {Layouts[_at].Name} · typing {(TypingReturns ? "returns to the prompt" : "leaves the pick")} (F2 layout, F3 typing)";
+        $"PROTOTYPE {Layouts[_at].Name} · prompt {Prompts[_prompt]} (F2 layout, F3 prompt)";
 
     public static void Next() => _at = (_at + 1) % Layouts.Length;
 
-    public static void ToggleTypingReturns() => TypingReturns = !TypingReturns;
+    public static void NextPrompt() => _prompt = (_prompt + 1) % Prompts.Length;
+
+    /// <summary>
+    ///     The search field in the style F3 has reached: <paramref name="focused" /> where the pick is on it and letters go
+    ///     into it, and dim with no caret where the pick is on a trend and letters are keys.
+    /// </summary>
+    public static IReadOnlyList<Line> Prompt(string query, int width, bool focused)
+    {
+        var caret = focused ? new Span("▌", Role.Selection) : new Span("", Role.Body);
+        var typed = query.Length == 0
+            ? new Span(TextWrap.Clip(Placeholder, Math.Max(0, width - 8)), Role.Muted)
+            : new Span(TextWrap.Clip(query, Math.Max(0, width - 8)), focused ? Role.Body : Role.Muted);
+        Span[] field = query.Length == 0 ? [caret, typed] : [typed, caret];
+        var border = focused ? Role.PanelBorderActive : Role.PanelBorder;
+
+        switch (_prompt)
+        {
+            case 1:
+            {
+                var inner = Math.Max(0, width - 2);
+                var used = 3 + field.Sum(span => Glyphs.Columns(span.Text));
+                const string title = "─ Search ";
+
+                return
+                [
+                    Line.Of([new Span("╭" + title + new string('─', Math.Max(0, inner - title.Length)) + "╮", border)]),
+                    Line.Of([
+                        new Span("│", border), new Span(" ⌕ ", Role.Muted), .. field,
+                        new Span(new string(' ', Math.Max(0, inner - used)), Role.Body), new Span("│", border),
+                    ]),
+                    Line.Of([new Span("╰" + new string('─', inner) + "╯", border)]),
+                ];
+            }
+
+            case 2:
+                return
+                [
+                    Line.Of([new Span(" ⌕  ", focused ? Role.BylineHandle : Role.Muted), .. field]),
+                    Line.Of([new Span(new string('━', width), focused ? Role.PanelBorderActive : Role.PanelBorder)]),
+                ];
+
+            case 3:
+                return
+                [
+                    Line.Of([new Span("Search", focused ? Role.PanelTitle : Role.Muted)]),
+                    Line.Of([new Span("› ", focused ? Role.BylineHandle : Role.Muted), .. field]),
+                ];
+
+            default:
+                return [Line.Of([new Span("Search: ", Role.Muted), .. query.Length == 0 ? [caret] : field])];
+        }
+    }
 
     /// <summary>The prompt, then the trends in this layout's order and numbers.</summary>
     public static IReadOnlyList<Result> Rows()
