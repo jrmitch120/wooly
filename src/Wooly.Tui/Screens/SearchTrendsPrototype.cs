@@ -28,7 +28,7 @@ public static class SearchTrendsPrototype
         new("D — five each: 5 tags, 5 whole posts, 5 links", 5, 5, 5, CompactPosts: false, PostsLast: false),
     ];
 
-    private static int _at;
+    private static int _at = 2;
 
     private static readonly string[] LinkStyles =
     [
@@ -39,7 +39,7 @@ public static class SearchTrendsPrototype
         "5 three rows behind an accent bar: title, description, site · people",
     ];
 
-    private static int _links = 4;
+    private static int _links = 1;
 
     /// <summary>The instance acted as, which the shell sets as it begins.</summary>
     public static string? Instance { get; set; }
