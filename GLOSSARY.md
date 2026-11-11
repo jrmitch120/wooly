@@ -810,12 +810,26 @@ _Avoid_: mark (for this; reserved for boost/favorite/pin)
 **Direct query**:
 What is typed into search when it names one thing rather than asks after something: a `#hashtag` that is one word,
 a handle with an `@` in it (`@alice`, `@alice@host`, `alice@host`), or a single web address. It goes straight to the
-thing it names, pushed onto search exactly as picking that result would push it, instead of listing results. A
+thing it names, pushed straight over the search prompt with no results beneath it, instead of listing results — so
+one `esc` is back at the prompt with what was typed still on it. A
 hashtag needs no asking, since any well-formed tag has a timeline. A handle or an address is found only by an exact
 match from the search that was asked anyway, and a query that finds no exact match lists its results like any other.
 A word with none of these signs (`cats`, `alice`) is never direct, which is how a reader asks for everything that
 resembles it. Distinct from a **Reference**, which is found inside written text rather than typed.
 _Avoid_: jump, shortcut (both read as keys), lookup (which is the crossing from an address to an id)
+
+**Trend**:
+A hashtag, a post or a link the instance ranks as being talked about now, shown under an empty search prompt. Not a
+kind of thing of its own: a trending hashtag is a hashtag and a trending post a post, each opening as one does anywhere
+else. Only a **Trending link** is new, being about something outside Mastodon. What trends is the instance's to say,
+and an instance that keeps no trends has none to show.
+_Avoid_: trending topic, popular, hot, explore (which is a **Rail group**)
+
+**Trending link**:
+An article from outside Mastodon that the instance ranks as shared now, opened as the posts sharing it rather than as
+the article — what people are saying being why it trends — with the article itself one key further, in the browser.
+Only a link that is trending has such posts to read: one that stops trending has nothing behind it.
+_Avoid_: news, article (for the trend; the article is what it points at), card
 
 **Mention**:
 Two things one word, told apart by which side of the wire they are on. `Post.Mentions` is everyone a post names, as
