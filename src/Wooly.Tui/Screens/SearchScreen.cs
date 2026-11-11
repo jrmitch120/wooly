@@ -127,6 +127,9 @@ public sealed class SearchScreen : Screen
     ///         No <c>esc</c>: search is a rail destination, so the prompt is the bottom of the stack and there is
     ///         nothing under it to walk back to. <c>tab</c> is how you leave, the same as on every other destination.
     ///     </para>
+    ///     <para>
+    ///         <c>ctrl-u</c> only while the field holds something to empty (#310).
+    ///     </para>
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys
     {
@@ -139,6 +142,7 @@ public sealed class SearchScreen : Screen
                 return
                 [
                     new KeyHint("⏎", "search"),
+                    .. HoldsAQuery ? [PostKeys.Clearing] : Array.Empty<KeyHint>(),
                     .. _walk.Count > 1 ? [new KeyHint("↓", "trends")] : Array.Empty<KeyHint>(),
                     .. runs > 0 ? [new KeyHint("[/]", "section")] : Array.Empty<KeyHint>(),
                     PostKeys.ToADestination,
@@ -164,6 +168,28 @@ public sealed class SearchScreen : Screen
                 .. PostKeys.Leaving(PostKeys.AlongTheRail),
             ];
         }
+    }
+
+    /// <summary>
+    ///     Whether the field holds anything — which is all the prompt knows of what has been typed, and all it needs to:
+    ///     whether <c>ctrl-u</c> has something to empty, and so whether the status row offers it (#310).
+    /// </summary>
+    public bool HoldsAQuery { get; private set; }
+
+    /// <summary>The field now holds <paramref name="query" />: told by the field as it changes.</summary>
+    /// <returns>Whether that changed whether it holds anything, and so the keys the status row offers.</returns>
+    public bool Written(string query)
+    {
+        var holds = query.Length > 0;
+
+        if (holds == HoldsAQuery)
+        {
+            return false;
+        }
+
+        HoldsAQuery = holds;
+
+        return true;
     }
 
     /// <summary>

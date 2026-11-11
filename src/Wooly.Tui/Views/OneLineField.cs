@@ -63,10 +63,34 @@ internal abstract class OneLineField(ITheme theme, Role text, Func<string> hint)
 
     /// <summary>
     ///     An open question's first refusal on <paramref name="key" />, and then the field's own — what each kind of field
-    ///     takes ahead of the <see cref="TextField" />.
+    ///     takes ahead of the <see cref="TextField" />, and <c>ctrl-u</c>, which every one of them takes alike.
     /// </summary>
     protected override bool OnKeyDown(Key key) =>
-        Answering?.Invoke(key) == true || Takes(key) || base.OnKeyDown(key);
+        Answering?.Invoke(key) == true || Takes(key) || Emptied(key) || base.OnKeyDown(key);
+
+    /// <summary>
+    ///     <c>ctrl-u</c>: the field emptied, wherever the caret was, and left taking letters — the one key that empties
+    ///     every one-line prompt in the shell, the ones the shell types into itself as well as these (#310).
+    /// </summary>
+    /// <remarks>
+    ///     The field's own rather than a binding of <see cref="TextField" />'s, which has none for it: Terminal.Gui
+    ///     empties a field with <c>ctrl-shift-delete</c>, a key few terminals can send. What it does is
+    ///     <see cref="TextField.DeleteAll" />, the field's own emptying, so <c>ctrl-z</c> brings the text back.
+    /// </remarks>
+    private bool Emptied(Key key)
+    {
+        if (key != Key.U.WithCtrl)
+        {
+            return false;
+        }
+
+        if (Text.Length > 0)
+        {
+            DeleteAll();
+        }
+
+        return true;
+    }
 
     /// <summary>The keys this kind of field takes ahead of the <see cref="TextField" />, once no question has.</summary>
     protected abstract bool Takes(Key key);

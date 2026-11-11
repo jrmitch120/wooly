@@ -1148,6 +1148,22 @@ public sealed class Shell
     }
 
     /// <summary>
+    ///     The search field now holds <paramref name="query" />: told to the prompt on top, so that the status row offers
+    ///     <c>ctrl-u</c> only while there is something in the field to empty (#310).
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="Changed" /> only where that changed whether the field holds anything, which is all the prompt keeps
+    ///     of it: not on every letter, every one of which the field draws for itself.
+    /// </remarks>
+    public void QueryWritten(string query)
+    {
+        if (Screen is SearchScreen prompt && prompt.Written(query))
+        {
+            Changed?.Invoke();
+        }
+    }
+
+    /// <summary>
     ///     Opens the profiles screen: every profile on this machine, marked with which one this session is acting as
     ///     and which one is the default (ADR-0020).
     /// </summary>
@@ -1467,6 +1483,26 @@ public sealed class Shell
         }
 
         Screen.Backspace();
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     Empties whatever is being typed into, and leaves it taking letters: <c>ctrl-u</c> (#310). Nothing where nothing
+    ///     is taking letters.
+    /// </summary>
+    /// <remarks>
+    ///     An edit, as a backspace is: it asks nothing of the instance, leaves the prompt where it is and changes nothing
+    ///     about which screen is on top. The fields that are widgets of their own — the search field, compose's — empty
+    ///     themselves on the same key (<c>OneLineField</c>).
+    /// </remarks>
+    public void ClearTyped()
+    {
+        if (!Screen.IsTyping)
+        {
+            return;
+        }
+
+        Screen.ClearTyped();
         Changed?.Invoke();
     }
 

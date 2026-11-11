@@ -1119,8 +1119,8 @@ internal sealed class ShellWindow : Window
     }
 
     /// <summary>
-    ///     A key going into a prompt rather than at the shell: a printable character, or a backspace taking one back
-    ///     out. Anything that is not printable — <c>⏎</c>, <c>esc</c>, <c>tab</c>, <c>ctrl-q</c> — falls through,
+    ///     A key going into a prompt rather than at the shell: a printable character, a backspace taking one back
+    ///     out, or <c>ctrl-u</c> emptying it (#310). Anything else that is not printable — <c>⏎</c>, <c>esc</c>, <c>tab</c>, <c>ctrl-q</c> — falls through,
     ///     because those mean the same thing while typing as they do everywhere else.
     /// </summary>
     /// <remarks>
@@ -1137,6 +1137,14 @@ internal sealed class ShellWindow : Window
         if (key == Key.Backspace || key == Key.Delete)
         {
             _shell.Backspace();
+
+            return true;
+        }
+
+        // ctrl-u empties the prompt (#310), and is caught here so that while typing it never reaches the keymap.
+        if (key == Key.U.WithCtrl)
+        {
+            _shell.ClearTyped();
 
             return true;
         }
