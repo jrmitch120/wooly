@@ -14,7 +14,7 @@ public class SearchTrendsPrototypePrint
         SearchTrendsPrototype.Instance = "mastodon.social";
         var lines = new List<string>();
 
-        for (var style = 0; style < 4; style++)
+        for (var style = 0; style < 5; style++)
         {
             var drawn = new SearchScreen().Lines(new Drawing(Width: 80, Now: AShell.Now)).Select(line => line.Text).ToList();
 

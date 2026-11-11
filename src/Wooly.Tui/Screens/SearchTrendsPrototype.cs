@@ -36,9 +36,10 @@ public static class SearchTrendsPrototype
         "2 three rows: title, its description, then site · people",
         "3 two rows behind an accent bar",
         "4 ranked: the number, then title over site · people",
+        "5 three rows behind an accent bar: title, description, site · people",
     ];
 
-    private static int _links;
+    private static int _links = 4;
 
     /// <summary>The instance acted as, which the shell sets as it begins.</summary>
     public static string? Instance { get; set; }
@@ -146,6 +147,14 @@ public static class SearchTrendsPrototype
                 [
                     Line.Of([new Span("┃ ", Role.Link), new Span(TextWrap.Clip(link.Title, Math.Max(0, width - 2)), Role.Body)]),
                     Line.Of([new Span("┃ ", Role.Link), new Span(TextWrap.Clip(meta, Math.Max(0, width - 2)), Role.Muted)]),
+                ];
+
+            case 4:
+                return
+                [
+                    Line.Of([new Span("┃ ", Role.Link), new Span(TextWrap.Clip(link.Title, Math.Max(0, width - 2)), Role.Body)]),
+                    Line.Of([new Span("┃ ", Role.Link), new Span(TextWrap.Clip(link.Description, Math.Max(0, width - 2)), Role.Muted)]),
+                    Line.Of([new Span("┃ ", Role.Link), new Span(TextWrap.Clip(meta, Math.Max(0, width - 2)), Role.Link)]),
                 ];
 
             case 3:
