@@ -72,9 +72,22 @@ internal sealed class FakeInstanceSearch : IInstanceSearch
         Tokens.Add(profile.AccessToken);
 
         return _refusal is null
-            ? Task.FromResult(SearchResults.Matching(query.Kind, _accounts, _hashtags, _posts))
+            ? Task.FromResult(
+                SearchResults.Matching(
+                    query.Kind,
+                    Paged(_accounts, query.Page),
+                    Paged(_hashtags, query.Page),
+                    Paged(_posts, query.Page)))
             : Task.FromException<SearchResults>(_refusal);
     }
+
+    /// <summary>
+    ///     The page of <paramref name="held" /> an instance would serve: the offset skipped and the limit kept to, each
+    ///     only where it was asked — everything held otherwise, which is the fake's whole first page (#599). An offset
+    ///     only ever reaches here with one kind, so skipping it in every list is skipping it in the one kept.
+    /// </summary>
+    private static IReadOnlyList<T> Paged<T>(IReadOnlyList<T> held, SearchPage page) =>
+        [.. held.Skip(page.Offset ?? 0).Take(page.Limit ?? held.Count)];
 
     /// <summary>
     ///     Every account it holds, whatever is typed — where a test says who the instance knows the profile follows.
