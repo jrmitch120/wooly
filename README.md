@@ -155,6 +155,7 @@ The full contract for every screen, key and theme role is in [docs/tui-shell.md]
 | `notification` | `list`, `dismiss` and `clear` |
 | `dm` | `list`, `show`, `send` and `read` |
 | `search` | Accounts, hashtags and posts, or one kind with `--type`; `--limit` and `--offset` page it |
+| `trends` | The hashtags, posts and links trending on your instance, or one kind with `--type` |
 | `version` | Print the version |
 
 Some examples:
@@ -177,6 +178,9 @@ wooly-cli search "#dotnet"
 
 # The second page of 40 posts mentioning cats
 wooly-cli search cats --type posts --limit 40 --offset 40
+
+# The next 20 trending links, as JSON
+wooly-cli trends --type links --limit 20 --offset 20 --json
 ```
 
 Lists fetch 20 items by default; `--limit` asks for more, paging through the instance for you. A search is one ask:

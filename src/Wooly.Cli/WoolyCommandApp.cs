@@ -270,6 +270,11 @@ public static class WoolyCommandApp
             // the point of it — a user searching a half-remembered word rarely knows which of the three it will be.
             config.AddCommand<SearchCommand>("search")
                   .WithDescription("Find accounts, hashtags and posts matching what you are looking for.");
+
+            // A verb beside search rather than a branch, for the same reason: one command reads all three kinds of
+            // trend, and --type is how a user who wants one says so (#601).
+            config.AddCommand<TrendsCommand>("trends")
+                  .WithDescription("List the hashtags, posts and links trending on your instance.");
         });
 
         return app;
