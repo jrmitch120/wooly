@@ -154,7 +154,7 @@ The full contract for every screen, key and theme role is in [docs/tui-shell.md]
 | `account` | `show`, `edit`, `follow`, `unfollow`, `followers`, `following`, `block`, `mute` (and undos), and `requests list/accept/reject` |
 | `notification` | `list`, `dismiss` and `clear` |
 | `dm` | `list`, `show`, `send` and `read` |
-| `search` | Accounts, hashtags and posts, or one kind with `--type` |
+| `search` | Accounts, hashtags and posts, or one kind with `--type`; `--limit` and `--offset` page it |
 | `trends` | The hashtags, posts and links trending on your instance, or one kind with `--type` |
 | `version` | Print the version |
 
@@ -176,11 +176,15 @@ wooly-cli dm send alice@example.social "Are we still on for Thursday?"
 # Search for a hashtag
 wooly-cli search "#dotnet"
 
+# The second page of 40 posts mentioning cats
+wooly-cli search cats --type posts --limit 40 --offset 40
+
 # The next 20 trending links, as JSON
 wooly-cli trends --type links --limit 20 --offset 20 --json
 ```
 
-Lists fetch 20 items by default; `--limit` asks for more, paging through the instance for you.
+Lists fetch 20 items by default; `--limit` asks for more, paging through the instance for you. A search is one ask:
+`--limit` takes up to 40 of each kind, and `--offset` pages through one kind named with `--type`.
 
 ### Exit codes
 

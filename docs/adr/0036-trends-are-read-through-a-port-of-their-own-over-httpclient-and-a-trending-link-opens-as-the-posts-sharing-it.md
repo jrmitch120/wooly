@@ -54,7 +54,7 @@ ADR-0001's promise that one library speaks to the instance loses another endpoin
 notifications (ADR-0032) and tag sets (ADR-0033). The cost stays bounded only while `RawMastodonCall` is the one place
 a hand-rolled call is built.
 
-`TrendPage` is a value of its own rather than the page `IInstanceSearch` takes (#599). The two page differently — a
+`TrendPage` is a value of its own rather than search's `SearchPage` (#599). The two page differently — a
 search's offset means something only with one kind, a trend's always — and sharing one value would make one of the two
 rules a special case of the other.
 
