@@ -5,7 +5,8 @@ using Wooly.Core.Search;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     One thing a search turned up, as the screen walks them: an account, a hashtag, or a post.
+///     One thing a search turned up, as the screen walks them: an account, a hashtag, or a post — or the heading over a
+///     run of one of the three, which is walked to and opened like any of them (#604).
 /// </summary>
 /// <remarks>
 ///     One list rather than the three <see cref="SearchResults" /> holds, because what <c>j</c> and <c>k</c> walk is
@@ -19,7 +20,10 @@ namespace Wooly.Tui.Screens;
 /// </remarks>
 public abstract record Result
 {
-    /// <remarks>Closed, so that the three kinds a search has are the three kinds a row can be drawn from.</remarks>
+    /// <remarks>
+    ///     Closed, so that the three kinds a search has, and the heading over a run of each, are the kinds a row can be
+    ///     drawn from.
+    /// </remarks>
     private Result()
     {
     }
@@ -32,4 +36,29 @@ public abstract record Result
 
     /// <summary>A post the search found.</summary>
     public sealed record OfPost(Post Post) : Result;
+
+    /// <summary>
+    ///     The heading over the run of <paramref name="Kind" /> a search found: in the walk rather than only drawn, so
+    ///     that it can be picked out and opened — which pushes that kind alone, read on past what the mixed results hold
+    ///     (#604).
+    /// </summary>
+    /// <param name="Kind">Which kind of result the run under it is.</param>
+    public sealed record Section(SearchKind Kind) : Result;
+
+    /// <summary>
+    ///     Whether this is the same thing as <paramref name="other" />, as the instance names it — the same account, the
+    ///     same tag, the same post — however what it says of it has changed between two answers.
+    /// </summary>
+    /// <remarks>
+    ///     What a list read on by offset is kept free of repeats by: the instance ranks a search afresh for every page,
+    ///     so a thing can come back on the page after the one it was first found on (#604).
+    /// </remarks>
+    public bool IsSameAs(Result other) => (this, other) switch
+    {
+        (OfAccount(var one), OfAccount(var two)) => one.Id == two.Id,
+        (OfHashtag(var one), OfHashtag(var two)) => string.Equals(one.Name, two.Name, StringComparison.OrdinalIgnoreCase),
+        (OfPost(var one), OfPost(var two)) => one.Id == two.Id,
+        (Section(var one), Section(var two)) => one == two,
+        _ => false,
+    };
 }

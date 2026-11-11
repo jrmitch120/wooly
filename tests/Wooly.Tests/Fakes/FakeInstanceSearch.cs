@@ -20,6 +20,7 @@ internal sealed class FakeInstanceSearch : IInstanceSearch
     private readonly IReadOnlyList<Hashtag> _hashtags;
     private readonly IReadOnlyList<Post> _posts;
     private readonly RateLimitedException? _refusal;
+    private RateLimitedException? _next;
 
     private FakeInstanceSearch(
         IReadOnlyList<Account> accounts,
@@ -66,10 +67,23 @@ internal sealed class FakeInstanceSearch : IInstanceSearch
             [],
             new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero)));
 
+    /// <summary>
+    ///     Has the rate limit refuse the next search, and only that one — a narrowed search reading on into a limit
+    ///     part way down (#604), which is asked again once it has been waited out.
+    /// </summary>
+    public void RateLimitsNext(RateLimitedException limit) => _next = limit;
+
     public Task<SearchResults> Find(ActiveProfile profile, SearchQuery query, CancellationToken cancellationToken)
     {
         Searches.Add(new Call(profile.Name, query));
         Tokens.Add(profile.AccessToken);
+
+        if (_next is { } next)
+        {
+            _next = null;
+
+            return Task.FromException<SearchResults>(next);
+        }
 
         return _refusal is null
             ? Task.FromResult(

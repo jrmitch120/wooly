@@ -90,7 +90,9 @@ public sealed class SearchScreen : Screen
         // prompt as picking it out would open it, with no results beneath it — so one esc comes back to what was typed
         // (#600). Anything else pushes its results, the near miss among them.
         var typed = query.Trim();
-        var asking = SearchQuery.For(DirectQuery.Asking(typed));
+        var asking = SearchQuery.For(
+            DirectQuery.Asking(typed),
+            page: SearchPage.Of(limit: SearchResultsScreen.PerKind));
 
         return reach.Put(
             ask => Searched(ask, reach, asking),

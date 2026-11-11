@@ -99,21 +99,39 @@ public class SectionTests
     {
         var search = Searched();
 
-        Assert.Equal(0, search.At);
+        // The walk is the headings and the results under them: accounts at 1 and 2, the hashtag at 4, posts at 6.
+        Assert.Equal(1, search.At);
 
         search.Pick(Along(search, by: 1));
 
-        Assert.Equal(2, search.At);
+        Assert.Equal(4, search.At);
         Assert.NotNull(search.PickedHashtag);
 
         search.Pick(Along(search, by: 1));
 
-        Assert.Equal(3, search.At);
+        Assert.Equal(6, search.At);
         Assert.NotNull(search.Picked);
 
         search.Pick(Along(search, by: -1));
 
-        Assert.Equal(2, search.At);
+        Assert.Equal(4, search.At);
+    }
+
+    /// <summary>
+    ///     A heading picked out is in the run it heads (#604): <c>]</c> from the heading over the hashtags lands on the
+    ///     first post, <c>[</c> from it on the first account — never on a heading, the first thing under one being what
+    ///     a reader jumping wants.
+    /// </summary>
+    [Fact]
+    public void ASearchScreenMovesFromAPickedHeadingAsFromTheRunItHeads()
+    {
+        var search = Searched();
+
+        search.Pick(3);
+        Assert.Equal(SearchKind.Hashtags, search.PickedSection);
+
+        Assert.Equal(6, Along(search, by: 1));
+        Assert.Equal(1, Along(search, by: -1));
     }
 
     /// <summary>And it clamps there, on the very rows the screen draws.</summary>
@@ -124,7 +142,7 @@ public class SectionTests
 
         Assert.Null(Sections.Along(Drawn(search), by: -1, reclaiming: null));
 
-        search.Pick(3);
+        search.Pick(6);
 
         Assert.Null(Sections.Along(Drawn(search), by: 1, reclaiming: null));
     }
@@ -299,7 +317,7 @@ public class SectionTests
 
     /// <summary>What the rows this screen draws head their runs with.</summary>
     private static IEnumerable<string> Headings(SearchResultsScreen search) =>
-        Drawn(search).Where(line => line.Heads).Select(line => line.Text);
+        Drawn(search).Where(line => line.Heads).Select(line => line.Text.Trim());
 
     /// <summary>
     ///     A search of <paramref name="accounts" /> accounts, <paramref name="hashtags" /> hashtags and

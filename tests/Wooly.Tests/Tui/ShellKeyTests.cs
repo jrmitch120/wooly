@@ -148,7 +148,7 @@ public class ShellKeyTests
         {
             var search = Assert.IsType<SearchResultsScreen>(shell.Screen);
 
-            Assert.Equal(0, search.At);
+            Assert.Equal(1, search.At);
 
             window.NewKeyDownEvent(new Key(']'));
 
@@ -179,7 +179,7 @@ public class ShellKeyTests
 
             window.NewKeyDownEvent(new Key('['));
 
-            Assert.Equal(0, search.At);
+            Assert.Equal(1, search.At);
 
             window.NewKeyDownEvent(new Key(']'));
             window.NewKeyDownEvent(new Key(']'));

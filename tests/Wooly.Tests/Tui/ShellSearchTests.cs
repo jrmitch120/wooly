@@ -607,9 +607,18 @@ public class ShellSearchTests
 
         Assert.NotNull(search.PickedAccount);
 
+        // Each run's heading stands between it and the run before, walked to like a result (#604).
+        opened.Move(1);
+
+        Assert.Equal(SearchKind.Hashtags, search.PickedSection);
+
         opened.Move(1);
 
         Assert.NotNull(search.PickedHashtag);
+
+        opened.Move(1);
+
+        Assert.Equal(SearchKind.Posts, search.PickedSection);
 
         opened.Move(1);
 

@@ -30,6 +30,7 @@ public class CrumbTests
         ("requests", "Follow requests"),
         ("search", "Search"),
         ("search-cats", "cats"),
+        ("section", "Posts"),
         ("discover", "Discover"),
         ("help", "Keys"),
         ("post", "Post by Ben"),
@@ -167,6 +168,9 @@ public class CrumbTests
 
             case "search-cats":
                 return new SearchResultsScreen(Asked, new SearchResults { Hashtags = [AHashtag.With()] });
+
+            case "section":
+                return new SectionScreen(SearchKind.Posts, [new Result.OfPost(post)], "Nothing found.");
 
             case "discover":
                 return new DiscoverScreen([ASuggestion.With()]);

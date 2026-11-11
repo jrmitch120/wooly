@@ -26,7 +26,7 @@ public class ScreenPickTests
     public static TheoryData<string, int> Screens => new()
     {
         { "post", 3 },
-        { "search", 4 },
+        { "search", 7 },
         { "messages", 3 },
     };
 
@@ -89,7 +89,8 @@ public class ScreenPickTests
                 return new PostScreen(posts[0], new PostThread([], [posts[1], posts[2]]));
 
             case "search":
-                // One of each kind and then some, so that the three headed sections are numbered as one list.
+                // One of each kind and then some, so that the three headed sections are numbered as one list — the
+                // headings among them, each being walked to and opened like a result (#604).
                 var search = new SearchResultsScreen(
                     "sheep",
                     new SearchResults
