@@ -61,11 +61,110 @@ public class InstanceSearchTests
     {
         var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Found()));
 
-        await Search(network, SearchQuery.For("cats", SearchKind.Accounts));
+        await Search(network, SearchQuery.For("cats"));
 
         var request = Assert.Single(network.Requests);
         Assert.Equal("https://mastodon.social/api/v2/search?q=cats&resolve=true", request.RequestUri?.ToString());
         Assert.Equal("Bearer token-personal", request.Headers.Authorization?.ToString());
+    }
+
+    /// <summary>
+    ///     A narrowed search names its kind to the instance, which then works out only that kind — and the kind is
+    ///     spelled the instance's way, which calls posts <c>statuses</c> (#599).
+    /// </summary>
+    [Theory]
+    [InlineData(SearchKind.Accounts, "accounts")]
+    [InlineData(SearchKind.Hashtags, "hashtags")]
+    [InlineData(SearchKind.Posts, "statuses")]
+    public async Task Find_NamesTheKindItWasAskedForToTheInstance(SearchKind kind, string type)
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Found()));
+
+        await Search(network, SearchQuery.For("cats", kind));
+
+        Assert.Equal(
+            $"https://mastodon.social/api/v2/search?q=cats&resolve=true&type={type}",
+            Assert.Single(network.Requests).RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     A page is a limit and an offset, both sent as asked — which Mastonet could not do, and is why search left it
+    ///     (#599). The query is escaped as a value: it is whatever the reader typed.
+    /// </summary>
+    [Fact]
+    public async Task Find_SendsThePageItWasAskedFor()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Found()));
+
+        await Search(network, SearchQuery.For("cats & dogs", SearchKind.Posts, SearchPage.Of(limit: 40, offset: 80)));
+
+        Assert.Equal(
+            "https://mastodon.social/api/v2/search?q=cats%20%26%20dogs&resolve=true&type=statuses&limit=40&offset=80",
+            Assert.Single(network.Requests).RequestUri?.AbsoluteUri);
+    }
+
+    /// <summary>
+    ///     A limit says how many of each kind, so a search of all three takes one too — and sends no offset, there
+    ///     being none to send.
+    /// </summary>
+    [Fact]
+    public async Task Find_SendsALimitForASearchOfEveryKind()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(Found()));
+
+        await Search(network, SearchQuery.For("cats", SearchKind.Everything, SearchPage.Of(limit: 5)));
+
+        Assert.Equal(
+            "https://mastodon.social/api/v2/search?q=cats&resolve=true&limit=5",
+            Assert.Single(network.Requests).RequestUri?.ToString());
+    }
+
+    /// <summary>
+    ///     The instance ignores an offset without a kind and answers with the first page again, so a page past the
+    ///     first of every kind is not something that can be asked for at all (#599).
+    /// </summary>
+    [Fact]
+    public void For_RefusesAnOffsetWithoutAKind()
+    {
+        Assert.Throws<ArgumentException>(() => SearchQuery.For("cats", SearchKind.Everything, SearchPage.Of(offset: 20)));
+    }
+
+    /// <summary>
+    ///     The exact match an instance puts ahead of the hashtags it found can make a full page one longer than the
+    ///     limit. It is the tag most likely wanted, so it is kept rather than trimmed to fit.
+    /// </summary>
+    [Fact]
+    public async Task Find_KeepsTheExactMatchAnInstanceAddsPastTheLimit()
+    {
+        string[] hashtags =
+        [
+            HashtagJson("cats"),
+            .. Enumerable.Range(1, 40).Select(number => HashtagJson($"cats{number}")),
+        ];
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Json($$"""{"hashtags":[{{string.Join(",", hashtags)}}]}"""));
+
+        var results = await Search(network, SearchQuery.For("cats", SearchKind.Hashtags, SearchPage.Of(limit: 40)));
+
+        Assert.Equal(41, results.Hashtags!.Count);
+        Assert.Equal("cats", results.Hashtags[0].Name);
+        Assert.Equal("cats40", results.Hashtags[^1].Name);
+    }
+
+    /// <summary>
+    ///     A refusal is said in the instance's own words, as it was while Mastonet made the call — a reason the reader
+    ///     can act on rather than a status code.
+    /// </summary>
+    [Fact]
+    public async Task Find_SaysWhyTheInstanceRefused()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.UnprocessableEntity, "Search query is too long"));
+
+        var refusal = await Assert.ThrowsAsync<SearchRefusedException>(
+            () => Search(network, SearchQuery.For("cats")));
+
+        Assert.Contains("Search query is too long", refusal.Message);
     }
 
     /// <summary>

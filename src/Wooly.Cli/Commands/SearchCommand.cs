@@ -10,7 +10,7 @@ namespace Wooly.Cli.Commands;
 /// <summary>
 ///     Finds accounts, hashtags and posts, in one command rather than one per kind — which is what makes a search for a
 ///     word a user half-remembers worth typing at all, since they rarely know in advance which of the three it will
-///     turn out to be. <c>--type</c> narrows it where they do.
+///     turn out to be. <c>--type</c> narrows it where they do, and <c>--limit</c> and <c>--offset</c> page it (#599).
 /// </summary>
 internal sealed class SearchCommand(IAnsiConsole console, IProfileRegistry profiles, IInstanceSearch search)
     : AsyncCommand<SearchCommand.Settings>
@@ -25,6 +25,18 @@ internal sealed class SearchCommand(IAnsiConsole console, IProfileRegistry profi
         [Description("Look only for accounts, hashtags or posts, instead of all three.")]
         public string? Type { get; init; }
 
+        /// <remarks>
+        ///     No default of its own, unlike a timeline's <c>--limit</c>: left out, nothing is sent, and the instance
+        ///     serves what it always has — so a search that names no limit prints what it did before there was one.
+        /// </remarks>
+        [CommandOption("--limit <COUNT>")]
+        [Description("How many of each kind to ask for, from 1 to 40. The instance's own default otherwise.")]
+        public int? Limit { get; init; }
+
+        [CommandOption("--offset <N>")]
+        [Description("How many results to skip, for the next page of one kind. Needs --type.")]
+        public int? Offset { get; init; }
+
         [CommandOption("--json")]
         [Description("Write what was found as JSON, for another program to read.")]
         public bool Json { get; init; }
@@ -34,6 +46,9 @@ internal sealed class SearchCommand(IAnsiConsole console, IProfileRegistry profi
         ///     names none of them cannot reach here: <see cref="Validate" /> has already turned the invocation down.
         /// </summary>
         public SearchKind Kind => SearchKindName.Parse(Type) ?? SearchKind.Everything;
+
+        /// <summary>The page <c>--limit</c> and <c>--offset</c> ask for, neither of which is sent unless given.</summary>
+        public SearchPage Page => SearchPage.Of(Limit, Offset);
 
         public override ValidationResult Validate()
         {
@@ -46,9 +61,26 @@ internal sealed class SearchCommand(IAnsiConsole console, IProfileRegistry profi
                 return ValidationResult.Error(SearchQuery.Rejection);
             }
 
-            return Type is null || SearchKindName.Parse(Type) is not null
-                ? ValidationResult.Success()
-                : ValidationResult.Error(SearchKindName.Rejection(Type));
+            if (Type is not null && SearchKindName.Parse(Type) is null)
+            {
+                return ValidationResult.Error(SearchKindName.Rejection(Type));
+            }
+
+            if (Limit is { } limit && !SearchPage.IsWellFormedLimit(limit))
+            {
+                return ValidationResult.Error($"--limit needs to be between 1 and {SearchPage.MostPerKind}.");
+            }
+
+            if (Offset is { } offset && !SearchPage.IsWellFormedOffset(offset))
+            {
+                return ValidationResult.Error("--offset needs to be zero or more.");
+            }
+
+            // Refused rather than sent: the instance would answer an offset without a kind with the first page again,
+            // which a script paging through would take for the next one (#599).
+            return Offset is not null && !SearchQuery.IsPageable(Kind)
+                ? ValidationResult.Error($"--offset needs --type. {SearchQuery.PagingRejection}")
+                : ValidationResult.Success();
         }
     }
 
@@ -58,7 +90,7 @@ internal sealed class SearchCommand(IAnsiConsole console, IProfileRegistry profi
         CancellationToken cancellationToken)
     {
         var profile = profiles.Resolve(settings.Profile);
-        var query = SearchQuery.For(settings.Query, settings.Kind);
+        var query = SearchQuery.For(settings.Query, settings.Kind, settings.Page);
 
         // Nothing is caught here. A search is one call to the instance, so a rate limit leaves nothing to print before
         // it is reported — which makes it an ordinary failure for ADR-0006's one handler, rather than the partial
