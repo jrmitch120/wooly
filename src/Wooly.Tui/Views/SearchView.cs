@@ -62,6 +62,9 @@ internal sealed class SearchView : View
         // A question open on the status row takes every key ahead of the field, as it does ahead of compose's (#373).
         _field.Answering = key => shell.StatusRow.Answered(ShellKeys.Of(key));
 
+        // Whether the field holds anything is the prompt's to know too: it decides whether ctrl-u is offered (#310).
+        _field.ValueChanged += (_, _) => shell.QueryWritten(_field.Text);
+
         Add(_field);
 
         _shell.Changed += Refresh;

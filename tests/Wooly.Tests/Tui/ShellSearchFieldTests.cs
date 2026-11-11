@@ -177,6 +177,65 @@ public class ShellSearchFieldTests
         Assert.Equal("catscaca", drawn.SearchField.Text);
     }
 
+    /// <summary>
+    ///     <c>ctrl-u</c> empties the field, wherever the caret was, and leaves it taking letters: an edit like a
+    ///     backspace, which asks nothing of the instance and leaves the prompt where it is (#310).
+    /// </summary>
+    [Fact]
+    public async Task CtrlUEmptiesTheFieldAndLeavesItTakingLetters()
+    {
+        using var drawn = await Searching();
+
+        drawn.Type("big cats");
+        drawn.Press(Key.CursorLeft);
+        drawn.Press(Key.U.WithCtrl);
+
+        Assert.Equal(string.Empty, drawn.SearchField.Text);
+        Assert.True(drawn.SearchField.HasFocus);
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.Equal(1, drawn.Shell.Depth);
+        Assert.Empty(drawn.Built.Search.Searches);
+
+        // The field's own emptying, so taken back as any edit of it is.
+        drawn.Press(Key.Z.WithCtrl);
+
+        Assert.Equal("big cats", drawn.SearchField.Text);
+
+        drawn.Press(Key.U.WithCtrl);
+        drawn.Type("dogs");
+
+        Assert.Equal("dogs", drawn.SearchField.Text);
+    }
+
+    /// <summary>
+    ///     The status row offers <c>Clear: ctrl-u</c> while the field holds something, and not while it is empty — a key
+    ///     announced where it does nothing reads as a shell that missed the press (#310).
+    /// </summary>
+    [Fact]
+    public async Task CtrlUIsOfferedOnlyWhileTheFieldHoldsSomething()
+    {
+        using var drawn = await Searching();
+
+        Assert.DoesNotContain(drawn.Shell.Screen.Keys, key => key.Key == "ctrl-u");
+
+        drawn.Type("c");
+        drawn.Redraw();
+
+        Assert.Contains(drawn.Shell.Screen.Keys, key => key is { Key: "ctrl-u", Does: "clear" });
+        Assert.Contains("Clear: ctrl-u", drawn.Rows()[^1]);
+
+        drawn.Press(Key.Backspace);
+        drawn.Redraw();
+
+        Assert.DoesNotContain(drawn.Shell.Screen.Keys, key => key.Key == "ctrl-u");
+        Assert.DoesNotContain("ctrl-u", drawn.Rows()[^1]);
+
+        drawn.Type("cats");
+        drawn.Press(Key.U.WithCtrl);
+
+        Assert.DoesNotContain(drawn.Shell.Screen.Keys, key => key.Key == "ctrl-u");
+    }
+
     /// <summary>The whole shell, gone to search with <c>/</c>, the field taking letters.</summary>
     private static async Task<DrawnShell> Searching()
     {

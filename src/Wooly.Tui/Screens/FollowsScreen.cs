@@ -146,6 +146,7 @@ public sealed class FollowsScreen : Screen, IReadsOn<Account>
         ?
         [
             new KeyHint("⏎", "done"),
+            .. Filter.Length > 0 ? [PostKeys.Clearing] : Array.Empty<KeyHint>(),
             new KeyHint("esc", "clear"),
         ]
         :
@@ -355,6 +356,19 @@ public sealed class FollowsScreen : Screen, IReadsOn<Account>
         }
 
         Filter = Backspaced(Filter);
+        Narrowed();
+    }
+
+    /// <inheritdoc />
+    /// <remarks>Narrowed again, as after a backspace, so the list is no longer filtered by what is gone.</remarks>
+    public override void ClearTyped()
+    {
+        if (!_typing)
+        {
+            return;
+        }
+
+        Filter = string.Empty;
         Narrowed();
     }
 

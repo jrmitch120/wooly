@@ -371,6 +371,14 @@ public abstract class Screen
     }
 
     /// <summary>
+    ///     Empties whatever this screen is taking, where it is taking anything, and leaves it taking letters:
+    ///     <c>ctrl-u</c> (#310). An edit like <see cref="Backspace" /> and nothing more.
+    /// </summary>
+    public virtual void ClearTyped()
+    {
+    }
+
+    /// <summary>
     ///     <paramref name="typed" /> with its last character taken off, or unchanged where there is none to take. A
     ///     backspace at the start of an empty field is nothing at all rather than an exception or a reach into
     ///     whatever is behind it.

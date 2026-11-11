@@ -95,6 +95,28 @@ public class PublicProfileViewTests
     }
 
     /// <summary>
+    ///     <c>ctrl-u</c> empties a one-line field here as in every prompt, leaving the typing there, and the status row
+    ///     offers it only while the field holds something (#310).
+    /// </summary>
+    [Fact]
+    public async Task CtrlU_EmptiesTheDisplayName()
+    {
+        using var drawn = await Editing();
+
+        Assert.Contains(Form(drawn).Keys, key => key is { Key: "ctrl-u", Does: "clear" });
+
+        drawn.Press(Key.U.WithCtrl);
+
+        Assert.Equal(string.Empty, Form(drawn).DisplayName);
+        Assert.DoesNotContain(Form(drawn).Keys, key => key.Key == "ctrl-u");
+
+        Type(drawn, "J");
+
+        Assert.Equal("J", Form(drawn).DisplayName);
+        Assert.Contains(Form(drawn).Keys, key => key is { Key: "ctrl-u", Does: "clear" });
+    }
+
+    /// <summary>
     ///     <c>↓</c> walks the typing from the display name over the avatar and the header and on into the custom fields,
     ///     where what is typed goes into the field walked to, and past the toggles into the bio at the foot.
     /// </summary>

@@ -178,20 +178,36 @@ public sealed class AddProfileScreen : Screen
     ///     into it, so <c>t</c> is offered only while the browser is out, and <c>⏎</c> never while something is being
     ///     waited on. Standing alone, <c>esc</c> goes back to the first step, so it is not offered on it, and
     ///     <c>ctrl-q</c> is offered throughout in its place: this is the one screen a reader who wants out has.
+    ///     <para>
+    ///         <c>ctrl-u</c> only while the field taking letters holds something to empty (#310) — never the instance
+    ///         fixed when signing in again, which takes none.
+    ///     </para>
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys => At switch
     {
-        Step.Instance when Alone => [new("⏎", "sign in"), Quit],
-        Step.Instance => [new("⏎", "sign in"), Back],
+        Step.Instance when Alone => [new("⏎", "sign in"), .. Clearing, Quit],
+        Step.Instance => [new("⏎", "sign in"), .. Clearing, Back],
         Step.Registering or Step.Checking => [Back, .. Quitting],
         Step.Browser when Waiting => [new("t", "paste a token"), Back, .. Quitting],
         Step.Browser => [new("⏎", "try again"), new("t", "paste a token"), Back, .. Quitting],
-        Step.Token => [new("⏎", "check"), Back, .. Quitting],
-        _ => [new("⏎", "save"), Back, .. Quitting],
+        Step.Token => [new("⏎", "check"), .. Clearing, Back, .. Quitting],
+        _ => [new("⏎", "save"), .. Clearing, Back, .. Quitting],
     };
 
     /// <summary><c>ctrl-q</c> where the screen stands alone, and nothing where there is somewhere to go back to.</summary>
     private IReadOnlyList<KeyHint> Quitting => Alone ? [Quit] : [];
+
+    /// <summary><c>ctrl-u</c> where the field taking letters holds something, and nothing where it holds nothing.</summary>
+    private IReadOnlyList<KeyHint> Clearing => IsTyping && Typed.Length > 0 ? [PostKeys.Clearing] : [];
+
+    /// <summary>What the field the step is on holds, whether or not it is taking letters.</summary>
+    private string Typed => At switch
+    {
+        Step.Instance => _instance,
+        Step.Token => _token,
+        Step.Name => _name,
+        _ => string.Empty,
+    };
 
     /// <inheritdoc />
     public override void Type(char letter)
@@ -232,6 +248,29 @@ public sealed class AddProfileScreen : Screen
 
             case Step.Name:
                 _name = Backspaced(_name);
+
+                break;
+        }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>Whichever field the step is on — but never the instance where it is fixed, as for a letter.</remarks>
+    public override void ClearTyped()
+    {
+        switch (At)
+        {
+            case Step.Instance when !SignsInAgain:
+                _instance = string.Empty;
+
+                break;
+
+            case Step.Token:
+                _token = string.Empty;
+
+                break;
+
+            case Step.Name:
+                _name = string.Empty;
 
                 break;
         }

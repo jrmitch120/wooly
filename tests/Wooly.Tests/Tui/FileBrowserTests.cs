@@ -231,6 +231,32 @@ public class FileBrowserTests : IDisposable
     }
 
     /// <summary>
+    ///     <c>ctrl-u</c> empties the filter, as it does every prompt taking letters, and the list is narrowed again — to
+    ///     everything, in the folder it was in (#310). It is offered only while there is a filter to empty.
+    /// </summary>
+    [Fact]
+    public async Task CtrlUEmptiesTheFilter()
+    {
+        _files.WriteFile("cat.png");
+        _files.WriteFile("dog.png");
+        var (shell, _, _) = await Browsing(PostLimits.Default);
+
+        Assert.DoesNotContain(shell.Screen.Keys, key => key.Key == "ctrl-u");
+
+        Type(shell, "ca");
+
+        Assert.Equal(["..", "cat.png"], Names(shell));
+        Assert.Contains(shell.Screen.Keys, key => key is { Key: "ctrl-u", Does: "clear" });
+
+        shell.ClearTyped();
+
+        Assert.Equal(_files.Path, Browser(shell).Folder);
+        Assert.Equal(string.Empty, Browser(shell).Filter);
+        Assert.Equal(["..", "cat.png", "dog.png"], Names(shell));
+        Assert.DoesNotContain(shell.Screen.Keys, key => key.Key == "ctrl-u");
+    }
+
+    /// <summary>
     ///     <c>esc</c> clears the filter first, and then goes back to the compose screen as it was: nothing attached,
     ///     the draft as written, and no question asked.
     /// </summary>
