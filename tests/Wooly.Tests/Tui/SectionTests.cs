@@ -155,11 +155,11 @@ public class SectionTests
     [Fact]
     public void ASearchScreenPutsABlankBetweenAccountsAndNoRule()
     {
-        // The prompt, its blank, the heading, its blank, four rows of Alice, a blank, four rows of Bob.
+        // The heading, its blank, four rows of Alice, a blank, four rows of Bob.
         var rows = Drawn(Searched(hashtags: 0, posts: 0));
 
-        Assert.Equal(13, rows.Count);
-        Assert.Equal(string.Empty, rows[8].Text.Trim());
+        Assert.Equal(11, rows.Count);
+        Assert.Equal(string.Empty, rows[6].Text.Trim());
         Assert.DoesNotContain(rows.Where(line => !line.Heads), line => line.Text.Contains('─', StringComparison.Ordinal));
     }
 
@@ -173,8 +173,8 @@ public class SectionTests
     {
         var rows = Drawn(Searched(accounts: 0, hashtags: 3, posts: 0));
 
-        Assert.Equal(7, rows.Count);
-        Assert.All(rows.Skip(4), line => Assert.Contains("#tag", line.Text, StringComparison.Ordinal));
+        Assert.Equal(5, rows.Count);
+        Assert.All(rows.Skip(2), line => Assert.Contains("#tag", line.Text, StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -184,9 +184,7 @@ public class SectionTests
     [Fact]
     public void ASearchScreenStandsAHashtagsCountsInTheRunsOwnColumns()
     {
-        var search = new SearchScreen();
-
-        search.Found(
+        var search = new SearchResultsScreen(
             "sheep",
             new SearchResults
             {
@@ -203,7 +201,7 @@ public class SectionTests
                 "#ewe       81 posts ·     7 accounts",
                 "#shearing   4 posts · 1,204 accounts",
             ],
-            Drawn(search).Skip(4).Select(line => line.Text[1..]));
+            Drawn(search).Skip(2).Select(line => line.Text[1..]));
     }
 
     /// <summary>
@@ -214,9 +212,7 @@ public class SectionTests
     [Fact]
     public void ASearchScreenGivesUpTheHashtagColumnsWhereTheyWouldNotFit()
     {
-        var search = new SearchScreen();
-
-        search.Found(
+        var search = new SearchResultsScreen(
             "sheep",
             new SearchResults
             {
@@ -233,7 +229,7 @@ public class SectionTests
                 "#photography  1,204 posts · 7…",
                 "#ewe  8 posts · 1,204 accounts",
             ],
-            search.Lines(new Drawing(31, AShell.Now)).Skip(4).Select(line => line.Text[1..]));
+            search.Lines(new Drawing(31, AShell.Now)).Skip(2).Select(line => line.Text[1..]));
     }
 
     /// <summary>
@@ -251,7 +247,7 @@ public class SectionTests
 
     /// <summary>
     ///     One kind is parted from the next by the blank over its heading — the same blank an account's header puts
-    ///     over each of its sections. The first heading has the prompt's own blank above it and takes none of its own.
+    ///     over each of its sections. The first heading is the screen's first row and takes none (#600).
     /// </summary>
     [Fact]
     public void ASearchScreenPartsItsKindsWithTheBlankOverEachHeadingButTheFirst()
@@ -259,7 +255,7 @@ public class SectionTests
         var rows = Drawn(Searched());
         var heads = rows.Select((line, at) => (line, at)).Where(row => row.line.Heads).Select(row => row.at).ToList();
 
-        Assert.Equal(2, heads[0]);
+        Assert.Equal(0, heads[0]);
         Assert.All(heads.Skip(1), at => Assert.Equal(string.Empty, rows[at - 1].Text.Trim()));
     }
 
@@ -302,18 +298,16 @@ public class SectionTests
         !line.Heads && line.Text.Length > 0 && line.Text.All(letter => letter == '─');
 
     /// <summary>What the rows this screen draws head their runs with.</summary>
-    private static IEnumerable<string> Headings(SearchScreen search) =>
+    private static IEnumerable<string> Headings(SearchResultsScreen search) =>
         Drawn(search).Where(line => line.Heads).Select(line => line.Text);
 
     /// <summary>
     ///     A search of <paramref name="accounts" /> accounts, <paramref name="hashtags" /> hashtags and
     ///     <paramref name="posts" /> posts, with the first result picked out.
     /// </summary>
-    private static SearchScreen Searched(int accounts = 2, int hashtags = 1, int posts = 2)
+    private static SearchResultsScreen Searched(int accounts = 2, int hashtags = 1, int posts = 2)
     {
-        var search = new SearchScreen();
-
-        search.Found(
+        var search = new SearchResultsScreen(
             "sheep",
             new SearchResults
             {
@@ -326,10 +320,10 @@ public class SectionTests
     }
 
     /// <summary>Where <paramref name="by" /> takes the pick on that screen, as its own rows say.</summary>
-    private static int Along(SearchScreen search, int by) =>
+    private static int Along(SearchResultsScreen search, int by) =>
         Sections.Along(Drawn(search), by, reclaiming: null) ?? -1;
 
-    private static IReadOnlyList<Line> Drawn(SearchScreen search) => search.Lines(new Drawing(61, AShell.Now));
+    private static IReadOnlyList<Line> Drawn(SearchResultsScreen search) => search.Lines(new Drawing(61, AShell.Now));
 
     /// <summary>
     ///     Rows of headed runs, <paramref name="runs" /> giving how many things stand under each heading — one row

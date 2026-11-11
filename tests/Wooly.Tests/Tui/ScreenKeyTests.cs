@@ -482,12 +482,10 @@ public class ScreenKeyTests
     private static FeedScreen Feed(IReadOnlyList<Post> posts, string? notice = null) =>
         new(new Destination(DestinationKind.Home, "Home"), posts, notice);
 
-    /// <summary>A search screen holding what an instance answered, which is what stops its prompt taking letters.</summary>
-    private static SearchScreen Searched(SearchResults results)
+    /// <summary>The results of a search, holding what an instance answered — a screen of their own, taking no letters.</summary>
+    private static SearchResultsScreen Searched(SearchResults results)
     {
-        var search = new SearchScreen();
-
-        search.Found("maria", results);
+        var search = new SearchResultsScreen("maria", results);
 
         return search;
     }

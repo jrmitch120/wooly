@@ -261,7 +261,8 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Actors — everyone in one notification group, crumbed by its kind: `Favorited by`, `Boosted by`, `Followed you`, or the instance's own word | `w` on a notification group of several | #455 |
 | Actors — one side of a post's actors, everyone who favorited it or everyone who boosted it, crumbed `Favorited by` / `Boosted by` | `w` on a picked post anywhere but Notifications, `s` to swap sides | #489 |
 | Discover — who to follow, in sections by why | A rail destination | #171 |
-| Search — prompt and results | A rail destination, or `/` | #29, moving between kinds #166 |
+| Search — the prompt, the destination's own screen, always taking letters | A rail destination, or `/`, each arriving at an empty prompt; `esc` or a click on its crumb from what it pushed, the query still typed | #29, prompt alone #600 |
+| Search results — what a search found, three kinds in sections, pushed over the prompt and crumbed `Search › cats` | `⏎` on the prompt, unless what was typed is a **Direct query** that matched | #29, moving between kinds #166, own screen #600 |
 | Notifications | A rail destination | #29 |
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Follow requests | A rail destination | #29 |
@@ -291,7 +292,7 @@ workable only because the status row always shows the current screen's keys. Wha
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
 | `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. Opening a draft — compose, a reply, an edit, the public profile form — before then calls that off: the cursor goes back to the destination selected, nothing loads, and the draft stays in front (#429). With the rail hidden, nothing but `Rail hidden — \ to show` on the status row, or `Rail hidden` where `\` is typed as a letter, as on the file browser (#445, #447). |
 | `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021), and is locked as `tab` is with the rail hidden (#445). |
-| `/` | Search. Goes to the search destination; what it opens onto is #29's. |
+| `/` | Search. Goes to the search destination and arrives at an empty prompt, from anywhere — the results, and anything opened from them or from the prompt, included (#600). On the prompt itself it is typed, a web address being entitled to one (#265). |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
 | off-page pick | Not a key but a rule over the keys that act on the pick: with no row of the pick on the page, the first such key only picks what is on the page, and the next acts on it ("What moving settled", #476). Listed on the `?` screen as `off-page pick   the first key picks what is on the page`, since the status row stays still as the page moves. |
 | `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
@@ -484,8 +485,23 @@ not answer them differently:
   status row says what the prompt answers to. So does `\`, which hides and shows the rail rather than typing a
   backslash, since no search, follow or instance needs one (#447). The one prompt that types it is the file browser's
   filter, since a Windows path is typed with it.
-- **`/` from the search screen's results starts a fresh prompt** rather than doing nothing, since that is the one place
-  the key is most likely to be pressed twice.
+- **`/` from the search results starts a fresh prompt** rather than doing nothing, since that is the one place the key
+  is most likely to be pressed twice. It arrives at Search as choosing it on the rail does, the stack put back to an
+  empty prompt and the query let go (#600). On the prompt itself `/` is typed, as above.
+- **The prompt and the results are two screens** (#600). The Search destination is the prompt alone — `Search: `, what
+  is typed, the `▌` caret and one muted line saying what it takes — taking letters for as long as it is shown. `⏎`
+  pushes what was found as a screen of its own, crumbed with the query (`Search › cats`), the prompt standing beneath
+  it; the results draw no prompt of their own, the breadcrumb saying what was asked. `esc` from the results, or a click
+  on the `Search` crumb, walks back to the prompt with `cats` still typed and taking letters, so the reader refines the
+  query rather than retyping it, and nothing is asked of the instance on the way back. Choosing Search on the rail —
+  `tab` onto it, or a click on it, even while it is shown — and `/` both arrive at an empty prompt, as choosing any
+  destination resets the stack. That is the one place the rail's click and the first crumb's part company: everywhere
+  else a click on the destination shown and on its crumb both walk back out to it as it was left (#289, #308), but a
+  prompt is not a list the reader was part way down, so the rail starts a search and the crumb comes back to one. The
+  results walk, open and move between sections exactly as they did when they shared a screen with the prompt, and the
+  status row offers the same keys. Neither has a **Subject**: a live search is its own question, which `esc` and `⏎`
+  ask again, and `g` does nothing on either (#84). The results are handed what the prompt's question found and pushed
+  through `Reach.Push`, over the prompt that asked and only while it is still in front.
 - **A screen's own keys go in front of the shared ones on the status row.** The row is one row and draws what it has
   room for from the front (*What the status row settled*), so the keys a reader can find on no other screen are the
   ones that have to be there.
@@ -513,8 +529,8 @@ not answer them differently:
 - **A hashtag a search found opens as a screen on the stack**, not as a place on the rail. Which tags the rail keeps
   places for are the tag sets the reader wrote down, and a search result is not them changing their mind.
 - **`⏎` on a direct query opens what it names instead of searching** (#305). A `#` followed by one tag word — the
-  rule `timeline tag` takes a tag by, so `#日本語` is as direct as `#cats` — opens that tag's timeline pushed onto
-  search, the same screen and breadcrumb (`Search › #cats`) picking a hashtag result gives, and asks the instance
+  rule `timeline tag` takes a tag by, so `#日本語` is as direct as `#cats` — opens that tag's timeline pushed straight
+  over the prompt (`Search › #cats`), the same screen picking a hashtag result gives, and asks the instance
   nothing, since any well-formed tag has a timeline. `esc` comes back to the prompt as it was left, `#cats` still
   typed. Anything else — `cats`, `#cats dogs`, a lone `#` — is searched for as before, and the status row says
   `Search: ⏎` whatever is typed. The CLI's `search` never does this: scripts depend on its one output shape.
@@ -524,9 +540,10 @@ not answer them differently:
   `host/@alice/110` is asked as `https://host/@alice/110` — though without a scheme it needs a dotted host and a path,
   since a post or a profile always has one, and `node.js` or `3.14` stays a search for words. Either asks the one resolving search it always asked, and no
   more. A handle opens the account whose full address it is (a bare `@alice` read against the profile's instance); an
-  address opens the one post or account it resolved to. What opens is pushed onto search as picking that result would
-  push it, with the results put up underneath, so `esc` comes back to them and the query. With no exact match —
-  `alice@host` turning up only `alicia@host`, a page that is neither a post nor a profile — the results are listed as
+  address opens the one post or account it resolved to. What opens is pushed straight over the prompt as picking that
+  result would push it, with no results screen beneath it — *changed by #600*, which dropped the results #306 slipped
+  in underneath — so one `esc` comes back to the prompt with what was typed. With no exact match —
+  `alice@host` turning up only `alicia@host`, a page that is neither a post nor a profile — the results are pushed as
   for any query, or `Nothing found`, and never an error. `@alice hello`, `@a@b@c` and an address with words after it
   are ordinary searches.
 - **`⏎` on a follow request opens whoever is asking**, because the question is about a person and the answer to it is
@@ -761,7 +778,7 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   front (`PostKeys.BeforeAReference`). On an 80-column feed that leaves it in `…+N` and `?`, which is accepted.
 - **`⏎` does four different things, refusals share one notice** (#85, #109). Which of the four is the role the
   reference draws in, since that vocabulary already tells them apart. A hashtag opens exactly the way a search result
-  for one already opens — a `Tag` **Subject** brought up by `Arrival.Open`, which `SearchScreen` reaches through
+  for one already opens — a `Tag` **Subject** brought up by `Arrival.Open`, which `SearchResultsScreen` reaches through
   `Reach.Open` — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's tag
   sets left alone. A mention opens the account screen, resolved off `Post.Mentions` — which the wire
   carries down with every post, so no fetch is spent working out who a `@maria` is; a handle written bare is whoever
@@ -2038,7 +2055,7 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   every row by construction, and shows "they follow you". Your own followers list drops "they follow you" — the *gap*
   is the signal there, since what you want is who you have not followed back. Someone else's list implies nothing, so
   the full compact standing shows.
-- **The screen arrives walkable, not typing.** The search screen opens typing only because it has nothing to show yet.
+- **The screen arrives walkable, not typing.** The search prompt is typing only because a prompt is all it is.
   `f` opens the prompt, drawn with the search screen's exact construction — `Filter: ` label, typed text, `▌` caret.
   Typing narrows on every keystroke, `⏎` returns to walking with the filter still applied, `esc` clears it. It
   matches a handle or a display name, the name with the shortcodes its account lists taken out (`PlainName`, #525),
@@ -2332,10 +2349,11 @@ The trail said where you are and drew itself as one `Role.Chrome` span, so it sa
 `FeedScreen.Crumb` lowercased the rail's own label, so the sidebar said `Home` and the breadcrumb said `home`. #168
 and #213 settled the row; #216 and #217 build it:
 
-- **Every crumb is sentence case** — `Home`, `Notifications`, `Direct messages`, `Follow requests`, `Search cats`,
+- **Every crumb is sentence case** — `Home`, `Notifications`, `Direct messages`, `Follow requests`, `Search`,
   `Post by Maria`, `With maria and joe`, `Keys`, `Compose`, `Reply to Maria`, `Edit` — **except where it names
   somebody or a hashtag**, which is spelled the way that thing is spelled: `Maria`, `maria following` for somebody
-  who goes by `maria`, `Maria followers`, `#cats`. Nobody's name is capitalised. One rule rather than two: the rail's
+  who goes by `maria`, `Maria followers`, `#cats` — or is what the reader searched for, which is spelled the way it was
+  typed: the results' crumb is the query, `cats` in `Search › cats` (#600). Nobody's name is capitalised. One rule rather than two: the rail's
   ten labels are already sentence case, so a rail-label crumb matches the rail by construction and
   `.ToLowerInvariant()` is deleted rather than replaced by a rule about rail labels.
 - **A crumb names somebody by their name, as one line of plain text holds it** (#525, ADR-0035): a post's author, an
@@ -2552,11 +2570,12 @@ Three things stayed outside it, each deliberately:
   frame's verbs and the ones that act on the picked post of any screen — marks, delete, vote, reveal, opening a
   reference or an author — and `m`, which reads across the conversation and DM screens; every other verb falls through
   to the screen. What a screen can do while it answers is **Reach** (GLOSSARY.md): the ports and profile, one `Put`
-  through the shell's **Enquiry**, `Open`, `Swap` and `Again` of a **Subject** (#233, #422), `Say`, `Confirm`,
-  `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
+  through the shell's **Enquiry**, `Open`, `Swap` and `Again` of a **Subject** (#233, #422), `Push` of a screen handed
+  what its own question found — the search prompt's results (#600) — `Say`, `Confirm`, `Changed`, `Tell` of a
+  **Change** (#234) and `IsMe` —
   and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
-  `SearchScreen.cs`; `w`, `d` and `D` in `NotificationsScreen.cs`; the actors screen's `⏎` and `s` in
+  `SearchScreen.cs` on the prompt and `SearchResultsScreen.cs` on its results; `w`, `d` and `D` in `NotificationsScreen.cs`; the actors screen's `⏎` and `s` in
   `ActorsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the conversation list's `⏎` in
   `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A `Confirmation` carries what
   agreeing to it does, so `D` asks the same way a delete and a vote do.

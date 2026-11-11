@@ -531,8 +531,20 @@ public sealed class Shell
     /// <remarks>
     ///     The keys have no equivalent of the walk back: tabbing back onto the destination shown is still a walk that
     ///     ended where it began.
+    ///     <para>
+    ///         Search shown is arrived at afresh rather than walked back out to: what it holds is a query, not a list
+    ///         the reader was part way down, and choosing it on the rail is starting a search — so it is an empty
+    ///         prompt, as tabbing onto it and <c>/</c> both give (#600). Its crumb is the walk back that keeps the
+    ///         query (<see cref="WalkBack" />).
+    ///     </para>
     /// </remarks>
-    public void Arrive(int at)
+    public void Arrive(int at) => Arrive(at, afresh: true);
+
+    /// <summary>
+    ///     The rail's click, or the first crumb's — which differ only on Search, where the rail starts an empty prompt
+    ///     and the crumb walks back to the one left (<paramref name="afresh" />).
+    /// </summary>
+    private void Arrive(int at, bool afresh)
     {
         if (_acting is null)
         {
@@ -545,10 +557,21 @@ public sealed class Shell
 
             Rail.GoTo(Rail.Destinations[at]);
 
-            if (shown)
+            if (!shown)
             {
-                Unwind(0);
+                return;
             }
+
+            // Read off the field rather than captured, as the rail's own arrivals are: a draft asked about first may be
+            // agreed to after the profile acted as has changed.
+            if (afresh && Rail.Showing.Kind == DestinationKind.Search && _acting is { } acting)
+            {
+                _ = acting.Arrival.At(Rail.Showing);
+
+                return;
+            }
+
+            Unwind(0);
         });
     }
 
@@ -556,7 +579,8 @@ public sealed class Shell
     ///     A click on the crumb <paramref name="depth" /> screens up the stack, counted from nought at the destination's
     ///     own: everything drilled in above it comes off in one move, and it is in front again as it was left
     ///     (<see cref="Unwind" />, #308). The first crumb is the destination shown on the rail, and a click on it is a
-    ///     click on that (<see cref="Arrive" />), so the two are one rule.
+    ///     click on that (<see cref="Arrive" />), so the two are one rule — but for Search, whose crumb walks back to the
+    ///     prompt with its query kept, as <c>esc</c> from the results does, where the rail starts an empty one (#600).
     /// </summary>
     /// <remarks>
     ///     The crumb in front is nothing, the first among them: one screen deep, it must not snap back a rail cursor
@@ -571,7 +595,7 @@ public sealed class Shell
 
         if (depth == 0 && _acting is not null)
         {
-            Arrive(Rail.Current);
+            Arrive(Rail.Current, afresh: false);
 
             return;
         }
@@ -1067,17 +1091,25 @@ public sealed class Shell
 
     /// <summary>
     ///     Goes to search, which is a frame key rather than a screen's (<c>docs/tui-shell.md</c>): it means the same
-    ///     thing everywhere, and from the search destination itself it means a fresh prompt rather than nothing —
-    ///     otherwise the one place the key is most likely to be pressed is the one place it does nothing. Either way
-    ///     it puts the stack back to one screen, so a touched draft anywhere on it is asked about first, as the rail's
-    ///     ways out ask (#373, #426).
+    ///     thing everywhere, and from the search destination itself — its results, or anything opened from them — it
+    ///     means a fresh prompt rather than nothing, otherwise the one place the key is most likely to be pressed is the
+    ///     one place it does nothing (#600). The prompt itself never gets here: it takes <c>/</c> as a letter. Either
+    ///     way it puts the stack back to one screen, so a touched draft anywhere on it is asked about first, as the
+    ///     rail's ways out ask (#373, #426).
     /// </summary>
+    /// <remarks>
+    ///     Arrived at afresh, as choosing it on the rail arrives, rather than a prompt put up here by hand: what arriving
+    ///     at Search does is one thing, said once in <see cref="Arrival.At" />.
+    /// </remarks>
     public void Search() =>
         Leaving(0, () =>
         {
             if (Rail.Showing.Kind == DestinationKind.Search)
             {
-                Reset(new SearchScreen());
+                if (_acting is { } acting)
+                {
+                    _ = acting.Arrival.At(Rail.Showing);
+                }
 
                 return;
             }

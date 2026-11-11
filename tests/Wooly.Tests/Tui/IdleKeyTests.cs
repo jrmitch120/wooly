@@ -230,9 +230,7 @@ public class IdleKeyTests
                 return new NotificationsScreen([ANotification.Alone(ANotification.With(post: post))]);
 
             case "search-post":
-                var search = new SearchScreen();
-
-                search.Found("maria", new Wooly.Core.Search.SearchResults { Posts = [post] });
+                var search = new SearchResultsScreen("maria", new Wooly.Core.Search.SearchResults { Posts = [post] });
 
                 return search;
 
