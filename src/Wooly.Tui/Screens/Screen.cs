@@ -298,14 +298,14 @@ public abstract class Screen
     public virtual Post? Opens => Picked;
 
     /// <summary>
-    ///     Whether this screen is taking what is typed: a search prompt taking a query, say. A fact about the screen
+    ///     Whether this screen is taking what is typed: the follow list's filter, say. A fact about the screen
     ///     rather than a mode the window keeps, so that the keys which act on a post cannot fire while somebody is
     ///     writing the word <c>backfeed</c>.
     /// </summary>
     /// <remarks>
     ///     Never a compose screen's, whose post and content warning are both typed into widgets laid over the screen
     ///     rather than through the shell (#320) — real terminal fields with a caret, a selection and a paste, which take
-    ///     their own keys before the window sees them.
+    ///     their own keys before the window sees them. Nor the search prompt's, whose field is one of those (#608).
     /// </remarks>
     public virtual bool IsTyping => false;
 

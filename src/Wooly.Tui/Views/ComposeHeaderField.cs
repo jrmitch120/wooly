@@ -1,17 +1,12 @@
-using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
-using Terminal.Gui.ViewBase;
-using Terminal.Gui.Views;
-using Wooly.Tui.Rendering;
 using Wooly.Tui.Theme;
-using Attribute = Terminal.Gui.Drawing.Attribute;
 
 namespace Wooly.Tui.Views;
 
 /// <summary>
-///     A one-line <see cref="TextField" /> laid over a compose header's value column — the warning's (#320), Lang's
-///     (#340) — and what every such field shares: its colours, the hint over it while it is empty, and the keys compose
-///     means the same thing by in every field.
+///     A one-line field laid over a compose header's value column — the warning's (#320), Lang's (#340) — and the keys
+///     compose means the same thing by in every such field. Its colours and its hint are every one-line field's
+///     (<see cref="OneLineField" />).
 /// </summary>
 /// <remarks>
 ///     Its keys are its own before they bubble, which is how <c>?</c> and <c>c</c> are letters here without a rule of
@@ -21,10 +16,7 @@ namespace Wooly.Tui.Views;
 /// </remarks>
 /// <param name="theme">What every colour the field is asked for comes from, as for the editor (#316).</param>
 /// <param name="text">The role what is typed is drawn in.</param>
-/// <param name="hint">
-///     What the field says, dimly, while it is empty — the screen's to say, since which hint it is depends on whether
-///     the typing is here.
-/// </param>
+/// <param name="hint">What the field says, dimly, while it is empty.</param>
 /// <param name="send"><c>ctrl-s</c>.</param>
 /// <param name="cancel"><c>esc</c>: the draft thrown away, as everywhere in compose.</param>
 /// <param name="warn"><c>ctrl-w</c>: the typing into the warning, or back out of it.</param>
@@ -34,40 +26,8 @@ internal abstract class ComposeHeaderField(
     Func<string> hint,
     Action send,
     Action cancel,
-    Action warn) : TextField
+    Action warn) : OneLineField(theme, text, hint)
 {
-    /// <summary>
-    ///     Every visual role Terminal.Gui asks for, answered from the theme: text in the field's own role, and a
-    ///     selection — the <c>Active</c> role, as it is in the editor — in <see cref="Role.SelectedText" />, so every
-    ///     field selects alike.
-    /// </summary>
-    protected override bool OnGettingAttributeForRole(in VisualRole role, ref Attribute currentAttribute)
-    {
-        currentAttribute = role == VisualRole.Active ? theme.For(Role.SelectedText) : theme.For(text);
-
-        return true;
-    }
-
-    /// <summary>The hint over an empty field, in <see cref="Role.Muted" />, drawn only while there is nothing written.</summary>
-    protected override bool OnDrawingContent(DrawContext? context)
-    {
-        var drawn = base.OnDrawingContent(context);
-
-        if (Text.Length == 0 && Viewport.Width > 0)
-        {
-            SetAttribute(theme.For(Role.Muted));
-            AddStr(0, 0, TextWrap.Clip(hint(), Viewport.Width));
-        }
-
-        return drawn;
-    }
-
-    /// <summary>
-    ///     First refusal on every key, ahead of everything else here: a question the shell has open on the status row,
-    ///     which the key answers instead of doing anything in the field (#373). A key it takes the field never sees.
-    /// </summary>
-    public Func<Key, bool>? Answering { get; set; }
-
     /// <summary>
     ///     Asked of every key whether it is compose's paste from the clipboard — <c>ctrl-v</c>, or <c>alt-v</c> where
     ///     the terminal keeps <c>ctrl-v</c> — and if so, whether the clipboard held a picture or files it attached
@@ -88,9 +48,9 @@ internal abstract class ComposeHeaderField(
     /// <summary><c>ctrl-w</c>'s meaning, for a field whose <c>enter</c> means it too.</summary>
     protected void Warn() => warn();
 
-    protected override bool OnKeyDown(Key key)
+    protected override bool Takes(Key key)
     {
-        if (Answering?.Invoke(key) == true || TakesFirst(key))
+        if (TakesFirst(key))
         {
             return true;
         }
@@ -134,7 +94,7 @@ internal abstract class ComposeHeaderField(
             return true;
         }
 
-        return base.OnKeyDown(key);
+        return false;
     }
 
     /// <summary>

@@ -530,9 +530,7 @@ public class ShellRefreshTests
 
         shell.Host.Drain();
 
-        opened.Type('d');
-
-        opened.Press(ShellKey.Enter);
+        opened.Find("d");
         shell.Host.Drain();
         opened.Press(ShellKey.Enter);
         shell.Host.Drain();

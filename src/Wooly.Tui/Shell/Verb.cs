@@ -304,9 +304,6 @@ public enum Verb
     /// <summary><c>m</c>: take the unread mark off the conversation being read, or the one picked out.</summary>
     MarkRead,
 
-    /// <summary><c>⏎</c> on a search prompt taking a query: put it to the instance.</summary>
-    Find,
-
     /// <summary><c>⏎</c> on what it found: open the picked result.</summary>
     OpenResult,
 

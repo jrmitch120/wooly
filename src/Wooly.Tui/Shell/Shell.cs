@@ -1118,6 +1118,23 @@ public sealed class Shell
         });
 
     /// <summary>
+    ///     <c>⏎</c> in the search field: <paramref name="query" />, what the field held, asked of the instance — or
+    ///     opened straight away, where it is a <see cref="DirectQuery" /> — from the prompt on top (#608).
+    /// </summary>
+    /// <remarks>
+    ///     Handed over with the press rather than read off the prompt, because what has been typed is the field's: a
+    ///     real one-line field with a caret and a selection, which a widget holds and a screen does not (ADR-0030).
+    ///     Nothing where the prompt is not on top, or there is nobody to act as.
+    /// </remarks>
+    public void Find(string query)
+    {
+        if (_acting is { } acting && Screen is SearchScreen prompt)
+        {
+            _ = prompt.Find(query, acting.Reach);
+        }
+    }
+
+    /// <summary>
     ///     Opens the profiles screen: every profile on this machine, marked with which one this session is acting as
     ///     and which one is the default (ADR-0020).
     /// </summary>
@@ -1363,8 +1380,8 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Puts a letter into whatever is being typed into: the search prompt, say. Never a compose screen's fields,
-    ///     which are widgets of their own and take their own letters (#320).
+    ///     Puts a letter into whatever is being typed into: the follow list's filter, say. Never a compose screen's
+    ///     fields or the search field, which are widgets of their own and take their own letters (#320, #608).
     /// </summary>
     /// <remarks>
     ///     Which screen it is going to is the screen's own answer (<see cref="Screen.IsTyping" />) rather than a type

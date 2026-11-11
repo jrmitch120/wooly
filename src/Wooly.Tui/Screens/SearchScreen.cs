@@ -1,3 +1,4 @@
+using System.Drawing;
 using Wooly.Core.Search;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Shell;
@@ -15,19 +16,23 @@ namespace Wooly.Tui.Screens;
 ///     <c>esc</c> from either comes back here with the query as it was typed, for refining rather than retyping (#600).
 ///     Choosing Search on the rail, or <c>/</c>, arrives at a fresh one, as choosing any destination resets the stack.
 ///     <para>
-///         What has been typed lives here rather than in a widget, for the reason ADR-0015 gives about the compose
-///         editor: what is being searched for is then a fact about the shell — something a test can set and read —
-///         rather than something only a terminal knows.
+///         What has been typed is not held here: it is a real one-line field's, laid over the prompt's row as compose's
+///         content warning is laid over its header (#320, ADR-0030), so that it has a caret that moves, a selection, and
+///         copy, cut and paste (#608). The prompt says where the field goes (<see cref="FieldAt" />) and, given what the
+///         field held when <c>⏎</c> was pressed in it, what asking for it does (<see cref="Find" />).
 ///     </para>
 /// </remarks>
 public sealed class SearchScreen : Screen
 {
+    /// <summary>What the prompt writes ahead of its field, on the field's row.</summary>
+    private const string Label = "Search: ";
+
     /// <inheritdoc />
     public override string Crumb => "Search";
 
     /// <inheritdoc />
     /// <remarks>
-    ///     Only the keys that are not letters, because every other one goes into the query rather than acting on
+    ///     Only the keys that are not letters, because every other one goes into the field rather than acting on
     ///     anything — including <c>/</c> and <c>?</c>, which a web address and a question are both entitled to contain.
     ///     Nothing to walk, either: what is on screen is the prompt and the sentence under it, so the arrows are left
     ///     unsaid rather than offered against three rows.
@@ -38,27 +43,18 @@ public sealed class SearchScreen : Screen
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys => [new KeyHint("⏎", "search"), PostKeys.ToADestination];
 
-    /// <inheritdoc />
-    /// <remarks>Always: the prompt is what this screen is, and the results that would stop it are a screen of their own.</remarks>
-    public override bool IsTyping => true;
-
-    /// <summary>What has been typed so far, which is what <c>⏎</c> asks the instance for.</summary>
-    public string Query { get; private set; } = string.Empty;
-
-    /// <inheritdoc />
-    /// <remarks>Into the query, which is the only thing this screen takes letters into.</remarks>
-    public override void Type(char letter) => Query += letter;
-
-    /// <inheritdoc />
-    public override void Backspace() => Query = Backspaced(Query);
-
     /// <summary>
-    ///     What this screen's own <c>⏎</c> does: asks the instance for what has been typed — or opens it straight away,
-    ///     where it is a <see cref="DirectQuery" />.
+    ///     Where the field goes on a prompt whose rows are drawn <paramref name="width" /> columns wide: the rest of the
+    ///     first row, after <see cref="Label" />.
     /// </summary>
-    public override Task Answer(Verb verb, Reach reach) => verb == Verb.Find ? Find(reach) : Task.CompletedTask;
+    public Rectangle FieldAt(int width)
+    {
+        var label = Glyphs.Columns(Label);
 
-    /// <summary>Asks the instance for what has been typed into the prompt.</summary>
+        return new Rectangle(label, 0, Math.Max(0, width - label), 1);
+    }
+
+    /// <summary>Asks the instance for <paramref name="query" />, what the field held when <c>⏎</c> was pressed in it.</summary>
     /// <remarks>
     ///     The search itself is one call, so a rate limit leaves nothing to draw and is waited out rather than
     ///     half-answered (ADR-0011) — which <see cref="Enquiry" /> already does, and is why this reads like every
@@ -70,9 +66,9 @@ public sealed class SearchScreen : Screen
     ///         — rather than over whichever screen is on top when it arrives (#232).
     ///     </para>
     /// </remarks>
-    private Task Find(Reach reach)
+    public Task Find(string query, Reach reach)
     {
-        if (!SearchQuery.IsWellFormed(Query))
+        if (!SearchQuery.IsWellFormed(query))
         {
             // The same words the command turns an empty query down with, so that the two front ends cannot come to
             // say different things about the same empty value.
@@ -83,8 +79,8 @@ public sealed class SearchScreen : Screen
 
         // Nothing to ask the instance where what was typed names a tag, since any well-formed tag has a timeline. It
         // is pushed exactly as picking it from the results would push it, and this screen is left as it was — the
-        // prompt, still taking letters — for esc to come back to.
-        if (DirectQuery.Tag(Query) is { } tag)
+        // prompt, its field still holding what was typed — for esc to come back to.
+        if (DirectQuery.Tag(query) is { } tag)
         {
             return reach.Open(new Subject.Tag(tag));
         }
@@ -93,11 +89,11 @@ public sealed class SearchScreen : Screen
         // rather than searched for as words. Where it found exactly what was named, that is opened straight over the
         // prompt as picking it out would open it, with no results beneath it — so one esc comes back to what was typed
         // (#600). Anything else pushes its results, the near miss among them.
-        var typed = Query.Trim();
-        var query = SearchQuery.For(DirectQuery.Asking(typed));
+        var typed = query.Trim();
+        var asking = SearchQuery.For(DirectQuery.Asking(typed));
 
         return reach.Put(
-            ask => Searched(ask, reach, query),
+            ask => Searched(ask, reach, asking),
             ifStillHere: found =>
             {
                 if (DirectQuery.Among(typed, found, reach.Profile.Instance) is { } named)
@@ -146,29 +142,19 @@ public sealed class SearchScreen : Screen
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     The label alone on the first row: the field is laid over the rest of it (<see cref="FieldAt" />).
+    /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var width = drawing.Width;
 
         return
         [
-            Prompt(width),
+            Line.Of(TextWrap.Clip(Label, width), Role.Muted),
             Line.Blank,
             Line.Of(
                 TextWrap.Clip("A word, a #hashtag, an @account, or the web address of one of them.", width),
                 Role.Muted),
         ];
-    }
-
-    /// <summary>
-    ///     What is being searched for, with the caret where the next letter lands. The caret is a mark rather than a
-    ///     colour, so a terminal with none still says where the typing is going.
-    /// </summary>
-    private Line Prompt(int width)
-    {
-        const string label = "Search: ";
-        var typed = TextWrap.Clip(Query, Math.Max(0, width - Glyphs.Columns(label) - 1));
-
-        return Line.Of([new Span(label, Role.Muted), new Span(typed, Role.Body), new Span("▌", Role.Selection)]);
-    }
-}
+    }}

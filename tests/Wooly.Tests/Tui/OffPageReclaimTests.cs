@@ -458,12 +458,7 @@ public class OffPageReclaimTests
         drawn.Shell.Search();
         built.Host.Drain();
 
-        foreach (var letter in "sheep")
-        {
-            drawn.Shell.Type(letter);
-        }
-
-        drawn.Shell.Press(ShellKey.Enter);
+        drawn.Shell.Find("sheep");
         built.Host.Drain();
         drawn.Redraw();
 

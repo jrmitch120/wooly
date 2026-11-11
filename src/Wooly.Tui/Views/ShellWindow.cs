@@ -77,11 +77,17 @@ internal sealed class ShellWindow : Window
     private readonly PaintedView _content;
 
     /// <summary>
-    ///     The views laid over the content panel's viewport, each showing while its draft is on top: compose's fields
-    ///     (#365), the description editor's (#377) and the edit public profile form's (#406). The window places them,
-    ///     redraws them with the panel and keeps the panel from scrolling while one shows, all alike (ADR-0030).
+    ///     The views laid over the content panel's viewport, each showing while its screen is on top: compose's fields
+    ///     (#365), the description editor's (#377), the edit public profile form's (#406) and the search field (#608).
+    ///     The window places them and redraws them with the panel, all alike (ADR-0030).
     /// </summary>
     private readonly IReadOnlyList<View> _overlays;
+
+    /// <summary>
+    ///     Those of <see cref="_overlays" /> that are a draft's, which keep the panel from scrolling while one shows —
+    ///     every one but the search field's, which is the top of a screen read on below it by scrolling (#605).
+    /// </summary>
+    private readonly IReadOnlyList<View> _drafts;
 
     /// <summary>
     ///     What the content panel draws pictures with, and the views laid over it draw theirs from, wanting of the cache
@@ -331,12 +337,14 @@ internal sealed class ShellWindow : Window
         // The drafts' views, each over the panel's viewport: the room its screen lays itself out in, inside the panel's
         // edge, wherever the rail has left the panel. Every one is read off _content, which Pos.Func and Dim.Func hand
         // back as "the view where the data will be retrieved".
-        _overlays =
+        _drafts =
         [
             new ComposeView(theme, shell, shell.Drafting, _pictures),
             new DescriptionView(theme, shell, shell.Drafting, _pictures),
             new PublicProfileView(theme, shell, shell.Drafting, _pictures),
         ];
+
+        _overlays = [.. _drafts, new SearchView(theme, shell, Room)];
 
         foreach (var overlay in _overlays)
         {
@@ -397,7 +405,7 @@ internal sealed class ShellWindow : Window
             return true;
         }
 
-        // A prompt taking a query takes the letters too, so that searching for "backfeed" is not a boost, an author,
+        // A prompt taking a filter takes the letters too, so that narrowing to "backfeed" is not a boost, an author,
         // a compose and two more besides. Ahead of the keymap rather than inside it: this is the one place a key the
         // contract has settled means something else, and what it means instead is a letter rather than another verb.
         // Which screens do that is a fact about the screen, not a mode kept here. Two keys are left to the keymap
@@ -1558,7 +1566,7 @@ internal sealed class ShellWindow : Window
         // which it does not: a key the editor declines at the end of its own text still reaches this window, and a
         // screen with nothing picked out on it is one Scroll.To never scrolls back. Each draft's view settled whether
         // it shows ahead of this, on the same change.
-        _content.Scrolls = !_overlays.Any(overlay => overlay.Visible);
+        _content.Scrolls = !_drafts.Any(draft => draft.Visible);
 
         SetNeedsDraw();
     }

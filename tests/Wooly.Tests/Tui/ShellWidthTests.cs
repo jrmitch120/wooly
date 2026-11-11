@@ -254,7 +254,8 @@ public class ShellWidthTests
         drawn.Settle();
         Type(drawn, Typed);
 
-        Assert.Equal(Typed, Assert.IsType<SearchScreen>(drawn.Shell.Screen).Query);
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.Equal(Typed, drawn.SearchField.Text);
         Assert.Equal((10, 180), Shell(drawn));
     }
 

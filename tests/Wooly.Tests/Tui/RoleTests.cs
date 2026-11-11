@@ -720,20 +720,19 @@ public partial class RoleTests
     }
 
     /// <summary>
-    ///     The search prompt says where the next letter lands with a mark rather than a colour, so a terminal with
-    ///     none still shows where the typing is going.
+    ///     The search prompt's first row is its label, and the rest of the row is left to the field laid over it (#608)
+    ///     — a real one, whose caret is the terminal's own, so the row paints no caret of its own.
     /// </summary>
     [Fact]
-    public void Search_DrawsACaretWhileThePromptIsTakingLetters()
+    public void Search_LeavesTheRestOfItsFirstRowToTheField()
     {
         var screen = new SearchScreen();
 
-        screen.Type('c');
-
         var prompt = screen.Lines(new Drawing(61, Now))[0];
 
-        Assert.Contains("Search: c", prompt.Text);
-        Assert.Contains(prompt.Spans, span => span is { Role: Role.Selection, Text: "▌" });
+        Assert.Equal("Search: ", prompt.Text);
+        Assert.DoesNotContain(prompt.Spans, span => span.Role == Role.Selection);
+        Assert.Equal(new System.Drawing.Rectangle(8, 0, 53, 1), screen.FieldAt(61));
 
         // And what was found is a screen of its own that takes no letters, so it draws no prompt to put a caret in —
         // the breadcrumb says what was asked (#600).

@@ -333,9 +333,8 @@ public class ShellKeyTests
             window.NewKeyDownEvent(new Key(letter));
         }
 
-        var search = Assert.IsType<SearchScreen>(shell.Screen);
-
-        Assert.Equal("who/what?", search.Query);
+        Assert.IsType<SearchScreen>(shell.Screen);
+        Assert.Equal("who/what?", DrawnShell.SearchFieldOf(window).Text);
 
         // Neither key acted: no fresh prompt was started over the one being typed into, and no keymap screen was
         // pushed on top of it.
@@ -369,7 +368,8 @@ public class ShellKeyTests
             window.NewKeyDownEvent(new Key(letter));
         }
 
-        Assert.Equal("`~", Assert.IsType<SearchScreen>(shell.Screen).Query);
+        Assert.IsType<SearchScreen>(shell.Screen);
+        Assert.Equal("`~", DrawnShell.SearchFieldOf(window).Text);
         Assert.Equal(was, shell.Rail.Cursor);
     }
 
@@ -483,12 +483,7 @@ public class ShellKeyTests
         shell.Search();
         built.Host.Drain();
 
-        foreach (var letter in "sheep")
-        {
-            shell.Type(letter);
-        }
-
-        shell.Press(ShellKey.Enter);
+        shell.Find("sheep");
 
         built.Host.Drain();
 

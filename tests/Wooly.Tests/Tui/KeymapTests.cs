@@ -201,13 +201,12 @@ public class KeymapTests
     }
 
     /// <summary>
-    ///     A search prompt and what it found are two screens, each answering <c>⏎</c> its own way: the prompt puts the
-    ///     query, and the results open what came back (#600).
+    ///     What a search found answers <c>⏎</c> by opening the picked result (#600). The prompt's <c>⏎</c> is its field's,
+    ///     which asks for what it holds before the key ever reaches the keymap (#608).
     /// </summary>
     [Fact]
-    public void TheSearchPromptSearchesAndItsResultsOpenAResult()
+    public void TheSearchResultsOpenAResult()
     {
-        Assert.Equal(Verb.Find, Means("⏎", new SearchScreen()));
         Assert.Equal(
             Verb.OpenResult,
             Means("⏎", new SearchResultsScreen("cats", new SearchResults { Accounts = [AnAccount.With()] })));

@@ -1,26 +1,36 @@
+using Terminal.Gui.Input;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
+using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     A paste, which a terminal in bracketed-paste mode delivers as one string rather than as keys — so a field the
-///     shell types into itself takes it whole, or it goes nowhere at all. The compose editor is a widget of its own and
-///     takes its own pastes, which is why a screen that is not typing leaves the paste alone.
+///     shell types into itself takes it whole, or it goes nowhere at all. The compose editor and the search field are
+///     widgets of their own and take their own pastes, which is why a screen that is not typing leaves the paste alone.
 /// </summary>
 public class ShellPasteTests
 {
-    /// <summary>The search prompt takes a paste the way it takes letters.</summary>
+    /// <summary>
+    ///     The search field takes a paste the way it takes letters: left alone by the shell, and put in by the field
+    ///     (#608).
+    /// </summary>
     [Fact]
-    public async Task Paste_GoesIntoTheSearchPrompt()
+    public async Task Paste_GoesIntoTheSearchField()
     {
-        var opened = await new AShell().Opened();
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark);
 
-        opened.Press(ShellKey.Slash);
+        drawn.Press(new Key('/'));
+        drawn.Settle();
 
-        Assert.True(opened.Paste("#dotnet"));
-        Assert.Equal("#dotnet", Assert.IsType<SearchScreen>(opened.Screen).Query);
+        Assert.False(drawn.Shell.Paste("#dotnet"));
+
+        drawn.Paste("#dotnet");
+
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.Equal("#dotnet", drawn.SearchField.Text);
     }
 
     /// <summary>

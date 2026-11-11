@@ -261,7 +261,7 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Actors — everyone in one notification group, crumbed by its kind: `Favorited by`, `Boosted by`, `Followed you`, or the instance's own word | `w` on a notification group of several | #455 |
 | Actors — one side of a post's actors, everyone who favorited it or everyone who boosted it, crumbed `Favorited by` / `Boosted by` | `w` on a picked post anywhere but Notifications, `s` to swap sides | #489 |
 | Discover — who to follow, in sections by why | A rail destination | #171 |
-| Search — the prompt, the destination's own screen, always taking letters | A rail destination, or `/`, each arriving at an empty prompt; `esc` or a click on its crumb from what it pushed, the query still typed | #29, prompt alone #600 |
+| Search — the prompt, the destination's own screen, its field always taking letters | A rail destination, or `/`, each arriving at an empty prompt; `esc` or a click on its crumb from what it pushed, the query still typed | #29, prompt alone #600 |
 | Search results — what a search found, three kinds in sections, pushed over the prompt and crumbed `Search › cats` | `⏎` on the prompt, unless what was typed is a **Direct query** that matched | #29, moving between kinds #166, own screen #600 |
 | Notifications | A rail destination | #29 |
 | Direct messages — conversations, then a thread | A rail destination | #30 |
@@ -330,6 +330,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Edit public profile | `↑`/`↓` walk the fields top to bottom — display name, Avatar, Header, the custom fields, Locked, Bot, Discoverable, then the bio at the foot — stopping at either end rather than coming round; a custom field's label and value sit side by side, so `↑`/`↓` keep to the column down the rows, coming in on the labels, and `→` off the end of a label crosses to its value with the caret at the start, `←` off the start of a value back to its label; `←`/`→` move nothing else, being the caret's in a field and nobody's on a picture or toggle; in the bio `↑` walks only off its first line and `↓` only off its last, the caret having them between, and `⏎` in a one-line field walks on to the next in reading order, a label to its value; nothing is marked with a bar — a field walked to has the caret, and a picture or toggle, having none, has its value lit in `selected-text`, as compose's Media and To are · `space` or `⏎` flips the toggle walked to · on **Avatar** or **Header** `⏎` opens the file browser for one picture, crumbed `Choose avatar` or `Choose header`, and `ctrl-v` or `alt-v` pastes a picture from the clipboard — or the first copied file that is a picture — into it, saying on the status row where the clipboard holds neither, or where this machine has nothing to read the clipboard with — every press, there being no text to paste instead, where compose says the missing tool once a session; the status row offers `⏎ choose file` and `ctrl-v/alt-v paste` there, and other letters are nobody's. A picture picked is drawn in place of the current one with its file name and `sent on save` beside it, and goes up only in the save (ADR-0028) — a touch, like any other edit; on a terminal that draws, each row is two rows tall with the picture in a box (the avatar as near square as the font allows, four columns on a 1:2 cell, and fitted whole and centred — #532 — and the header twelve, filled by its picture, cropped from the middle — #438) and the words after the header's box width, and where nothing is drawn it is one line, `Avatar  change…`, `Avatar  none · choose…` or `Avatar  cat.png · sent on save` (#407) — `change…` and `choose…` saying what `⏎` does, the picture saying what is there · `ctrl-s` save, sending only what differs from what was read (ADR-0028): the custom fields as a set, an emptied row left out, which removes its field; with nothing changed it sends nothing and says so · `esc` leave — asking `Discard these changes? y / n` first where anything differs from how it opened, as every way out does, and only `y` goes (#373) · `tab`/`shift-tab` are the frame's, never a walk of the form's fields. On a terminal too short for the whole form the field walked to is always on screen: the form moves up or down only when the walk leaves what is shown, and only as far as brings it back. A save takes the form off and reads the account under it again, saying "Public profile saved." — the own account further down the stack shows it as saved, a list held a moment ago with the own account or a post it wrote or boosted on it is read again when next reached, and a new avatar or header is drawn rather than the old one; a refusal keeps the form and every edit in it, with the instance's own words on the status row until an edit spends them (#406). While the list of people to mention is open in the bio: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the form (#408) |
 | Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
 | Actors | `⏎` open that account · `s` swap to the other side, in place, on a post's actors only — a notification group's have one side (#489) · `o` open the post's page on its home instance in the browser, on a remote post's actors only, where the whole list is (#491) |
+| Search | Typing goes into the search field, a real one-line text field (#608): `←`/`→` move the caret, `home`/`end` jump to either end, `ctrl-←`/`ctrl-→` move by word · `shift-←`/`shift-→` select, as does a drag of the mouse across it, and what is typed next — or `backspace` — replaces or takes out the selection · `ctrl-c` copies the selection, `ctrl-x` cuts it, `ctrl-v` or `alt-v` pastes at the caret, as in compose's fields · `⏎` searches for the whole field, wherever the caret is · `/`, `?` and every other printable character are typed; `\` still hides and shows the rail, and `[`/`]` move between sections, never typed |
 | Search results | `[`/`]` section, where two or more kinds found something |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
 | Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts and read on as the page nears the end (#455, #467) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
@@ -484,12 +485,13 @@ not answer them differently:
   (#265). Every other frame key, `esc`, `ctrl-q` and `tab` among them, still means what it means everywhere, and the
   status row says what the prompt answers to. So does `\`, which hides and shows the rail rather than typing a
   backslash, since no search, follow or instance needs one (#447). The one prompt that types it is the file browser's
-  filter, since a Windows path is typed with it.
+  filter, since a Windows path is typed with it. On Search `[` and `]` are not typed either: they move between
+  sections there as on every screen, the field included (#605, #608).
 - **`/` from the search results starts a fresh prompt** rather than doing nothing, since that is the one place the key
   is most likely to be pressed twice. It arrives at Search as choosing it on the rail does, the stack put back to an
   empty prompt and the query let go (#600). On the prompt itself `/` is typed, as above.
-- **The prompt and the results are two screens** (#600). The Search destination is the prompt alone — `Search: `, what
-  is typed, the `▌` caret and one muted line saying what it takes — taking letters for as long as it is shown. `⏎`
+- **The prompt and the results are two screens** (#600). The Search destination is the prompt alone — `Search: `, the
+  search field after it and one muted line saying what it takes — taking letters for as long as it is shown. `⏎`
   pushes what was found as a screen of its own, crumbed with the query (`Search › cats`), the prompt standing beneath
   it; the results draw no prompt of their own, the breadcrumb saying what was asked. `esc` from the results, or a click
   on the `Search` crumb, walks back to the prompt with `cats` still typed and taking letters, so the reader refines the
@@ -502,6 +504,18 @@ not answer them differently:
   status row offers the same keys. Neither has a **Subject**: a live search is its own question, which `esc` and `⏎`
   ask again, and `g` does nothing on either (#84). The results are handed what the prompt's question found and pushed
   through `Reach.Push`, over the prompt that asked and only while it is still in front.
+- **The search field is a real one-line text field** (#608), laid over the prompt's row as compose's content warning is
+  laid over its header (#320, ADR-0030), so a query is edited rather than only added to and backspaced from the end:
+  the caret moves, the shift-arrows and a drag of the mouse select, typing replaces a selection, and copy, cut and
+  paste are the keys compose's fields use (*Screen-local keys*, above). `⏎` asks for the whole field from wherever the
+  caret is. What has been typed is the field's rather than the prompt's: it stays in the field while what the prompt
+  opened is in front, so `esc` or the `Search` crumb comes back to it with the caret at its end, and a prompt the field
+  has not shown before — arrived at by the rail or `/` — empties it. The caret is the terminal's own cursor, as in
+  compose's fields, and the row paints none. Unlike a draft's fields, the search field does not hold the content panel
+  still while it shows, since the prompt is the top of a screen read on below it by scrolling (#605); and a right
+  click on it opens no menu, the shell having none. A drag in any one-line field selects from the cell it began on —
+  Terminal.Gui anchors a drag at the first cell the pointer moved to, which a terminal reports only once it has left
+  the cell it was pressed on, so the press is put to the field again as that first move.
 - **A screen's own keys go in front of the shared ones on the status row.** The row is one row and draws what it has
   room for from the front (*What the status row settled*), so the keys a reader can find on no other screen are the
   ones that have to be there.
@@ -1484,7 +1498,7 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   `ctrl-w` is the other half of saying so. Written, it takes the same `content-warning` role a warned post's own
   warning is drawn in, label and all, so a warning being written
   looks like the warning it will become. The caret is the field's own, the terminal's cursor, since #320 — before
-  that a painted `▌` stood for it, the way the search prompt's does.
+  that a painted `▌` stood for it, the way the search prompt's did until #608.
 - **A blank row stands above it, on every compose alike** (#143). It was ADR-0015's reply block that used to end in
   one, which is why `c` and `e` had none: hung off the block, the space appeared on a reply and nowhere else, and the
   one row all three screens have in common was the row they spaced differently. The blank belongs to the warning now,

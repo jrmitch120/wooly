@@ -1,14 +1,13 @@
 using Terminal.Gui.Drivers;
 using Terminal.Gui.Input;
-using Wooly.Tui.Screens;
 using Wooly.Tui.Theme;
 
 namespace Wooly.Tests.Tui;
 
 /// <summary>
-///     A field the shell types into itself — the search prompt, a filter, the add screen's fields — takes and gives back
-///     whole characters, read off the whole shell drawn headless: an emoji is two halves of a pair in the text, and half
-///     of one is no character at all, which the terminal refuses to draw (#534).
+///     A field — the search field, a filter, the add screen's fields — takes and gives back whole characters, read off
+///     the whole shell drawn headless: an emoji is two halves of a pair in the text, and half of one is no character at
+///     all, which the terminal refuses to draw (#534).
 /// </summary>
 public class WholeCharacterTypingTests
 {
@@ -26,15 +25,14 @@ public class WholeCharacterTypingTests
         using var drawn = await DrawnShell.Of(80, 24, Themes.Dark);
 
         drawn.Press(new Key('/'));
-        drawn.Shell.Paste(pasted);
-        drawn.Redraw();
+        drawn.Paste(pasted);
 
         var word = pasted[..pasted.IndexOf(' ')];
 
         drawn.Press(Key.Backspace);
 
-        Assert.Equal(word + " ", Assert.IsType<SearchScreen>(drawn.Shell.Screen).Query);
-        Assert.Contains(drawn.Rows(), row => row.Contains($"Search: {word} ▌", StringComparison.Ordinal));
+        Assert.Equal(word + " ", drawn.SearchField.Text);
+        Assert.Contains(drawn.Rows(), row => row.Contains($"Search: {word} ", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -49,7 +47,7 @@ public class WholeCharacterTypingTests
         drawn.Press(new Key('/'));
         drawn.Press(new Key((KeyCode)0x1F411));
 
-        Assert.Equal("🐑", Assert.IsType<SearchScreen>(drawn.Shell.Screen).Query);
+        Assert.Equal("🐑", drawn.SearchField.Text);
         Assert.Contains(drawn.Rows(), row => row.Contains("Search: 🐑", StringComparison.Ordinal));
     }
 }

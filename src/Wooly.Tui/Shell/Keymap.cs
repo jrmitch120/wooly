@@ -170,7 +170,6 @@ public static class Keymap
         (ShellKey.Enter, _) when screen.Reference is not null => Verb.OpenReference,
         (ShellKey.Enter, AddProfileScreen) => Verb.Continue,
         (ShellKey.Enter, ProfilesScreen) => Verb.ActAs,
-        (ShellKey.Enter, SearchScreen) => Verb.Find,
         (ShellKey.Enter, SearchResultsScreen) => Verb.OpenResult,
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
         (ShellKey.Enter, FollowsScreen follows) => follows.IsTyping ? Verb.FilterDone : Verb.OpenPerson,
