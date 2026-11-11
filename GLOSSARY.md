@@ -698,8 +698,8 @@ whether with its replies), one side of an account's **Follow list**, a **Notific
 of a post's **Actor**s (#489), a hashtag walked to, or a conversation (#233). A closed set; each carries its own read
 and builds its own screen, and says whether what it read is cached and how it **reads on**. A screen exposes its subject, which is what `g` asks again and
 what the one cache is keyed by. Compared by value, so a follow list is the same subject however its account was last
-answered about, and a destination the same whatever its badge says. The search prompt has none: a live search is its
-own question (#84).
+answered about, and a destination the same whatever its badge says. The search prompt has none, and nor do the results
+it pushes: a live search is its own question (#84, #600).
 _Avoid_: source, target, model
 
 **Keymap**:
@@ -723,8 +723,8 @@ _Avoid_: binding, shortcut, command (which is the CLI's word for what it runs)
 **Reach**:
 What a **screen** can reach of the shell while it carries out a verb of its own (`Screen.Answer`, #232): the profile and
 the ports, one way of asking an **instance** (through the shell's **Enquiry**, stale-answer rule and all), opening a
-**Subject** on top of what is showing, swapping one into its own place or reading it again, saying something on the
-status row, asking before going ahead, and telling the shell what **Change** a verb made. Nothing of the stack, the rail
+**Subject** on top of what is showing, pushing a screen handed what its own question found (a search's results, #600),
+swapping one into its own place or reading it again, saying something on the status row, asking before going ahead, and telling the shell what **Change** a verb made. Nothing of the stack, the rail
 or the cache: what a change makes stale is **Arrival**'s to settle, not the screen's that made it (#234). Narrow on
 purpose: a verb that needs more is a sign it is not screen-local, and the thing to do is say so rather than widen it.
 Concrete rather than an interface, because the shell is the only thing that builds one. **Drafting** reaches the shell

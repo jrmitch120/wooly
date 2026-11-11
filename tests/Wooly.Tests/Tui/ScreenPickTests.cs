@@ -90,9 +90,7 @@ public class ScreenPickTests
 
             case "search":
                 // One of each kind and then some, so that the three headed sections are numbered as one list.
-                var search = new SearchScreen();
-
-                search.Found(
+                var search = new SearchResultsScreen(
                     "sheep",
                     new SearchResults
                     {

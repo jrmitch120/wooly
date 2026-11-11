@@ -201,19 +201,16 @@ public class KeymapTests
     }
 
     /// <summary>
-    ///     A search prompt and what it found are the same screen answering <c>⏎</c> two ways: put the query, then open
-    ///     what came back.
+    ///     A search prompt and what it found are two screens, each answering <c>⏎</c> its own way: the prompt puts the
+    ///     query, and the results open what came back (#600).
     /// </summary>
     [Fact]
-    public void TheSearchScreenSearchesWhileItIsTypingAndOpensAResultAfterwards()
+    public void TheSearchPromptSearchesAndItsResultsOpenAResult()
     {
-        var search = new SearchScreen();
-
-        Assert.Equal(Verb.Find, Means("⏎", search));
-
-        search.Found("cats", new SearchResults { Accounts = [AnAccount.With()] });
-
-        Assert.Equal(Verb.OpenResult, Means("⏎", search));
+        Assert.Equal(Verb.Find, Means("⏎", new SearchScreen()));
+        Assert.Equal(
+            Verb.OpenResult,
+            Means("⏎", new SearchResultsScreen("cats", new SearchResults { Accounts = [AnAccount.With()] })));
     }
 
     /// <summary>
@@ -550,12 +547,10 @@ public class KeymapTests
     private static FileBrowserScreen Browser() =>
         new(new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []), PostLimits.Default, room: 4);
 
-    /// <summary>A search screen showing what it found, which is the one that has stopped taking letters.</summary>
-    private static SearchScreen Searched()
+    /// <summary>The results of a search, a screen of their own that takes no letters (#600).</summary>
+    private static SearchResultsScreen Searched()
     {
-        var search = new SearchScreen();
-
-        search.Found("cats", new SearchResults { Accounts = [AnAccount.With()] });
+        var search = new SearchResultsScreen("cats", new SearchResults { Accounts = [AnAccount.With()] });
 
         return search;
     }

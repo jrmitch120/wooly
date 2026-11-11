@@ -284,7 +284,7 @@ public class OffPageReclaimTests
 
         drawn.Press(Key.K);
 
-        Assert.Equal(picked, Assert.IsType<SearchScreen>(drawn.Shell.Screen).At);
+        Assert.Equal(picked, Assert.IsType<SearchResultsScreen>(drawn.Shell.Screen).At);
     }
 
     /// <summary>

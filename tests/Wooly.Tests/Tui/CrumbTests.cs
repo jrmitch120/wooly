@@ -10,7 +10,8 @@ namespace Wooly.Tests.Tui;
 /// <summary>
 ///     How a crumb is spelled, asked of every screen in the shell rather than of the ones somebody remembered: every
 ///     crumb is sentence case, except where it names somebody — by name, or by handle where their name is nothing but
-///     shortcodes (#525) — or a hashtag, which is spelled the way that thing is spelled (#216).
+///     shortcodes (#525) — or a hashtag, which is spelled the way that thing is spelled (#216), or is what the reader
+///     searched for, which is spelled the way they typed it (#600).
 /// </summary>
 /// <remarks>
 ///     The complaint that started #160 was that the sidebar said <c>Home</c> and the breadcrumb said <c>home</c>, so
@@ -28,7 +29,7 @@ public class CrumbTests
         ("messages", "Direct messages"),
         ("requests", "Follow requests"),
         ("search", "Search"),
-        ("search-cats", "Search cats"),
+        ("search-cats", "cats"),
         ("discover", "Discover"),
         ("help", "Keys"),
         ("post", "Post by Ben"),
@@ -107,11 +108,14 @@ public class CrumbTests
     }
 
     /// <summary>
-    ///     Whether <paramref name="word" /> is somebody's own — a word of a name the screens are built with, a handle or a
-    ///     hashtag — rather than ours.
+    ///     Whether <paramref name="word" /> is somebody's own — a word of a name the screens are built with, a handle, a
+    ///     hashtag, or what the reader searched for — rather than ours.
     /// </summary>
     private static bool Theirs(string word) =>
-        word.StartsWith('@') || word.StartsWith('#') || word is Ben or Maria;
+        word.StartsWith('@') || word.StartsWith('#') || word is Ben or Maria or Asked;
+
+    /// <summary>What the search results the screens are built over were asked for, as the reader typed it.</summary>
+    private const string Asked = "cats";
 
     /// <summary>The name of the author of the post the screens are built over.</summary>
     private const string Ben = "Ben";
@@ -162,11 +166,7 @@ public class CrumbTests
                 return new SearchScreen();
 
             case "search-cats":
-                var search = new SearchScreen();
-
-                search.Found("cats", new SearchResults { Hashtags = [AHashtag.With()] });
-
-                return search;
+                return new SearchResultsScreen(Asked, new SearchResults { Hashtags = [AHashtag.With()] });
 
             case "discover":
                 return new DiscoverScreen([ASuggestion.With()]);
