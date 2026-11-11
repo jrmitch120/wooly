@@ -149,7 +149,7 @@ The full contract for every screen, key and theme role is in [docs/tui-shell.md]
 | Command | For |
 |---|---|
 | `profile` | `add`, `list`, `show`, `switch` and `remove` local profiles |
-| `timeline` | `home`, `local`, `federated`, `tag`, `account`, `pinned`, and your own `bookmarks` and `favorites` |
+| `timeline` | `home`, `local`, `federated`, `tag`, `link` (the posts sharing a trending link), `account`, `pinned`, and your own `bookmarks` and `favorites` |
 | `post` | `create`, `reply`, `edit`, `delete`, `show`, `boost`, `favorite`, `pin`, `bookmark`, `vote`, `favorited-by`, `boosted-by`, and their undos |
 | `account` | `show`, `edit`, `follow`, `unfollow`, `followers`, `following`, `block`, `mute` (and undos), and `requests list/accept/reject` |
 | `notification` | `list`, `dismiss` and `clear` |
@@ -186,7 +186,7 @@ Scripts can rely on these. New codes may be added, but existing ones won't chang
 |---|---|
 | `0` | Success |
 | `1` | General error |
-| `2` | Usage error, including an option Wooly doesn't have |
+| `2` | Usage error, including an option Wooly doesn't have, or something named that the instance can't find — such as a link that isn't trending |
 | `3` | Authentication error |
 | `4` | Network error |
 | `5` | Rate limited |

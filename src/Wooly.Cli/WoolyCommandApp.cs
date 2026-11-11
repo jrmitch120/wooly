@@ -220,6 +220,10 @@ public static class WoolyCommandApp
                 timeline.AddCommand<TimelineTagCommand>("tag")
                         .WithDescription("Read the public posts carrying a hashtag.");
 
+                // Beside the tag timeline, which it reads like: public posts about one thing, newest first (#603).
+                timeline.AddCommand<TimelineLinkCommand>("link")
+                        .WithDescription("Read the posts sharing a trending link.");
+
                 // Under "timeline" rather than under "account", even though these two are about a person rather than a
                 // place: they are posts, newest first, paged and written the way the other four are, and the branch is
                 // how a profile reaches every timeline it can read. Beside the noun they are about, they would either
