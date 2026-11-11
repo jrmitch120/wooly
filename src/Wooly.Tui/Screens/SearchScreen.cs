@@ -32,7 +32,19 @@ public sealed class SearchScreen : Screen
     ///     the results are drawn in and the order they are picked out in are the same order by construction, rather
     ///     than two counts kept in step by hand.
     /// </summary>
-    private Picked<Result> _results = new([]);
+    private Picked<Result> _results = new(SearchTrendsPrototype.Rows());
+
+    /// <summary>PROTOTYPE (#602): lays the trends out again in the layout F2 has moved to.</summary>
+    public void PrototypeReseed()
+    {
+        if (Asked is null)
+        {
+            _results = new Picked<Result>(SearchTrendsPrototype.Rows());
+        }
+    }
+
+    /// <summary>PROTOTYPE (#602): whether the prompt is showing trends rather than results.</summary>
+    private bool Trending => IsTyping && Asked is null;
 
     private bool _typing = true;
 
@@ -55,6 +67,13 @@ public sealed class SearchScreen : Screen
         {
             // Nothing to walk while the prompt is taking letters: what is on screen is the prompt and the sentence
             // under it, so the arrows are left unsaid rather than offered against three rows.
+            if (Trending)
+            {
+                return _results.Out is Result.OfPrompt
+                    ? [new KeyHint("⏎", "search"), new KeyHint("↑/↓", "trend"), PostKeys.ToADestination]
+                    : [new KeyHint("⏎", "open"), new KeyHint("↑/↓", "trend"), new KeyHint("type", "search"), PostKeys.ToADestination];
+            }
+
             if (IsTyping)
             {
                 return [new KeyHint("⏎", "search"), PostKeys.ToADestination];
@@ -137,7 +156,16 @@ public sealed class SearchScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>Into the query, which is the only thing this screen takes letters into.</remarks>
-    public override void Type(char letter) => Query += letter;
+    public override void Type(char letter)
+    {
+        Query += letter;
+
+        // PROTOTYPE (#602): F3 decides whether a letter takes the pick back to the prompt.
+        if (Trending && SearchTrendsPrototype.TypingReturns)
+        {
+            _results.Pick(0);
+        }
+    }
 
     /// <inheritdoc />
     public override void Backspace() => Query = Backspaced(Query);
@@ -168,6 +196,22 @@ public sealed class SearchScreen : Screen
     /// </remarks>
     private Task Find(Reach reach)
     {
+        // PROTOTYPE (#602): ⏎ does what the picked row does — a trend opens, the prompt searches.
+        if (Trending)
+        {
+            switch (_results.Out)
+            {
+                case Result.OfHashtag(var trendingTag):
+                    return reach.Open(new Subject.Tag(trendingTag.Name));
+                case Result.OfPost(var post):
+                    return reach.Open(new Subject.Thread(post));
+                case Result.OfLink(var link):
+                    reach.Say($"PROTOTYPE: would open the posts sharing {link.Url}", isError: false);
+
+                    return Task.CompletedTask;
+            }
+        }
+
         if (!SearchQuery.IsWellFormed(Query))
         {
             // The same words the command turns an empty query down with, so that the two front ends cannot come to
@@ -314,6 +358,11 @@ public sealed class SearchScreen : Screen
     {
         var width = drawing.Width;
 
+        if (Trending)
+        {
+            return TrendLines(drawing);
+        }
+
         var lines = new List<Line> { Prompt(width), Line.Blank };
 
         if (IsTyping)
@@ -354,6 +403,50 @@ public sealed class SearchScreen : Screen
                 AccountLines.Compact(account.Standing)),
             Result.OfHashtag(var hashtag) => [Tag(hashtag, room, columns)],
             Result.OfPost(var post) => PostLines.Feed(post, drawing.In(room), ReadingOf(post, at)),
+            _ => [],
+        };
+    }
+
+    /// <summary>PROTOTYPE (#602): the prompt, then the trends in three headed sections.</summary>
+    private IReadOnlyList<Line> TrendLines(Drawing drawing)
+    {
+        var width = drawing.Width;
+        var lines = new List<Line>();
+        var nameColumn = SearchTrendsPrototype.NameColumn;
+
+        for (var at = 0; at < _results.Count; at++)
+        {
+            var result = _results.All[at];
+
+            if (at > 0 && Heads(at))
+            {
+                lines.Add(Line.Blank);
+                lines.Add(Line.Of(result switch
+                {
+                    Result.OfHashtag => "── Trending hashtags ──",
+                    Result.OfPost => "── Trending posts ──",
+                    _ => "── Trending links ──",
+                }, Role.Muted).Heading());
+                lines.Add(Line.Blank);
+            }
+            else if (at > 0 && result is Result.OfPost && !SearchTrendsPrototype.CompactPosts)
+            {
+                lines.Add(Line.Rule());
+            }
+
+            lines.AddRange(_results.RowsOf(at, width, Draw));
+        }
+
+        return lines;
+
+        IReadOnlyList<Line> Draw(Result result, int at, int room) => result switch
+        {
+            Result.OfPrompt => [Prompt(room)],
+            Result.OfHashtag(var tag) => [SearchTrendsPrototype.TagRow(tag, room, nameColumn)],
+            Result.OfPost(var post) when SearchTrendsPrototype.CompactPosts =>
+                [SearchTrendsPrototype.CompactPost(post, room)],
+            Result.OfPost(var post) => PostLines.Feed(post, drawing.In(room), ReadingOf(post, at)),
+            Result.OfLink(var link) => [SearchTrendsPrototype.LinkRow(link, room)],
             _ => [],
         };
     }

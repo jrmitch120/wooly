@@ -405,6 +405,26 @@ internal sealed class ShellWindow : Window
         // never needs one typed (#376). `\` hides and shows the rail from a prompt too, so that the hidden rail is
         // never out of the keys' reach there; a screen that types it as a letter gets no meaning for it, and types it
         // (#447).
+        // PROTOTYPE (#602): on Search, F2 cycles the trends' layout and F3 whether typing takes the pick back.
+        if ((key == Key.F2 || key == Key.F3) && _shell.Screen is Screens.SearchScreen search)
+        {
+            if (key == Key.F2)
+            {
+                Screens.SearchTrendsPrototype.Next();
+                search.PrototypeReseed();
+            }
+            else
+            {
+                Screens.SearchTrendsPrototype.ToggleTypingReturns();
+            }
+
+            _shell.StatusRow.SayForAMoment(Screens.SearchTrendsPrototype.Label);
+            LaidOutAtTheNewWidth();
+            _content.SetNeedsDraw();
+
+            return true;
+        }
+
         if (_shell.Screen.IsTyping && !TakenAheadOfTheTyping(key) && Typing(key))
         {
             return true;

@@ -32,4 +32,10 @@ public abstract record Result
 
     /// <summary>A post the search found.</summary>
     public sealed record OfPost(Post Post) : Result;
+
+    /// <summary>PROTOTYPE (#602): the prompt itself, the top row of the walk.</summary>
+    public sealed record OfPrompt : Result;
+
+    /// <summary>PROTOTYPE (#602): a trending link.</summary>
+    public sealed record OfLink(SearchTrendsPrototype.Link Link) : Result;
 }
