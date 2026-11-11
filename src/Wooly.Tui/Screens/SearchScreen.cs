@@ -438,7 +438,12 @@ public sealed class SearchScreen : Screen
                 lines.Add(Line.Rule());
             }
 
-            lines.AddRange(_results.RowsOf(at, width, Draw));
+            // The field marks its own focus, so it takes no selection bar or band; the gutter's column is kept, blank.
+            lines.AddRange(result is Result.OfPrompt
+                ? SearchTrendsPrototype
+                    .Prompt(Query, width - 1, focused: _results.Out is Result.OfPrompt)
+                    .Select(line => line.After(new Span(" ", Role.Body)).PartOf(at))
+                : _results.RowsOf(at, width, Draw));
         }
 
         return lines;

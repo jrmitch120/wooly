@@ -1585,6 +1585,9 @@ public sealed class Shell
     [MemberNotNull(nameof(_enquiry), nameof(_adding))]
     private void Begin(ActiveProfile? profile)
     {
+        // PROTOTYPE (#602): the boxed field's title can say which instance answers.
+        Screens.SearchTrendsPrototype.Instance = profile?.Instance;
+
         // Asked from whatever is on top, which is the whole of the stale-answer rule: an answer lands only while the
         // screen it was asked from is still in front of the reader.
         var enquiry = new Enquiry(_host, _clock, _timing.CountdownStep, _timing.MarkStep, () => Screen);
