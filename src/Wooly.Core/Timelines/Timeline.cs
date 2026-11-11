@@ -5,7 +5,7 @@ namespace Wooly.Core.Timelines;
 
 /// <summary>
 ///     Which timeline to read. They are reached through factories rather than a constructor, so that the ones carrying
-///     a hashtag or an account cannot be built without one — a tag timeline with no tag is not a thing to be
+///     a hashtag, an account or a link cannot be built without one — a tag timeline with no tag is not a thing to be
 ///     represented, let alone sent to an instance.
 /// </summary>
 public sealed record Timeline
@@ -15,13 +15,15 @@ public sealed record Timeline
         string? hashtag = null,
         NamedAccount? account = null,
         TagSet? set = null,
-        PostMark? runOf = null)
+        PostMark? runOf = null,
+        Uri? link = null)
     {
         Scope = scope;
         Hashtag = hashtag;
         Account = account;
         Set = set;
         RunOf = runOf;
+        Link = link;
     }
 
     /// <summary>Which of them this is.</summary>
@@ -49,6 +51,14 @@ public sealed record Timeline
     ///     past the cap, because <see cref="TagSet.Of" /> is the only way to build one.
     /// </summary>
     public TagSet? Set { get; }
+
+    /// <summary>
+    ///     The address whose sharing posts are being read (#603), or <see langword="null" /> for every other timeline.
+    ///     Always a web page addressed in full, because <see cref="Sharing" /> is the only way to set it
+    ///     (<see cref="SharedLink" />), and asked for as written (<see cref="Uri.OriginalString" />): an instance finds a
+    ///     <b>Trending link</b> by the exact address it holds for it.
+    /// </summary>
+    public Uri? Link { get; }
 
     /// <summary>
     ///     The mark this is the run of — a bookmark for <see cref="Bookmarks" />, a favorite for
@@ -102,6 +112,26 @@ public sealed record Timeline
     /// <summary>The public posts carrying any of <paramref name="set" />'s tags, newest first, each once.</summary>
     public static Timeline AnyOf(TagSet set) => new(TimelineScope.TagSet, set: set);
 
+    /// <summary>
+    ///     The posts sharing <paramref name="link" />, newest first — a <b>Trending link</b>'s, which is the only kind of
+    ///     link an instance keeps such a timeline for. Any other is answered as not found
+    ///     (<see cref="Errors.LinkNotTrendingException" />), never as a timeline with nothing on it.
+    /// </summary>
+    /// <param name="link">The article's address, as the instance gave it or as somebody typed it.</param>
+    /// <exception cref="ArgumentException">
+    ///     <paramref name="link" /> is not a web page addressed in full (<see cref="SharedLink" />). A caller is expected
+    ///     to have rejected that against the value the user gave; reaching here with one is a defect, not user error.
+    /// </exception>
+    public static Timeline Sharing(Uri link)
+    {
+        if (!SharedLink.IsReadable(link))
+        {
+            throw new ArgumentException(SharedLink.Rejection(link.OriginalString), nameof(link));
+        }
+
+        return new Timeline(TimelineScope.Link, link: link);
+    }
+
     /// <summary>The posts of the account <paramref name="account" /> names.</summary>
     /// <param name="account">
     ///     Whose posts to read. One factory rather than an overload per argument type: two ways to say this would
@@ -136,7 +166,7 @@ public sealed record Timeline
 
     /// <summary>
     ///     What to call this timeline in a sentence, e.g. "No posts in <em>the federated timeline</em>." A hashtag is
-    ///     the user's own text, so anything rendering this has to treat it as text rather than markup.
+    ///     the user's own text, and so is a link, so anything rendering this has to treat it as text rather than markup.
     /// </summary>
     public string Description => Scope switch
     {
@@ -145,6 +175,7 @@ public sealed record Timeline
         TimelineScope.Federated => "the federated timeline",
         TimelineScope.Tag => $"the #{Hashtag} timeline",
         TimelineScope.TagSet => $"the {Set!.Name} tag set",
+        TimelineScope.Link => $"the link timeline for {Link!.OriginalString}",
         TimelineScope.Account => $"the posts of @{Account}",
         TimelineScope.Pinned => $"the pinned posts of @{Account}",
         TimelineScope.WithReplies => $"the posts and replies of @{Account}",

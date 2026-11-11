@@ -1,7 +1,9 @@
+using System.Net;
 using System.Net.Http.Json;
 using Mastonet;
 using Mastonet.Entities;
 using Wooly.Core.Accounts;
+using Wooly.Core.Errors;
 using Wooly.Core.Http;
 using Wooly.Core.Paging;
 using Wooly.Core.Posts;
@@ -20,7 +22,13 @@ namespace Wooly.Core.Timelines;
 ///         Nothing waits here — ADR-0006 leaves that choice to whichever front end is reading.
 ///     </para>
 ///     <para>
-///         A <b>Tag set</b> is the one timeline read around Mastonet (<see cref="RawMastodonCall" />), whose tag
+///         The posts sharing a <b>Trending link</b> are read around Mastonet too, which has no link timeline (#603):
+///         one list paged by <c>max_id</c> as Home is. A link that is not trending is not found
+///         (<see cref="LinkNotTrendingException" />) when it is asked for from the top, and ends the timeline when it
+///         stops trending part way through a read or between one read and the next.
+///     </para>
+///     <para>
+///         A <b>Tag set</b> is the other timeline read around Mastonet (<see cref="RawMastodonCall" />), whose tag
 ///         timeline takes one tag and no <c>any[]</c> (ADR-0033), over the same <see cref="HttpClient" />: four tags
 ///         to an ask, the asks merged newest first (<see cref="MergedReading" />). A set of one run is read as any
 ///         other timeline is, a rate limit included; in a set of several, one run failing fails the read, a rate
@@ -87,6 +95,20 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
                 runs,
                 status => PostWire.ToPost(status, profile),
                 post => post.Id,
+                cancellationToken,
+                from: from);
+        }
+
+        if (timeline.Link is { } link)
+        {
+            // Read raw, as one run of a tag set is: posts newest first, paged by max_id with the last post's id behind
+            // the link header (#603).
+            return await PagedReading.Collect(
+                limit,
+                PageSize,
+                options => LinkPage(profile, link, options, cancellationToken),
+                status => PostWire.ToPost(status, profile),
+                status => status.Id,
                 cancellationToken,
                 from: from);
         }
@@ -160,6 +182,50 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
         return new Page<Status>(posts, LinkHeader.NextMaxId(response));
     }
 
+    /// <summary>
+    ///     One page of the posts sharing <paramref name="link" /> (#603), which Mastonet 3.1.3 cannot ask for. The
+    ///     address goes as a query value, escaped whole, so that its own <c>?</c> and <c>&amp;</c> stay part of it, and
+    ///     as it was written: the instance finds the link by the exact address it holds for it.
+    /// </summary>
+    private async Task<Page<Status>> LinkPage(
+        ActiveProfile profile,
+        Uri link,
+        ArrayOptions options,
+        CancellationToken cancellationToken)
+    {
+        List<string> query = [$"url={Uri.EscapeDataString(link.OriginalString)}", $"limit={options.Limit}"];
+
+        if (options.MaxId is { } maxId)
+        {
+            query.Add($"max_id={Uri.EscapeDataString(maxId)}");
+        }
+
+        using var response = await RawMastodonCall.Sent(
+            httpClientFactory,
+            profile,
+            HttpMethod.Get,
+            $"api/v1/timelines/link?{string.Join("&", query)}",
+            content: null,
+            cancellationToken);
+
+        // The instance keeps a link's posts only while it trends, and answers any other with a 404. Asked from the top,
+        // that is the link not trending — not found, rather than a timeline with nothing on it. Asked anywhere further
+        // on, posts have already been read from it, and it has stopped trending since: the timeline ends there, keeping
+        // what arrived, as an empty page with no next one ends any other (#598's fourteenth story).
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return options.MaxId is null
+                ? throw new LinkNotTrendingException(link, profile.Instance)
+                : new Page<Status>([], null);
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var posts = await response.Content.ReadFromJsonAsync<List<Status>>(cancellationToken) ?? [];
+
+        return new Page<Status>(posts, LinkHeader.NextMaxId(response));
+    }
+
     private static Task<MastodonList<Status>> Page(
         IMastodonClient client,
         Timeline timeline,
@@ -174,6 +240,7 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
 
             // Read raw, above, before a client is made: never here.
             TimelineScope.TagSet => throw new InvalidOperationException("A tag set is read around Mastonet."),
+            TimelineScope.Link => throw new InvalidOperationException("A link's sharing posts are read around Mastonet."),
 
             // Boosts left in and replies left out, which is what an account's own page shows on the web and what
             // somebody who pressed 'a' on a post is asking to see: what this account says and passes on, rather than

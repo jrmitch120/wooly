@@ -24,6 +24,8 @@ internal sealed class FakeTimelineReader : ITimelineReader
 
     private RateLimitedException? _nextReadStoppedBy;
 
+    private readonly HashSet<Uri> _notTrending = [];
+
     private FakeTimelineReader(Func<Timeline, Task<Fetch<Post>>> answer) => _answer = answer;
 
     public FakeTimelineReader(Fetch<Post> fetch) : this(_ => Task.FromResult(fetch))
@@ -97,6 +99,15 @@ internal sealed class FakeTimelineReader : ITimelineReader
         return reader;
     }
 
+    /// <summary>
+    ///     <paramref name="link" /> is not trending from here on, as an instance answers one (#603): a read of the posts
+    ///     sharing it is not found (<see cref="LinkNotTrendingException" />, naming the instance read from), having been
+    ///     recorded, and a read on through them ends the timeline with nothing more, keeping what was already read —
+    ///     the adapter's two answers to the instance's 404. Every other timeline reads as it did, so a test can have a
+    ///     link stop trending between opening it and reading on.
+    /// </summary>
+    public void NotTrending(Uri link) => _notTrending.Add(link);
+
     /// <summary>Every read on it was asked for, in order — where a test proves where a read went on from.</summary>
     public List<TimelineReadOn> ReadsOn { get; } = [];
 
@@ -117,6 +128,11 @@ internal sealed class FakeTimelineReader : ITimelineReader
     {
         Reads.Add(new Call(profile.Name, timeline, limit));
         Tokens.Add(profile.AccessToken);
+
+        if (timeline.Link is { } link && _notTrending.Contains(link))
+        {
+            return Task.FromException<Fetch<Post>>(new LinkNotTrendingException(link, profile.Instance));
+        }
 
         if (_nextReadStoppedBy is { } stoppedBy)
         {
@@ -170,6 +186,11 @@ internal sealed class FakeTimelineReader : ITimelineReader
         if (_refusing is { } refusal)
         {
             return Task.FromException<Fetch<Post>>(refusal);
+        }
+
+        if (timeline.Link is { } link && _notTrending.Contains(link))
+        {
+            return Task.FromResult(Fetch<Post>.Complete([]));
         }
 
         if (_nextReadOn is { } next)
