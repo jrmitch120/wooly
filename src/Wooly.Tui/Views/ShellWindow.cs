@@ -415,7 +415,7 @@ internal sealed class ShellWindow : Window
             }
             else
             {
-                Screens.SearchTrendsPrototype.NextPrompt();
+                Screens.SearchTrendsPrototype.NextLinks();
             }
 
             _shell.StatusRow.SayForAMoment(Screens.SearchTrendsPrototype.Label);

@@ -15,7 +15,7 @@ namespace Wooly.Tui.Screens;
 public static class SearchTrendsPrototype
 {
     /// <summary>A trending link, as the real one would carry it.</summary>
-    public sealed record Link(string Url, string Title, string Site, long People);
+    public sealed record Link(string Url, string Title, string Site, long People, string Description);
 
     /// <summary>One layout: how many of each kind, in what order, and whether posts are one row apiece.</summary>
     private sealed record Layout(string Name, int Tags, int Posts, int Links, bool CompactPosts, bool PostsLast);
@@ -30,15 +30,15 @@ public static class SearchTrendsPrototype
 
     private static int _at;
 
-    private static readonly string[] Prompts =
+    private static readonly string[] LinkStyles =
     [
-        "1 untitled box",
-        "2 the instance that answers, in the title",
-        "3 what ⏎ does, in the bottom border",
-        "4 the placeholder as the title, the field itself empty",
+        "1 two rows: title, then site · people",
+        "2 three rows: title, its description, then site · people",
+        "3 two rows behind an accent bar",
+        "4 ranked: the number, then title over site · people",
     ];
 
-    private static int _prompt = 1;
+    private static int _links;
 
     /// <summary>The instance acted as, which the shell sets as it begins.</summary>
     public static string? Instance { get; set; }
@@ -51,11 +51,11 @@ public static class SearchTrendsPrototype
 
     /// <summary>What the status row says on a switch.</summary>
     public static string Label =>
-        $"PROTOTYPE {Layouts[_at].Name} · prompt {Prompts[_prompt]} (F2 layout, F3 prompt)";
+        $"PROTOTYPE {Layouts[_at].Name} · links {LinkStyles[_links]} (F2 layout, F3 links)";
 
     public static void Next() => _at = (_at + 1) % Layouts.Length;
 
-    public static void NextPrompt() => _prompt = (_prompt + 1) % Prompts.Length;
+    public static void NextLinks() => _links = (_links + 1) % LinkStyles.Length;
 
     /// <summary>
     ///     The boxed search field with the title F3 has reached: <paramref name="focused" /> where the pick is on it and
@@ -66,21 +66,14 @@ public static class SearchTrendsPrototype
         var inner = Math.Max(0, width - 2);
         var border = focused ? Role.PanelBorderActive : Role.PanelBorder;
         var caret = focused ? new Span("▌", Role.Selection) : new Span("", Role.Body);
-        var placeholderInside = _prompt != 3;
         var typed = query.Length == 0
-            ? new Span(placeholderInside ? TextWrap.Clip(Placeholder, Math.Max(0, inner - 5)) : "", Role.Muted)
+            ? new Span(TextWrap.Clip(Placeholder, Math.Max(0, inner - 5)), Role.Muted)
             : new Span(TextWrap.Clip(query, Math.Max(0, inner - 5)), focused ? Role.Body : Role.Muted);
         Span[] field = query.Length == 0 ? [caret, typed] : [typed, caret];
         var used = 3 + field.Sum(span => Glyphs.Columns(span.Text));
 
-        var title = _prompt switch
-        {
-            1 => Instance is { } instance ? $"─ {instance} " : "",
-            3 => $"─ {Placeholder} ",
-            _ => "",
-        };
-
-        var foot = _prompt == 2 ? (focused ? " ⏎ search · ↓ trends ─" : " ↑ to type ─") : "";
+        // The instance that answers, since who asks is part of the answer (ADR-0011).
+        var title = Instance is { } instance ? $"─ {instance} " : "";
 
         return
         [
@@ -92,11 +85,7 @@ public static class SearchTrendsPrototype
                 new Span("│", border), new Span(" ⌕ ", Role.Muted), .. field,
                 new Span(new string(' ', Math.Max(0, inner - used)), Role.Body), new Span("│", border),
             ]),
-            Line.Of([
-                new Span("╰" + new string('─', Math.Max(0, inner - Glyphs.Columns(foot))), border),
-                new Span(foot, Role.Muted),
-                new Span("╯", border),
-            ]),
+            Line.Of([new Span("╰" + new string('─', inner) + "╯", border)]),
         ];
     }
 
@@ -134,21 +123,50 @@ public static class SearchTrendsPrototype
         ]);
     }
 
-    /// <summary>A trending link on one row: title · site, and how many shared it.</summary>
-    public static Line LinkRow(Link link, int width)
-    {
-        var people = $"  {Number.Of(link.People)} people";
-        var site = $" · {link.Site}";
-        var room = Math.Max(0, width - Glyphs.Columns(people) - Glyphs.Columns(site));
-        var title = TextWrap.Clip(link.Title, room);
-        var pad = new string(' ', Math.Max(0, room - Glyphs.Columns(title)));
+    /// <summary>Whether two trending links want a blank between them.</summary>
+    public static bool LinksApart => true;
 
-        return Line.Of([
-            new Span(title, Role.Body),
-            new Span(TextWrap.Clip(site, Math.Max(0, width - Glyphs.Columns(title))), Role.Muted),
-            new Span(TextWrap.Clip(pad + people, Math.Max(0, width - Glyphs.Columns(title) - Glyphs.Columns(site))),
-                Role.Muted),
-        ]);
+    /// <summary>A trending link, in the style F3 has reached; <paramref name="rank" /> counts from one.</summary>
+    public static IReadOnlyList<Line> LinkRows(Link link, int width, int rank)
+    {
+        var meta = $"{link.Site} · {Number.Of(link.People)} people sharing";
+
+        switch (_links)
+        {
+            case 1:
+                return
+                [
+                    Line.Of(TextWrap.Clip(link.Title, width), Role.Body),
+                    Line.Of(TextWrap.Clip(link.Description, width), Role.Muted),
+                    Line.Of([new Span(TextWrap.Clip(meta, width), Role.Link)]),
+                ];
+
+            case 2:
+                return
+                [
+                    Line.Of([new Span("┃ ", Role.Link), new Span(TextWrap.Clip(link.Title, Math.Max(0, width - 2)), Role.Body)]),
+                    Line.Of([new Span("┃ ", Role.Link), new Span(TextWrap.Clip(meta, Math.Max(0, width - 2)), Role.Muted)]),
+                ];
+
+            case 3:
+            {
+                var number = $"{rank,2}  ";
+                var room = Math.Max(0, width - number.Length);
+
+                return
+                [
+                    Line.Of([new Span(number, Role.Muted), new Span(TextWrap.Clip(link.Title, room), Role.Body)]),
+                    Line.Of([new Span(new string(' ', number.Length), Role.Body), new Span(TextWrap.Clip(meta, room), Role.Muted)]),
+                ];
+            }
+
+            default:
+                return
+                [
+                    Line.Of(TextWrap.Clip(link.Title, width), Role.Body),
+                    Line.Of(TextWrap.Clip(meta, width), Role.Muted),
+                ];
+        }
     }
 
     /// <summary>A trending tag on one row: the tag, and how many people used it over the last days.</summary>
@@ -222,15 +240,15 @@ public static class SearchTrendsPrototype
 
     private static readonly Link[] Links =
     [
-        new("https://example.org/library", "The library that ran itself for a hundred years", "The Long Read", 1_420),
-        new("https://example.org/fog", "Why valley fog forms before sunrise, explained", "Weather Weekly", 812),
-        new("https://example.org/router", "Thousands of home routers expose their admin pages", "Security Now", 790),
-        new("https://example.org/make", "In praise of boring build tools", "Dev Notes", 655),
-        new("https://example.org/stars", "What 10,000 GitHub stars actually means for a maintainer", "Open Source Weekly", 512),
-        new("https://example.org/cats", "Cats knock things over on purpose, study finds", "Science Daily", 488),
-        new("https://example.org/fedi", "Two years after the migration: who stayed on the fediverse", "The Verge", 420),
-        new("https://example.org/tui", "The quiet return of terminal user interfaces", "Ars Technica", 301),
-        new("https://example.org/halloween", "The best homemade Halloween costumes of 2026", "Craft Corner", 255),
-        new("https://example.org/sheep", "A field guide to sheep, for the absolutely unprepared", "Countryside", 96),
+        new("https://example.org/library", "The library that ran itself for a hundred years", "The Long Read", 1_420, "Three villages, one building, and a rota that has never once missed a Saturday."),
+        new("https://example.org/fog", "Why valley fog forms before sunrise, explained", "Weather Weekly", 812, "Cold air pools in the valley overnight, and the first sun lifts it into a sea of cloud."),
+        new("https://example.org/router", "Thousands of home routers expose their admin pages", "Security Now", 790, "Researchers found admin pages open to the internet on routers from a dozen vendors."),
+        new("https://example.org/make", "In praise of boring build tools", "Dev Notes", 655, "The case for build systems nobody has to think about."),
+        new("https://example.org/stars", "What 10,000 GitHub stars actually means for a maintainer", "Open Source Weekly", 512, "Stars bring attention, and attention brings issues. A maintainer on what changes."),
+        new("https://example.org/cats", "Cats knock things over on purpose, study finds", "Science Daily", 488, "Researchers watched 120 cats and a great many pens."),
+        new("https://example.org/fedi", "Two years after the migration: who stayed on the fediverse", "The Verge", 420, "We asked a thousand people who joined in the great migration where they are now."),
+        new("https://example.org/tui", "The quiet return of terminal user interfaces", "Ars Technica", 301, "From mail to music, the terminal is having a moment again."),
+        new("https://example.org/halloween", "The best homemade Halloween costumes of 2026", "Craft Corner", 255, "Cardboard, felt, and a lot of hot glue."),
+        new("https://example.org/sheep", "A field guide to sheep, for the absolutely unprepared", "Countryside", 96, "Everything you need to know before your first lambing season, and some things you don't."),
     ];
 }

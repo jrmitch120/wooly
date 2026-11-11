@@ -437,6 +437,10 @@ public sealed class SearchScreen : Screen
             {
                 lines.Add(Line.Rule());
             }
+            else if (at > 0 && result is Result.OfLink && SearchTrendsPrototype.LinksApart)
+            {
+                lines.Add(Line.Blank);
+            }
 
             // The field marks its own focus, so it takes no selection bar or band; the gutter's column is kept, blank.
             lines.AddRange(result is Result.OfPrompt
@@ -455,7 +459,8 @@ public sealed class SearchScreen : Screen
             Result.OfPost(var post) when SearchTrendsPrototype.CompactPosts =>
                 [SearchTrendsPrototype.CompactPost(post, room)],
             Result.OfPost(var post) => PostLines.Feed(post, drawing.In(room), ReadingOf(post, at)),
-            Result.OfLink(var link) => [SearchTrendsPrototype.LinkRow(link, room)],
+            Result.OfLink(var link) => SearchTrendsPrototype.LinkRows(
+                link, room, at - _results.All.TakeWhile(one => one is not Result.OfLink).Count() + 1),
             _ => [],
         };
     }
