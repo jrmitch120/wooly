@@ -784,6 +784,84 @@ public abstract record Subject
     }
 
     /// <summary>
+    ///     The posts sharing a <b>Trending link</b> (#607), as a feed on the stack crumbed with the article's title —
+    ///     what people are saying about it being why it trends — read on by <c>max_id</c> as any timeline is, the
+    ///     article itself one key away in the browser (<see cref="FeedScreen.Article" />).
+    /// </summary>
+    /// <remarks>
+    ///     An instance keeps those posts only while the link trends. One that has stopped by the time it is opened is a
+    ///     not-found answer rather than a feed with nothing on it, and puts nothing up: the status row says so and offers
+    ///     the article, the link still picked where it was opened from for <c>o</c> to open. One that stops while its
+    ///     posts are being read on simply ends the timeline, keeping what was read — the adapter's answer, so nothing
+    ///     here is needed for it (<see cref="Core.Timelines.TimelineReader" />).
+    ///     <para>
+    ///         Kept nowhere, as a hashtag walked to is kept nowhere: what is trending is the instance's answer now.
+    ///     </para>
+    /// </remarks>
+    /// <param name="Link">The trending link opened.</param>
+    public sealed record Sharing(TrendingLink Link) : Subject
+    {
+        /// <summary>
+        ///     What the status row says where the link opened is no longer trending: that, and the key that still opens
+        ///     the article.
+        /// </summary>
+        public const string NoLongerTrending = "That link is no longer trending — o to open the article.";
+
+        /// <inheritdoc />
+        internal override async Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing)
+        {
+            // An address the instance gave that is no web page has no timeline it could keep, which is what not
+            // trending means here as much as a 404 does.
+            var timeline = Shared() ?? throw new NoLongerTrendingException();
+            Fetch<Post> posts;
+
+            try
+            {
+                posts = await ask.Of(token => ports.Timelines.Read(profile, timeline, Arrival.PostsWanted, token));
+            }
+            catch (LinkNotTrendingException)
+            {
+                // Said in the shell's words rather than the command line's, which name the address a script asked
+                // after: here the reader picked a row, and what they want to know is what they can still do.
+                throw new NoLongerTrendingException();
+            }
+
+            return new Found.Drawn(() => new FeedScreen(
+                Link.Title,
+                posts.Items,
+                Arrival.Emptiness(
+                    posts.Items.Count,
+                    Arrival.NothingOn(timeline),
+                    timeline.Description,
+                    posts.StoppedBy))
+            {
+                ReadingOn = new ReadingOn(posts.Onward),
+                Article = Link.Url,
+            });
+        }
+
+        /// <inheritdoc />
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
+            TimelineReadsOn(Shared()!).From(ask, ports, profile, from);
+
+        /// <summary>The posts sharing the link, or <see langword="null" /> where its address names no web page.</summary>
+        private Timeline? Shared() =>
+            SharedLink.Parse(Link.Url) is { } address ? Timeline.Sharing(address) : null;
+
+        /// <summary>The link opened is not, or no longer, trending — said on the status row as any refusal is.</summary>
+        private sealed class NoLongerTrendingException() : WoolyException(NoLongerTrending);
+    }
+
+    /// <summary>
     ///     The instance's <b>Trend</b>s under the empty search prompt (#605): ten trending hashtags, ten trending links
     ///     and three trending posts, read afresh on every arrival at Search — by the rail or by <c>/</c> — and drawn
     ///     under the field of the prompt standing for them.
