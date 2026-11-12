@@ -284,6 +284,12 @@ public enum Verb
     OpenPostPage,
 
     /// <summary>
+    ///     <c>o</c> on a trending link picked under the search prompt, or on the posts sharing one: the article itself, in
+    ///     the browser — the link opening as what people are saying about it, and the article one key away (#607).
+    /// </summary>
+    OpenArticle,
+
+    /// <summary>
     ///     A click on a face in a notification group's avatar strip: that one actor's account, whoever else the group
     ///     holds (#456). Only ever a click — no key stands for one face of several.
     /// </summary>

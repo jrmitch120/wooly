@@ -122,7 +122,8 @@ public sealed class SearchScreen : Screen
     ///     letters, every letter being typed — <c>/</c> and <c>?</c> among them, which a web address and a question are
     ///     both entitled to contain — and the two that are never typed: <c>↓</c> into the trends, and <c>[</c> and
     ///     <c>]</c> between their sections. On a trend, the keys of a list: a trending post's keys where one is picked,
-    ///     <c>⏎</c> where what is picked opens, and <c>/</c> back up to the field.
+    ///     <c>⏎</c> where what is picked opens, <c>o</c> on a trending link for the article itself (#607), and <c>/</c>
+    ///     back up to the field.
     ///     <para>
     ///         No <c>esc</c>: search is a rail destination, so the prompt is the bottom of the stack and there is
     ///         nothing under it to walk back to. <c>tab</c> is how you leave, the same as on every other destination.
@@ -163,7 +164,10 @@ public sealed class SearchScreen : Screen
             [
                 moving,
                 .. jumping,
-                .. PickedHashtag is not null ? [new KeyHint("⏎", "open")] : Array.Empty<KeyHint>(),
+                .. PickedHashtag is not null || PickedLink is not null
+                    ? [new KeyHint("⏎", "open")]
+                    : Array.Empty<KeyHint>(),
+                .. PickedLink is not null ? [FeedScreen.OpeningTheArticle] : Array.Empty<KeyHint>(),
                 searching,
                 .. PostKeys.Leaving(PostKeys.AlongTheRail),
             ];
@@ -315,11 +319,18 @@ public sealed class SearchScreen : Screen
 
     /// <summary>
     ///     What this screen's own <c>⏎</c> does, with a trend picked — the field takes its own: a trending hashtag opens
-    ///     its timeline and a trending post its thread, as a search's results open them. A trending link does nothing
-    ///     beyond being picked until a link can be opened (#607).
+    ///     its timeline and a trending post its thread, as a search's results open them, and a trending link the posts
+    ///     sharing it (#607). <c>o</c> on a trending link opens the article itself, in the browser.
     /// </summary>
     public override Task Answer(Verb verb, Reach reach)
     {
+        if (verb == Verb.OpenArticle && PickedLink is { } article)
+        {
+            reach.Browse(article.Url);
+
+            return Task.CompletedTask;
+        }
+
         if (verb != Verb.OpenResult)
         {
             return Task.CompletedTask;
@@ -329,6 +340,11 @@ public sealed class SearchScreen : Screen
         if (Picked is not null)
         {
             return Opens is { } post ? reach.Open(new Subject.Thread(post)) : Task.CompletedTask;
+        }
+
+        if (PickedLink is { } link)
+        {
+            return reach.Open(new Subject.Sharing(link));
         }
 
         return _walk.Out is Result.OfHashtag hashtag && SearchResultsScreen.Opening(hashtag) is { } opening

@@ -360,26 +360,6 @@ public class ShellTrendsTests
         Assert.Equal("biscuit-1", thread.Picked?.Id);
     }
 
-    /// <summary>
-    ///     <c>⏎</c> on a trending link does nothing beyond picking it, until a link can be opened (#607): it asks
-    ///     nothing, and the prompt stays.
-    /// </summary>
-    [Fact]
-    public async Task Enter_OnATrendingLink_DoesNothingYet()
-    {
-        var built = Trending();
-        using var drawn = await Prompt(built);
-        var asked = built.Requests;
-
-        drawn.Press(new Key(']'));
-        drawn.Press(new Key(']'));
-        drawn.Press(Key.Enter);
-        drawn.Settle();
-
-        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
-        Assert.Equal(asked, built.Requests);
-    }
-
     /// <summary>A click on a trend picks it, the field giving up the letters; a double click opens it.</summary>
     [Fact]
     public async Task Click_PicksATrend_AndADoubleClickOpensIt()
@@ -589,7 +569,8 @@ public class ShellTrendsTests
 
     /// <summary>
     ///     On a trend, the status row offers the keys that do something on it: <c>⏎</c> on a hashtag, which opens, and
-    ///     not on a link, which does not yet; a post's keys on a post; and <c>/</c> back to the field on each.
+    ///     on a link with <c>o</c> for its article (#607); a post's keys on a post; and <c>/</c> back to the field on
+    ///     each.
     /// </summary>
     [Fact]
     public async Task Keys_OnATrend_OfferWhatActsOnIt()
@@ -609,8 +590,7 @@ public class ShellTrendsTests
 
         var onALink = opened.Keys.Select(key => $"{key.Key} {key.Does}").ToList();
 
-        Assert.Equal(["j/k trend", "[/] section", "/ search"], onALink.Take(3));
-        Assert.DoesNotContain(onALink, key => key.StartsWith("⏎", StringComparison.Ordinal));
+        Assert.Equal(["j/k trend", "[/] section", "⏎ open", "o article", "/ search"], onALink.Take(5));
 
         opened.Walk(1, reclaiming: null);
 
