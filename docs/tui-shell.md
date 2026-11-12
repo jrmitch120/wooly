@@ -338,7 +338,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Trending link | `o` opens the article itself in the browser · every key that acts on a post, as on any feed (#607) |
 | Search results | `[`/`]` section, where two or more kinds found something · `⏎` on a heading, or a click on it, pushes that kind alone (#604) |
 | Search narrowed | `⏎` opens what is picked, as on the results · every key that acts on a post, on a post · `esc` back to the results as they were left, asking nothing |
-| Trends narrowed | `⏎` opens what is picked, as under the prompt — a hashtag's tag, a post's thread; a link, nothing yet (#607) · every key that acts on a post, on a trending post, there being no field here to take letters · `/` a fresh prompt · `esc` back to the prompt with its query and trends as they were left, asking nothing (#606) |
+| Trends narrowed | `⏎` opens what is picked, as under the prompt — a hashtag's tag, a post's thread, a link's posts · `o` on a link opens the article itself in the browser (#607) · every key that acts on a post, on a trending post, there being no field here to take letters · `/` a fresh prompt · `esc` back to the prompt with its query and trends as they were left, asking nothing (#606) |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
 | Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts and read on as the page nears the end (#455, #467) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
@@ -572,8 +572,8 @@ not answer them differently:
     `Search › Trending hashtags` or `Search › Trending links`. It asks at the instance's maximum for the kind —
     forty posts, twenty hashtags or links (`TrendPage.Most`) — and reads on by offset as the reader scrolls, ending at
     a page that comes back short. Each kind is drawn there exactly as under the prompt. With no field on that screen,
-    letters are only keys: the post keys act on a trending post as on a feed, `⏎` opens a hashtag's tag or a post's
-    thread, and on a link it does nothing yet (#607). `esc` walks back to the prompt as it was left — its query
+    letters are only keys: the post keys act on a trending post as on a feed, `⏎` opens a hashtag's tag, a post's
+    thread or a link's posts, and `o` on a link its article (#607). `esc` walks back to the prompt as it was left — its query
     typed, its trends, the heading still picked — asking nothing; an empty first page says
     `Nothing trending on this instance`.
   - **The status row** offers the keys that do something on the picked row and nothing else: on the field `⏎ search`,

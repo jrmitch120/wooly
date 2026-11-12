@@ -170,8 +170,8 @@ public class ShellTrendScreensTests
 
     /// <summary>
     ///     The trending links' screen draws each link as under the prompt — its title, its description, then its site and
-    ///     how many people are sharing it, a blank between one and the next — and offers no <c>⏎</c> on one until a link
-    ///     can be opened (#607).
+    ///     how many people are sharing it, a blank between one and the next — and offers what a link offers there: to
+    ///     open it, and its article.
     /// </summary>
     [Fact]
     public async Task Links_AreDrawnAsUnderThePrompt()
@@ -184,7 +184,45 @@ public class ShellTrendScreensTests
         Assert.Equal(
             ["l1", "A study of keyboards and the cats who sit on them.", "Example News · 65 people sharing", "", "l2"],
             AShell.Drawn(opened.Screen).Take(5).Select(row => row.TrimEnd()));
-        Assert.DoesNotContain(opened.Keys, key => key.Key == "⏎");
+        Assert.Contains(opened.Keys, key => key is { Key: "⏎", Does: "open" });
+        Assert.Contains(opened.Keys, key => key is { Key: "o", Does: "article" });
+    }
+
+    /// <summary>
+    ///     A trending link on its kind's screen opens as it does under the prompt (#607): the posts sharing it, crumbed
+    ///     with its title.
+    /// </summary>
+    [Fact]
+    public async Task Enter_OnATrendingLinkOnItsScreen_OpensThePostsSharingIt()
+    {
+        var built = Trending(hashtags: 0, links: 3, posts: 0);
+        built.Timelines = FakeTimelineReader.ReadingOn([APost.With(id: "s1")]);
+        var opened = await built.Opened();
+
+        Opened(built, opened, "Trending links");
+        opened.Walk(1, reclaiming: null);
+        opened.Press(ShellKey.Enter);
+        built.Host.Drain();
+
+        Assert.Equal("Search › Trending links › l2", opened.Breadcrumb);
+        Assert.Equal(["s1"], Assert.IsType<FeedScreen>(opened.Screen).Posts.Select(post => post.Id));
+    }
+
+    /// <summary><c>o</c> on a trending link on its kind's screen opens the article itself, as under the prompt.</summary>
+    [Fact]
+    public async Task PressO_OnATrendingLinkOnItsScreen_OpensTheArticle()
+    {
+        var built = Trending(hashtags: 0, links: 2, posts: 0);
+        var opened = await built.Opened();
+
+        Opened(built, opened, "Trending links");
+        var asked = built.Requests;
+        opened.Press(ShellKey.O);
+        built.Host.Drain();
+
+        Assert.Equal("https://news.example/l1", Assert.Single(built.Browser.Opened).ToString());
+        Assert.IsType<SectionScreen>(opened.Screen);
+        Assert.Equal(asked, built.Requests);
     }
 
     /// <summary>

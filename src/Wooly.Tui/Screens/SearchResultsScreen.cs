@@ -167,7 +167,9 @@ public sealed class SearchResultsScreen : Screen
 
     /// <summary>
     ///     What a result opens as, wherever it was found — here or on the screen of its kind alone: an account, a
-    ///     hashtag's timeline, or a post's thread — or nothing for a heading, which only the screen it heads can open.
+    ///     hashtag's timeline, or a post's thread — or nothing for a heading, which only the screen it heads can open. A
+    ///     <b>Trending link</b>, which only the trends hold, opens as the posts sharing it (#607), on the screen of
+    ///     trending links alone as under the prompt (#606).
     /// </summary>
     /// <remarks>
     ///     A hashtag opens as a screen on the stack rather than as a place on the rail. Which tags the rail keeps
@@ -179,6 +181,7 @@ public sealed class SearchResultsScreen : Screen
         Result.OfAccount(var account) => Opening(account),
         Result.OfHashtag(var hashtag) => new Subject.Tag(hashtag.Name),
         Result.OfPost(var post) => new Subject.Thread(post),
+        Result.OfLink(var link) => new Subject.Sharing(link),
         _ => null,
     };
 

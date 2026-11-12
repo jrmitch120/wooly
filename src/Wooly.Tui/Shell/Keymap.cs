@@ -271,8 +271,10 @@ public static class Keymap
         (ShellKey.O, ActorsScreen { Of: ActorsOf.PostSide { Page: not null } }) => Verb.OpenPostPage,
 
         // And o on a trending link, or on the posts sharing one, the other place it opens something elsewhere: the
-        // article itself (#607). The link opens as its posts, and the article is this one key away from either.
-        (ShellKey.O, SearchScreen { PickedLink: not null } or FeedScreen { Article: not null }) => Verb.OpenArticle,
+        // article itself (#607). The link opens as its posts, and the article is this one key away from either — and
+        // from a trending link on the screen of trending links alone (#606).
+        (ShellKey.O, SearchScreen { PickedLink: not null } or SectionScreen { PickedLink: not null }
+            or FeedScreen { Article: not null }) => Verb.OpenArticle,
 
         // And s again on the account screen, where it swaps runs rather than sides: their posts and replies, and back
         // to their posts alone (#229). Still bound only where it does something, and announced where it is.

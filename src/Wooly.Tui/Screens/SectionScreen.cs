@@ -72,8 +72,8 @@ public sealed class SectionScreen : Screen, IReadsOn<Result>
     /// <inheritdoc />
     /// <remarks>
     ///     The keys the section offered on the screen it was opened from, but for <c>[</c> and <c>]</c>, there being one
-    ///     section here and nowhere to jump to — and <c>⏎</c> only where what is picked opens, which a trending link
-    ///     does not yet (#607).
+    ///     section here and nowhere to jump to — and <c>o</c> on a trending link, for the article itself, as under the
+    ///     prompt (#607).
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys
     {
@@ -87,9 +87,8 @@ public sealed class SectionScreen : Screen, IReadsOn<Result>
                 :
                 [
                     moving,
-                    .. _results.Out is Result.OfLink
-                        ? Array.Empty<KeyHint>()
-                        : [new KeyHint("⏎", "open", NeedsAPick: true)],
+                    new KeyHint("⏎", "open", NeedsAPick: true),
+                    .. PickedLink is not null ? [FeedScreen.OpeningTheArticle] : Array.Empty<KeyHint>(),
                     searching,
                     .. PostKeys.Leaving(PostKeys.AlongTheRail),
                 ];
@@ -117,6 +116,9 @@ public sealed class SectionScreen : Screen, IReadsOn<Result>
     /// <inheritdoc />
     public override IEnumerable<Mentionable> Seen => [.. Accounts.Select(Mentionable.Of), .. Mentionable.In(Posts)];
 
+    /// <summary>The trending link picked out, or <see langword="null" /> where the pick is on anything else.</summary>
+    public TrendingLink? PickedLink => _results.Out is Result.OfLink(var link) ? link : null;
+
     /// <inheritdoc />
     /// <remarks>The post picked out, so the post keys mean here what they mean on a feed.</remarks>
     public override Post? Picked => _results.Out is Result.OfPost(var post) ? post : null;
@@ -133,9 +135,19 @@ public sealed class SectionScreen : Screen, IReadsOn<Result>
     public void ReadOn(IReadOnlyList<Result> older) =>
         _results.PutUnder(older.Where(result => !_results.All.Any(held => held.IsSameAs(result))));
 
-    /// <summary>What this screen's own <c>⏎</c> does: opens what is picked out, as on the screen it was opened from.</summary>
+    /// <summary>
+    ///     What this screen's own <c>⏎</c> does: opens what is picked out, as on the screen it was opened from — and
+    ///     <c>o</c> on a trending link, which opens the article itself in the browser (#607).
+    /// </summary>
     public override Task Answer(Verb verb, Reach reach)
     {
+        if (verb == Verb.OpenArticle && PickedLink is { } article)
+        {
+            reach.Browse(article.Url);
+
+            return Task.CompletedTask;
+        }
+
         if (verb != Verb.OpenResult)
         {
             return Task.CompletedTask;
