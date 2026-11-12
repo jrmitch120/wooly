@@ -931,6 +931,83 @@ public abstract record Subject
     }
 
     /// <summary>
+    ///     One kind of <b>Trend</b> alone (#606): the instance's trending hashtags, links or posts, a page of the most it
+    ///     serves of the kind at a time — forty posts, or twenty hashtags or links — and <b>read on</b> by offset as the
+    ///     page nears the end of what is in hand. Opened from the kind's heading under the empty prompt, which shows ten,
+    ///     or three.
+    /// </summary>
+    /// <remarks>
+    ///     Never held, as the trends under the prompt are not: what is trending is the instance's answer now.
+    /// </remarks>
+    /// <param name="Kind">Which kind of trend.</param>
+    public sealed record TrendsOf(TrendKind Kind) : Subject
+    {
+        /// <inheritdoc />
+        internal override async Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing)
+        {
+            var read = await ask.Of(token => Page(ports, profile, from: null, token));
+
+            return new Found.Drawn(() => new SectionScreen(Kind, read.Items, "Nothing trending on this instance")
+            {
+                ReadingOn = new ReadingOn(read.Onward),
+            });
+        }
+
+        /// <inheritdoc />
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
+            new OnwardRead<Result>((ports, profile, at, token) => Page(ports, profile, at, token))
+                .From(ask, ports, profile, from);
+
+        /// <summary>
+        ///     The page of the kind <paramref name="from" /> says, or the first — asked by offset, as every trends
+        ///     endpoint pages.
+        /// </summary>
+        private Task<Fetch<Result>> Page(
+            ShellPorts ports,
+            ActiveProfile profile,
+            Onward? from,
+            CancellationToken token) =>
+            OffsetReading.Read(
+                TrendPage.Most(Kind),
+                from,
+                async (limit, offset, asking) =>
+                {
+                    var page = TrendPage.Of(limit, offset);
+
+                    IReadOnlyList<Result> trends = Kind switch
+                    {
+                        TrendKind.Hashtags =>
+                        [
+                            .. (await ports.Trends.Hashtags(profile, page, asking))
+                            .Select(Result (hashtag) => new Result.OfHashtag(hashtag)),
+                        ],
+                        TrendKind.Links =>
+                        [
+                            .. (await ports.Trends.Links(profile, page, asking))
+                            .Select(Result (link) => new Result.OfLink(link)),
+                        ],
+                        _ =>
+                        [
+                            .. (await ports.Trends.Posts(profile, page, asking))
+                            .Select(Result (post) => new Result.OfPost(post)),
+                        ],
+                    };
+
+                    return trends;
+                },
+                token);
+    }
+
+    /// <summary>
     ///     One conversation and what was said in it — the thread its last post is in, oldest first. Named by the
     ///     conversation's own id, which is not the id of any post in it (GLOSSARY.md).
     /// </summary>

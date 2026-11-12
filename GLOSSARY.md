@@ -790,7 +790,8 @@ way of *reading* a list rather than a way of holding one. A heading carries how 
 fact (`── 7 accounts ──`), or `N+` where it is a page the instance served full (`── 20+ posts ──`); a run with
 nothing in it draws no heading, and so is no section. On a search's results a heading is itself walked to and opened:
 `⏎` or a click pushes that section alone, crumbed `Search › cats › Posts`, where it is **read on** past the preview
-(#604). `[` and `]` still land on a section's first thing, never its heading.
+(#604) — as a trends heading under the empty prompt pushes that kind of **Trend** alone, crumbed
+`Search › Trending posts` (#606). `[` and `]` still land on a section's first thing, never its heading.
 _Avoid_: kind (which is what a search result *is*, not where it sits), tab, group, category, fold
 
 **Reference**:

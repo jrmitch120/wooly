@@ -364,12 +364,13 @@ public class ScreenKeyTests
             case "search-typing":
                 return new SearchScreen("mastodon.social");
 
-            // A trending post under the search prompt's field, picked: post keys act on it there (#605).
+            // A trending post under the search prompt's field, picked: post keys act on it there (#605) — past the
+            // heading over it, which is walked too (#606).
             case "trend-post":
                 var prompt = new SearchScreen("mastodon.social");
 
                 prompt.Trending([], [], [post]);
-                prompt.Move(1);
+                prompt.Move(2);
 
                 return prompt;
 

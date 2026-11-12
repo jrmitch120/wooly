@@ -51,10 +51,13 @@ internal static class ResultLines
     ///     blocks laid end to end being what runs together (#180, #198). Hashtags take nothing at all: one row apiece
     ///     under a heading that has already said how many there are, where a separator per row would spend as many
     ///     rows on the gaps as on the tags and the gutter already says which one is picked out.
+    ///     <para>
+    ///         A <b>Trending link</b> takes a blank too: three rows apiece, links run together without one (#605).
+    ///     </para>
     /// </remarks>
     public static IReadOnlyList<Line> Between(Result result) => result switch
     {
-        Result.OfAccount => [Line.Blank],
+        Result.OfAccount or Result.OfLink => [Line.Blank],
         Result.OfHashtag => [],
         _ => [Line.Rule()],
     };

@@ -9,7 +9,8 @@ namespace Wooly.Tui.Screens;
 ///     One thing a search turned up, as the screen walks them: an account, a hashtag, or a post — or the heading over a
 ///     run of one of the three, which is walked to and opened like any of them (#604). And what the empty prompt walks
 ///     besides: its own field, at the top, and the <b>Trend</b>s under it — a trending hashtag or post being a hashtag
-///     or a post like any search finds, and a <b>Trending link</b> the one kind of its own (#605).
+///     or a post like any search finds, and a <b>Trending link</b> the one kind of its own (#605) — and the heading over
+///     each run of them, walked to and opened as a search's are (#606).
 /// </summary>
 /// <remarks>
 ///     One list rather than the three <see cref="SearchResults" /> holds, because what <c>j</c> and <c>k</c> walk is
@@ -62,6 +63,14 @@ public abstract record Result
     public sealed record Section(SearchKind Kind) : Result;
 
     /// <summary>
+    ///     The heading over the run of <paramref name="Kind" /> under the empty prompt: in the walk for the reason a
+    ///     search's heading is, so that it can be picked out and opened — which pushes that kind of trend alone, read on
+    ///     past the few the prompt shows (#606).
+    /// </summary>
+    /// <param name="Kind">Which kind of trend the run under it is.</param>
+    public sealed record TrendSection(TrendKind Kind) : Result;
+
+    /// <summary>
     ///     Whether this is the same thing as <paramref name="other" />, as the instance names it — the same account, the
     ///     same tag, the same post — however what it says of it has changed between two answers.
     /// </summary>
@@ -77,6 +86,7 @@ public abstract record Result
         (OfLink(var one), OfLink(var two)) => one.Url == two.Url,
         (Field, Field) => true,
         (Section(var one), Section(var two)) => one == two,
+        (TrendSection(var one), TrendSection(var two)) => one == two,
         _ => false,
     };
 }

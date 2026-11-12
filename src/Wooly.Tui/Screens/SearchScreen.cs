@@ -84,10 +84,23 @@ public sealed class SearchScreen : Screen
     public bool OnTheField => _walk.Out is Result.Field;
 
     /// <summary>
-    ///     Whether the first trend is picked out — the one <c>↑</c> walks up from onto the field, as <c>↓</c> walks down
-    ///     to it from the field.
+    ///     Whether the first trend is picked out, or the heading over it — what <c>↑</c> walks up from onto the field, as
+    ///     <c>↓</c> walks down from the field to the first trend, passing over its heading (#606).
     /// </summary>
-    public bool OnTheFirstTrend => _walk.At == 1 && _walk.Count > 1;
+    /// <remarks>
+    ///     The heading over the first run is the walk's second row and the first trend its third, every run having a
+    ///     heading over it.
+    /// </remarks>
+    public bool OnTheFirstTrend => _walk.At is 1 or 2 && _walk.Count > 2;
+
+    /// <summary>
+    ///     The kind whose heading is picked out, or <see langword="null" /> where the pick is on the field or on a trend
+    ///     rather than on a heading.
+    /// </summary>
+    public TrendKind? PickedSection => _walk.Out is Result.TrendSection(var kind) ? kind : null;
+
+    /// <summary>Which row of the walk is picked out, counted from the field at the top, the headings among them.</summary>
+    public int At => _walk.At;
 
     /// <summary>The trending hashtags under the prompt.</summary>
     public IReadOnlyList<Hashtag> Hashtags => [.. _walk.All.OfType<Result.OfHashtag>().Select(one => one.Hashtag)];
@@ -163,7 +176,9 @@ public sealed class SearchScreen : Screen
             [
                 moving,
                 .. jumping,
-                .. PickedHashtag is not null ? [new KeyHint("⏎", "open")] : Array.Empty<KeyHint>(),
+                .. PickedHashtag is not null || PickedSection is not null
+                    ? [new KeyHint("⏎", "open")]
+                    : Array.Empty<KeyHint>(),
                 searching,
                 .. PostKeys.Leaving(PostKeys.AlongTheRail),
             ];
@@ -193,22 +208,36 @@ public sealed class SearchScreen : Screen
     }
 
     /// <summary>
-    ///     The trends read for this prompt, under its field in the order they are drawn — the pick left where it was,
-    ///     which is on the field: the reader may already be typing.
+    ///     The trends read for this prompt, under its field in the order they are drawn, each run under its heading — the
+    ///     pick left where it was, which is on the field: the reader may already be typing.
     /// </summary>
+    /// <remarks>
+    ///     A kind with nothing trending gets no heading, rather than a heading over nothing, as on a search's results.
+    /// </remarks>
     internal void Trending(IReadOnlyList<Hashtag> hashtags, IReadOnlyList<TrendingLink> links, IReadOnlyList<Post> posts)
     {
         var at = _walk.At;
 
         _walk = new Picked<Result>([
             new Result.Field(),
-            .. hashtags.Select(Result (hashtag) => new Result.OfHashtag(hashtag)),
-            .. links.Select(Result (link) => new Result.OfLink(link)),
-            .. posts.Select(Result (post) => new Result.OfPost(post)),
+            .. Run(TrendKind.Hashtags, hashtags.Select(Result (hashtag) => new Result.OfHashtag(hashtag))),
+            .. Run(TrendKind.Links, links.Select(Result (link) => new Result.OfLink(link))),
+            .. Run(TrendKind.Posts, posts.Select(Result (post) => new Result.OfPost(post))),
         ]);
 
         _walk.Pick(at);
         _read = true;
+    }
+
+    /// <summary>
+    ///     <paramref name="trends" /> under the heading over <paramref name="kind" />, or nothing at all where nothing of
+    ///     it is trending.
+    /// </summary>
+    private static IEnumerable<Result> Run(TrendKind kind, IEnumerable<Result> trends)
+    {
+        var run = trends.ToList();
+
+        return run.Count == 0 ? [] : [new Result.TrendSection(kind), .. run];
     }
 
     /// <summary>
@@ -315,14 +344,20 @@ public sealed class SearchScreen : Screen
 
     /// <summary>
     ///     What this screen's own <c>⏎</c> does, with a trend picked — the field takes its own: a trending hashtag opens
-    ///     its timeline and a trending post its thread, as a search's results open them. A trending link does nothing
-    ///     beyond being picked until a link can be opened (#607).
+    ///     its timeline and a trending post its thread, as a search's results open them, and a heading that kind of
+    ///     trend alone, read on past the few shown here (#606). A trending link does nothing beyond being picked until a
+    ///     link can be opened (#607).
     /// </summary>
     public override Task Answer(Verb verb, Reach reach)
     {
         if (verb != Verb.OpenResult)
         {
             return Task.CompletedTask;
+        }
+
+        if (PickedSection is { } kind)
+        {
+            return reach.Open(new Subject.TrendsOf(kind));
         }
 
         // A post opens through Opens rather than straight off the trend, as on every screen holding posts.
@@ -335,6 +370,16 @@ public sealed class SearchScreen : Screen
             ? reach.Open(opening)
             : Task.CompletedTask;
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     A click on a heading opens it, as <c>⏎</c> on it would — as a click on a search's heading does (#604) — a
+    ///     heading being picked out only to be opened.
+    /// </remarks>
+    public override Verb Clicked(int? item, int? part, bool chorded) =>
+        item is { } at && at < _walk.Count && _walk.All[at] is Result.TrendSection
+            ? Verb.OpenResult
+            : base.Clicked(item, part, chorded);
 
     /// <inheritdoc />
     public override bool Heard(Change change)
@@ -380,15 +425,20 @@ public sealed class SearchScreen : Screen
         {
             var trend = _walk.All[at];
 
-            if (at == 1 || KindOf(trend) != KindOf(_walk.All[at - 1]))
+            if (trend is Result.TrendSection(var kind))
             {
+                // Walked to and opened like a trend, so drawn as one of the walk's own rows: picked out by the bar as
+                // anything picked is, and part of a thing a click can land on (#606).
                 lines.Add(Line.Blank);
-                lines.Add(Unstamped(TrendLines.Heading(KindOf(trend), room)));
+                lines.AddRange(_walk.RowsOf(at, width, (_, _, inside) => [TrendLines.Heading(kind, inside)]));
                 lines.Add(Line.Blank);
+
+                continue;
             }
-            else
+
+            if (_walk.All[at - 1] is not Result.TrendSection)
             {
-                lines.AddRange(Between(trend));
+                lines.AddRange(ResultLines.Between(trend));
             }
 
             lines.AddRange(_walk.RowsOf(at, width, (found, where, inside) => found switch
@@ -445,20 +495,10 @@ public sealed class SearchScreen : Screen
     /// <summary>A row that is part of nothing, behind a blank gutter so that it lines up with the rows that are.</summary>
     private static Line Unstamped(Line line) => line.After(new Span(" ", Role.Body));
 
-    /// <summary>
-    ///     What stands between two trends of the same kind: nothing between hashtags, a blank between links, which are
-    ///     three rows apiece and run together without one, and the rule a feed puts between posts.
-    /// </summary>
-    private static IReadOnlyList<Line> Between(Result trend) => trend switch
-    {
-        Result.OfHashtag => [],
-        Result.OfLink => [Line.Blank],
-        _ => [Line.Rule()],
-    };
-
-    /// <summary>Which kind of trend <paramref name="trend" /> is.</summary>
+    /// <summary>Which kind of trend <paramref name="trend" /> is, or heads.</summary>
     private static TrendKind KindOf(Result trend) => trend switch
     {
+        Result.TrendSection(var kind) => kind,
         Result.OfHashtag => TrendKind.Hashtags,
         Result.OfLink => TrendKind.Links,
         _ => TrendKind.Posts,

@@ -221,7 +221,7 @@ public class ShellTrendsTests
 
     /// <summary>
     ///     With a trend picked, letters are keys: <c>k</c> walks on to the next trend and <c>j</c> back, onto the field
-    ///     from the first — none of them typed.
+    ///     from the heading over the first — none of them typed.
     /// </summary>
     [Fact]
     public async Task Letters_OnATrend_WalkRatherThanType()
@@ -235,6 +235,11 @@ public class ShellTrendsTests
         Assert.Equal("SilentSunday", prompt.PickedHashtag?.Name);
 
         drawn.Press(Key.J);
+        drawn.Press(Key.J);
+
+        // The heading over the hashtags is walked to on the way, being a thing of the walk (#606).
+        Assert.Equal(TrendKind.Hashtags, prompt.PickedSection);
+
         drawn.Press(Key.J);
 
         Assert.True(prompt.OnTheField);
@@ -599,20 +604,20 @@ public class ShellTrendsTests
 
         opened.Search();
         shell.Host.Drain();
-        opened.Walk(1, reclaiming: null);
+        opened.Walk(2, reclaiming: null);
 
         var onAHashtag = opened.Keys.Select(key => $"{key.Key} {key.Does}").ToList();
 
         Assert.Equal(["j/k trend", "[/] section", "⏎ open", "/ search"], onAHashtag.Take(4));
 
-        opened.Walk(2, reclaiming: null);
+        opened.Walk(3, reclaiming: null);
 
         var onALink = opened.Keys.Select(key => $"{key.Key} {key.Does}").ToList();
 
         Assert.Equal(["j/k trend", "[/] section", "/ search"], onALink.Take(3));
         Assert.DoesNotContain(onALink, key => key.StartsWith("⏎", StringComparison.Ordinal));
 
-        opened.Walk(1, reclaiming: null);
+        opened.Walk(2, reclaiming: null);
 
         var onAPost = opened.Keys.Select(key => key.Key).ToList();
 
