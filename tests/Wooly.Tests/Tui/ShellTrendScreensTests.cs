@@ -286,7 +286,7 @@ public class ShellTrendScreensTests
         using var drawn = await Prompt(Trending(hashtags: 2, links: 1, posts: 3));
 
         drawn.Type("cat");
-        drawn.Click(ContentClicks.OverContent, ContentClicks.RowOf(drawn, "── Trending posts ──"));
+        drawn.Click(ContentClicks.OverContent, ContentClicks.RowOf(drawn, "── 3+ trending posts ──"));
         drawn.Settle();
 
         Assert.Equal("Search › Trending posts", drawn.Shell.Breadcrumb);
@@ -306,7 +306,7 @@ public class ShellTrendScreensTests
     {
         using var drawn = await Prompt(Trending(hashtags: 2, links: 1, posts: 3));
 
-        drawn.Click(ContentClicks.OverContent, ContentClicks.RowOf(drawn, "── Trending hashtags ──"));
+        drawn.Click(ContentClicks.OverContent, ContentClicks.RowOf(drawn, "── 2 trending hashtags ──"));
         drawn.Settle();
 
         Assert.Equal("Search › Trending hashtags", drawn.Shell.Breadcrumb);
@@ -324,7 +324,7 @@ public class ShellTrendScreensTests
     {
         using var drawn = await Prompt(Trending(hashtags: 2, links: 1, posts: 3));
 
-        drawn.DoubleClick(ContentClicks.OverContent, ContentClicks.RowOf(drawn, "── Trending links ──"));
+        drawn.DoubleClick(ContentClicks.OverContent, ContentClicks.RowOf(drawn, "── 1 trending links ──"));
         drawn.Settle();
 
         Assert.Equal("Search › Trending links", drawn.Shell.Breadcrumb);
@@ -368,7 +368,7 @@ public class ShellTrendScreensTests
 
         shell.Walk(-prompt.At, reclaiming: null);
 
-        while (PickedRow(prompt) is not { } row || !row.Contains($"── {called} ──", StringComparison.Ordinal))
+        while (PickedRow(prompt) is not { } row || !row.Contains($" {called.ToLowerInvariant()} ──", StringComparison.Ordinal))
         {
             var at = prompt.At;
             shell.Walk(1, reclaiming: null);

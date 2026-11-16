@@ -73,6 +73,25 @@ internal static class ResultLines
     };
 
     /// <summary>
+    ///     The heading over a run <paramref name="called" />: what it is, with how many stand under it — the
+    ///     <c>── {n} replies ──</c> vocabulary the post screen already speaks — or <c>{n}+</c> where the instance served as
+    ///     many as it was asked for, which is it saying there may be more than it served (#604). One way for a search's
+    ///     headings and the trends' under the prompt alike (#598's review).
+    /// </summary>
+    /// <remarks>
+    ///     Marked as a heading rather than only drawn like one, which is what <c>[</c> and <c>]</c> move between and
+    ///     what a jump brings onto the page with the thing it lands on (<see cref="Sections" />). Counted against what
+    ///     was asked for rather than equal to it: an instance puts an exact-match hashtag ahead of the twenty it ranked
+    ///     (#599), and the count says what is held — <c>21+</c>.
+    /// </remarks>
+    /// <param name="called">What the run is called, plural and lower case.</param>
+    /// <param name="held">How many stand under the heading.</param>
+    /// <param name="asked">How many of the kind were asked for.</param>
+    /// <param name="room">How wide it is drawn.</param>
+    public static Line Heading(string called, int held, int asked, int room) =>
+        Line.Of(TextWrap.Clip($"── {held}{(held >= asked ? "+" : "")} {called} ──", room), Role.Muted).Heading();
+
+    /// <summary>
     ///     What a kind of result is called, plural and lower case — what a heading over a run of them says, and what
     ///     the screen of that kind alone is crumbed with, capitalised.
     /// </summary>

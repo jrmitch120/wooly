@@ -55,12 +55,40 @@ public class ShellTrendsTests
         var drawn = AShell.Drawn(opened.Screen);
         int Row(string text) => drawn.ToList().FindIndex(row => row.Contains(text, StringComparison.Ordinal));
 
-        Assert.True(Row("╰") < Row("── Trending hashtags ──"), string.Join('\n', drawn));
-        Assert.True(Row("── Trending hashtags ──") < Row("#caturday"), string.Join('\n', drawn));
-        Assert.True(Row("#caturday") < Row("── Trending links ──"), string.Join('\n', drawn));
-        Assert.True(Row("── Trending links ──") < Row("Cats learn to type"), string.Join('\n', drawn));
-        Assert.True(Row("Cats learn to type") < Row("── Trending posts ──"), string.Join('\n', drawn));
-        Assert.True(Row("── Trending posts ──") < Row("Biscuit knocked the pen"), string.Join('\n', drawn));
+        Assert.True(Row("╰") < Row("── 1 trending hashtags ──"), string.Join('\n', drawn));
+        Assert.True(Row("── 1 trending hashtags ──") < Row("#caturday"), string.Join('\n', drawn));
+        Assert.True(Row("#caturday") < Row("── 1 trending links ──"), string.Join('\n', drawn));
+        Assert.True(Row("── 1 trending links ──") < Row("Cats learn to type"), string.Join('\n', drawn));
+        Assert.True(Row("Cats learn to type") < Row("── 1 trending posts ──"), string.Join('\n', drawn));
+        Assert.True(Row("── 1 trending posts ──") < Row("Biscuit knocked the pen"), string.Join('\n', drawn));
+    }
+
+    /// <summary>
+    ///     Each heading says how many trends stand under it, as a search's headings do — and <c>N+</c> where the instance
+    ///     served as many as the prompt asked of that kind, which is it saying there may be more, a heading being where
+    ///     more is read (#598: "A heading's count says <c>N+</c> where the page came back full").
+    /// </summary>
+    [Fact]
+    public async Task Headings_SayHowManyStandUnderThem_AndMoreWhereTheInstanceServedAFullPage()
+    {
+        var shell = new AShell
+        {
+            Trends = FakeTrends.Trending(
+                hashtags: [.. Enumerable.Range(1, 12).Select(at => AHashtag.With($"tag{at}"))],
+                posts: [.. Enumerable.Range(1, 3).Select(at => APost.With(id: $"{at}"))],
+                links: [ATrendingLink.With(url: "https://a.example/1"), ATrendingLink.With(url: "https://a.example/2")]),
+        };
+        var opened = await shell.Opened();
+
+        opened.Search();
+        shell.Host.Drain();
+
+        var headings = AShell.Drawn(opened.Screen).Where(row => row.Contains("──", StringComparison.Ordinal)
+                                                               && row.Contains("trending", StringComparison.Ordinal));
+
+        Assert.Equal(
+            ["── 10+ trending hashtags ──", "── 2 trending links ──", "── 3+ trending posts ──"],
+            headings.Select(row => row.Trim()));
     }
 
     /// <summary>

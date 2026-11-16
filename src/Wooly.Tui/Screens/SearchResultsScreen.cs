@@ -22,9 +22,9 @@ namespace Wooly.Tui.Screens;
 ///         #604).
 ///     </para>
 ///     <para>
-///         No <see cref="Screen.Subject" />, as the prompt has none: a live search is its own question rather than a
-///         subject <c>g</c> could ask again, and asking it again is <c>esc</c> and <c>⏎</c> (#84). What it holds is what
-///         the prompt's question found, handed to it whole.
+///         No <see cref="Screen.Subject" />, the prompt's being its trends rather than the search: a live search is its
+///         own question rather than a subject <c>g</c> could ask again, and asking it again is <c>esc</c> and <c>⏎</c>
+///         (#84). What it holds is what the prompt's question found, handed to it whole.
 ///     </para>
 /// </remarks>
 public sealed class SearchResultsScreen : Screen
@@ -292,26 +292,18 @@ public sealed class SearchResultsScreen : Screen
     }
 
     /// <summary>
-    ///     The heading over the run of <paramref name="kind" />: what it is called, with how many were found — the
-    ///     <c>── {n} replies ──</c> vocabulary the post screen already speaks — or <c>{n}+</c> where the instance served
-    ///     as many as it was asked for, which is it saying there may be more than it served (#604).
+    ///     The heading over the run of <paramref name="kind" />, counted against the <see cref="PerKind" /> asked
+    ///     (<see cref="ResultLines.Heading" />). Part of the walk, so that it can be picked out and opened, which pushes
+    ///     the kind alone.
     /// </summary>
     /// <remarks>
-    ///     Marked as a heading rather than only drawn like one, which is what <c>[</c> and <c>]</c> move between and
-    ///     what a jump brings onto the page with the result it lands on: the runs the reader can see are then the runs
-    ///     the key knows about, with no second count of them kept anywhere (<see cref="Sections" />). And part of the
-    ///     walk, so that it can be picked out and opened, which pushes the kind alone.
-    ///     <para>
-    ///         The count costs nothing, being in hand already, and it tells a reader whether the run below is worth
-    ///         walking, worth jumping past, or worth opening for more (#166). Counted against what was asked for
-    ///         rather than equal to it: an instance puts an exact-match hashtag ahead of the twenty it ranked (#599).
-    ///     </para>
+    ///     The count costs nothing, being in hand already, and it tells a reader whether the run below is worth walking,
+    ///     worth jumping past, or worth opening for more (#166).
     /// </remarks>
-    private Line Heading(SearchKind kind, int room)
-    {
-        var found = _results.All.Count(one => one is not Result.Section && ResultLines.KindOf(one) == kind);
-        var more = found >= PerKind ? "+" : "";
-
-        return Line.Of(TextWrap.Clip($"── {found}{more} {ResultLines.Called(kind)} ──", room), Role.Muted).Heading();
-    }
+    private Line Heading(SearchKind kind, int room) =>
+        ResultLines.Heading(
+            ResultLines.Called(kind),
+            _results.All.Count(one => one is not Result.Section && ResultLines.KindOf(one) == kind),
+            PerKind,
+            room);
 }

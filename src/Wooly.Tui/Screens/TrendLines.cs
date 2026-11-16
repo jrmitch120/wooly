@@ -21,13 +21,18 @@ internal static class TrendLines
     /// <summary>How far a hashtag's name stands off its count, at the least, so the two never run together.</summary>
     private const int Gap = 2;
 
-    /// <summary>The heading over the run of <paramref name="kind" />: what it is, and no count (#602).</summary>
-    /// <remarks>
-    ///     No count, unlike a search's headings: the instance was asked for a fixed number of each, so a count would say
-    ///     the number asked for back, and nothing about whether there is more.
-    /// </remarks>
-    public static Line Heading(TrendKind kind, int room) =>
-        Line.Of(TextWrap.Clip($"── {Called(kind)} ──", room), Role.Muted).Heading();
+    /// <summary>
+    ///     The heading over the run of <paramref name="kind" /> under the prompt: what it is, with how many stand under
+    ///     it — or <c>{n}+</c> where the instance served as many as the prompt asked of the kind, which is it saying there
+    ///     may be more, the heading being where more is read (#606, #598's review).
+    /// </summary>
+    /// <remarks>Counted as a search's headings are counted (<see cref="ResultLines.Heading" />), so the two read alike.</remarks>
+    /// <param name="kind">Which kind of trend the run is.</param>
+    /// <param name="held">How many of it stand under the heading.</param>
+    /// <param name="asked">How many of it the prompt asked for.</param>
+    /// <param name="room">How wide it is drawn.</param>
+    public static Line Heading(TrendKind kind, int held, int asked, int room) =>
+        ResultLines.Heading(Called(kind).ToLowerInvariant(), held, asked, room);
 
     /// <summary>
     ///     What a run of <paramref name="kind" /> is called — <c>Trending hashtags</c> rather than the CLI's

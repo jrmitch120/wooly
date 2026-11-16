@@ -45,6 +45,14 @@ public sealed class SearchScreen : Screen
     /// </summary>
     public const int TrendingPosts = 3;
 
+    /// <summary>How many of <paramref name="kind" /> the prompt asks for, and so shows at most — what its heading counts against.</summary>
+    public static int Asked(TrendKind kind) => kind switch
+    {
+        TrendKind.Hashtags => TrendingHashtags,
+        TrendKind.Links => TrendingLinks,
+        _ => TrendingPosts,
+    };
+
     /// <summary>What an empty field says, dimly, of what it takes.</summary>
     public const string Placeholder = "A word, a #hashtag, an @account, or a link";
 
@@ -442,9 +450,12 @@ public sealed class SearchScreen : Screen
             if (trend is Result.TrendSection(var kind))
             {
                 // Walked to and opened like a trend, so drawn as one of the walk's own rows: picked out by the bar as
-                // anything picked is, and part of a thing a click can land on (#606).
+                // anything picked is, and part of a thing a click can land on (#606). Counted as a search's headings are,
+                // and against what the prompt asked of the kind.
+                var held = _walk.All.Count(one => one is not Result.TrendSection and not Result.Field && KindOf(one) == kind);
+
                 lines.Add(Line.Blank);
-                lines.AddRange(_walk.RowsOf(at, width, (_, _, inside) => [TrendLines.Heading(kind, inside)]));
+                lines.AddRange(_walk.RowsOf(at, width, (_, _, inside) => [TrendLines.Heading(kind, held, Asked(kind), inside)]));
                 lines.Add(Line.Blank);
 
                 continue;

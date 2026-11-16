@@ -518,8 +518,10 @@ not answer them differently:
   else a click on the destination shown and on its crumb both walk back out to it as it was left (#289, #308), but a
   prompt is not a list the reader was part way down, so the rail starts a search and the crumb comes back to one. The
   results walk, open and move between sections exactly as they did when they shared a screen with the prompt, and the
-  status row offers the same keys. Neither has a **Subject**: a live search is its own question, which `esc` and `⏎`
-  ask again, and `g` does nothing on either (#84). The results are handed what the prompt's question found and pushed
+  status row offers the same keys. The prompt's **Subject** is its trends (`Subject.Trending`, #605), read afresh on
+  every arrival and never cached; the results have none, a live search being its own question, which `esc` and `⏎`
+  ask again. Neither refreshes, so `g` does nothing on either (#84) — nor on a narrowed search or a kind of trend alone
+  (`Subject.Narrowed`, `Subject.TrendsOf`), whose subjects say only how they read on. The results are handed what the prompt's question found and pushed
   through `Reach.Push`, over the prompt that asked and only while it is still in front.
 - **The search field is a real one-line text field** (#608), laid inside the prompt's box as compose's content warning
   is laid over its header (#320, ADR-0030), so a query is edited rather than only added to and backspaced from the end:
@@ -562,10 +564,11 @@ not answer them differently:
   - **The rows.** A hashtag is one row: the tag, and how many people used it in recent days, the count against the
     right edge so that the counts stand in one column however long the tags are. A link is three rows — its title,
     its description (muted; left out where the article said nothing), then `site · N people sharing` (the link's host
-    where the site did not name itself) — with a blank
-    between links and no picture. A post is the ordinary post block, a rule between posts. Each kind's run is headed
-    `── Trending hashtags ──`, `── Trending links ──`, `── Trending posts ──`, with no count: the instance was asked
-    for a fixed number, so a count would only say the ask back. Every column is worked out from the room a row has,
+    where the site did not name itself) — with a blank between links and no picture. A post is the ordinary post
+    block, a rule between posts. Each kind's run is headed with how many stand under it, as a search's runs are —
+    `── 10+ trending hashtags ──`, `── 4 trending links ──`, `── 3+ trending posts ──` — `N+` where the instance served
+    as many as the prompt asked of the kind (ten, ten, three), which says there may be more and that the heading is
+    where they are read (`ResultLines.Heading`, one way for both). Every column is worked out from the room a row has,
     never from what is in it, so nothing on the page moves as the trends change.
   - **A heading opens more of its kind** (#606), as a search's does (#604). The headings are rows of the walk —
     `Result.TrendSection` ahead of each run, gutter and all — so `⏎` on one, or a click on it, pushes that kind of

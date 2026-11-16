@@ -695,11 +695,15 @@ _Avoid_: event, update, invalidation
 **Subject**:
 What a screen that is read is read from, as a value: a **destination** on the rail, a post's thread, an account (and
 whether with its replies), one side of an account's **Follow list**, a **Notification group**'s **Actor**s, one side
-of a post's **Actor**s (#489), a hashtag walked to, or a conversation (#233). A closed set; each carries its own read
-and builds its own screen, and says whether what it read is cached and how it **reads on**. A screen exposes its subject, which is what `g` asks again and
-what the one cache is keyed by. Compared by value, so a follow list is the same subject however its account was last
-answered about, and a destination the same whatever its badge says. The search prompt has none, and nor do the results
-it pushes: a live search is its own question (#84, #600).
+of a post's **Actor**s (#489), a hashtag walked to, a conversation (#233), the **Trend**s under the search prompt
+(`Trending`, #605), a search narrowed to one kind (`Narrowed`, #604), one kind of **Trend** alone (`TrendsOf`, #606),
+or the posts sharing a **Trending link** (`Sharing`, #607). A closed set; each carries its own read and builds its own
+screen, and says whether what it read is cached and how it **reads on**. A screen exposes its subject, which is what
+`g` asks again on a screen that refreshes and what the one cache is keyed by. Compared by value, so a follow list is
+the same subject however its account was last answered about, and a destination the same whatever its badge says. The
+search prompt's subject is its trends, read afresh on every arrival and never cached; none of the search and trend
+screens refreshes, so `g` does nothing on them. The results a search pushes have no subject at all: a live search is
+its own question, which `esc` and `⏎` ask again (#84, #600).
 _Avoid_: source, target, model
 
 **Keymap**:
