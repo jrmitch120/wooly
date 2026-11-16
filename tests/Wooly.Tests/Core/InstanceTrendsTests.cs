@@ -205,6 +205,21 @@ public class InstanceTrendsTests
         Assert.Contains("This method requires an authenticated user", refusal.Message);
     }
 
+    /// <summary>
+    ///     An instance that failed to answer — a <c>5xx</c> — fails as it does under every raw adapter, search and the
+    ///     link timeline among them, rather than as the instance turning the read down (#598's review).
+    /// </summary>
+    [Fact]
+    public async Task EachKind_ReportsAnInstanceThatFailedToAnswerAsAFailureRatherThanARefusal()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.ServiceUnavailable));
+
+        var failure = await Assert.ThrowsAsync<InstanceFailedException>(
+            () => Resolved(network).Hashtags(Profile, TrendPage.First, TestContext.Current.CancellationToken));
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, failure.Status);
+    }
+
     private static ITrends Resolved(HttpMessageHandler network)
     {
         var services = new ServiceCollection();

@@ -155,14 +155,36 @@ public class LinkTimelineReadTests
         Assert.Null(next.Onward);
     }
 
-    /// <summary>Any other refusal is not a link that stopped trending, and fails as a refusal does elsewhere.</summary>
+    /// <summary>
+    ///     Any other refusal is not a link that stopped trending, and is said in the instance's own words as search and
+    ///     trends say theirs: as something a front end says, the TUI's enquiry saying a <see cref="WoolyException" /> on
+    ///     the status row and nothing else at all (#598's review).
+    /// </summary>
     [Fact]
-    public async Task Read_LetsAnyOtherRefusalThrough()
+    public async Task Read_SaysAnyOtherRefusalInTheInstancesOwnWords()
     {
-        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.Forbidden));
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.Forbidden, "This method requires an authenticated user"));
 
-        await Assert.ThrowsAsync<HttpRequestException>(() =>
+        var refusal = await Assert.ThrowsAsync<TimelineRefusedException>(() =>
             NewReader(network).Read(Profile, Timeline.Sharing(Article), 20, Token));
+
+        Assert.Contains("This method requires an authenticated user", refusal.Message);
+    }
+
+    /// <summary>
+    ///     An instance that failed to answer — a <c>5xx</c> — fails as it does under every raw adapter, search and trends
+    ///     among them, rather than as the instance turning the read down.
+    /// </summary>
+    [Fact]
+    public async Task Read_ReportsAnInstanceThatFailedToAnswerAsAFailureRatherThanARefusal()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.BadGateway));
+
+        var failure = await Assert.ThrowsAsync<InstanceFailedException>(() =>
+            NewReader(network).Read(Profile, Timeline.Sharing(Article), 20, Token));
+
+        Assert.Equal(HttpStatusCode.BadGateway, failure.Status);
     }
 
     /// <summary>

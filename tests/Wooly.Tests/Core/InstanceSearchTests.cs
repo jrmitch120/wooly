@@ -168,6 +168,22 @@ public class InstanceSearchTests
     }
 
     /// <summary>
+    ///     An instance that failed to answer — a <c>5xx</c> — said nothing about the search, so it is not reported as the
+    ///     instance turning the search down: it fails as a failed instance does under every raw adapter, trends and the
+    ///     link timeline among them, which says that asking again later may go through (#598's review).
+    /// </summary>
+    [Fact]
+    public async Task Find_ReportsAnInstanceThatFailedToAnswerAsAFailureRatherThanARefusal()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.BadGateway));
+
+        var failure = await Assert.ThrowsAsync<InstanceFailedException>(
+            () => Search(network, SearchQuery.For("cats")));
+
+        Assert.Equal(HttpStatusCode.BadGateway, failure.Status);
+    }
+
+    /// <summary>
     ///     The instance answers with all three kinds however it is asked (ADR-0011), so the narrowing happens here —
     ///     and what was not asked for is absent rather than empty, which is what a caller tells "you did not ask" from
     ///     "there were none" by.

@@ -28,8 +28,10 @@ a hashtag and a trending post a post however they arrived; only the link has a w
 and so does one where nothing has trended yet. Both read as "nothing trending": `trends` reports it and exits 0, and an
 empty Search says it under the prompt. A refusal is different, and is raised as a `TrendsRefusedException` carrying
 the instance's own words — a `WoolyException`, because that is what the TUI's enquiry says on the status row, and any
-other exception reaching it is said by nobody. A rate limit is raised as it is anywhere: each read is one call, so, as
-with a search (ADR-0011), there is no partial answer to hand back.
+other exception reaching it is said by nobody. An instance that failed to answer — a `5xx` — raises
+`InstanceFailedException` instead, as search and the link timeline (which raises `TimelineRefusedException` for a
+refusal other than its not-trending 404) do too. A rate limit is raised as it is anywhere: each read is one call, so,
+as with a search (ADR-0011), there is no partial answer to hand back.
 
 **A page the instance would cut short is refused before it is asked.** Mastodon serves at most 20 hashtags or links and
 40 posts a page, and quietly serves its maximum for a larger limit. A script asking for 50 would read a page of 20 as

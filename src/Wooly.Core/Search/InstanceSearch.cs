@@ -35,6 +35,7 @@ public sealed class InstanceSearch(IMastodonClientFactory clientFactory, IHttpCl
 {
     /// <inheritdoc />
     /// <exception cref="Errors.SearchRefusedException">The instance answered with a refusal.</exception>
+    /// <exception cref="Errors.InstanceFailedException">The instance failed to answer — a <c>5xx</c>.</exception>
     public async Task<SearchResults> Find(
         ActiveProfile profile,
         SearchQuery query,
@@ -49,11 +50,13 @@ public sealed class InstanceSearch(IMastodonClientFactory clientFactory, IHttpCl
             cancellationToken);
 
         // Mastonet said a refusal in the instance's own words, and so does this, rather than as a bare status that a
-        // front end would report as a defect.
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new SearchRefusedException(await InstanceError.Reason(response, cancellationToken));
-        }
+        // front end would report as a defect — and an instance that failed to answer as failing, the one way every raw
+        // adapter says the two (#598's review).
+        await InstanceError.EnsureAnswered(
+            profile,
+            response,
+            reason => new SearchRefusedException(reason),
+            cancellationToken);
 
         var found = await response.Content.ReadFromJsonAsync<SearchResultsWire>(cancellationToken)
                     ?? new SearchResultsWire();

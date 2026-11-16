@@ -117,6 +117,8 @@ whether a page came back full compares against the limit asked, not the count re
 
 **A refusal is said in the instance's words.** Mastonet raised one with the instance's `error`, which the CLI printed as
 it was; the raw call raises `SearchRefusedException` with the same words, rather than a bare failed status that would be
-reported as a defect. A rate limit is still raised as itself, and is still a failure rather than a partial answer.
+reported as a defect. An instance that failed to answer — a `5xx` — is no refusal, and raises `InstanceFailedException`,
+as the trends (ADR-0036) and the link timeline do: the three raw reads #598 added say a failure one way. A rate limit
+is still raised as itself, and is still a failure rather than a partial answer.
 
 `FindFollowed` is untouched, and stays on Mastonet: its endpoint has everything it needs there.

@@ -219,7 +219,9 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
                 : new Page<Status>([], null);
         }
 
-        response.EnsureSuccessStatusCode();
+        // Any other refusal in the instance's own words, and a failure to answer as one, as search and trends say
+        // theirs: something a front end says, rather than the HTTP stack's exception the TUI says nothing of.
+        await InstanceError.EnsureAnswered(profile, response, TimelineRefusedException.For, cancellationToken);
 
         var posts = await response.Content.ReadFromJsonAsync<List<Status>>(cancellationToken) ?? [];
 
