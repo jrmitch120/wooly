@@ -75,7 +75,7 @@ internal static class TrendLines
     public static IReadOnlyList<Line> Link(TrendingLink link, int room)
     {
         var sharing = $"{Number.Of(link.PeopleSharing)} {(link.PeopleSharing == 1 ? "person" : "people")} sharing";
-        var said = link.Site is { Length: > 0 } site ? $"{OneRow(site)} · {sharing}" : sharing;
+        var said = $"{OneRow(link.Site)} · {sharing}";
 
         return
         [

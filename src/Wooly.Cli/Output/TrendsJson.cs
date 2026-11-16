@@ -22,7 +22,7 @@ internal static class TrendsJson
     }
 
     private static LinkDocument Of(TrendingLink link) => new(
-        link.Url,
+        link.Url.OriginalString,
         link.Title,
         link.Description,
         link.Site,

@@ -83,11 +83,11 @@ internal static class TrendsReport
     private static void Write(IAnsiConsole console, TrendingLink link)
     {
         console.MarkupLineInterpolated($"[bold]{link.Title}[/]");
-        console.MarkupLineInterpolated($"  {link.Url}");
+        console.MarkupLineInterpolated($"  {link.Url.OriginalString}");
 
         var sharing = $"{Plural.Of(link.PeopleSharing, "person", "people")} sharing";
 
-        console.MarkupLineInterpolated($"  [dim]{(link.Site is null ? sharing : $"{link.Site} · {sharing}")}[/]");
+        console.MarkupLineInterpolated($"  [dim]{link.Site} · {sharing}[/]");
         console.WriteLine();
     }
 }

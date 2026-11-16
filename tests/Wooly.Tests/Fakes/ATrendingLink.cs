@@ -9,10 +9,10 @@ internal static class ATrendingLink
         string url = "https://news.example/cats-learn-to-type",
         string title = "Cats learn to type",
         string? description = "A study of keyboards and the cats who sit on them.",
-        string? site = "Example News",
+        string site = "Example News",
         long peopleSharing = 65) => new()
     {
-        Url = url,
+        Url = new Uri(url),
         Title = title,
         Description = description,
         Site = site,

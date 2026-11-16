@@ -141,7 +141,7 @@ public class ShellTrendingLinkTests
         var prompt = Assert.IsType<SearchScreen>(opened.Screen);
         Assert.Equal("Search", opened.Breadcrumb);
         Assert.Equal("That link is no longer trending — o to open the article.", opened.Notice);
-        Assert.Equal(Article, prompt.PickedLink?.Url);
+        Assert.Equal(Article, prompt.PickedLink?.Url.OriginalString);
 
         opened.Press(ShellKey.O);
 
@@ -238,7 +238,7 @@ public class ShellTrendingLinkTests
         built.Host.Drain();
         shell.Move(2);
 
-        Assert.Equal(Article, Assert.IsType<SearchScreen>(shell.Screen).PickedLink?.Url);
+        Assert.Equal(Article, Assert.IsType<SearchScreen>(shell.Screen).PickedLink?.Url.OriginalString);
     }
 
     /// <summary>Picks the trending link under the prompt and opens it with <c>⏎</c>.</summary>

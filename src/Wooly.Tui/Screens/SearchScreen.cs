@@ -180,7 +180,7 @@ public sealed class SearchScreen : Screen
                 .. PickedHashtag is not null || PickedLink is not null || PickedSection is not null
                     ? [new KeyHint("⏎", "open")]
                     : Array.Empty<KeyHint>(),
-                .. PickedLink is not null ? [FeedScreen.OpeningTheArticle] : Array.Empty<KeyHint>(),
+                .. PickedLink is not null ? [PostKeys.OpeningTheArticle] : Array.Empty<KeyHint>(),
                 searching,
                 .. PostKeys.Leaving(PostKeys.AlongTheRail),
             ];
@@ -354,7 +354,7 @@ public sealed class SearchScreen : Screen
     {
         if (verb == Verb.OpenArticle && PickedLink is { } article)
         {
-            reach.Browse(article.Url);
+            reach.Browse(article.Url.OriginalString);
 
             return Task.CompletedTask;
         }

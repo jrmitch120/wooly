@@ -113,7 +113,7 @@ public class InstanceTrendsTests
         var links = await Resolved(network).Links(Profile, TrendPage.First, TestContext.Current.CancellationToken);
 
         var link = Assert.Single(links);
-        Assert.Equal("https://news.example/cats-learn-to-type", link.Url);
+        Assert.Equal(new Uri("https://news.example/cats-learn-to-type"), link.Url);
         Assert.Equal("Cats learn to type", link.Title);
         Assert.Equal("A study of keyboards and the cats who sit on them.", link.Description);
         Assert.Equal("Example News", link.Site);
@@ -124,8 +124,10 @@ public class InstanceTrendsTests
     }
 
     /// <summary>
-    ///     A link the instance said little about is still a link to read: a missing description or site is absent
-    ///     rather than a failure, and usage it did not send — or sent in a form this client cannot read — is nobody.
+    ///     A link the instance said little about is still a link to read: a missing description is absent rather than a
+    ///     failure, a site that did not name itself is named by the address it is on — what a reader judges a link by
+    ///     being its site and how many people are sharing it (#598's sixteenth story) — and usage it did not send, or
+    ///     sent in a form this client cannot read, is nobody.
     /// </summary>
     [Fact]
     public async Task Links_ReadsALinkTheInstanceSaidLittleAbout()
@@ -145,7 +147,7 @@ public class InstanceTrendsTests
             await Resolved(network).Links(Profile, TrendPage.First, TestContext.Current.CancellationToken));
 
         Assert.Null(link.Description);
-        Assert.Null(link.Site);
+        Assert.Equal("news.example", link.Site);
         Assert.Equal(0, link.PeopleSharing);
     }
 
@@ -159,6 +161,26 @@ public class InstanceTrendsTests
         var links = await Resolved(network).Links(Profile, TrendPage.First, TestContext.Current.CancellationToken);
 
         Assert.Equal("Cats learn to type", Assert.Single(links).Title);
+    }
+
+    /// <summary>
+    ///     Nor is a card whose address is no web page in full: the posts sharing a link are asked for by a web address
+    ///     (<see cref="Wooly.Core.Timelines.SharedLink" />), so it is turned down where it arrives rather than drawn as a
+    ///     row that would fail once opened (#598's review).
+    /// </summary>
+    [Theory]
+    [InlineData("news.example/no-scheme")]
+    [InlineData("mailto:editor@news.example")]
+    [InlineData("ftp://news.example/file")]
+    public async Task Links_DropsACardWhoseAddressIsNoWebPage(string address)
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(
+            $$"""[{ "url": "{{address}}", "title": "Nowhere" }, {{LinkJson()}}]"""));
+
+        var links = await Resolved(network).Links(Profile, TrendPage.First, TestContext.Current.CancellationToken);
+
+        var link = Assert.Single(links);
+        Assert.Equal(new Uri("https://news.example/cats-learn-to-type"), link.Url);
     }
 
     /// <summary>

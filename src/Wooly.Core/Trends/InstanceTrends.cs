@@ -53,11 +53,9 @@ public sealed class InstanceTrends(IHttpClientFactory httpClientFactory) : ITren
     {
         var answered = await Read<TrendingLinkWire>(profile, "api/v1/trends/links", page, cancellationToken);
 
-        // A card with no address is not a link anybody can open or read the posts sharing, so it is dropped rather
+        // A card with no web address is not a link anybody can open or read the posts sharing, so it is dropped rather
         // than drawn as a row that goes nowhere.
-        return answered.Where(link => !string.IsNullOrWhiteSpace(link.Url))
-                       .Select(link => link.ToTrendingLink())
-                       .ToList();
+        return answered.Select(link => link.ToTrendingLink()).OfType<TrendingLink>().ToList();
     }
 
     /// <summary>

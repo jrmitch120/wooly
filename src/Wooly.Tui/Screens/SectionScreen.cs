@@ -88,7 +88,7 @@ public sealed class SectionScreen : Screen, IReadsOn<Result>
                 [
                     moving,
                     new KeyHint("⏎", "open", NeedsAPick: true),
-                    .. PickedLink is not null ? [FeedScreen.OpeningTheArticle] : Array.Empty<KeyHint>(),
+                    .. PickedLink is not null ? [PostKeys.OpeningTheArticle] : Array.Empty<KeyHint>(),
                     searching,
                     .. PostKeys.Leaving(PostKeys.AlongTheRail),
                 ];
@@ -143,7 +143,7 @@ public sealed class SectionScreen : Screen, IReadsOn<Result>
     {
         if (verb == Verb.OpenArticle && PickedLink is { } article)
         {
-            reach.Browse(article.Url);
+            reach.Browse(article.Url.OriginalString);
 
             return Task.CompletedTask;
         }

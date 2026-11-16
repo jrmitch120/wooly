@@ -59,10 +59,7 @@ public sealed class FeedScreen : Screen, IReadsOn<Post>
     ///     <see langword="null" /> on every other. What <c>o</c> opens in the browser, the link having opened as what
     ///     people are saying about it and the article being one key away (#607).
     /// </summary>
-    public string? Article { get; init; }
-
-    /// <summary>What <c>o</c> is offered as on the posts sharing a link, and on a trending link under the prompt.</summary>
-    internal static KeyHint OpeningTheArticle { get; } = new("o", "article");
+    public Uri? Article { get; init; }
 
     /// <inheritdoc />
     protected override IReadOnlyList<KeyHint> OwnKeys =>
@@ -70,7 +67,7 @@ public sealed class FeedScreen : Screen, IReadsOn<Post>
             new KeyHint("j/k", "post"),
             [
                 .. Refreshes ? [Refreshing] : Array.Empty<KeyHint>(),
-                .. Article is null ? Array.Empty<KeyHint>() : [OpeningTheArticle],
+                .. Article is null ? Array.Empty<KeyHint>() : [PostKeys.OpeningTheArticle],
             ],
             PostKeys.AlongTheRail);
 
@@ -80,7 +77,7 @@ public sealed class FeedScreen : Screen, IReadsOn<Post>
     {
         if (verb == Verb.OpenArticle && Article is { } article)
         {
-            reach.Browse(article);
+            reach.Browse(article.OriginalString);
         }
 
         return Task.CompletedTask;

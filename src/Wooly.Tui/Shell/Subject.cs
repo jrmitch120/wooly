@@ -814,9 +814,7 @@ public abstract record Subject
             ActiveProfile profile,
             Screen? standing)
         {
-            // An address the instance gave that is no web page has no timeline it could keep, which is what not
-            // trending means here as much as a 404 does.
-            var timeline = Shared() ?? throw new NoLongerTrendingException();
+            var timeline = Shared;
             Fetch<Post> posts;
 
             try
@@ -851,11 +849,13 @@ public abstract record Subject
             ActiveProfile profile,
             Screen standing,
             Onward from) =>
-            TimelineReadsOn(Shared()!).From(ask, ports, profile, from);
+            TimelineReadsOn(Shared).From(ask, ports, profile, from);
 
-        /// <summary>The posts sharing the link, or <see langword="null" /> where its address names no web page.</summary>
-        private Timeline? Shared() =>
-            SharedLink.Parse(Link.Url) is { } address ? Timeline.Sharing(address) : null;
+        /// <summary>
+        ///     The posts sharing the link — whose address is always a web page's, a link with any other being dropped where
+        ///     it arrives (<see cref="TrendingLink.Url" />).
+        /// </summary>
+        private Timeline Shared => Timeline.Sharing(Link.Url);
 
         /// <summary>The link opened is not, or no longer, trending — said on the status row as any refusal is.</summary>
         private sealed class NoLongerTrendingException() : WoolyException(NoLongerTrending);

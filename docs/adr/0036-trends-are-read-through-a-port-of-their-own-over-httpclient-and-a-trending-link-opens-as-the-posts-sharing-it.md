@@ -47,8 +47,10 @@ trending has no posts behind it: the reader is told so on the status row, with t
 
 **A Trending link is a new domain value** — its address, title, description, site, and how many people shared it. "How
 many" adds up the accounts of every day the instance reported, as a hashtag's `RecentAccounts` does, so a trending
-link and a trending hashtag count their people the same way. A blank description or site is absent rather than an
-empty row, and a card with no address is dropped, there being nothing to open.
+link and a trending hashtag count their people the same way. A blank description is absent rather than an empty row;
+a blank site is named by the link's host, a reader judging a link by its site and how many are sharing it. The address
+is a `Uri`, a web page's in full (`SharedLink`): a card with no address, or with one that is no web page, is dropped
+where it arrives, there being nothing to open or read the sharing posts of.
 
 ## Consequences
 

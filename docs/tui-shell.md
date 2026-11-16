@@ -561,7 +561,8 @@ not answer them differently:
     and a double click opens it; a press on the field picks it, its caret landing where it was pressed.
   - **The rows.** A hashtag is one row: the tag, and how many people used it in recent days, the count against the
     right edge so that the counts stand in one column however long the tags are. A link is three rows — its title,
-    its description (muted; left out where the article said nothing), then `site · N people sharing` — with a blank
+    its description (muted; left out where the article said nothing), then `site · N people sharing` (the link's host
+    where the site did not name itself) — with a blank
     between links and no picture. A post is the ordinary post block, a rule between posts. Each kind's run is headed
     `── Trending hashtags ──`, `── Trending links ──`, `── Trending posts ──`, with no count: the instance was asked
     for a fixed number, so a count would only say the ask back. Every column is worked out from the room a row has,
