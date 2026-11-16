@@ -12,22 +12,32 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 internal static class ResultLines
 {
-    /// <summary>How far a hashtag's counts stand off the end of the name column, so the two read as two columns.</summary>
+    /// <summary>How far a hashtag's counts stand off its name, at the least, so the two never run together.</summary>
     private const int TagGap = 2;
+
+    /// <summary>
+    ///     How many columns each of a hashtag's two counts is right-aligned in: room for <c>999,999</c>, more than a
+    ///     week's use of all but the busiest tags. A count wider than that takes what it needs from its own row's name,
+    ///     and moves no other row.
+    /// </summary>
+    private const int CountColumns = 7;
+
+    /// <summary>How wide a hashtag's counts are, padded into their columns: what the room must hold besides a name.</summary>
+    private static readonly int CountsWidth = Glyphs.Columns(Used(
+        new Hashtag { Name = string.Empty, RecentPosts = 0, RecentAccounts = 0 },
+        CountColumns));
 
     /// <summary>The rows of <paramref name="result" />, at <paramref name="room" /> columns.</summary>
     /// <param name="result">What is drawn.</param>
     /// <param name="at">Where it stands in the walk, which says how far a post on it is read.</param>
     /// <param name="room">How wide it is drawn, behind the gutter.</param>
     /// <param name="drawing">What the screen is drawn with.</param>
-    /// <param name="columns">The columns the run of hashtags it stands in is aligned to.</param>
     /// <param name="on">The screen it is drawn on, which knows how far each of its posts is read.</param>
     public static IReadOnlyList<Line> Of(
         Result result,
         int at,
         int room,
         Drawing drawing,
-        Columns columns,
         Screen on) => result switch
     {
         // Nothing implied: a page of search results claims nothing of anybody on it, so the whole compact standing
@@ -36,7 +46,7 @@ internal static class ResultLines
             account,
             drawing.In(room),
             AccountLines.Compact(account.Standing)),
-        Result.OfHashtag(var hashtag) => [Tag(hashtag, room, columns)],
+        Result.OfHashtag(var hashtag) => [Tag(hashtag, room)],
         Result.OfPost(var post) => PostLines.Feed(post, drawing.In(room), on.ReadingOf(post, at)),
         _ => [],
     };
@@ -84,88 +94,44 @@ internal static class ResultLines
 
     /// <summary>
     ///     A tag and how much use it has had lately, which is what makes one result worth reading over another — the
-    ///     use standing in the columns <paramref name="columns" /> gives, so the run reads down as well as across.
+    ///     use standing against the right edge of <paramref name="room" /> in columns of a fixed width, so the run reads
+    ///     down as well as across.
     /// </summary>
     /// <remarks>
     ///     The names being all different lengths, counts written straight after each one land wherever the name
-    ///     happened to end, and comparing two tags becomes reading two rows rather than glancing down one column.
-    ///     The name takes the column and the numbers are right-aligned inside theirs, which is where a digit belongs:
-    ///     <c>81</c> under <c>14</c> compares at a glance and <c>81</c> under <c>1</c> does not.
+    ///     happened to end, and comparing two tags becomes reading two rows rather than glancing down one column. The
+    ///     counts stand against the right edge instead, each number right-aligned inside a column of
+    ///     <see cref="CountColumns" />, which is where a digit belongs: <c>81</c> under <c>14</c> compares at a glance
+    ///     and <c>81</c> under <c>1</c> does not.
     ///     <para>
-    ///         Where the run has no columns — an empty one, or one the terminal is too narrow to hold — the gap falls
-    ///         back to <see cref="TagGap" /> and the counts are written unpadded, which is the row this screen drew
-    ///         before it had columns at all.
+    ///         Every column comes from the room a row has and from nothing in the run, so that nothing jumps: a longer
+    ///         name or a bigger count read on to further down moves none of the rows already drawn (#598's review), as
+    ///         the trending hashtags under the prompt stand their count against the right edge (<see cref="TrendLines" />).
+    ///         Where the room cannot hold the counts' columns, every row gives them up — the room deciding, so it is
+    ///         every row or none — and falls back to <see cref="TagGap" /> and unpadded counts: padding is spent from the
+    ///         left and the row is clipped from the right, so columns held past the width would cost the accounts count
+    ///         that fits without them.
     ///     </para>
     /// </remarks>
-    private static Line Tag(Hashtag hashtag, int width, Columns columns)
+    private static Line Tag(Hashtag hashtag, int room)
     {
-        var name = TextWrap.Clip($"#{hashtag.Name}", width);
+        var aligned = room >= CountsWidth + TagGap;
+        var used = Used(hashtag, aligned ? CountColumns : 0);
+        var name = TextWrap.Clip($"#{hashtag.Name}", aligned ? Math.Max(0, room - Glyphs.Columns(used) - TagGap) : room);
 
-        // Never less than the gap itself, so a name longer than the column is still parted from its counts rather
-        // than run into them.
-        var gap = new string(' ', Math.Max(TagGap, columns.Name - Glyphs.Columns(name) + TagGap));
+        // Never less than the gap itself, so a name is parted from its counts rather than run into them.
+        var gap = aligned ? room - Glyphs.Columns(name) - Glyphs.Columns(used) : TagGap;
 
         return Line.Of([
             new Span(name, Role.BylineHandle),
-            new Span(
-                TextWrap.Clip(gap + Used(hashtag, columns), Math.Max(0, width - Glyphs.Columns(name))),
-                Role.Muted),
+            new Span(TextWrap.Clip(new string(' ', gap) + used, Math.Max(0, room - Glyphs.Columns(name))), Role.Muted),
         ]);
     }
 
     /// <summary>
-    ///     How much use a tag has had lately, its two counts padded into the columns <paramref name="columns" />
-    ///     gives — which is no padding at all where the run has no columns, <see cref="string.PadLeft(int)" /> of
-    ///     nought being the number as it was written.
+    ///     How much use a tag has had lately, each count padded to <paramref name="columns" /> — which is no padding at
+    ///     all for nought, <see cref="string.PadLeft(int)" /> of nought being the number as it was written.
     /// </summary>
-    /// <remarks>
-    ///     Written in one place because it is both measured and drawn: a row padded to a width worked out from
-    ///     anything but the row itself is a row that can be padded to the wrong one.
-    /// </remarks>
-    private static string Used(Hashtag hashtag, Columns columns) =>
-        $"{Number.Of(hashtag.RecentPosts).PadLeft(columns.Posts)} posts · {Number.Of(hashtag.RecentAccounts).PadLeft(columns.Accounts)} accounts";
-
-    /// <summary>
-    ///     How wide the three columns of a run of hashtags are: the longest name, and the longest of each of the two
-    ///     counts as they are written out.
-    /// </summary>
-    /// <remarks>
-    ///     A fact about the run rather than about a tag, which is why it is worked out once and handed to every row:
-    ///     a row that measured itself could only align with itself. Measured off what is drawn — <c>#</c> included,
-    ///     and the counts grouped as <see cref="Number" /> groups them — rather than off the raw numbers, because
-    ///     <c>1,204</c> takes a column more than <c>1204</c> does.
-    /// </remarks>
-    /// <param name="Name">How wide the name column is, <c>#</c> and all.</param>
-    /// <param name="Posts">How wide the posts count is.</param>
-    /// <param name="Accounts">How wide the accounts count is.</param>
-    public readonly record struct Columns(int Name, int Posts, int Accounts)
-    {
-        /// <summary>
-        ///     The columns a run of <paramref name="hashtags" /> wants at <paramref name="width" />, and none at all
-        ///     where it is empty or where the terminal cannot hold them.
-        /// </summary>
-        /// <remarks>
-        ///     Aligning is all or nothing, and it is the run that decides rather than the row: a row that gave up its
-        ///     columns while its neighbours kept theirs would be the ragged run this exists to prevent. Where they do
-        ///     not fit they are given up altogether rather than narrowed, because the padding is spent from the left
-        ///     and the row is clipped from the right — so columns held past the width cost the accounts count that
-        ///     would otherwise have fitted, which is a worse row than a ragged one.
-        /// </remarks>
-        public static Columns Of(IReadOnlyList<Hashtag> hashtags, int width)
-        {
-            if (hashtags.Count == 0)
-            {
-                return default;
-            }
-
-            var columns = new Columns(
-                hashtags.Max(hashtag => Glyphs.Columns(hashtag.Name) + 1),
-                hashtags.Max(hashtag => Glyphs.Columns(Number.Of(hashtag.RecentPosts))),
-                hashtags.Max(hashtag => Glyphs.Columns(Number.Of(hashtag.RecentAccounts))));
-
-            // Padded, every row's counts come out the same width, so the widest row is the longest name against any
-            // row's counts and one of them is enough to measure.
-            return columns.Name + TagGap + Glyphs.Columns(Used(hashtags[0], columns)) <= width ? columns : default;
-        }
-    }
+    private static string Used(Hashtag hashtag, int columns) =>
+        $"{Number.Of(hashtag.RecentPosts).PadLeft(columns)} posts · {Number.Of(hashtag.RecentAccounts).PadLeft(columns)} accounts";
 }

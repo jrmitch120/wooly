@@ -248,10 +248,6 @@ public sealed class SearchResultsScreen : Screen
 
         var lines = new List<Line>();
 
-        // Worked out once for the whole run rather than per row, a column being a fact about the run and not about
-        // any one tag in it — and measured against the room a row actually gets, which is behind the gutter.
-        var columns = ResultLines.Columns.Of(Hashtags, Stamped.Room(width));
-
         for (var at = 0; at < _results.Count; at++)
         {
             var result = _results.All[at];
@@ -278,7 +274,7 @@ public sealed class SearchResultsScreen : Screen
             }
 
             lines.AddRange(_results.RowsOf(at, width, (found, where, room) =>
-                ResultLines.Of(found, where, room, drawing, columns, this)));
+                ResultLines.Of(found, where, room, drawing, this)));
         }
 
         return lines;

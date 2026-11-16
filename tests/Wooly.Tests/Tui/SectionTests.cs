@@ -196,11 +196,12 @@ public class SectionTests
     }
 
     /// <summary>
-    ///     A run of hashtags reads down as well as across: the counts stand in one column whatever the names are, and
-    ///     the numbers are right-aligned inside it so <c>81</c> falls under <c>4</c>.
+    ///     A run of hashtags reads down as well as across: the counts stand against the right edge in columns of a
+    ///     width worked out from nothing but the room a row has, the numbers right-aligned inside them so <c>81</c>
+    ///     falls under <c>4</c>.
     /// </summary>
     [Fact]
-    public void ASearchScreenStandsAHashtagsCountsInTheRunsOwnColumns()
+    public void ASearchScreenStandsAHashtagsCountsInColumnsAgainstTheRightEdge()
     {
         var search = new SearchResultsScreen(
             "sheep",
@@ -213,19 +214,41 @@ public class SectionTests
                 ],
             });
 
-        // Past the gutter, which says which of them is picked out rather than anything about the columns.
+        // Past the gutter, which says which of them is picked out rather than anything about the columns: sixty
+        // columns of room, the counts taking the last thirty-two of them.
         Assert.Equal(
             [
-                "#ewe       81 posts ·     7 accounts",
-                "#shearing   4 posts · 1,204 accounts",
+                "#ewe                             81 posts ·       7 accounts",
+                "#shearing                         4 posts ·   1,204 accounts",
             ],
             Drawn(search).Skip(2).Select(line => line.Text[1..]));
     }
 
     /// <summary>
-    ///     A terminal too narrow to hold the columns loses them altogether, the whole run falling back to a two-space
-    ///     gap and unpadded counts: padding is spent from the left and the row is clipped from the right, so columns
-    ///     held past the width would cost the accounts count that fits without them.
+    ///     Nothing jumps: a hashtag's row is the same row whatever else is in the run, so a longer name read on to
+    ///     further down — or a bigger count — moves none of the rows already drawn. The columns come from the room a
+    ///     row has, never from what the run holds.
+    /// </summary>
+    [Fact]
+    public void ASectionScreenMovesNoHashtagsRowWhenALongerOneIsReadOn()
+    {
+        var section = new SectionScreen(
+            SearchKind.Hashtags,
+            [new Result.OfHashtag(AHashtag.With("ewe", recentPosts: 81, recentAccounts: 7))],
+            "Nothing found.");
+        var before = section.Lines(new Drawing(61, AShell.Now))[0].Text;
+
+        section.ReadOn([
+            new Result.OfHashtag(AHashtag.With("shearingseasonphotography", recentPosts: 120_480, recentAccounts: 31_204)),
+        ]);
+
+        Assert.Equal(before, section.Lines(new Drawing(61, AShell.Now))[0].Text);
+    }
+
+    /// <summary>
+    ///     A terminal too narrow to hold the columns loses them, every row falling back to a two-space gap and unpadded
+    ///     counts: padding is spent from the left and the row is clipped from the right, so columns held past the width
+    ///     would cost the accounts count that fits without them. Decided by the width alone, so it is every row or none.
     /// </summary>
     [Fact]
     public void ASearchScreenGivesUpTheHashtagColumnsWhereTheyWouldNotFit()
@@ -241,7 +264,7 @@ public class SectionTests
                 ],
             });
 
-        // One column of gutter and 30 of room, where the widest row wants 12 + 2 + 28.
+        // One column of gutter and 30 of room, where the counts' columns alone want 32.
         Assert.Equal(
             [
                 "#photography  1,204 posts · 7…",

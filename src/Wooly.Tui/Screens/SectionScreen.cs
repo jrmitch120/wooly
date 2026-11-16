@@ -195,8 +195,6 @@ public sealed class SectionScreen : Screen, IReadsOn<Result>
             return [Line.Of(TextWrap.Clip(Nothing, width), Role.Muted)];
         }
 
-        // A trending hashtag is drawn as under the prompt, its count against the right edge, and needs no columns.
-        var columns = _trending ? default : ResultLines.Columns.Of(Hashtags, Stamped.Room(width));
         var lines = new List<Line>();
 
         for (var at = 0; at < _results.Count; at++)
@@ -211,7 +209,7 @@ public sealed class SectionScreen : Screen, IReadsOn<Result>
                 // Drawn exactly as under the prompt they were opened from, so the eleventh reads like the ten above it.
                 Result.OfHashtag(var hashtag) when _trending => [TrendLines.Hashtag(hashtag, room)],
                 Result.OfLink(var link) => TrendLines.Link(link, room),
-                _ => ResultLines.Of(found, where, room, drawing, columns, this),
+                _ => ResultLines.Of(found, where, room, drawing, this),
             }));
         }
 

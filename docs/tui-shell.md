@@ -2289,16 +2289,16 @@ The answer generalised: three screens use it (#166, amended by #171 and #172):
   where a separator per row would spend as many rows on the gaps as on the tags. Between rather than after, so no
   separator is left hanging under the last result — and the first heading takes no blank of its own, having the
   prompt's.
-- **A run of hashtags is a table, and its columns are the run's.** The counts stand off the longest name in the run,
-  and each number is right-aligned in its own column, so a reader glances down one column rather than reading twenty
-  rows: `81` under `14` compares at sight, `81` under `1` does not. Measured once per run off what is drawn, `#` and
-  thousands separators included — a row that measured itself could only align with itself.
-- **Aligning is all or nothing, and the run decides, not the row.** On a terminal too narrow to hold the longest name
-  and the counts together the run gives its columns up altogether and every row falls back to a two-space gap and
-  unpadded counts — the row this screen drew before it had columns. Narrowing them instead would be worse than
+- **A run of hashtags is a table, and its columns come from the width, never from the run.** The counts stand
+  against the right edge, each number right-aligned in a column wide enough for `999,999`, so a reader glances down
+  one column rather than reading twenty rows: `81` under `14` compares at sight, `81` under `1` does not. The name
+  takes the rest of the row, clipped where it would run into the counts. Nothing in the run is measured, so nothing
+  jumps: a longer name or a bigger count read on to further down — on the screen of hashtags alone — moves none of
+  the rows already drawn (#598's review). A count wider than its column takes what it needs from its own row's name.
+- **Aligning is all or nothing, and the width decides, not the row.** On a terminal too narrow to hold the counts'
+  columns every row falls back to a two-space gap and unpadded counts. Narrowing them instead would be worse than
   ragged: padding is spent from the left and the row is clipped from the right, so columns held past the width cost
-  the accounts count that would otherwise have fitted. One row giving up its columns while its neighbours kept theirs
-  would be the raggedness the columns exist to prevent.
+  the accounts count that would otherwise have fitted.
 - **The status row says `[/]:section`, shell-wide**, and only where the screen has two or more headed runs *now*. One
   key that means one thing everywhere is named one way everywhere, which is why this is `section` rather than the
   `kind` the search screen alone would have said. A key announced where it does nothing reads as a shell that missed
