@@ -87,18 +87,18 @@ public sealed class InstanceTrends(IHttpClientFactory httpClientFactory) : ITren
     /// </summary>
     private static string QueryString(TrendPage page)
     {
-        List<string> parameters = [];
+        List<KeyValuePair<string, string>> parameters = [];
 
         if (page.Limit is { } limit)
         {
-            parameters.Add($"limit={limit}");
+            parameters.Add(new("limit", RawMastodonCall.Number(limit)));
         }
 
         if (page.Offset > 0)
         {
-            parameters.Add($"offset={page.Offset}");
+            parameters.Add(new("offset", RawMastodonCall.Number(page.Offset)));
         }
 
-        return parameters.Count == 0 ? string.Empty : $"?{string.Join("&", parameters)}";
+        return RawMastodonCall.QueryString(parameters);
     }
 }

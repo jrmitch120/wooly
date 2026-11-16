@@ -193,18 +193,22 @@ public sealed class TimelineReader(IMastodonClientFactory clientFactory, IHttpCl
         ArrayOptions options,
         CancellationToken cancellationToken)
     {
-        List<string> query = [$"url={Uri.EscapeDataString(link.OriginalString)}", $"limit={options.Limit}"];
+        List<KeyValuePair<string, string>> query =
+        [
+            new("url", link.OriginalString),
+            new("limit", RawMastodonCall.Number(options.Limit ?? PageSize)),
+        ];
 
         if (options.MaxId is { } maxId)
         {
-            query.Add($"max_id={Uri.EscapeDataString(maxId)}");
+            query.Add(new("max_id", maxId));
         }
 
         using var response = await RawMastodonCall.Sent(
             httpClientFactory,
             profile,
             HttpMethod.Get,
-            $"api/v1/timelines/link?{string.Join("&", query)}",
+            $"api/v1/timelines/link{RawMastodonCall.QueryString(query)}",
             content: null,
             cancellationToken);
 

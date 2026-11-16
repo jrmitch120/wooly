@@ -14,7 +14,7 @@ internal static class TrendsJson
     public static void Write(IAnsiConsole console, TrendsReading trending)
     {
         var document = new TrendingDocument(
-            trending.Hashtags?.Select(SearchJson.Of).ToList(),
+            trending.Hashtags?.Select(HashtagDocument.Of).ToList(),
             trending.Posts?.Select(PostDocument.Of).ToList(),
             trending.Links?.Select(Of).ToList());
 
@@ -29,7 +29,7 @@ internal static class TrendsJson
         link.PeopleSharing);
 
     private sealed record TrendingDocument(
-        [property: JsonPropertyName("hashtags")] IReadOnlyList<SearchJson.HashtagDocument>? Hashtags,
+        [property: JsonPropertyName("hashtags")] IReadOnlyList<HashtagDocument>? Hashtags,
         [property: JsonPropertyName("posts")] IReadOnlyList<PostDocument>? Posts,
         [property: JsonPropertyName("links")] IReadOnlyList<LinkDocument>? Links);
 

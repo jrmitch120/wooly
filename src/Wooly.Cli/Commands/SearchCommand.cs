@@ -66,14 +66,9 @@ internal sealed class SearchCommand(IAnsiConsole console, IProfileRegistry profi
                 return ValidationResult.Error(SearchKindName.Rejection(Type));
             }
 
-            if (Limit is { } limit && !SearchPage.IsWellFormedLimit(limit))
+            if (SearchPage.Rejection(Limit, Offset, "--limit", "--offset") is { } rejection)
             {
-                return ValidationResult.Error($"--limit needs to be between 1 and {SearchPage.MostPerKind}.");
-            }
-
-            if (Offset is { } offset && !SearchPage.IsWellFormedOffset(offset))
-            {
-                return ValidationResult.Error("--offset needs to be zero or more.");
+                return ValidationResult.Error(rejection);
             }
 
             // Refused rather than sent: the instance would answer an offset without a kind with the first page again,

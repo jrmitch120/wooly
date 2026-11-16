@@ -65,9 +65,7 @@ internal sealed class TrendsCommand(IAnsiConsole console, IProfileRegistry profi
         CancellationToken cancellationToken)
     {
         var profile = profiles.Resolve(settings.Profile);
-        var page = settings.Limit is null && settings.Offset == 0
-            ? TrendPage.First
-            : TrendPage.Of(settings.Limit, settings.Offset);
+        var page = TrendPage.Of(settings.Limit, settings.Offset);
         var kinds = settings.Kinds;
 
         // Nothing is caught here. Each kind is one call, so a rate limit leaves nothing worth printing — an ordinary

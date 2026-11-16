@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -45,7 +44,7 @@ public sealed class InstanceSearch(IMastodonClientFactory clientFactory, IHttpCl
             httpClientFactory,
             profile,
             HttpMethod.Get,
-            $"api/v2/search?{string.Join("&", Parameters(query))}",
+            $"api/v2/search{RawMastodonCall.QueryString([.. Parameters(query)])}",
             content: null,
             cancellationToken);
 
@@ -75,24 +74,24 @@ public sealed class InstanceSearch(IMastodonClientFactory clientFactory, IHttpCl
     ///     The query string, in the order the endpoint documents it: what to look for, resolving, and then only what
     ///     was said — so a search asked nothing more is sent exactly as it was through Mastonet.
     /// </summary>
-    private static IEnumerable<string> Parameters(SearchQuery query)
+    private static IEnumerable<KeyValuePair<string, string>> Parameters(SearchQuery query)
     {
-        yield return $"q={Uri.EscapeDataString(query.Text)}";
-        yield return "resolve=true";
+        yield return new("q", query.Text);
+        yield return new("resolve", "true");
 
         if (TypeOf(query.Kind) is { } type)
         {
-            yield return $"type={type}";
+            yield return new("type", type);
         }
 
         if (query.Page.Limit is { } limit)
         {
-            yield return $"limit={limit.ToString(CultureInfo.InvariantCulture)}";
+            yield return new("limit", RawMastodonCall.Number(limit));
         }
 
         if (query.Page.Offset is { } offset)
         {
-            yield return $"offset={offset.ToString(CultureInfo.InvariantCulture)}";
+            yield return new("offset", RawMastodonCall.Number(offset));
         }
     }
 

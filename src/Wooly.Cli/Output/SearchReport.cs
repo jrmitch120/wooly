@@ -27,7 +27,7 @@ internal static class SearchReport
         var withHeadings = query.Kind is SearchKind.Everything;
 
         WriteSection(console, "Accounts", found.Accounts, withHeadings, WriteAccount);
-        WriteSection(console, "Hashtags", found.Hashtags, withHeadings, Write);
+        WriteSection(console, "Hashtags", found.Hashtags, withHeadings, HashtagReport.Write);
         WriteSection(console, "Posts", found.Posts, withHeadings, WritePost);
     }
 
@@ -77,25 +77,6 @@ internal static class SearchReport
     }
 
     /// <summary>
-    ///     One hashtag: the tag as <c>timeline tag</c> takes it, and how much use it has had. No web address, unlike an
-    ///     account — the tag itself is what the next command takes, and a line of address under every tag on a list read
-    ///     down is noise. <c>trends</c> writes its trending hashtags with this too, a trending hashtag being a hashtag.
-    /// </summary>
-    internal static void Write(IAnsiConsole console, Hashtag hashtag)
-    {
-        console.MarkupLineInterpolated($"[bold]#{hashtag.Name}[/]");
-
-        // An instance that sent no usage at all is one this has nothing to say about, and "0 posts from 0 accounts"
-        // would say something — that nobody is posting to a tag which may well be busy.
-        if (hashtag.RecentPosts > 0 || hashtag.RecentAccounts > 0)
-        {
-            console.MarkupLineInterpolated($"  [dim]{Use(hashtag)}[/]");
-        }
-
-        console.WriteLine();
-    }
-
-    /// <summary>
     ///     One post, written by <see cref="PostReport.Write" /> so that a post found by a search and the same post read
     ///     on a timeline cannot come to look like two different posts.
     /// </summary>
@@ -104,7 +85,4 @@ internal static class SearchReport
         PostReport.Write(console, post);
         console.WriteLine();
     }
-
-    private static string Use(Hashtag hashtag) =>
-        $"{Plural.Of(hashtag.RecentPosts, "post")} from {Plural.Of(hashtag.RecentAccounts, "account")} recently";
 }

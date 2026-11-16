@@ -24,18 +24,11 @@ internal static class SearchJson
         var document = new FoundDocument(
             query.Text,
             found.Accounts?.Select(AccountDocument.Of).ToList(),
-            found.Hashtags?.Select(Of).ToList(),
+            found.Hashtags?.Select(HashtagDocument.Of).ToList(),
             found.Posts?.Select(PostDocument.Of).ToList());
 
         JsonOutput.Write(console, document);
     }
-
-    /// <summary>A hashtag as every command writes one — <c>trends</c> as much as <c>search</c>.</summary>
-    internal static HashtagDocument Of(Hashtag hashtag) => new(
-        hashtag.Name,
-        hashtag.RecentPosts,
-        hashtag.RecentAccounts,
-        hashtag.Url);
 
     /// <param name="Query">
     ///     What was searched for, so that an answer read on its own — out of a file, or a log — still says what
@@ -46,11 +39,4 @@ internal static class SearchJson
         [property: JsonPropertyName("accounts")] IReadOnlyList<AccountDocument>? Accounts,
         [property: JsonPropertyName("hashtags")] IReadOnlyList<HashtagDocument>? Hashtags,
         [property: JsonPropertyName("posts")] IReadOnlyList<PostDocument>? Posts);
-
-    /// <param name="Name">Bare, with no leading <c>#</c>, which is how <c>timeline tag</c> takes one.</param>
-    internal sealed record HashtagDocument(
-        [property: JsonPropertyName("hashtag")] string Name,
-        [property: JsonPropertyName("recentPosts")] long RecentPosts,
-        [property: JsonPropertyName("recentAccounts")] long RecentAccounts,
-        [property: JsonPropertyName("url")] string? Url);
 }

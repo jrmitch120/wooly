@@ -32,7 +32,7 @@ internal static class TrendsReport
         // command line did not — as search's report leaves it out.
         var withHeadings = asked.Count > 1;
 
-        WriteSection(console, "Trending hashtags", trending.Hashtags, withHeadings, SearchReport.Write);
+        WriteSection(console, "Trending hashtags", trending.Hashtags, withHeadings, HashtagReport.Write);
         WriteSection(console, "Trending posts", trending.Posts, withHeadings, WritePost);
         WriteSection(console, "Trending links", trending.Links, withHeadings, Write);
     }

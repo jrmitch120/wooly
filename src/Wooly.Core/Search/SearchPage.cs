@@ -51,14 +51,41 @@ public sealed record SearchPage
     {
         if (limit is { } asked && !IsWellFormedLimit(asked))
         {
-            throw new ArgumentOutOfRangeException(nameof(limit), asked, $"A limit is between 1 and {MostPerKind}.");
+            throw new ArgumentOutOfRangeException(nameof(limit), asked, Rejection(limit, offset));
         }
 
         if (offset is { } skipped && !IsWellFormedOffset(skipped))
         {
-            throw new ArgumentOutOfRangeException(nameof(offset), skipped, "An offset is zero or more.");
+            throw new ArgumentOutOfRangeException(nameof(offset), skipped, Rejection(limit, offset));
         }
 
         return new SearchPage(limit, offset);
+    }
+
+    /// <summary>
+    ///     What is wrong with a page of <paramref name="limit" /> starting <paramref name="offset" /> in, or
+    ///     <see langword="null" /> where nothing is — the one rule the CLI's options and <see cref="Of" /> turn a page
+    ///     down by, as <see cref="Trends.TrendPage.Rejection" /> is the trends', so neither can come to accept a page the
+    ///     other refuses. Whether an offset can be sent at all is the query's to say, not the page's
+    ///     (<see cref="SearchQuery.PagingRejection" />).
+    /// </summary>
+    /// <param name="limit">How many of each kind were asked for, if any number was.</param>
+    /// <param name="offset">How many were to be skipped, if any number was.</param>
+    /// <param name="limitCalled">What the limit is called where it was given — <c>--limit</c> on the command line.</param>
+    /// <param name="offsetCalled">What the offset is called where it was given — <c>--offset</c> on the command line.</param>
+    public static string? Rejection(
+        int? limit,
+        int? offset,
+        string limitCalled = "A limit",
+        string offsetCalled = "An offset")
+    {
+        if (limit is { } asked && !IsWellFormedLimit(asked))
+        {
+            return $"{limitCalled} needs to be between 1 and {MostPerKind}.";
+        }
+
+        return offset is { } skipped && !IsWellFormedOffset(skipped)
+            ? $"{offsetCalled} needs to be zero or more."
+            : null;
     }
 }
