@@ -230,24 +230,19 @@ public sealed class SearchScreen : Screen
 
         _walk = new Picked<Result>([
             new Result.Field(),
-            .. Run(TrendKind.Hashtags, hashtags.Select(Result (hashtag) => new Result.OfHashtag(hashtag))),
-            .. Run(TrendKind.Links, links.Select(Result (link) => new Result.OfLink(link))),
-            .. Run(TrendKind.Posts, posts.Select(Result (post) => new Result.OfPost(post))),
+            .. Result.Headed(
+                new Result.TrendSection(TrendKind.Hashtags),
+                hashtags.Select(Result (hashtag) => new Result.OfHashtag(hashtag))),
+            .. Result.Headed(
+                new Result.TrendSection(TrendKind.Links),
+                links.Select(Result (link) => new Result.OfLink(link))),
+            .. Result.Headed(
+                new Result.TrendSection(TrendKind.Posts),
+                posts.Select(Result (post) => new Result.OfPost(post))),
         ]);
 
         _walk.Pick(at);
         _read = true;
-    }
-
-    /// <summary>
-    ///     <paramref name="trends" /> under the heading over <paramref name="kind" />, or nothing at all where nothing of
-    ///     it is trending.
-    /// </summary>
-    private static IEnumerable<Result> Run(TrendKind kind, IEnumerable<Result> trends)
-    {
-        var run = trends.ToList();
-
-        return run.Count == 0 ? [] : [new Result.TrendSection(kind), .. run];
     }
 
     /// <summary>
@@ -321,7 +316,7 @@ public sealed class SearchScreen : Screen
     /// <summary>What a direct query found opens as — the subject picking the same result opens.</summary>
     private static Subject Opening(DirectQuery.Named named) => named switch
     {
-        DirectQuery.Named.OfAccount(var account) => SearchResultsScreen.Opening(account),
+        DirectQuery.Named.OfAccount(var account) => Result.Opening(account),
         DirectQuery.Named.OfPost(var post) => new Subject.Thread(post),
         _ => throw new ArgumentOutOfRangeException(nameof(named), named, "Not something a direct query opens."),
     };
@@ -358,40 +353,7 @@ public sealed class SearchScreen : Screen
     ///     sharing it (#607), and a heading that kind of trend alone, read on past the few shown here (#606). <c>o</c> on
     ///     a trending link opens the article itself, in the browser.
     /// </summary>
-    public override Task Answer(Verb verb, Reach reach)
-    {
-        if (verb == Verb.OpenArticle && PickedLink is { } article)
-        {
-            reach.Browse(article.Url.OriginalString);
-
-            return Task.CompletedTask;
-        }
-
-        if (verb != Verb.OpenResult)
-        {
-            return Task.CompletedTask;
-        }
-
-        if (PickedSection is { } kind)
-        {
-            return reach.Open(new Subject.TrendsOf(kind));
-        }
-
-        // A post opens through Opens rather than straight off the trend, as on every screen holding posts.
-        if (Picked is not null)
-        {
-            return Opens is { } post ? reach.Open(new Subject.Thread(post)) : Task.CompletedTask;
-        }
-
-        if (PickedLink is { } link)
-        {
-            return reach.Open(new Subject.Sharing(link));
-        }
-
-        return _walk.Out is Result.OfHashtag hashtag && SearchResultsScreen.Opening(hashtag) is { } opening
-            ? reach.Open(opening)
-            : Task.CompletedTask;
-    }
+    public override Task Answer(Verb verb, Reach reach) => Result.Answer(verb, reach, _walk.Out, Opens);
 
     /// <inheritdoc />
     /// <remarks>
@@ -399,26 +361,14 @@ public sealed class SearchScreen : Screen
     ///     heading being picked out only to be opened.
     /// </remarks>
     public override Verb Clicked(int? item, int? part, bool chorded) =>
-        item is { } at && at < _walk.Count && _walk.All[at] is Result.TrendSection
+        item is { } at && at < _walk.Count && _walk.All[at].Heads
             ? Verb.OpenResult
             : base.Clicked(item, part, chorded);
 
     /// <inheritdoc />
     public override bool Heard(Change change)
     {
-        switch (change)
-        {
-            case Change.PostChanged(var post):
-                _walk.Rewrite(found =>
-                    found is Result.OfPost(var held) ? new Result.OfPost(PostChange.Replaced(held, post)) : found);
-
-                break;
-
-            case Change.PostGone(var id):
-                _walk.Remove(found => found is Result.OfPost(var held) && PostChange.Names(held, id));
-
-                break;
-        }
+        Result.Hear(_walk, change);
 
         return false;
     }

@@ -57,9 +57,15 @@ public sealed class SearchResultsScreen : Screen
         Asked = asked;
 
         _results = new Picked<Result>([
-            .. Run(SearchKind.Accounts, (results.Accounts ?? []).Select(Result (account) => new Result.OfAccount(account))),
-            .. Run(SearchKind.Hashtags, (results.Hashtags ?? []).Select(Result (hashtag) => new Result.OfHashtag(hashtag))),
-            .. Run(SearchKind.Posts, (results.Posts ?? []).Select(Result (post) => new Result.OfPost(post))),
+            .. Result.Headed(
+                new Result.Section(asked, SearchKind.Accounts),
+                (results.Accounts ?? []).Select(Result (account) => new Result.OfAccount(account))),
+            .. Result.Headed(
+                new Result.Section(asked, SearchKind.Hashtags),
+                (results.Hashtags ?? []).Select(Result (hashtag) => new Result.OfHashtag(hashtag))),
+            .. Result.Headed(
+                new Result.Section(asked, SearchKind.Posts),
+                (results.Posts ?? []).Select(Result (post) => new Result.OfPost(post))),
         ]);
 
         if (_results.Count > 1)
@@ -144,7 +150,7 @@ public sealed class SearchResultsScreen : Screen
     ///     The kind whose heading is picked out, or <see langword="null" /> where the pick is on a result rather than on
     ///     a heading.
     /// </summary>
-    public SearchKind? PickedSection => _results.Out is Result.Section(var kind) ? kind : null;
+    public SearchKind? PickedSection => _results.Out is Result.Section(_, var kind) ? kind : null;
 
     /// <inheritdoc />
     /// <remarks>
@@ -157,70 +163,16 @@ public sealed class SearchResultsScreen : Screen
     /// <inheritdoc />
     protected override IPicked Walking => _results;
 
-    /// <summary>What this screen's own <c>⏎</c> does: opens what is picked out.</summary>
-    public override Task Answer(Verb verb, Reach reach) =>
-        verb == Verb.OpenResult ? OpenResult(reach) : Task.CompletedTask;
-
-    /// <summary>What an account a search found opens as, whether it was picked out here or named at the prompt.</summary>
-    internal static Subject Opening(Account account) =>
-        new Subject.Account(AccountAddress.Parse(account.Address), WithReplies: false);
-
     /// <summary>
-    ///     What a result opens as, wherever it was found — here or on the screen of its kind alone: an account, a
-    ///     hashtag's timeline, or a post's thread — or nothing for a heading, which only the screen it heads can open. A
-    ///     <b>Trending link</b>, which only the trends hold, opens as the posts sharing it (#607), on the screen of
-    ///     trending links alone as under the prompt (#606).
+    ///     What this screen's own <c>⏎</c> does: opens what is picked out — an account, a hashtag's timeline, or a post —
+    ///     or, for a heading, that kind alone, asked again and read on (#604).
     /// </summary>
-    /// <remarks>
-    ///     A hashtag opens as a screen on the stack rather than as a place on the rail. Which tags the rail keeps
-    ///     places for are the tag sets the reader wrote down (<c>docs/tui-shell.md</c>), and a search result is not
-    ///     them changing their mind about them.
-    /// </remarks>
-    internal static Subject? Opening(Result result) => result switch
-    {
-        Result.OfAccount(var account) => Opening(account),
-        Result.OfHashtag(var hashtag) => new Subject.Tag(hashtag.Name),
-        Result.OfPost(var post) => new Subject.Thread(post),
-        Result.OfLink(var link) => new Subject.Sharing(link),
-        _ => null,
-    };
-
-    /// <summary>
-    ///     Opens whatever the reader picked out: an account, a hashtag's timeline, or a post — or, for a heading, that
-    ///     kind alone, asked again and read on (#604).
-    /// </summary>
-    private Task OpenResult(Reach reach)
-    {
-        if (PickedSection is { } kind)
-        {
-            return reach.Open(new Subject.Narrowed(Asked, kind));
-        }
-
-        // A post opens through Opens rather than straight off the result, as on every screen holding posts.
-        if (Picked is not null)
-        {
-            return Opens is { } post ? reach.Open(new Subject.Thread(post)) : Task.CompletedTask;
-        }
-
-        return _results.Out is { } result && Opening(result) is { } opening ? reach.Open(opening) : Task.CompletedTask;
-    }
+    public override Task Answer(Verb verb, Reach reach) => Result.Answer(verb, reach, _results.Out, Opens);
 
     /// <inheritdoc />
     public override bool Heard(Change change)
     {
-        switch (change)
-        {
-            case Change.PostChanged(var post):
-                _results.Rewrite(found =>
-                    found is Result.OfPost(var held) ? new Result.OfPost(PostChange.Replaced(held, post)) : found);
-
-                break;
-
-            case Change.PostGone(var id):
-                _results.Remove(found => found is Result.OfPost(var held) && PostChange.Names(held, id));
-
-                break;
-        }
+        Result.Hear(_results, change);
 
         return false;
     }
@@ -232,7 +184,7 @@ public sealed class SearchResultsScreen : Screen
     ///     be a pick in the way.
     /// </remarks>
     public override Verb Clicked(int? item, int? part, bool chorded) =>
-        item is { } at && at < _results.Count && _results.All[at] is Result.Section
+        item is { } at && at < _results.Count && _results.All[at].Heads
             ? Verb.OpenResult
             : base.Clicked(item, part, chorded);
 
@@ -252,7 +204,7 @@ public sealed class SearchResultsScreen : Screen
         {
             var result = _results.All[at];
 
-            if (result is Result.Section(var kind))
+            if (result is Result.Section(_, var kind))
             {
                 // A blank above it wherever something stands above it, which is what separates one kind from the
                 // next — the same blank AccountLines.Header puts over each of its sections, and no rule. The first
@@ -278,17 +230,6 @@ public sealed class SearchResultsScreen : Screen
         }
 
         return lines;
-    }
-
-    /// <summary>
-    ///     <paramref name="found" /> under the heading over <paramref name="kind" />, or nothing at all where nothing of
-    ///     it was found — a run with nothing in it draws no heading, and so is no section.
-    /// </summary>
-    private static IEnumerable<Result> Run(SearchKind kind, IEnumerable<Result> found)
-    {
-        var run = found.ToList();
-
-        return run.Count == 0 ? [] : [new Result.Section(kind), .. run];
     }
 
     /// <summary>

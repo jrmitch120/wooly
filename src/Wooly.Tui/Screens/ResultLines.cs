@@ -107,7 +107,7 @@ internal static class ResultLines
     {
         Result.OfAccount => SearchKind.Accounts,
         Result.OfHashtag => SearchKind.Hashtags,
-        Result.Section(var kind) => kind,
+        Result.Section(_, var kind) => kind,
         _ => SearchKind.Posts,
     };
 

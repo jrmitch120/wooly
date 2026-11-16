@@ -929,6 +929,62 @@ public abstract record Subject
     }
 
     /// <summary>
+    ///     One kind of thing read a page at a time by offset, onto the screen of that kind alone (<see cref="SectionScreen" />):
+    ///     a search narrowed to one kind (<see cref="Narrowed" />) and one kind of <b>Trend</b> (<see cref="TrendsOf" />),
+    ///     which read and read on the same way and differ only in what a page is asked of and what the screen is called —
+    ///     so that the shape is written once (#598's review).
+    /// </summary>
+    /// <remarks>
+    ///     Never held: what an instance finds, and what it ranks as trending, is its answer now.
+    /// </remarks>
+    public abstract record ReadByOffset : Subject
+    {
+        /// <summary>How many a page asks for.</summary>
+        private protected abstract int PageSize { get; }
+
+        /// <inheritdoc />
+        internal sealed override async Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing)
+        {
+            var read = await ask.Of(token => Page(ports, profile, from: null, token));
+
+            return new Found.Drawn(() => Drawn(read.Items, new ReadingOn(read.Onward)));
+        }
+
+        /// <inheritdoc />
+        internal sealed override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
+            new OnwardRead<Result>((ports, profile, at, token) => Page(ports, profile, at, token))
+                .From(ask, ports, profile, from);
+
+        /// <summary>The screen of the kind, holding what its first read brought, reading on as it says.</summary>
+        private protected abstract SectionScreen Drawn(IReadOnlyList<Result> read, ReadingOn readingOn);
+
+        /// <summary>The <paramref name="limit" /> things <paramref name="offset" /> in, as the screen walks them.</summary>
+        private protected abstract Task<IReadOnlyList<Result>> PageOf(
+            ShellPorts ports,
+            ActiveProfile profile,
+            int limit,
+            int offset,
+            CancellationToken token);
+
+        /// <summary>The page <paramref name="from" /> says, or the first.</summary>
+        private Task<Fetch<Result>> Page(ShellPorts ports, ActiveProfile profile, Onward? from, CancellationToken token) =>
+            OffsetReading.Read(
+                PageSize,
+                from,
+                (limit, offset, asking) => PageOf(ports, profile, limit, offset, asking),
+                token);
+    }
+
+    /// <summary>
     ///     A search narrowed to one kind (#604): what was searched for, asked again of that kind alone, a page of
     ///     <see cref="NarrowedPage" /> at a time, and <b>read on</b> by offset as the page nears the end of what is in
     ///     hand — opened from the kind's heading on the mixed results, which ask twenty.
@@ -940,7 +996,7 @@ public abstract record Subject
     /// </remarks>
     /// <param name="Asked">What was searched for, as it was typed.</param>
     /// <param name="Kind">Which kind of result it is narrowed to.</param>
-    public sealed record Narrowed(string Asked, SearchKind Kind) : Subject
+    public sealed record Narrowed(string Asked, SearchKind Kind) : ReadByOffset
     {
         /// <summary>
         ///     How many a narrowed search asks for at a time: the most an instance serves of one kind in one answer, a
@@ -949,63 +1005,43 @@ public abstract record Subject
         public const int NarrowedPage = SearchPage.MostPerKind;
 
         /// <inheritdoc />
-        internal override async Task<Found> Read(
-            Enquiry.Ask ask,
-            ShellPorts ports,
-            ActiveProfile profile,
-            Screen? standing)
-        {
-            var read = await ask.Of(token => Page(ports, profile, from: null, token));
-
-            return new Found.Drawn(() => new SectionScreen(Kind, read.Items, $"Nothing found for {Asked}.")
-            {
-                ReadingOn = new ReadingOn(read.Onward),
-            });
-        }
+        private protected override int PageSize => NarrowedPage;
 
         /// <inheritdoc />
-        internal override Task<Found> ReadOn(
-            Enquiry.Ask ask,
+        private protected override SectionScreen Drawn(IReadOnlyList<Result> read, ReadingOn readingOn) =>
+            new(Kind, read, $"Nothing found for {Asked}.") { ReadingOn = readingOn };
+
+        /// <inheritdoc />
+        /// <remarks>
+        ///     Asked by offset, which only a search of one kind can be paged by — with the accounts on the page stood.
+        /// </remarks>
+        private protected override async Task<IReadOnlyList<Result>> PageOf(
             ShellPorts ports,
             ActiveProfile profile,
-            Screen standing,
-            Onward from) =>
-            new OnwardRead<Result>((ports, profile, at, token) => Page(ports, profile, at, token))
-                .From(ask, ports, profile, from);
+            int limit,
+            int offset,
+            CancellationToken token)
+        {
+            // The first page sends no offset, an instance starting there anyway.
+            var query = SearchQuery.For(
+                DirectQuery.Asking(Asked),
+                Kind,
+                SearchPage.Of(limit, offset > 0 ? offset : null));
 
-        /// <summary>
-        ///     The page of the kind <paramref name="from" /> says, or the first — asked by offset, which only a search
-        ///     of one kind can be paged by — with the accounts on it stood.
-        /// </summary>
-        private Task<Fetch<Result>> Page(ShellPorts ports, ActiveProfile profile, Onward? from, CancellationToken token) =>
-            OffsetReading.Read(
-                NarrowedPage,
-                from,
-                async (limit, offset, asking) =>
-                {
-                    // The first page sends no offset, an instance starting there anyway.
-                    var query = SearchQuery.For(
-                        DirectQuery.Asking(Asked),
-                        Kind,
-                        SearchPage.Of(limit, offset > 0 ? offset : null));
+            var found = await ports.Search.Find(profile, query, token);
 
-                    var found = await ports.Search.Find(profile, query, asking);
-
-                    IReadOnlyList<Result> results = Kind switch
-                    {
-                        SearchKind.Accounts =>
-                        [
-                            .. (await ports.StoodOrSilent(profile, found.Accounts ?? [], asking))
-                            .Select(Result (account) => new Result.OfAccount(account)),
-                        ],
-                        SearchKind.Hashtags =>
-                            [.. (found.Hashtags ?? []).Select(Result (hashtag) => new Result.OfHashtag(hashtag))],
-                        _ => [.. (found.Posts ?? []).Select(Result (post) => new Result.OfPost(post))],
-                    };
-
-                    return results;
-                },
-                token);
+            return Kind switch
+            {
+                SearchKind.Accounts =>
+                [
+                    .. (await ports.StoodOrSilent(profile, found.Accounts ?? [], token))
+                    .Select(Result (account) => new Result.OfAccount(account)),
+                ],
+                SearchKind.Hashtags =>
+                    [.. (found.Hashtags ?? []).Select(Result (hashtag) => new Result.OfHashtag(hashtag))],
+                _ => [.. (found.Posts ?? []).Select(Result (post) => new Result.OfPost(post))],
+            };
+        }
     }
 
     /// <summary>
@@ -1018,71 +1054,45 @@ public abstract record Subject
     ///     Never held, as the trends under the prompt are not: what is trending is the instance's answer now.
     /// </remarks>
     /// <param name="Kind">Which kind of trend.</param>
-    public sealed record TrendsOf(TrendKind Kind) : Subject
+    public sealed record TrendsOf(TrendKind Kind) : ReadByOffset
     {
         /// <inheritdoc />
-        internal override async Task<Found> Read(
-            Enquiry.Ask ask,
-            ShellPorts ports,
-            ActiveProfile profile,
-            Screen? standing)
-        {
-            var read = await ask.Of(token => Page(ports, profile, from: null, token));
-
-            return new Found.Drawn(() => new SectionScreen(Kind, read.Items, "Nothing trending on this instance")
-            {
-                ReadingOn = new ReadingOn(read.Onward),
-            });
-        }
+        private protected override int PageSize => TrendPage.Most(Kind);
 
         /// <inheritdoc />
-        internal override Task<Found> ReadOn(
-            Enquiry.Ask ask,
+        private protected override SectionScreen Drawn(IReadOnlyList<Result> read, ReadingOn readingOn) =>
+            new(Kind, read, "Nothing trending on this instance") { ReadingOn = readingOn };
+
+        /// <inheritdoc />
+        /// <remarks>Asked by offset, as every trends endpoint pages.</remarks>
+        private protected override async Task<IReadOnlyList<Result>> PageOf(
             ShellPorts ports,
             ActiveProfile profile,
-            Screen standing,
-            Onward from) =>
-            new OnwardRead<Result>((ports, profile, at, token) => Page(ports, profile, at, token))
-                .From(ask, ports, profile, from);
+            int limit,
+            int offset,
+            CancellationToken token)
+        {
+            var page = TrendPage.Of(limit, offset);
 
-        /// <summary>
-        ///     The page of the kind <paramref name="from" /> says, or the first — asked by offset, as every trends
-        ///     endpoint pages.
-        /// </summary>
-        private Task<Fetch<Result>> Page(
-            ShellPorts ports,
-            ActiveProfile profile,
-            Onward? from,
-            CancellationToken token) =>
-            OffsetReading.Read(
-                TrendPage.Most(Kind),
-                from,
-                async (limit, offset, asking) =>
-                {
-                    var page = TrendPage.Of(limit, offset);
-
-                    IReadOnlyList<Result> trends = Kind switch
-                    {
-                        TrendKind.Hashtags =>
-                        [
-                            .. (await ports.Trends.Hashtags(profile, page, asking))
-                            .Select(Result (hashtag) => new Result.OfHashtag(hashtag)),
-                        ],
-                        TrendKind.Links =>
-                        [
-                            .. (await ports.Trends.Links(profile, page, asking))
-                            .Select(Result (link) => new Result.OfLink(link)),
-                        ],
-                        _ =>
-                        [
-                            .. (await ports.Trends.Posts(profile, page, asking))
-                            .Select(Result (post) => new Result.OfPost(post)),
-                        ],
-                    };
-
-                    return trends;
-                },
-                token);
+            return Kind switch
+            {
+                TrendKind.Hashtags =>
+                [
+                    .. (await ports.Trends.Hashtags(profile, page, token))
+                    .Select(Result (hashtag) => new Result.OfHashtag(hashtag)),
+                ],
+                TrendKind.Links =>
+                [
+                    .. (await ports.Trends.Links(profile, page, token))
+                    .Select(Result (link) => new Result.OfLink(link)),
+                ],
+                _ =>
+                [
+                    .. (await ports.Trends.Posts(profile, page, token))
+                    .Select(Result (post) => new Result.OfPost(post)),
+                ],
+            };
+        }
     }
 
     /// <summary>

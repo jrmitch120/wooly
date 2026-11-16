@@ -57,8 +57,7 @@ internal static class TrendLines
     /// </remarks>
     public static Line Hashtag(Hashtag hashtag, int room)
     {
-        var people = hashtag.RecentAccounts == 1 ? "person" : "people";
-        var used = $"{Number.Of(hashtag.RecentAccounts)} {people} in recent days";
+        var used = $"{People(hashtag.RecentAccounts)} in recent days";
         var usedWidth = Glyphs.Columns(used);
 
         if (usedWidth + Gap >= room)
@@ -79,7 +78,7 @@ internal static class TrendLines
     /// </summary>
     public static IReadOnlyList<Line> Link(TrendingLink link, int room)
     {
-        var sharing = $"{Number.Of(link.PeopleSharing)} {(link.PeopleSharing == 1 ? "person" : "people")} sharing";
+        var sharing = $"{People(link.PeopleSharing)} sharing";
         var said = $"{OneRow(link.Site)} · {sharing}";
 
         return
@@ -91,6 +90,13 @@ internal static class TrendLines
             Line.Of([new Span(TextWrap.Clip(said, room), Role.Link)]),
         ];
     }
+
+    /// <summary>
+    ///     <paramref name="count" /> people, grouped as <see cref="Number" /> groups a count — the one way a trend says
+    ///     how many used or shared it. The CLI's <c>Plural</c> is its own and writes the count ungrouped, as its output
+    ///     always has.
+    /// </summary>
+    private static string People(long count) => $"{Number.Of(count)} {(count == 1 ? "person" : "people")}";
 
     /// <summary><paramref name="text" /> on one row, whatever breaks the instance passed on from the article.</summary>
     private static string OneRow(string text) => text.ReplaceLineEndings(" ").Trim();

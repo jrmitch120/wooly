@@ -57,6 +57,10 @@ public static class Keymap
         (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign, _)
             when screen.HasWidgetsOfItsOwn => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
+
+        // With a trend picked under the prompt the field is up there, with whatever it holds (#605). On the field, / is
+        // typed and never reaches here.
+        (ShellKey.Slash, SearchScreen { OnTheField: false }) => Verb.ToTheField,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
         (ShellKey.ShiftTab, _) => Verb.PreviousDestination,
@@ -218,7 +222,7 @@ public static class Keymap
         // heading over the first trend is walked to by j and k, and passed over by the arrows (#606): ↓ lands where ]
         // lands, on the first trend, and ↑ from the trend or its heading goes where / goes from a trend, to the field.
         (ShellKey.Down, SearchScreen { OnTheField: true }) => Verb.NextSection,
-        (ShellKey.Up, SearchScreen { OnTheFirstTrend: true }) => Verb.Search,
+        (ShellKey.Up, SearchScreen { OnTheFirstTrend: true }) => Verb.ToTheField,
         (ShellKey.Down, _) => Verb.ScrollDown,
         (ShellKey.Up, _) => Verb.ScrollUp,
         (ShellKey.PageDown, _) => Verb.PageDown,

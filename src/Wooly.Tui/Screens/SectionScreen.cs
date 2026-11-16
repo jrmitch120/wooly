@@ -139,47 +139,12 @@ public sealed class SectionScreen : Screen, IReadsOn<Result>
     ///     What this screen's own <c>⏎</c> does: opens what is picked out, as on the screen it was opened from — and
     ///     <c>o</c> on a trending link, which opens the article itself in the browser (#607).
     /// </summary>
-    public override Task Answer(Verb verb, Reach reach)
-    {
-        if (verb == Verb.OpenArticle && PickedLink is { } article)
-        {
-            reach.Browse(article.Url.OriginalString);
-
-            return Task.CompletedTask;
-        }
-
-        if (verb != Verb.OpenResult)
-        {
-            return Task.CompletedTask;
-        }
-
-        // A post opens through Opens rather than straight off the result, as on every screen holding posts.
-        if (Picked is not null)
-        {
-            return Opens is { } post ? reach.Open(new Subject.Thread(post)) : Task.CompletedTask;
-        }
-
-        return _results.Out is { } result && SearchResultsScreen.Opening(result) is { } opening
-            ? reach.Open(opening)
-            : Task.CompletedTask;
-    }
+    public override Task Answer(Verb verb, Reach reach) => Result.Answer(verb, reach, _results.Out, Opens);
 
     /// <inheritdoc />
     public override bool Heard(Change change)
     {
-        switch (change)
-        {
-            case Change.PostChanged(var post):
-                _results.Rewrite(found =>
-                    found is Result.OfPost(var held) ? new Result.OfPost(PostChange.Replaced(held, post)) : found);
-
-                break;
-
-            case Change.PostGone(var id):
-                _results.Remove(found => found is Result.OfPost(var held) && PostChange.Names(held, id));
-
-                break;
-        }
+        Result.Hear(_results, change);
 
         return false;
     }

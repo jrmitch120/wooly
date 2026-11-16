@@ -78,6 +78,13 @@ public enum Verb
     Search,
 
     /// <summary>
+    ///     <c>/</c> with a trend picked under the search prompt, or <c>↑</c> from the first trend or its heading: back up to
+    ///     the field, with what it holds kept — carrying on typing being one key from anywhere under it (#605). Its own
+    ///     meaning rather than <see cref="Search" />'s, so that going to search never has to ask where it is first.
+    /// </summary>
+    ToTheField,
+
+    /// <summary>
     ///     <c>ctrl-p</c>: every profile on this machine, and which one this session is acting as (ADR-0020). Nothing on
     ///     compose, where a switch would drop the draft.
     /// </summary>
