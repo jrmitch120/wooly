@@ -1,3 +1,4 @@
+using System.Reflection;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -187,6 +188,72 @@ internal sealed class ComposeEditor(
         OnPaste(text);
     }
 
+    /// <summary>
+    ///     A change to the text while something is selected leaves the selection begun at the caret, holding nothing.
+    ///     <see cref="TextView" /> says the text has changed — and reads the selection — part way through edits made
+    ///     with something selected, a paste over it and an undo, at a moment its wrapped rows are still laid out as
+    ///     they were before the edit: each end of the selection is found in text that is no longer there, and where
+    ///     what is there is shorter, the read ran past the end of a line and threw, taking Wooly down. Terminal.Gui
+    ///     2.5 does this, and its 2.6 builds still do.
+    /// </summary>
+    /// <remarks>
+    ///     Begun at the caret, both ends are found at the same place however out of date the rows are, so there is
+    ///     nothing to read. Held rather than let go: a paste lets go of it itself once it is in, and only records the
+    ///     paste and what it replaced as one edit, for one undo to put back (<see cref="ReplaceBeforeCaret" />), where
+    ///     it is still held.
+    /// </remarks>
+    public override void OnContentsChanged()
+    {
+        if (IsSelecting)
+        {
+            SelectionStartRow = CurrentRow;
+            SelectionStartColumn = CurrentColumn;
+        }
+
+        base.OnContentsChanged();
+    }
+
+    /// <summary>A paste goes in with the rows laid out as the text is (<see cref="LaidOutAgain" />).</summary>
+    protected override bool OnPaste(string text)
+    {
+        LaidOutAgain();
+
+        return base.OnPaste(text);
+    }
+
+    /// <summary>The private flag <see cref="TextView" /> keeps for rows left to lay out (<see cref="LaidOutAgain" />).</summary>
+    private static readonly FieldInfo? RowsLeftToLayOut =
+        typeof(TextView).GetField("_wrapNeeded", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    /// <summary>The private way <see cref="TextView" /> lays its rows out (<see cref="LaidOutAgain" />).</summary>
+    private static readonly MethodInfo? LayOutRows =
+        typeof(TextView).GetMethod("WrapTextModel", BindingFlags.Instance | BindingFlags.NonPublic, Type.EmptyTypes);
+
+    /// <summary>
+    ///     Lays the text's wrapped rows out again now, where an edit left that for later. <see cref="TextView" /> ends
+    ///     an edit holding the text's own lines while its caret is counted in wrapped rows, and leaves them to be laid
+    ///     out as rows again at the next move of the caret — which drawing is not. A paste of more than one line or an
+    ///     undo before then has <see cref="TextView" /> lay them out part way through itself, while the caret is
+    ///     counted in lines, and the caret was put back on the wrong line, or off the text altogether: a line break
+    ///     pasted after deleting a selection went in front of the line before, an <c>enter</c> or a paste after
+    ///     deleting the last letter of a line that wraps found no line where the caret was, and either threw, taking
+    ///     Wooly down. Terminal.Gui 2.5 does this, and its 2.6 builds still do.
+    /// </summary>
+    /// <remarks>
+    ///     Through <see cref="TextView" />'s own flag for rows left to lay out and its own way of laying them out,
+    ///     which are private: nothing public lays them out without moving the caret first, against the lines it is not
+    ///     counted in. A Terminal.Gui without them leaves the rows to it, which is the crash and nothing worse;
+    ///     <c>ComposeEditorPasteTests</c> is what says so.
+    /// </remarks>
+    private void LaidOutAgain()
+    {
+        if (RowsLeftToLayOut?.GetValue(this) is true && LayOutRows is not null)
+        {
+            LayOutRows.Invoke(this, null);
+            RowsLeftToLayOut.SetValue(this, false);
+        }
+    }
+
     protected override bool OnKeyDown(Key key)
     {
         if (Answering?.Invoke(key) == true || Ahead?.Invoke(key) == true)
@@ -239,6 +306,9 @@ internal sealed class ComposeEditor(
 
             return true;
         }
+
+        // An undo, like a paste, is to find the rows laid out as the text is.
+        LaidOutAgain();
 
         return base.OnKeyDown(key);
     }
