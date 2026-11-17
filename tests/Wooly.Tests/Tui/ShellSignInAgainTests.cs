@@ -102,6 +102,25 @@ public class ShellSignInAgainTests
         Assert.Equal("Replaced profile work.", opened.Notice);
     }
 
+    /// <summary>
+    ///     The instance is fixed when signing in again, so it takes no letters: <c>ctrl-u</c> leaves it alone, as a
+    ///     letter and a backspace do, and is not offered (#310).
+    /// </summary>
+    [Fact]
+    public async Task ClearTyped_LeavesTheFixedInstanceAlone()
+    {
+        var opened = await PersonalAndWork().Opened();
+
+        OnProfiles(opened, "work");
+        opened.Press(ShellKey.CapitalR);
+
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "ctrl-u");
+
+        opened.ClearTyped();
+
+        Assert.Equal("hachyderm.io", Assert.IsType<AddProfileScreen>(opened.Screen).Instance);
+    }
+
     /// <summary>A working token for somebody else is refused on the screen, and nothing is written.</summary>
     [Fact]
     public async Task R_WithATokenForSomebodyElse_IsRefused_AndNothingIsWritten()

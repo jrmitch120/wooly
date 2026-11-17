@@ -243,6 +243,90 @@ public class ShellAddProfileTests
         Assert.Equal("work", Assert.Single(shell.Profiles.Added).Name);
     }
 
+    /// <summary>
+    ///     <c>ctrl-u</c> empties the instance field and leaves it taking letters, and is offered only while there is
+    ///     something in it (#310).
+    /// </summary>
+    [Fact]
+    public async Task ClearTyped_EmptiesTheInstanceField()
+    {
+        var shell = new AShell();
+        var opened = await Adding(shell);
+
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "ctrl-u");
+
+        Type(opened, Instance);
+
+        Assert.Contains(opened.Keys, key => key is { Key: "ctrl-u", Does: "clear" });
+
+        opened.ClearTyped();
+
+        var adding = Assert.IsType<AddProfileScreen>(opened.Screen);
+        Assert.Equal(string.Empty, adding.Instance);
+        Assert.Equal(AddProfileScreen.Step.Instance, adding.At);
+        Assert.True(adding.IsTyping);
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "ctrl-u");
+        Assert.Empty(shell.Authorizer.Instances);
+    }
+
+    /// <summary>And the token field, on its own step, leaving the instance it is for alone (#310).</summary>
+    [Fact]
+    public async Task ClearTyped_EmptiesTheTokenField()
+    {
+        var shell = new AShell { Authorizer = FakeBrowserAuthorizer.Holding() };
+        var opened = await Adding(shell);
+
+        Type(opened, Instance);
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+        opened.Press(ShellKey.T);
+
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "ctrl-u");
+
+        Type(opened, "mistyped");
+
+        Assert.Contains(opened.Keys, key => key is { Key: "ctrl-u", Does: "clear" });
+
+        opened.ClearTyped();
+
+        var adding = Assert.IsType<AddProfileScreen>(opened.Screen);
+        Assert.Equal(string.Empty, adding.Token);
+        Assert.Equal(Instance, adding.Instance);
+        Assert.Equal(AddProfileScreen.Step.Token, adding.At);
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "ctrl-u");
+
+        Type(opened, "secret-token");
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        Assert.Equal(["secret-token"], shell.Verifier.Tokens);
+    }
+
+    /// <summary>And the name field, which opens holding the handle, so is offered at once (#310).</summary>
+    [Fact]
+    public async Task ClearTyped_EmptiesTheNameField()
+    {
+        var shell = new AShell();
+        var opened = await Adding(shell);
+
+        Type(opened, Instance);
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        Assert.Contains(opened.Keys, key => key is { Key: "ctrl-u", Does: "clear" });
+
+        opened.ClearTyped();
+
+        Assert.Equal(string.Empty, Assert.IsType<AddProfileScreen>(opened.Screen).Name);
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "ctrl-u");
+
+        Type(opened, "work");
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        Assert.Equal("work", Assert.Single(shell.Profiles.Added).Name);
+    }
+
     /// <summary>A name with nothing in it names nothing, and is said so rather than stored.</summary>
     [Fact]
     public async Task Name_ThatIsEmpty_IsRefusedInline()

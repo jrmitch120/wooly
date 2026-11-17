@@ -380,9 +380,7 @@ public class ReferenceWalkTests
                     AConversation.Thread(AConversation.With(), post with { Visibility = PostVisibility.Direct }));
 
             case "search":
-                var search = new SearchScreen();
-
-                search.Found("sheep", new SearchResults { Posts = [post] });
+                var search = new SearchResultsScreen("sheep", new SearchResults { Posts = [post] });
 
                 return search;
 

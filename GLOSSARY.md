@@ -695,11 +695,15 @@ _Avoid_: event, update, invalidation
 **Subject**:
 What a screen that is read is read from, as a value: a **destination** on the rail, a post's thread, an account (and
 whether with its replies), one side of an account's **Follow list**, a **Notification group**'s **Actor**s, one side
-of a post's **Actor**s (#489), a hashtag walked to, or a conversation (#233). A closed set; each carries its own read
-and builds its own screen, and says whether what it read is cached and how it **reads on**. A screen exposes its subject, which is what `g` asks again and
-what the one cache is keyed by. Compared by value, so a follow list is the same subject however its account was last
-answered about, and a destination the same whatever its badge says. The search prompt has none: a live search is its
-own question (#84).
+of a post's **Actor**s (#489), a hashtag walked to, a conversation (#233), the **Trend**s under the search prompt
+(`Trending`, #605), a search narrowed to one kind (`Narrowed`, #604), one kind of **Trend** alone (`TrendsOf`, #606),
+or the posts sharing a **Trending link** (`Sharing`, #607). A closed set; each carries its own read and builds its own
+screen, and says whether what it read is cached and how it **reads on**. A screen exposes its subject, which is what
+`g` asks again on a screen that refreshes and what the one cache is keyed by. Compared by value, so a follow list is
+the same subject however its account was last answered about, and a destination the same whatever its badge says. The
+search prompt's subject is its trends, read afresh on every arrival and never cached; none of the search and trend
+screens refreshes, so `g` does nothing on them. The results a search pushes have no subject at all: a live search is
+its own question, which `esc` and `⏎` ask again (#84, #600).
 _Avoid_: source, target, model
 
 **Keymap**:
@@ -723,8 +727,8 @@ _Avoid_: binding, shortcut, command (which is the CLI's word for what it runs)
 **Reach**:
 What a **screen** can reach of the shell while it carries out a verb of its own (`Screen.Answer`, #232): the profile and
 the ports, one way of asking an **instance** (through the shell's **Enquiry**, stale-answer rule and all), opening a
-**Subject** on top of what is showing, swapping one into its own place or reading it again, saying something on the
-status row, asking before going ahead, and telling the shell what **Change** a verb made. Nothing of the stack, the rail
+**Subject** on top of what is showing, pushing a screen handed what its own question found (a search's results, #600),
+swapping one into its own place or reading it again, saying something on the status row, asking before going ahead, and telling the shell what **Change** a verb made. Nothing of the stack, the rail
 or the cache: what a change makes stale is **Arrival**'s to settle, not the screen's that made it (#234). Narrow on
 purpose: a verb that needs more is a sign it is not screen-local, and the thing to do is say so rather than widen it.
 Concrete rather than an interface, because the shell is the only thing that builds one. **Drafting** reaches the shell
@@ -774,7 +778,8 @@ thing whose start is on the page — or, where no thing's start is, the topmost 
 nothing else with that press, bar `←`/`→`, which go on to enter its **Reference**s (#51). A thing's start is the first
 row of its content — a post's warning, text or attachment, under its boost line, notification strip and byline — or,
 for a thing with no content, such as an account's header block or a follow, its first row. It is not a **Section**
-heading, which heads a run of things rather than one.
+heading, which heads a run of things rather than one — unless the heading is a thing of its own, as a search's is
+(#604), when it is reclaimed like any other thing with no content.
 _Avoid_: snap, jump back, heading (for a thing's start)
 
 **Section**:
@@ -786,7 +791,11 @@ every other row says which thing it is part of, so the sections a reader can see
 are the same sections by construction, with no screen keeping a second count of its own (`Sections`, `Scroll.ToSection`).
 The list underneath is not sectioned at all — one `Picked` across the lot, in the order it is drawn — so a section is a
 way of *reading* a list rather than a way of holding one. A heading carries how many are under it where that total is a
-fact (`── 7 accounts ──`); a run with nothing in it draws no heading, and so is no section.
+fact (`── 7 accounts ──`), or `N+` where it is a page the instance served full (`── 20+ posts ──`); a run with
+nothing in it draws no heading, and so is no section. On a search's results a heading is itself walked to and opened:
+`⏎` or a click pushes that section alone, crumbed `Search › cats › Posts`, where it is **read on** past the preview
+(#604) — as a trends heading under the empty prompt pushes that kind of **Trend** alone, crumbed
+`Search › Trending posts` (#606). `[` and `]` still land on a section's first thing, never its heading.
 _Avoid_: kind (which is what a search result *is*, not where it sits), tab, group, category, fold
 
 **Reference**:
@@ -810,12 +819,26 @@ _Avoid_: mark (for this; reserved for boost/favorite/pin)
 **Direct query**:
 What is typed into search when it names one thing rather than asks after something: a `#hashtag` that is one word,
 a handle with an `@` in it (`@alice`, `@alice@host`, `alice@host`), or a single web address. It goes straight to the
-thing it names, pushed onto search exactly as picking that result would push it, instead of listing results. A
+thing it names, pushed straight over the search prompt with no results beneath it, instead of listing results — so
+one `esc` is back at the prompt with what was typed still on it. A
 hashtag needs no asking, since any well-formed tag has a timeline. A handle or an address is found only by an exact
 match from the search that was asked anyway, and a query that finds no exact match lists its results like any other.
 A word with none of these signs (`cats`, `alice`) is never direct, which is how a reader asks for everything that
 resembles it. Distinct from a **Reference**, which is found inside written text rather than typed.
 _Avoid_: jump, shortcut (both read as keys), lookup (which is the crossing from an address to an id)
+
+**Trend**:
+A hashtag, a post or a link the instance ranks as being talked about now, shown under an empty search prompt. Not a
+kind of thing of its own: a trending hashtag is a hashtag and a trending post a post, each opening as one does anywhere
+else. Only a **Trending link** is new, being about something outside Mastodon. What trends is the instance's to say,
+and an instance that keeps no trends has none to show.
+_Avoid_: trending topic, popular, hot, explore (which is a **Rail group**)
+
+**Trending link**:
+An article from outside Mastodon that the instance ranks as shared now, opened as the posts sharing it rather than as
+the article — what people are saying being why it trends — with the article itself one key further, in the browser.
+Only a link that is trending has such posts to read: one that stops trending has nothing behind it.
+_Avoid_: news, article (for the trend; the article is what it points at), card
 
 **Mention**:
 Two things one word, told apart by which side of the wire they are on. `Post.Mentions` is everyone a post names, as

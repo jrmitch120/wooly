@@ -21,6 +21,9 @@ public interface IInstanceSearch
     ///     search is one call to the instance, so a rate limit stops it with nothing in hand and is raised rather than
     ///     reported alongside a half-answer (ADR-0011).
     /// </returns>
+    /// <exception cref="Errors.RateLimitedException">The profile has spent its quota with the instance.</exception>
+    /// <exception cref="Errors.SearchRefusedException">The instance turned the search down.</exception>
+    /// <exception cref="Errors.InstanceFailedException">The instance failed to answer — a <c>5xx</c>.</exception>
     Task<SearchResults> Find(ActiveProfile profile, SearchQuery query, CancellationToken cancellationToken);
 
     /// <summary>

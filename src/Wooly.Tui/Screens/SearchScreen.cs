@@ -1,7 +1,7 @@
-using Wooly.Core;
-using Wooly.Core.Accounts;
+using System.Drawing;
 using Wooly.Core.Posts;
 using Wooly.Core.Search;
+using Wooly.Core.Trends;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Shell;
 using Wooly.Tui.Theme;
@@ -9,152 +9,256 @@ using Wooly.Tui.Theme;
 namespace Wooly.Tui.Screens;
 
 /// <summary>
-///     The prompt <c>/</c> opens, and what it found. A rail destination like any other, which is why <c>/</c> is a
-///     frame key: it means "go to search" everywhere, and this is what it arrives at (<c>docs/tui-shell.md</c>).
+///     The prompt <c>/</c> opens, with the instance's <b>Trend</b>s under it. A rail destination like any other, which
+///     is why <c>/</c> is a frame key: it means "go to search" everywhere, and this is what it arrives at
+///     (<c>docs/tui-shell.md</c>).
 /// </summary>
 /// <remarks>
-///     One search, three kinds of result, listed in the order <see cref="SearchResults" /> holds them — which is what
-///     makes a search for a word somebody half-remembers worth typing at all, since they rarely know in advance which
-///     of the three it will turn out to be (ADR-0011).
+///     What a search finds is pushed over it as a screen of its own (<see cref="SearchResultsScreen" />), and a
+///     <see cref="DirectQuery" /> opens what it names straight over it — so <c>esc</c> from either comes back here with
+///     the query as it was typed, for refining rather than retyping (#600), and the trends as they were left, asking
+///     nothing. Choosing Search on the rail, or <c>/</c>, arrives at a fresh one, whose trends are read afresh.
 ///     <para>
-///         What has been typed lives here rather than in a widget, for the reason ADR-0015 gives about the compose
-///         editor: what is being searched for is then a fact about the shell — something a test can set and read —
-///         rather than something only a terminal knows.
+///         What has been typed is not held here: it is a real one-line field's, laid over the field's row as compose's
+///         content warning is laid over its header (#320, ADR-0030), so that it has a caret that moves, a selection,
+///         and copy, cut and paste (#608). The prompt says where the field goes (<see cref="FieldAt" />) and, given
+///         what the field held when <c>⏎</c> was pressed in it, what asking for it does (<see cref="Find" />).
+///     </para>
+///     <para>
+///         The field and the trends are one walk, the field at the top of it (#602, #605): picked, the field takes
+///         letters; with a trend picked, they are keys again — <c>j</c> and <c>k</c> walk, and a post's keys act on a
+///         trending post. The field is drawn as a box titled with the instance acted as, lit while it takes letters and
+///         dimmed while it does not, and it marks its own focus: no selection bar or band beside it.
 ///     </para>
 /// </remarks>
 public sealed class SearchScreen : Screen
 {
-    /// <summary>How far a hashtag's counts stand off the end of the name column, so the two read as two columns.</summary>
-    private const int TagGap = 2;
+    /// <summary>How many trending hashtags are drawn under the prompt (#602).</summary>
+    public const int TrendingHashtags = 10;
+
+    /// <summary>How many trending links are drawn under the prompt (#602).</summary>
+    public const int TrendingLinks = 10;
 
     /// <summary>
-    ///     What the search found, all three kinds as the one list the reader walks. Held this way so that the order
-    ///     the results are drawn in and the order they are picked out in are the same order by construction, rather
-    ///     than two counts kept in step by hand.
+    ///     How many trending posts are drawn under the prompt: three whole posts, which is what keeps the hashtags and
+    ///     links above them from being pushed off the page (#602).
     /// </summary>
-    private Picked<Result> _results = new([]);
+    public const int TrendingPosts = 3;
 
-    private bool _typing = true;
+    /// <summary>How many of <paramref name="kind" /> the prompt asks for, and so shows at most — what its heading counts against.</summary>
+    public static int Asked(TrendKind kind) => kind switch
+    {
+        TrendKind.Hashtags => TrendingHashtags,
+        TrendKind.Links => TrendingLinks,
+        _ => TrendingPosts,
+    };
+
+    /// <summary>What an empty field says, dimly, of what it takes.</summary>
+    public const string Placeholder = "A word, a #hashtag, an @account, or a link";
+
+    /// <summary>
+    ///     How far into the field's row the field begins, past the gutter, the box's edge and the glass ahead of it:
+    ///     <c> │ ⌕ </c>.
+    /// </summary>
+    private const int FieldLeft = 5;
+
+    /// <summary>
+    ///     How many columns of the field's row the box takes besides the field: <see cref="FieldLeft" />, and a space and
+    ///     the box's edge after it.
+    /// </summary>
+    private const int FieldFrame = FieldLeft + 2;
+
+    /// <summary>
+    ///     The field, then the trends — hashtags, links and posts, in that order — as the one list the reader walks, so
+    ///     that the order they are drawn in and the order they are picked out in are the same order by construction.
+    /// </summary>
+    private Picked<Result> _walk = new([new Result.Field()]);
+
+    /// <summary>
+    ///     Whether the trends have been read — and so whether an empty walk under the field is nothing trending.
+    /// </summary>
+    private bool _read;
+
+    /// <param name="instance">The instance acted as, which answers the search and titles the field.</param>
+    public SearchScreen(string instance) => Instance = instance;
+
+    /// <summary>The instance acted as: whose answer a search gets, and what the field's box is titled with.</summary>
+    public string Instance { get; }
 
     /// <inheritdoc />
-    public override string Crumb => Asked is { } asked ? $"Search {asked}" : "Search";
+    public override string Crumb => "Search";
+
+    /// <summary>Whether the field is picked out, and so takes letters — rather than a trend under it.</summary>
+    public bool OnTheField => _walk.Out is Result.Field;
+
+    /// <summary>
+    ///     Whether the first trend is picked out, or the heading over it — what <c>↑</c> walks up from onto the field, as
+    ///     <c>↓</c> walks down from the field to the first trend, passing over its heading (#606).
+    /// </summary>
+    /// <remarks>
+    ///     The heading over the first run is the walk's second row and the first trend its third, every run having a
+    ///     heading over it.
+    /// </remarks>
+    public bool OnTheFirstTrend => _walk.At is 1 or 2 && _walk.Count > 2;
+
+    /// <summary>
+    ///     The kind whose heading is picked out, or <see langword="null" /> where the pick is on the field or on a trend
+    ///     rather than on a heading.
+    /// </summary>
+    public TrendKind? PickedSection => _walk.Out is Result.TrendSection(var kind) ? kind : null;
+
+    /// <summary>Which row of the walk is picked out, counted from the field at the top, the headings among them.</summary>
+    public int At => _walk.At;
+
+    /// <summary>The trending hashtags under the prompt.</summary>
+    public IReadOnlyList<Hashtag> Hashtags => [.. _walk.All.OfType<Result.OfHashtag>().Select(one => one.Hashtag)];
+
+    /// <summary>The trending links under the prompt.</summary>
+    public IReadOnlyList<TrendingLink> Links => [.. _walk.All.OfType<Result.OfLink>().Select(one => one.Link)];
+
+    /// <summary>The trending posts under the prompt.</summary>
+    public IReadOnlyList<Post> Posts => [.. _walk.All.OfType<Result.OfPost>().Select(one => one.Post)];
+
+    /// <summary>The trending hashtag picked out, or <see langword="null" /> where the pick is on anything else.</summary>
+    public Hashtag? PickedHashtag => _walk.Out is Result.OfHashtag(var hashtag) ? hashtag : null;
+
+    /// <summary>The trending link picked out, or <see langword="null" /> where the pick is on anything else.</summary>
+    public TrendingLink? PickedLink => _walk.Out is Result.OfLink(var link) ? link : null;
 
     /// <inheritdoc />
     /// <remarks>
-    ///     While the prompt is taking letters it says only the keys that are not letters, because every other one goes
-    ///     into the query rather than acting on anything — including <c>/</c> and <c>?</c>, which a web address and a
-    ///     question are both entitled to contain.
+    ///     A trending post picked out, so that reading, answering and marking one mean what they mean on a feed.
+    /// </remarks>
+    public override Post? Picked => _walk.Out is Result.OfPost(var post) ? post : null;
+
+    /// <inheritdoc />
+    public override IEnumerable<Mentionable> Seen => Mentionable.In(Posts);
+
+    /// <inheritdoc />
+    protected override IPicked Walking => _walk;
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The keys that do something on the row picked out, and nothing else. On the field, only the keys that are not
+    ///     letters, every letter being typed — <c>/</c> and <c>?</c> among them, which a web address and a question are
+    ///     both entitled to contain — and the two that are never typed: <c>↓</c> into the trends, and <c>[</c> and
+    ///     <c>]</c> between their sections. On a trend, the keys of a list: a trending post's keys where one is picked,
+    ///     <c>⏎</c> where what is picked opens, <c>o</c> on a trending link for the article itself (#607), and <c>/</c>
+    ///     back up to the field.
     ///     <para>
-    ///         No <c>esc</c> on either: search is a rail destination, so it is the bottom of the stack and there is
+    ///         No <c>esc</c>: search is a rail destination, so the prompt is the bottom of the stack and there is
     ///         nothing under it to walk back to. <c>tab</c> is how you leave, the same as on every other destination.
+    ///     </para>
+    ///     <para>
+    ///         <c>ctrl-u</c> only while the field holds something to empty (#310).
     ///     </para>
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys
     {
         get
         {
-            // Nothing to walk while the prompt is taking letters: what is on screen is the prompt and the sentence
-            // under it, so the arrows are left unsaid rather than offered against three rows.
-            if (IsTyping)
+            var runs = _walk.All.Skip(1).Select(KindOf).Distinct().Count();
+
+            if (OnTheField)
             {
-                return [new KeyHint("⏎", "search"), PostKeys.ToADestination];
+                return
+                [
+                    new KeyHint("⏎", "search"),
+                    .. HoldsAQuery ? [PostKeys.Clearing] : Array.Empty<KeyHint>(),
+                    .. _walk.Count > 1 ? [new KeyHint("↓", "trends")] : Array.Empty<KeyHint>(),
+                    .. runs > 0 ? [new KeyHint("[/]", "section")] : Array.Empty<KeyHint>(),
+                    PostKeys.ToADestination,
+                ];
             }
 
-            return Picked is not null
-                ? PostKeys.Around(
-                    new KeyHint("j/k", "result"),
-                    [.. Jumping, new KeyHint("/", "search again")],
-                    PostKeys.AlongTheRail)
-                :
-                [
-                    new KeyHint("j/k", "result"),
-                    .. Jumping,
-                    new KeyHint("⏎", "open", NeedsAPick: true),
-                    new KeyHint("/", "search again"),
-                    .. PostKeys.Leaving(PostKeys.AlongTheRail),
-                ];
+            // From a trend, [ and ] reach another section only where there is one: the field is no section of theirs.
+            KeyHint[] jumping = runs > 1 ? [new KeyHint("[/]", "section")] : [];
+            var moving = new KeyHint("j/k", "trend");
+            var searching = new KeyHint("/", "search");
+
+            if (Picked is not null)
+            {
+                return PostKeys.Around(moving, [.. jumping, searching], PostKeys.AlongTheRail);
+            }
+
+            return
+            [
+                moving,
+                .. jumping,
+                .. PickedHashtag is not null || PickedLink is not null || PickedSection is not null
+                    ? [new KeyHint("⏎", "open")]
+                    : Array.Empty<KeyHint>(),
+                .. PickedLink is not null ? [PostKeys.OpeningTheArticle] : Array.Empty<KeyHint>(),
+                searching,
+                .. PostKeys.Leaving(PostKeys.AlongTheRail),
+            ];
         }
     }
 
     /// <summary>
-    ///     The key that moves between this screen's sections, said only where two or more kinds found something — and
-    ///     <c>section</c> rather than <c>kind</c>, because one key that means one thing shell-wide is named one way
-    ///     shell-wide (#166, amended by #172).
+    ///     Whether the field holds anything — which is all the prompt knows of what has been typed, and all it needs to:
+    ///     whether <c>ctrl-u</c> has something to empty, and so whether the status row offers it (#310).
     /// </summary>
-    /// <remarks>
-    ///     A key announced where it does nothing reads as a shell that missed the press, which is how the poll digits
-    ///     already behave. Counted as the headed runs this screen draws rather than as the kinds a search has, which
-    ///     are the same number here and would not be on a screen whose runs are not kinds: what the key can reach is
-    ///     what stands under a heading (<see cref="Heads" />), so that is what is counted — a search that turned up
-    ///     nothing but accounts draws one heading, and one run has nowhere to jump to.
-    /// </remarks>
-    private IReadOnlyList<KeyHint> Jumping => Enumerable.Range(0, _results.Count).Count(Heads) > 1
-        ? [new KeyHint("[/]", "section")]
-        : [];
+    public bool HoldsAQuery { get; private set; }
 
-    /// <inheritdoc />
-    public override bool IsTyping => _typing;
+    /// <summary>The field now holds <paramref name="query" />: told by the field as it changes.</summary>
+    /// <returns>Whether that changed whether it holds anything, and so the keys the status row offers.</returns>
+    public bool Written(string query)
+    {
+        var holds = query.Length > 0;
 
-    /// <summary>What has been typed so far, which is what <c>⏎</c> asks the instance for.</summary>
-    public string Query { get; private set; } = string.Empty;
+        if (holds == HoldsAQuery)
+        {
+            return false;
+        }
 
-    /// <summary>What was last searched for, or <see langword="null" /> while nothing has been asked yet.</summary>
-    public string? Asked { get; private set; }
+        HoldsAQuery = holds;
 
-    /// <summary>Which result is picked out, counted across all three kinds as one list.</summary>
-    public int At => _results.At;
-
-    /// <summary>How many results there are, of all three kinds together.</summary>
-    public int Count => _results.Count;
-
-    /// <summary>The accounts that were found.</summary>
-    public IReadOnlyList<Account> Accounts => [.. _results.All.OfType<Result.OfAccount>().Select(one => one.Account)];
-
-    /// <summary>The hashtags that were found.</summary>
-    public IReadOnlyList<Hashtag> Hashtags => [.. _results.All.OfType<Result.OfHashtag>().Select(one => one.Hashtag)];
-
-    /// <summary>The posts that were found.</summary>
-    public IReadOnlyList<Post> Posts => [.. _results.All.OfType<Result.OfPost>().Select(one => one.Post)];
-
-    /// <inheritdoc />
-    public override IEnumerable<Mentionable> Seen => [.. Accounts.Select(Mentionable.Of), .. Mentionable.In(Posts)];
-
-    /// <summary>The account picked out, or <see langword="null" /> where the picked result is not one.</summary>
-    public Account? PickedAccount => _results.Out is Result.OfAccount(var account) ? account : null;
-
-    /// <summary>The hashtag picked out, or <see langword="null" /> where the picked result is not one.</summary>
-    public Hashtag? PickedHashtag => _results.Out is Result.OfHashtag(var hashtag) ? hashtag : null;
-
-    /// <inheritdoc />
-    /// <remarks>
-    ///     The post picked out, so that reading, answering and marking one a search found mean what they mean on a
-    ///     feed. An account or a hashtag is not a post, and picking one leaves this empty rather than guessing.
-    /// </remarks>
-    public override Post? Picked => _results.Out is Result.OfPost(var post) ? post : null;
-
-    /// <inheritdoc />
-    protected override IPicked Walking => _results;
-
-    /// <inheritdoc />
-    /// <remarks>Into the query, which is the only thing this screen takes letters into.</remarks>
-    public override void Type(char letter) => Query += letter;
-
-    /// <inheritdoc />
-    public override void Backspace() => Query = Backspaced(Query);
+        return true;
+    }
 
     /// <summary>
-    ///     What this screen's own <c>⏎</c> does: asks the instance for what has been typed while the prompt is taking
-    ///     letters — or opens it straight away, where it is a <see cref="DirectQuery" /> — and opens what is picked
-    ///     out once it has answered.
+    ///     The trends read for this prompt, under its field in the order they are drawn, each run under its heading — the
+    ///     pick left where it was, which is on the field: the reader may already be typing.
     /// </summary>
-    public override Task Answer(Verb verb, Reach reach) => verb switch
+    /// <remarks>
+    ///     A kind with nothing trending gets no heading, rather than a heading over nothing, as on a search's results.
+    /// </remarks>
+    internal void Trending(IReadOnlyList<Hashtag> hashtags, IReadOnlyList<TrendingLink> links, IReadOnlyList<Post> posts)
     {
-        Verb.Find => Find(reach),
-        Verb.OpenResult => OpenResult(reach),
-        _ => Task.CompletedTask,
-    };
+        var at = _walk.At;
 
-    /// <summary>Asks the instance for what has been typed into the prompt.</summary>
+        _walk = new Picked<Result>([
+            new Result.Field(),
+            .. Result.Headed(
+                new Result.TrendSection(TrendKind.Hashtags),
+                hashtags.Select(Result (hashtag) => new Result.OfHashtag(hashtag))),
+            .. Result.Headed(
+                new Result.TrendSection(TrendKind.Links),
+                links.Select(Result (link) => new Result.OfLink(link))),
+            .. Result.Headed(
+                new Result.TrendSection(TrendKind.Posts),
+                posts.Select(Result (post) => new Result.OfPost(post))),
+        ]);
+
+        _walk.Pick(at);
+        _read = true;
+    }
+
+    /// <summary>
+    ///     Back up to the field from a trend, with whatever it holds kept — what <c>/</c> does with a trend picked, so
+    ///     that carrying on typing is one key from anywhere under the field (#605).
+    /// </summary>
+    public void ToTheField() => PickAndFollow(0);
+
+    /// <summary>
+    ///     Where the field goes on a prompt whose rows are drawn <paramref name="width" /> columns wide: inside the box's
+    ///     middle row, after the glass — the third row down, under the blank row and the box's top edge.
+    /// </summary>
+    public Rectangle FieldAt(int width) =>
+        new(FieldLeft, 2, Math.Max(0, Stamped.Room(width) + 1 - FieldFrame), 1);
+
+    /// <summary>Asks the instance for <paramref name="query" />, what the field held when <c>⏎</c> was pressed in it.</summary>
     /// <remarks>
     ///     The search itself is one call, so a rate limit leaves nothing to draw and is waited out rather than
     ///     half-answered (ADR-0011) — which <see cref="Enquiry" /> already does, and is why this reads like every
@@ -162,13 +266,13 @@ public sealed class SearchScreen : Screen
     ///     call: it answers with nothing where it was refused, so a rate limit there costs the suffix and leaves the
     ///     results standing (<see cref="Searched" />).
     ///     <para>
-    ///         What was found lands on this screen, the one it was asked from, rather than on whichever prompt is on
-    ///         top when it arrives (#232).
+    ///         What was found goes up over this prompt, the one it was asked from, and only while it is still in front
+    ///         — rather than over whichever screen is on top when it arrives (#232).
     ///     </para>
     /// </remarks>
-    private Task Find(Reach reach)
+    public Task Find(string query, Reach reach)
     {
-        if (!SearchQuery.IsWellFormed(Query))
+        if (!SearchQuery.IsWellFormed(query))
         {
             // The same words the command turns an empty query down with, so that the two front ends cannot come to
             // say different things about the same empty value.
@@ -179,51 +283,48 @@ public sealed class SearchScreen : Screen
 
         // Nothing to ask the instance where what was typed names a tag, since any well-formed tag has a timeline. It
         // is pushed exactly as picking it from the results would push it, and this screen is left as it was — the
-        // prompt, still taking letters — for esc to come back to.
-        if (DirectQuery.Tag(Query) is { } tag)
+        // prompt, its field still holding what was typed — for esc to come back to.
+        if (DirectQuery.Tag(query) is { } tag)
         {
             return reach.Open(new Subject.Tag(tag));
         }
 
         // A handle or an address asks the one search it always asked, an address in full so that it is resolved
-        // rather than searched for as words. Where it found exactly what was named, that is opened as picking it out
-        // would open it, and the results go up under it only as it arrives — so esc comes back to them with the query
-        // still there, and the reader is never shown them for the moment the account or the post is being read.
-        var typed = Query.Trim();
-        var query = SearchQuery.For(DirectQuery.Asking(typed));
+        // rather than searched for as words. Where it found exactly what was named, that is opened straight over the
+        // prompt as picking it out would open it, with no results beneath it — so one esc comes back to what was typed
+        // (#600). Anything else pushes its results, the near miss among them.
+        var typed = query.Trim();
+        var asking = SearchQuery.For(
+            DirectQuery.Asking(typed),
+            page: SearchPage.Of(limit: SearchResultsScreen.PerKind));
 
         return reach.Put(
-            ask => Searched(ask, reach, query),
+            ask => Searched(ask, reach, asking),
             ifStillHere: found =>
             {
                 if (DirectQuery.Among(typed, found, reach.Profile.Instance) is { } named)
                 {
-                    _ = reach.Open(Opening(named), beneath: () => Found(typed, found));
+                    _ = reach.Open(Opening(named));
 
                     return;
                 }
 
-                Found(typed, found);
-                reach.Changed();
+                reach.Push(new SearchResultsScreen(typed, found));
             });
     }
 
     /// <summary>What a direct query found opens as — the subject picking the same result opens.</summary>
     private static Subject Opening(DirectQuery.Named named) => named switch
     {
-        DirectQuery.Named.OfAccount(var account) => Opening(account),
+        DirectQuery.Named.OfAccount(var account) => Result.Opening(account),
         DirectQuery.Named.OfPost(var post) => new Subject.Thread(post),
         _ => throw new ArgumentOutOfRangeException(nameof(named), named, "Not something a direct query opens."),
     };
 
-    /// <summary>What an account a search found opens as, whether it was picked out or named.</summary>
-    private static Subject Opening(Account account) =>
-        new Subject.Account(AccountAddress.Parse(account.Address), WithReplies: false);
-
     /// <summary>
     ///     What a search found, with the accounts among it carrying where the reader stands with them — two calls
-    ///     under one enquiry, so the screen paints once with the standings already in place rather than putting
-    ///     results up and decorating them a moment later (#204).
+    ///     under one enquiry, so the results paint once with the standings already in place rather than going up and
+    ///     being decorated a moment later (#204).
     /// </summary>
     /// <remarks>
     ///     A run of no accounts costs nothing: the port answers an empty ask with its own input before it reaches an
@@ -247,290 +348,134 @@ public sealed class SearchScreen : Screen
     }
 
     /// <summary>
-    ///     Opens whatever the search turned up and the reader picked out: an account, a hashtag's timeline, or a post.
+    ///     What this screen's own <c>⏎</c> does, with a trend picked — the field takes its own: a trending hashtag opens
+    ///     its timeline and a trending post its thread, as a search's results open them, a trending link the posts
+    ///     sharing it (#607), and a heading that kind of trend alone, read on past the few shown here (#606). <c>o</c> on
+    ///     a trending link opens the article itself, in the browser.
     /// </summary>
+    public override Task Answer(Verb verb, Reach reach) => Result.Answer(verb, reach, _walk.Out, Opens);
+
+    /// <inheritdoc />
     /// <remarks>
-    ///     A hashtag opens as a screen on the stack rather than as a place on the rail. Which tags the rail keeps
-    ///     places for are the tag sets the reader wrote down (<c>docs/tui-shell.md</c>), and a search result is not
-    ///     them changing their mind about them.
+    ///     A click on a heading opens it, as <c>⏎</c> on it would — as a click on a search's heading does (#604) — a
+    ///     heading being picked out only to be opened.
     /// </remarks>
-    private Task OpenResult(Reach reach)
-    {
-        if (PickedAccount is { } account)
-        {
-            return reach.Open(Opening(account));
-        }
-
-        if (PickedHashtag is { } hashtag)
-        {
-            return reach.Open(new Subject.Tag(hashtag.Name));
-        }
-
-        return Opens is { } post ? reach.Open(new Subject.Thread(post)) : Task.CompletedTask;
-    }
-
-    /// <summary>
-    ///     What the instance answered, which is also what stops the prompt taking letters: from here the keys act on
-    ///     the results, and <c>/</c> starts a new search.
-    /// </summary>
-    /// <remarks>
-    ///     Accounts, then hashtags, then posts — the order <see cref="SearchResults" /> holds them in, and from here
-    ///     the only order there is.
-    /// </remarks>
-    public void Found(string asked, SearchResults results)
-    {
-        Asked = asked;
-        _typing = false;
-
-        _results = new Picked<Result>([
-            .. (results.Accounts ?? []).Select(Result (account) => new Result.OfAccount(account)),
-            .. (results.Hashtags ?? []).Select(Result (hashtag) => new Result.OfHashtag(hashtag)),
-            .. (results.Posts ?? []).Select(Result (post) => new Result.OfPost(post)),
-        ]);
-    }
+    public override Verb Clicked(int? item, int? part, bool chorded) =>
+        item is { } at && at < _walk.Count && _walk.All[at].Heads
+            ? Verb.OpenResult
+            : base.Clicked(item, part, chorded);
 
     /// <inheritdoc />
     public override bool Heard(Change change)
     {
-        switch (change)
-        {
-            case Change.PostChanged(var post):
-                _results.Rewrite(found =>
-                    found is Result.OfPost(var held) ? new Result.OfPost(PostChange.Replaced(held, post)) : found);
-
-                break;
-
-            case Change.PostGone(var id):
-                _results.Remove(found => found is Result.OfPost(var held) && PostChange.Names(held, id));
-
-                break;
-        }
+        Result.Hear(_walk, change);
 
         return false;
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    ///     A blank row, the field's box, and the trends under it in their headed sections — or the one sentence that
+    ///     says there are none. Until the trends are read there is the field alone, usable at once.
+    /// </remarks>
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var width = drawing.Width;
+        var room = Stamped.Room(width);
 
-        var lines = new List<Line> { Prompt(width), Line.Blank };
+        var lines = new List<Line>(Field(room));
 
-        if (IsTyping)
+        if (_read && _walk.Count == 1)
         {
-            lines.Add(Line.Of(
-                TextWrap.Clip("A word, a #hashtag, an @account, or the web address of one of them.", width),
-                Role.Muted));
+            lines.Add(Line.Blank);
+            lines.Add(Unstamped(Line.Of(TextWrap.Clip("Nothing trending on this instance", room), Role.Muted)));
 
             return lines;
         }
 
-        if (Count == 0)
+        for (var at = 1; at < _walk.Count; at++)
         {
-            lines.Add(Line.Of(TextWrap.Clip($"Nothing found for {Asked}.", width), Role.Muted));
+            var trend = _walk.All[at];
 
-            return lines;
-        }
+            if (trend is Result.TrendSection(var kind))
+            {
+                // Walked to and opened like a trend, so drawn as one of the walk's own rows: picked out by the bar as
+                // anything picked is, and part of a thing a click can land on (#606). Counted as a search's headings are,
+                // and against what the prompt asked of the kind.
+                var held = _walk.All.Count(one => one is not Result.TrendSection and not Result.Field && KindOf(one) == kind);
 
-        // Worked out once for the whole run rather than per row, a column being a fact about the run and not about
-        // any one tag in it — and measured against the room a row actually gets, which is behind the gutter.
-        var columns = Columns.Of(Hashtags, Stamped.Room(width));
+                lines.Add(Line.Blank);
+                lines.AddRange(_walk.RowsOf(at, width, (_, _, inside) => [TrendLines.Heading(kind, held, Asked(kind), inside)]));
+                lines.Add(Line.Blank);
 
-        for (var at = 0; at < _results.Count; at++)
-        {
-            lines.AddRange(Heads(at) ? Heading(at) : Between(_results.All[at]));
-            lines.AddRange(_results.RowsOf(at, width, Draw));
+                continue;
+            }
+
+            if (_walk.All[at - 1] is not Result.TrendSection)
+            {
+                lines.AddRange(ResultLines.Between(trend));
+            }
+
+            lines.AddRange(_walk.RowsOf(at, width, (found, where, inside) => found switch
+            {
+                Result.OfHashtag(var hashtag) => [TrendLines.Hashtag(hashtag, inside)],
+                Result.OfLink(var link) => TrendLines.Link(link, inside),
+                Result.OfPost(var post) => PostLines.Feed(post, drawing.In(inside), ReadingOf(post, at)),
+                _ => [],
+            }));
         }
 
         return lines;
-
-        IReadOnlyList<Line> Draw(Result result, int at, int room) => result switch
-        {
-            // Nothing implied: a page of search results claims nothing of anybody on it, so the whole compact
-            // standing is worth drawing — and nothing at all where the instance was never asked (#204).
-            Result.OfAccount(var account) => AccountLines.Block(
-                account,
-                drawing.In(room),
-                AccountLines.Compact(account.Standing)),
-            Result.OfHashtag(var hashtag) => [Tag(hashtag, room, columns)],
-            Result.OfPost(var post) => PostLines.Feed(post, drawing.In(room), ReadingOf(post, at)),
-            _ => [],
-        };
     }
 
     /// <summary>
-    ///     What a kind of result is called, which is what the heading over the run of them says — with how many were
-    ///     found, the <c>── {n} replies ──</c> vocabulary the post screen already speaks.
+    ///     The field's box under a blank row, <paramref name="room" /> columns wide behind a gutter it leaves blank:
+    ///     titled with the instance acted as, lit while the field takes letters and dimmed while it does not, with the
+    ///     glass ahead of where the field is laid (<see cref="FieldAt" />).
     /// </summary>
     /// <remarks>
-    ///     The count costs nothing, being in hand already, and it tells a reader whether the run below is worth
-    ///     walking or worth jumping past (#166).
+    ///     No selection bar or band beside it — the field marks its own focus — but its rows still say it is the thing
+    ///     picked out where it is, by a mark that draws nothing, so that the page follows it and <c>[</c> and
+    ///     <c>]</c> move from it as from anything picked (<see cref="Sections" />).
     /// </remarks>
-    private static string Called(Result result, int found) => result switch
+    private IReadOnlyList<Line> Field(int room)
     {
-        Result.OfAccount => $"── {found} accounts ──",
-        Result.OfHashtag => $"── {found} hashtags ──",
-        _ => $"── {found} posts ──",
+        var inner = Math.Max(0, room - 2);
+        var border = OnTheField ? Role.PanelBorderActive : Role.PanelBorder;
+        var title = TextWrap.Clip($"─ {Instance} ", inner);
+
+        Span[] gutter = OnTheField ? [new Span(" ", Role.Body), new Span("", Role.Selection)] : [new Span(" ", Role.Body)];
+
+        IReadOnlyList<Line> box =
+        [
+            // A blank above the box, so that it stands clear of the panel's edge — the field's own row, so that the page
+            // following the field back up brings it onto the page too.
+            Line.Blank,
+            Line.Of([
+                new Span("╭" + title, border),
+                new Span(new string('─', Math.Max(0, inner - Glyphs.Columns(title))) + "╮", border),
+            ]),
+            Line.Of([
+                new Span("│", border),
+                new Span(" ⌕ ", Role.Muted),
+                new Span(new string(' ', Math.Max(0, inner - 3)), Role.Body),
+                new Span("│", border),
+            ]),
+            Line.Of([new Span("╰" + new string('─', inner) + "╯", border)]),
+        ];
+
+        return [.. box.Select(line => line.After(gutter).PartOf(0))];
+    }
+
+    /// <summary>A row that is part of nothing, behind a blank gutter so that it lines up with the rows that are.</summary>
+    private static Line Unstamped(Line line) => line.After(new Span(" ", Role.Body));
+
+    /// <summary>Which kind of trend <paramref name="trend" /> is, or heads.</summary>
+    private static TrendKind KindOf(Result trend) => trend switch
+    {
+        Result.TrendSection(var kind) => kind,
+        Result.OfHashtag => TrendKind.Hashtags,
+        Result.OfLink => TrendKind.Links,
+        _ => TrendKind.Posts,
     };
-
-    /// <summary>
-    ///     The heading over the result at <paramref name="at" />, which is the first of its kind — so a kind nothing
-    ///     was found of gets no heading, rather than a heading over nothing.
-    /// </summary>
-    /// <remarks>
-    ///     Marked as a heading rather than only drawn like one, which is what <c>[</c> and <c>]</c> move between and
-    ///     what a jump brings onto the page with the result it lands on: the runs the reader can see are then the runs
-    ///     the key knows about, with no second count of them kept anywhere (<see cref="Sections" />).
-    ///     <para>
-    ///         A blank above it wherever something stands above it, which is what separates one kind from the next —
-    ///         the same blank <see cref="AccountLines.Header" /> puts over each of its sections, and no rule. The
-    ///         first heading has the prompt's own blank above it already and takes none of its own.
-    ///     </para>
-    /// </remarks>
-    private IReadOnlyList<Line> Heading(int at)
-    {
-        var result = _results.All[at];
-
-        // The whole run rather than what is left of it, which is the same number here — the results of a kind are
-        // contiguous, being the order the instance's three lists were laid end to end in.
-        var found = _results.All.Count(one => one.GetType() == result.GetType());
-
-        Line[] heading = [Line.Of(Called(result, found), Role.Muted).Heading(), Line.Blank];
-
-        return at == 0 ? heading : [Line.Blank, .. heading];
-    }
-
-    /// <summary>
-    ///     What stands between two results of the same kind, which is a different thing for each of the three — and
-    ///     between rather than after, so nothing is left hanging under the last result on the screen.
-    /// </summary>
-    /// <remarks>
-    ///     Posts keep the rule a feed puts between them, because a run of them here is a feed and reads like one
-    ///     everywhere else (#62). Accounts take the blank every other screen listing people takes, four-row Account
-    ///     blocks laid end to end being what runs together (#180, #198). Hashtags take nothing at all: one row apiece
-    ///     under a heading that has already said how many there are, where a separator per row would spend as many
-    ///     rows on the gaps as on the tags and the gutter already says which one is picked out.
-    /// </remarks>
-    private static IReadOnlyList<Line> Between(Result result) => result switch
-    {
-        Result.OfAccount => [Line.Blank],
-        Result.OfHashtag => [],
-        _ => [Line.Rule()],
-    };
-
-    /// <summary>
-    ///     Whether the result at <paramref name="at" /> is the first of its kind, and so the one a heading stands
-    ///     over — which is the whole of where a run begins on this screen.
-    /// </summary>
-    /// <remarks>
-    ///     Asked of the kind rather than of what a heading says, so that two kinds could never come to share one
-    ///     heading by being called the same thing. Said here rather than twice, because the runs
-    ///     <see cref="Jumping" /> counts have to be the runs <see cref="Heading" /> draws: a status row announcing a
-    ///     key against a second count of its own is how the two come to disagree — on this screen the day a kind stops
-    ///     earning a heading, and on the next screen to take this key the day its runs are not kinds at all.
-    /// </remarks>
-    private bool Heads(int at) => at == 0 || _results.All[at - 1].GetType() != _results.All[at].GetType();
-
-    /// <summary>
-    ///     A tag and how much use it has had lately, which is what makes one result worth reading over another — the
-    ///     use standing in the columns <paramref name="columns" /> gives, so the run reads down as well as across.
-    /// </summary>
-    /// <remarks>
-    ///     The names being all different lengths, counts written straight after each one land wherever the name
-    ///     happened to end, and comparing two tags becomes reading two rows rather than glancing down one column.
-    ///     The name takes the column and the numbers are right-aligned inside theirs, which is where a digit belongs:
-    ///     <c>81</c> under <c>14</c> compares at a glance and <c>81</c> under <c>1</c> does not.
-    ///     <para>
-    ///         Where the run has no columns — an empty one, or one the terminal is too narrow to hold — the gap falls
-    ///         back to <see cref="TagGap" /> and the counts are written unpadded, which is the row this screen drew
-    ///         before it had columns at all.
-    ///     </para>
-    /// </remarks>
-    private static Line Tag(Hashtag hashtag, int width, Columns columns)
-    {
-        var name = TextWrap.Clip($"#{hashtag.Name}", width);
-
-        // Never less than the gap itself, so a name longer than the column is still parted from its counts rather
-        // than run into them.
-        var gap = new string(' ', Math.Max(TagGap, columns.Name - Glyphs.Columns(name) + TagGap));
-
-        return Line.Of([
-            new Span(name, Role.BylineHandle),
-            new Span(
-                TextWrap.Clip(gap + Used(hashtag, columns), Math.Max(0, width - Glyphs.Columns(name))),
-                Role.Muted),
-        ]);
-    }
-
-    /// <summary>
-    ///     How much use a tag has had lately, its two counts padded into the columns <paramref name="columns" />
-    ///     gives — which is no padding at all where the run has no columns, <see cref="string.PadLeft(int)" /> of
-    ///     nought being the number as it was written.
-    /// </summary>
-    /// <remarks>
-    ///     Written in one place because it is both measured and drawn: a row padded to a width worked out from
-    ///     anything but the row itself is a row that can be padded to the wrong one.
-    /// </remarks>
-    private static string Used(Hashtag hashtag, Columns columns) =>
-        $"{Number.Of(hashtag.RecentPosts).PadLeft(columns.Posts)} posts · {Number.Of(hashtag.RecentAccounts).PadLeft(columns.Accounts)} accounts";
-
-    /// <summary>
-    ///     How wide the three columns of a run of hashtags are: the longest name, and the longest of each of the two
-    ///     counts as they are written out.
-    /// </summary>
-    /// <remarks>
-    ///     A fact about the run rather than about a tag, which is why it is worked out once and handed to every row:
-    ///     a row that measured itself could only align with itself. Measured off what is drawn — <c>#</c> included,
-    ///     and the counts grouped as <see cref="Number" /> groups them — rather than off the raw numbers, because
-    ///     <c>1,204</c> takes a column more than <c>1204</c> does.
-    /// </remarks>
-    /// <param name="Name">How wide the name column is, <c>#</c> and all.</param>
-    /// <param name="Posts">How wide the posts count is.</param>
-    /// <param name="Accounts">How wide the accounts count is.</param>
-    private readonly record struct Columns(int Name, int Posts, int Accounts)
-    {
-        /// <summary>
-        ///     The columns a run of <paramref name="hashtags" /> wants at <paramref name="width" />, and none at all
-        ///     where it is empty or where the terminal cannot hold them.
-        /// </summary>
-        /// <remarks>
-        ///     Aligning is all or nothing, and it is the run that decides rather than the row: a row that gave up its
-        ///     columns while its neighbours kept theirs would be the ragged run this exists to prevent. Where they do
-        ///     not fit they are given up altogether rather than narrowed, because the padding is spent from the left
-        ///     and the row is clipped from the right — so columns held past the width cost the accounts count that
-        ///     would otherwise have fitted, which is a worse row than a ragged one.
-        /// </remarks>
-        public static Columns Of(IReadOnlyList<Hashtag> hashtags, int width)
-        {
-            if (hashtags.Count == 0)
-            {
-                return default;
-            }
-
-            var columns = new Columns(
-                hashtags.Max(hashtag => Glyphs.Columns(hashtag.Name) + 1),
-                hashtags.Max(hashtag => Glyphs.Columns(Number.Of(hashtag.RecentPosts))),
-                hashtags.Max(hashtag => Glyphs.Columns(Number.Of(hashtag.RecentAccounts))));
-
-            // Padded, every row's counts come out the same width, so the widest row is the longest name against any
-            // row's counts and one of them is enough to measure.
-            return columns.Name + TagGap + Glyphs.Columns(Used(hashtags[0], columns)) <= width ? columns : default;
-        }
-    }
-
-    /// <summary>
-    ///     What is being searched for, with the caret where the next letter lands. The caret is a mark rather than a
-    ///     colour, so a terminal with none still says where the typing is going.
-    /// </summary>
-    private Line Prompt(int width)
-    {
-        const string label = "Search: ";
-        var typed = TextWrap.Clip(IsTyping ? Query : Asked ?? Query, Math.Max(0, width - Glyphs.Columns(label) - 1));
-
-        // No caret once the prompt has stopped taking letters, and no empty span standing in for one: a row a reader
-        // is scanning should say what is there and nothing else.
-        return IsTyping
-            ? Line.Of([new Span(label, Role.Muted), new Span(typed, Role.Body), new Span("▌", Role.Selection)])
-            : Line.Of([new Span(label, Role.Muted), new Span(typed, Role.Body)]);
-    }
 }

@@ -9,8 +9,10 @@ namespace Wooly.Core.Errors;
 /// </summary>
 /// <remarks>
 ///     Raised where a front end has something to offer on it — the TUI's pending attachments, whose row offers a retry
-///     for it (review of #372) — rather than for every call, most of which leave a bare failure to be reported as the
-///     defect it would be anywhere a retry is not the author's to ask for.
+///     for it (review of #372) — and by the raw reads #598 added, search, trends and the link timeline, so that each says
+///     a failure to answer as the TUI's enquiry can say it, and the same way as the other two (#598's review). Not for
+///     every call: most leave a bare failure to be reported as the defect it would be anywhere a retry is not the
+///     author's to ask for.
 /// </remarks>
 /// <param name="instance">The instance that failed, e.g. <c>mastodon.social</c>.</param>
 /// <param name="status">What it answered with.</param>

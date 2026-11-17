@@ -105,12 +105,7 @@ public class ShellReadingOnTimelinesTests
         shell.Search();
         built.Host.Drain();
 
-        foreach (var letter in tag)
-        {
-            shell.Type(letter);
-        }
-
-        shell.Press(ShellKey.Enter);
+        shell.Find(tag);
         built.Host.Drain();
     }
 

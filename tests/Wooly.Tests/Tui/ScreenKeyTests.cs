@@ -36,6 +36,8 @@ public class ScreenKeyTests
         "search-hashtag",
         "search-typing",
         "search-nothing",
+        "section-account",
+        "section-nothing",
         "follows",
         "follows-empty",
         "actors",
@@ -67,6 +69,8 @@ public class ScreenKeyTests
         "account-post",
         "notifications-mention",
         "search-post",
+        "section-post",
+        "trend-post",
         "conversation",
     ];
 
@@ -209,6 +213,7 @@ public class ScreenKeyTests
         ("messages-empty", "messages", ["⏎:open", "m:mark read"]),
         ("requests-empty", "requests", ["⏎:read them", "a:accept", "x:reject"]),
         ("search-nothing", "search-account", ["⏎:open"]),
+        ("section-nothing", "section-account", ["⏎:open"]),
         ("follows-empty", "follows", ["⏎:open"]),
         ("actors-empty", "actors", ["⏎:open"]),
         ("discover-empty", "discover", ["⏎:open", "F:follow", "d:dismiss"]),
@@ -274,6 +279,7 @@ public class ScreenKeyTests
     [InlineData("messages-empty", "j/k:conversation g:refresh tab:destination `:group ↓/↑:row ?:keys")]
     [InlineData("requests-empty", "j/k:request g:refresh tab:destination `:group ↓/↑:row ?:keys")]
     [InlineData("search-nothing", "j/k:result /:search again tab:destination `:group ↓/↑:row ?:keys")]
+    [InlineData("section-nothing", "j/k:result /:search again tab:destination `:group ↓/↑:row ?:keys")]
     [InlineData("discover-empty", "j/k:person g:refresh tab:destination `:group ↓/↑:row ?:keys")]
     [InlineData("profiles-empty", "j/k:profile a:add esc:back ↓/↑:row ?:keys")]
     public void Keys_OnAnEmptyScreenAreTheOnesThatStillDoSomething(string state, string row) =>
@@ -295,10 +301,10 @@ public class ScreenKeyTests
     /// </summary>
     /// <remarks>
     ///     Read off the screen rather than listed here: a screen that says what it walks is a screen that can be asked
-    ///     whether it is empty, and that is the fact the rule turns on. The four exempt are the ones whose walk always
+    ///     whether it is empty, and that is the fact the rule turns on. The five exempt are the ones whose walk always
     ///     holds something — an account screen has the person themselves at the top of it, a post screen the post it is
-    ///     about, a conversation exists because somebody said something in it, and the file browser always has
-    ///     <c>..</c> to go up by (#376).
+    ///     about, a conversation exists because somebody said something in it, the file browser always has <c>..</c>
+    ///     to go up by (#376), and the search prompt always has its field at the top of the trends (#605).
     /// </remarks>
     [Fact]
     public void EveryScreenThatWalksAnythingIsAskedTheEmptyRule()
@@ -308,6 +314,7 @@ public class ScreenKeyTests
         var never = new[]
         {
             typeof(AccountScreen), typeof(PostScreen), typeof(ConversationScreen), typeof(FileBrowserScreen),
+            typeof(SearchScreen),
         };
 
         var walks = typeof(Screen).Assembly.GetTypes()
@@ -355,7 +362,17 @@ public class ScreenKeyTests
                 return account;
 
             case "search-typing":
-                return new SearchScreen();
+                return new SearchScreen("mastodon.social");
+
+            // A trending post under the search prompt's field, picked: post keys act on it there (#605) — past the
+            // heading over it, which is walked too (#606).
+            case "trend-post":
+                var prompt = new SearchScreen("mastodon.social");
+
+                prompt.Trending([], [], [post]);
+                prompt.Move(2);
+
+                return prompt;
 
             case "search-account":
                 return Searched(new SearchResults { Accounts = [AnAccount.With()] });
@@ -368,6 +385,15 @@ public class ScreenKeyTests
 
             case "search-post":
                 return Searched(new SearchResults { Posts = [post] });
+
+            case "section-account":
+                return new SectionScreen(SearchKind.Accounts, [new Result.OfAccount(AnAccount.With())], "Nothing found.");
+
+            case "section-nothing":
+                return new SectionScreen(SearchKind.Accounts, [], "Nothing found.");
+
+            case "section-post":
+                return new SectionScreen(SearchKind.Posts, [new Result.OfPost(post)], "Nothing found.");
 
             case "messages":
                 return new DirectMessagesScreen([AConversation.With(latest: post)]);
@@ -482,12 +508,10 @@ public class ScreenKeyTests
     private static FeedScreen Feed(IReadOnlyList<Post> posts, string? notice = null) =>
         new(new Destination(DestinationKind.Home, "Home"), posts, notice);
 
-    /// <summary>A search screen holding what an instance answered, which is what stops its prompt taking letters.</summary>
-    private static SearchScreen Searched(SearchResults results)
+    /// <summary>The results of a search, holding what an instance answered — a screen of their own, taking no letters.</summary>
+    private static SearchResultsScreen Searched(SearchResults results)
     {
-        var search = new SearchScreen();
-
-        search.Found("maria", results);
+        var search = new SearchResultsScreen("maria", results);
 
         return search;
     }

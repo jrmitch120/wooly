@@ -164,7 +164,7 @@ public class HiddenRailTests
         drawn.Press(new Key('/'));
         drawn.Settle();
 
-        Assert.True(drawn.Shell.Screen.IsTyping);
+        Assert.True(drawn.SearchField.HasFocus);
 
         var cursor = drawn.Shell.Rail.Cursor;
 
@@ -183,9 +183,11 @@ public class HiddenRailTests
     {
         using var drawn = await Searching();
 
-        TogglesWhileTyping(drawn);
+        Toggles(drawn);
 
-        Assert.Equal("a", Assert.IsType<SearchScreen>(drawn.Shell.Screen).Query);
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.True(drawn.SearchField.HasFocus);
+        Assert.Equal("a", drawn.SearchField.Text);
     }
 
     /// <summary>And on the follow list's filter, the same (#447): nothing is added to the filter.</summary>
@@ -194,8 +196,11 @@ public class HiddenRailTests
     {
         using var drawn = await FilteringFollows();
 
-        TogglesWhileTyping(drawn);
+        Assert.True(drawn.Shell.Screen.IsTyping);
 
+        Toggles(drawn);
+
+        Assert.True(drawn.Shell.Screen.IsTyping);
         Assert.Equal("a", Assert.IsType<FollowsScreen>(drawn.Shell.Screen).Filter);
     }
 
@@ -692,12 +697,10 @@ public class HiddenRailTests
 
     /// <summary>
     ///     <c>\</c> pressed twice on the prompt <paramref name="drawn" /> is typing into: the rail hidden and the
-    ///     content panel on the shell's first column, then the rail shown again, and the prompt still taking letters.
+    ///     content panel on the shell's first column, then the rail shown again.
     /// </summary>
-    private static void TogglesWhileTyping(DrawnShell drawn)
+    private static void Toggles(DrawnShell drawn)
     {
-        Assert.True(drawn.Shell.Screen.IsTyping);
-
         drawn.Press(Toggle);
 
         Assert.Equal(RailState.Hidden, drawn.Shell.RailState);
@@ -707,7 +710,6 @@ public class HiddenRailTests
 
         Assert.Equal(RailState.Shown, drawn.Shell.RailState);
         Assert.Equal(RailLines.Width, drawn.Content.Frame.X);
-        Assert.True(drawn.Shell.Screen.IsTyping);
     }
 
     /// <summary>

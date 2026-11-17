@@ -74,7 +74,7 @@ public class ScreenRevealTests
             "messages" => new DirectMessagesScreen([AConversation.With(id: "1")]),
             "requests" => new FollowRequestsScreen([AnAccount.With(id: "1")]),
             "compose" => new ComposeScreen(ComposeFor.Post),
-            _ => new HelpScreen(new SearchScreen()),
+            _ => new HelpScreen(new SearchScreen("mastodon.social")),
         };
 
         Assert.False(screen.Reveal());
