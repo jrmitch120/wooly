@@ -150,6 +150,16 @@ end through `ComposeEditor.CaretToTheEnd`, `ctrl-end`'s own command, which forge
 opened after a post left from the start of a line had its caret in front of its own mention. It lays the editor out
 first, since an editor not yet given its room wraps to no width and has its end at nought: the bio walked into on a
 terminal too short to have shown it opened with its caret at its start.
+Two more faults in that `TextView`'s word wrap, still in its 2.6 builds, took Wooly down. It says its text has changed,
+and reads its selection, part way through a paste over a selection or an undo, while its wrapped rows are laid out as
+before the edit: a paste of lines over a longer selection read past the end of a line and threw. `ComposeEditor`
+has a selection begin at the caret on any change to the text, so nothing is read, through `TextView`'s private fields
+for it rather than the setters, which scroll as well. And it ends an edit holding the text's own lines with the caret
+counted in wrapped rows, laying the rows out again only at the next move of the caret. A paste or undo before then lays
+them out part way through itself with the caret counted in lines, and put it on the wrong line or off the text; a
+click or `↓` was counted against the wrong rows. `ComposeEditor` lays them out before any key, paste or click reaches
+`TextView`, through its private flag and method for it. A Terminal.Gui without those private members leaves both faults
+as they were, which `ComposeEditorEditTests` says.
 
 ## Hidden rail
 
