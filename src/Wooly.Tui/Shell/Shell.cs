@@ -907,7 +907,7 @@ public sealed class Shell
         var profile = Actor.Profile;
         var target = _translateTo;
 
-        if (_translations.Known(profile.Instance, about.Id, target) is { } known)
+        if (_translations.Known(profile.Instance, about, target) is { } known)
         {
             screen.ShowTranslated(about, known);
             Changed?.Invoke();
@@ -917,7 +917,7 @@ public sealed class Shell
 
         return _enquiry.Put(
             ask => ask.Of(token => _ports.Translation.Translate(profile, about.Id, target, token)),
-            eitherWay: translation => _translations.Keep(profile.Instance, about.Id, target, translation),
+            eitherWay: translation => _translations.Keep(profile.Instance, about, target, translation),
             ifStillHere: translation =>
             {
                 screen.ShowTranslated(about, translation);

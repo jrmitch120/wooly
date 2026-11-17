@@ -351,6 +351,40 @@ public class ShellTranslateTests
     }
 
     /// <summary>
+    ///     A post edited somewhere other than Wooly says no <b>Change</b>, but a refresh brings its new words in — and a
+    ///     translation of the words it used to say is not one of them: <c>t</c> asks the instance anew and shows what it
+    ///     answers for the post as it now reads, never the translation held from before.
+    /// </summary>
+    [Fact]
+    public async Task Translate_AsksAnewForAPostEditedElsewhere()
+    {
+        var edited = German with { Content = "Hallo schöne Welt" };
+        var reads = 0;
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.ReadingOn(_ => reads++ == 0 ? [German] : [edited]),
+            Translation = FakePostTranslation.Translating(_ => ATranslation.With(
+                content: reads > 1 ? "Hello beautiful world" : "Hello world")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.Press(ShellKey.T);
+        shell.Host.Drain();
+
+        await opened.Refresh();
+        shell.Host.Drain();
+
+        Assert.Contains(Texts(opened), line => line.Contains("Hallo schöne Welt"));
+
+        opened.Press(ShellKey.T);
+        shell.Host.Drain();
+
+        Assert.Equal(2, shell.Translation.Requests.Count);
+        Assert.Contains(Texts(opened), line => line.Contains("Hello beautiful world"));
+    }
+
+    /// <summary>
     ///     What shows translated belongs to the screen it was asked on, as a reveal does (#121): <c>esc</c> out of a post
     ///     screen and in again finds it as written, while the screen walked back out to still shows what it showed.
     /// </summary>
