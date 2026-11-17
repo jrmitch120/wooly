@@ -286,7 +286,7 @@ public class AccountWalkTests
 
         // On an instance that translates every language into the reader's, as the shell would say (#616), so that t is
         // off the row only by the post it is asked of.
-        screen.TranslatesBy(_ => true);
+        screen.Translated.Takes = _ => true;
 
         var onTheHeader = Status(screen);
 

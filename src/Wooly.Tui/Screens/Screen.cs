@@ -826,34 +826,17 @@ public abstract class Screen
 
     /// <summary>
     ///     The posts the reader has asked to see translated on this screen, and the translation each is showing in
-    ///     (#615) — kept and dropped as <see cref="Revealed" /> is, one per screen and for its reason (ADR-0037).
+    ///     (#615) — kept and dropped as <see cref="Revealed" /> is, one per screen and for its reason (ADR-0037). The
+    ///     shell tells it whether the instance takes a language (<see cref="Screens.Translated.Takes" />) as it puts the
+    ///     screen on the stack, and shows a post translated on it or as written again through it.
     /// </summary>
-    protected Translated Translated { get; } = new();
-
-    /// <summary>
-    ///     Says whether the instance this screen is read from can take a post in a language to the reader's (#616) — the
-    ///     shell's to say, out of the languages map it holds per instance, as it puts the screen on the stack. Until it
-    ///     has, nothing is offered.
-    /// </summary>
-    internal void TranslatesBy(Func<string?, bool> takes) => Translated.Takes = takes;
+    public Translated Translated { get; } = new();
 
     /// <summary>
     ///     The post <c>t</c> would act on — the picked one, or the one inside it where it is a boost — or
     ///     <see langword="null" /> where nothing is picked or its instance would not translate it (#615).
     /// </summary>
     public Post? Translatable => Picked is { } picked && Translated.Offers(picked) ? picked.Boosted ?? picked : null;
-
-    /// <summary>The translation <paramref name="post" /> is showing in on this screen, or <see langword="null" />.</summary>
-    public Translation? TranslationOf(Post post) => Translated.Of(post);
-
-    /// <summary>Shows <paramref name="post" /> in <paramref name="translation" /> on this screen from here on.</summary>
-    public void ShowTranslated(Post post, Translation translation) => Translated.Show(post, translation);
-
-    /// <summary>
-    ///     Shows the post <paramref name="id" /> names as written again on this screen — <c>t</c> pressed a second time,
-    ///     or the post edited out from under its translation (#615).
-    /// </summary>
-    public void ShowAsWritten(string id) => Translated.Drop(id);
 
     /// <summary>
     ///     What <paramref name="post" /> is showing this reader — its author's words, what hangs off them, and which

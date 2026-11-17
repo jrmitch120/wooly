@@ -344,7 +344,7 @@ public class ScreenKeyTests
     {
         var screen = Built(state);
 
-        screen.TranslatesBy(_ => true);
+        screen.Translated.Takes = _ => true;
 
         return screen;
     }

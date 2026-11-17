@@ -236,14 +236,14 @@ public sealed class Shell
 
         if (opening.Profile is null)
         {
-            _stack.Add(Held(SigningIn(opening.Again, opening.Why)));
+            _stack.Add(OfferingTranslation(SigningIn(opening.Again, opening.Why)));
 
             return;
         }
 
         _launching = true;
         _instance = RailInstance();
-        _stack.Add(Held(new FeedScreen(Rail.Showing, [])));
+        _stack.Add(OfferingTranslation(new FeedScreen(Rail.Showing, [])));
     }
 
     /// <summary>Raised whenever anything on screen has changed. Always on the drawing thread.</summary>
@@ -895,9 +895,9 @@ public sealed class Shell
             return Task.CompletedTask;
         }
 
-        if (screen.TranslationOf(about) is not null)
+        if (screen.Translated.Of(about) is not null)
         {
-            screen.ShowAsWritten(about.Id);
+            screen.Translated.Drop(about.Id);
             Changed?.Invoke();
 
             return Task.CompletedTask;
@@ -909,7 +909,7 @@ public sealed class Shell
 
         if (_translations.Known(profile.Instance, about, target) is { } known)
         {
-            screen.ShowTranslated(about, known);
+            screen.Translated.Show(about, known);
             Changed?.Invoke();
 
             return Task.CompletedTask;
@@ -920,7 +920,7 @@ public sealed class Shell
             eitherWay: translation => _translations.Keep(profile.Instance, about, target, translation),
             ifStillHere: translation =>
             {
-                screen.ShowTranslated(about, translation);
+                screen.Translated.Show(about, translation);
                 Changed?.Invoke();
             });
     }
@@ -2329,7 +2329,7 @@ public sealed class Shell
 
     private void Push(Screen screen)
     {
-        _stack.Add(Held(screen));
+        _stack.Add(OfferingTranslation(screen));
         Saw(screen);
         StatusRow.Clear();
     }
@@ -2437,7 +2437,7 @@ public sealed class Shell
             left.Left();
         });
         _stack.Clear();
-        _stack.Add(Held(screen));
+        _stack.Add(OfferingTranslation(screen));
         Saw(screen);
         StatusRow.Clear();
     }
@@ -2460,7 +2460,7 @@ public sealed class Shell
     {
         _drafting.Left(_stack[^1]);
         _stack[^1].Left();
-        _stack[^1] = Held(fresh);
+        _stack[^1] = OfferingTranslation(fresh);
         Saw(fresh);
 
         // Gone with the screen it was said over, the same as at a push or an arrival: what a reader was told about the
@@ -2498,7 +2498,7 @@ public sealed class Shell
 
             foreach (var screen in _stack)
             {
-                screen.ShowAsWritten(id);
+                screen.Translated.Drop(id);
             }
         }
 
@@ -2599,9 +2599,9 @@ public sealed class Shell
     ///     (#616) — as it goes onto the stack, which is every way a screen gets there, so that <c>t</c> is offered by the
     ///     one rule on every screen (<see cref="Translated.Offers" />).
     /// </summary>
-    private Screen Held(Screen screen)
+    private Screen OfferingTranslation(Screen screen)
     {
-        screen.TranslatesBy(Takes);
+        screen.Translated.Takes = Takes;
 
         return screen;
     }
