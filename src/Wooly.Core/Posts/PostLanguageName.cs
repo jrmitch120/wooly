@@ -247,6 +247,14 @@ public static class PostLanguageName
         All.FirstOrDefault(language => string.Equals(language.Code, code, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
+    ///     What the language <paramref name="code" /> is called in English, for a sentence naming it — "translated from
+    ///     German" — falling back on the base language for a regional code this client does not list (<c>en-GB</c> is
+    ///     English), and on the code itself where it knows neither.
+    /// </summary>
+    public static string NameOf(string code) =>
+        Of(code)?.Name ?? Of(code.Split('-', '_')[0])?.Name ?? code;
+
+    /// <summary>
     ///     The language <paramref name="name" /> spells — its code, its English name or its own name, in any case — or
     ///     <see langword="null" /> if it spells none of them.
     /// </summary>

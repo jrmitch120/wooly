@@ -150,7 +150,7 @@ The full contract for every screen, key and theme role is in [docs/tui-shell.md]
 |---|---|
 | `profile` | `add`, `list`, `show`, `switch` and `remove` local profiles |
 | `timeline` | `home`, `local`, `federated`, `tag`, `link` (the posts sharing a trending link), `account`, `pinned`, and your own `bookmarks` and `favorites` |
-| `post` | `create`, `reply`, `edit`, `delete`, `show`, `boost`, `favorite`, `pin`, `bookmark`, `vote`, `favorited-by`, `boosted-by`, and their undos |
+| `post` | `create`, `reply`, `edit`, `delete`, `show`, `translate` (by your instance), `boost`, `favorite`, `pin`, `bookmark`, `vote`, `favorited-by`, `boosted-by`, and their undos |
 | `account` | `show`, `edit`, `follow`, `unfollow`, `followers`, `following`, `block`, `mute` (and undos), and `requests list/accept/reject` |
 | `notification` | `list`, `dismiss` and `clear` |
 | `dm` | `list`, `show`, `send` and `read` |
@@ -226,6 +226,7 @@ theme = "dark"                # "dark", "light", or one of your own below
 [preferences]
 default_visibility = "public" # public, unlisted, followers or direct
 default_language = "en"
+translate_to = "en"           # the language a post is translated into; unset, your instance chooses
 bell = true                   # ring when an Inbox badge rises
 hide_drawn_caption = false    # hide a picture's caption once it's drawn
 shell_width = 100             # 50 to 100, a percentage of the terminal

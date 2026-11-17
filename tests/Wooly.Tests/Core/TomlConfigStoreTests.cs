@@ -749,6 +749,67 @@ public class TomlConfigStoreTests : IDisposable
     }
 
     /// <summary>
+    ///     The reader's <c>translate_to</c> (#614) is read as <c>default_language</c> is — its code, its English name or
+    ///     its own — and kept as the code it names.
+    /// </summary>
+    [Theory]
+    [InlineData("de")]
+    [InlineData("German")]
+    [InlineData("Deutsch")]
+    public void Load_ReadsTheLanguageTheReaderTranslatesToAsTheCodeItNames(string written)
+    {
+        WriteConfigFile(
+            $"""
+             [preferences]
+             translate_to = "{written}"
+             """);
+
+        Assert.Equal("de", NewStore().Load().Preferences.TranslateTo);
+    }
+
+    /// <summary>Absent is the instance's own choice, which is nothing to send.</summary>
+    [Fact]
+    public void Load_ReadsAbsentTranslateToAsNone()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            bell = true
+            """);
+
+        Assert.Null(NewStore().Load().Preferences.TranslateTo);
+    }
+
+    [Fact]
+    public void Save_ThenLoad_RoundTripsTranslateTo()
+    {
+        var store = NewStore();
+
+        store.Save(new WoolyConfig { Preferences = new Preferences { TranslateTo = "pt" } });
+
+        Assert.Equal("pt", store.Load().Preferences.TranslateTo);
+        Assert.Contains(
+            "translate_to = \"pt\"",
+            File.ReadAllText(Path.Combine(_directory.Path, "config.toml")));
+    }
+
+    /// <summary>A typo is refused when the file loads, naming the file, rather than quietly letting the instance choose.</summary>
+    [Fact]
+    public void Load_RefusesATranslateToItDoesNotKnowNamingTheFile()
+    {
+        WriteConfigFile(
+            """
+            [preferences]
+            translate_to = "Klingon"
+            """);
+
+        var exception = Assert.Throws<ConfigurationException>(() => NewStore().Load());
+
+        Assert.Contains("Klingon", exception.Message);
+        Assert.Contains("config.toml", exception.Message);
+    }
+
+    /// <summary>
     ///     A theme is a table in this same file (ADR-0003, #46). What the colours mean is the TUI's to say; what this
     ///     store owes is the shape — which theme was chosen, and what each one puts against each name it uses.
     /// </summary>

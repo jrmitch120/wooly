@@ -21,6 +21,9 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     private const string DefaultVisibilityKey = "default_visibility";
     private const string DefaultLanguageKey = "default_language";
 
+    /// <summary>The language the reader reads, which a post's translation is asked into (ADR-0037, #614).</summary>
+    private const string TranslateToKey = "translate_to";
+
     /// <summary>
     ///     The reader's tag sets (ADR-0033): an array of tables rather than a table keyed by name, because a set's
     ///     place on the rail is its place in the file, and a table's keys are what a save writes in its own order.
@@ -109,6 +112,12 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         preferences[HideDrawnCaptionKey] = config.Preferences.HideDrawnCaption;
         preferences[ScrollbarKey] = ScrollbarStyleName.Of(config.Preferences.Scrollbar);
         preferences[ShellWidthKey] = (long)config.Preferences.ShellWidth;
+
+        // Like the language a post goes out in, this has no default to write: absent is the instance's own choice.
+        if (config.Preferences.TranslateTo is { } reads)
+        {
+            preferences[TranslateToKey] = reads;
+        }
 
         root[PreferencesKey] = preferences;
 
@@ -319,7 +328,8 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
         return new Preferences
         {
             DefaultVisibility = ReadVisibility(stored),
-            DefaultLanguage = ReadLanguage(stored),
+            DefaultLanguage = ReadLanguage(stored, DefaultLanguageKey),
+            TranslateTo = ReadLanguage(stored, TranslateToKey),
             HideDrawnCaption = ReadBool(stored, HideDrawnCaptionKey),
             Bell = ReadBool(stored, BellKey, whenAbsent: true),
             ShellWidth = ReadShellWidth(stored),
@@ -401,12 +411,13 @@ public sealed class TomlConfigStore(WoolyPaths paths) : IConfigStore
     }
 
     /// <summary>
-    ///     The code of the language a new post is in, read through the same <see cref="PostLanguageName" /> the
-    ///     <c>--language</c> flag asks, so a name written by hand reads as the code it names.
+    ///     The code of the language <paramref name="key" /> names — the one a new post is in, or the one the reader reads
+    ///     (#614) — read through the same <see cref="PostLanguageName" /> the <c>--language</c> and <c>--to</c> flags
+    ///     ask, so a name written by hand reads as the code it names.
     /// </summary>
-    private string? ReadLanguage(TomlTable preferences)
+    private string? ReadLanguage(TomlTable preferences, string key)
     {
-        if (ReadString(preferences, DefaultLanguageKey) is not { } raw)
+        if (ReadString(preferences, key) is not { } raw)
         {
             return null;
         }
