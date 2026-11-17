@@ -82,10 +82,9 @@ public class ShellSwitchTests
         [
             shell.Timelines.Tokens, shell.Author.Tokens, shell.Engagement.Tokens, shell.Accounts.Tokens,
             shell.Notifications.Tokens, shell.Messages.Tokens, shell.Search.Tokens, shell.Suggestions.Tokens,
-            shell.Defaults.Tokens,
+            shell.Defaults.Tokens, shell.Translation.Tokens,
         ];
         Array.ForEach(tokens, list => list.Clear());
-        shell.Translation.LanguageReads.Clear();
 
         SwitchTo(shell, opened, "work");
 
