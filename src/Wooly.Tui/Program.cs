@@ -63,7 +63,8 @@ try
         provider.GetRequiredService<IInstanceEmoji>(),
         provider.GetRequiredService<IAccountDefaults>(),
         provider.GetRequiredService<IInboxStream>(),
-        provider.GetRequiredService<IPublicProfileEditor>());
+        provider.GetRequiredService<IPublicProfileEditor>(),
+        provider.GetRequiredService<IPostTranslation>());
 
     var clock = provider.GetRequiredService<TimeProvider>();
 

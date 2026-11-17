@@ -88,6 +88,12 @@ internal sealed class AShell
     public FakePublicProfileEditor PublicProfile { get; set; } = FakePublicProfileEditor.Holding();
 
     /// <summary>
+    ///     The instance's translator, which <c>t</c> asks (#615): one translating every post German into English, unless
+    ///     a test says otherwise.
+    /// </summary>
+    public FakePostTranslation Translation { get; set; } = FakePostTranslation.Translating();
+
+    /// <summary>
     ///     Where an address goes, which is the one thing the shell does that leaves the terminal (#85). Not one of the
     ///     ports, for the reason <c>ShellPorts</c> gives: a browser is not on an instance.
     /// </summary>
@@ -153,6 +159,9 @@ internal sealed class AShell
     /// <summary>The config file's <c>default_language</c>, as a code, which compose's Lang starts on (#340), or none.</summary>
     public string? DefaultLanguage { get; set; }
 
+    /// <summary>The config file's <c>translate_to</c>, as a code, which <c>t</c> asks for (#615), or none.</summary>
+    public string? TranslateTo { get; set; }
+
     /// <summary>The config file's <c>bell</c>: whether a rising Inbox badge rings the terminal's bell (#399). On, unless said.</summary>
     public bool Bell { get; set; } = true;
 
@@ -176,6 +185,7 @@ internal sealed class AShell
         TagSets = TagSets,
         DefaultVisibility = DefaultVisibility,
         DefaultLanguage = DefaultLanguage,
+        TranslateTo = TranslateTo,
         Bell = Bell,
         ShellWidth = ShellWidth,
         HiddenRail = HiddenRail,
@@ -210,7 +220,8 @@ internal sealed class AShell
         Emoji,
         Defaults,
         Stream,
-        PublicProfile);
+        PublicProfile,
+        Translation);
 
     /// <summary>
     ///     What the config file says a post goes out at, which a compose starts on ahead of the account's own (#338,
@@ -283,7 +294,8 @@ internal sealed class AShell
         + Search.Searches.Count + Search.FollowedSearches.Count + Trends.Reads.Count
         + Suggestions.Reads.Count + Suggestions.Dismissals.Count
         + Limits.Reads.Count + Emoji.Reads.Count + Defaults.Reads.Count
-        + PublicProfile.Reads.Count + PublicProfile.Saves.Count;
+        + PublicProfile.Reads.Count + PublicProfile.Saves.Count
+        + Translation.Requests.Count;
 
     /// <summary>
     ///     The access token every request to every port that reaches an instance went out with, all told — where a test
@@ -294,6 +306,7 @@ internal sealed class AShell
         .. Timelines.Tokens, .. Author.Tokens, .. Engagement.Tokens, .. Accounts.Tokens, .. Notifications.Tokens,
         .. Messages.Tokens, .. Search.Tokens, .. Trends.Tokens, .. Suggestions.Tokens,
         .. Limits.Tokens, .. Emoji.Tokens, .. Defaults.Tokens, .. PublicProfile.Tokens,
+        .. Translation.Requests.Select(asked => asked.Token),
     ];
 
     /// <summary>A shell that has already opened onto its first destination.</summary>

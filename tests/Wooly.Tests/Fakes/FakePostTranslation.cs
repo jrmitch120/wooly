@@ -14,11 +14,16 @@ internal sealed class FakePostTranslation : IPostTranslation
 {
     private readonly Func<string, Translation> _translation;
     private readonly WoolyException? _refusal;
+    private readonly Task<Translation>? _held;
 
-    private FakePostTranslation(Func<string, Translation> translation, WoolyException? refusal = null)
+    private FakePostTranslation(
+        Func<string, Translation> translation,
+        WoolyException? refusal = null,
+        Task<Translation>? held = null)
     {
         _translation = translation;
         _refusal = refusal;
+        _held = held;
     }
 
     /// <summary>Every translation it was asked for, in order — where a test proves which post, target and profile.</summary>
@@ -45,6 +50,12 @@ internal sealed class FakePostTranslation : IPostTranslation
             _ => ATranslation.With(),
             new InstanceFailedException("mastodon.social", HttpStatusCode.ServiceUnavailable, reason));
 
+    /// <summary>
+    ///     An instance whose answer is <paramref name="held" />, landing when the test says — where a test proves what
+    ///     shows while the question is in flight.
+    /// </summary>
+    public static FakePostTranslation Awaiting(Task<Translation> held) => new(_ => ATranslation.With(), held: held);
+
     /// <summary>An instance refusing every translation with <paramref name="refusal" />, a rate limit among them.</summary>
     public static FakePostTranslation Refusing(WoolyException refusal) => new(_ => ATranslation.With(), refusal);
 
@@ -55,6 +66,11 @@ internal sealed class FakePostTranslation : IPostTranslation
         CancellationToken cancellationToken)
     {
         Requests.Add(new Asked(profile.Name, profile.AccessToken, postId, target));
+
+        if (_held is { } held)
+        {
+            return held;
+        }
 
         return _refusal is null
             ? Task.FromResult(_translation(postId))

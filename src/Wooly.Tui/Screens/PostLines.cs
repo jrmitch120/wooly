@@ -102,7 +102,7 @@ public static class PostLines
         bool saysHowToAskPast = true)
     {
         var width = drawing.Width;
-        var show = OnShow.Of(post, reading);
+        var show = AsRead(post, reading);
         var shown = show.Shown;
 
         return Parts(
@@ -136,7 +136,7 @@ public static class PostLines
         bool saysWhatItAnswers = true)
     {
         var width = drawing.Width;
-        var show = OnShow.Of(post, reading);
+        var show = AsRead(post, reading);
         var shown = show.Shown;
         var avatar = Avatar.Byline(shown.Account, shown.AvatarUrl, drawing.Pictures, drawing.Raster);
         var room = Math.Max(0, width - avatar.Width);
@@ -419,7 +419,50 @@ public static class PostLines
     ///     Whether the row naming <c>x</c> goes under the warning. The text stays behind it either way — what is off on
     ///     the one screen that says no is the offer, not the hiding (#120).
     /// </param>
-    private static IEnumerable<Line> Body(OnShow show, Drawing drawing, Reading reading, bool saysHowToAskPast)
+    private static IEnumerable<Line> Body(OnShow show, Drawing drawing, Reading reading, bool saysHowToAskPast) =>
+    [
+        .. Words(show, drawing, reading, saysHowToAskPast),
+        .. reading.Translation is { } translation ? [Provenance(translation, drawing.Width)] : Array.Empty<Line>(),
+    ];
+
+    /// <summary>
+    ///     What <paramref name="post" /> is showing a reader who has done <paramref name="reading" /> to it, in the
+    ///     translation they asked for where they asked for one (#615).
+    /// </summary>
+    /// <remarks>
+    ///     What is hidden is decided from the post as written and only the words are swapped afterwards, so a translation
+    ///     can never show more of a warned post than its original would — its warning is drawn translated, and what it
+    ///     holds back stays held back until <c>x</c> (ADR-0037).
+    /// </remarks>
+    private static OnShow AsRead(Post post, Reading reading)
+    {
+        var show = OnShow.Of(post, reading);
+
+        return reading.Translation is { } translation ? show with { Shown = translation.Over(show.Shown) } : show;
+    }
+
+    /// <summary>
+    ///     Where a translation came from, said directly under the words it stands in for and muted, as a remark about
+    ///     them rather than part of them: "Translated from German into English · DeepL.com" (#615). Both languages are
+    ///     always named, the one translated into not always being the one asked for (ADR-0037); the first is left out
+    ///     only where the translator did not say what it took the post to be.
+    /// </summary>
+    /// <remarks>
+    ///     Part of the body rather than a part of its own, so that it sits under the words with no blank row between —
+    ///     and drawn on a post with no text at all, whose warning, poll or descriptions were what was translated.
+    /// </remarks>
+    private static Line Provenance(Translation translation, int width)
+    {
+        var into = PostLanguageName.NameOf(translation.To);
+        var said = translation.From is { } from
+            ? $"Translated from {PostLanguageName.NameOf(from)} into {into} · {translation.Provider}"
+            : $"Translated into {into} · {translation.Provider}";
+
+        return Line.Of(TextWrap.Clip(said, width), Role.Muted);
+    }
+
+    /// <summary>The text, or the warning standing in front of it: <see cref="Body" /> short of its provenance.</summary>
+    private static IEnumerable<Line> Words(OnShow show, Drawing drawing, Reading reading, bool saysHowToAskPast)
     {
         var post = show.Shown;
         var lines = new List<Line>();

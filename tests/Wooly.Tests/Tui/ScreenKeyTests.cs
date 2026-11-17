@@ -122,9 +122,15 @@ public class ScreenKeyTests
 
         Assert.NotNull(screen.Picked);
 
+        // But t on a conversation's post, which went out direct: an instance translates no post only the people it
+        // mentions can see, so the key is not announced there (#615, ADR-0037).
+        var acting = PostKeys.OnAPost
+            .Select(key => key.Key)
+            .Where(key => state != "conversation" || key != "t");
+
         Assert.Subset(
             screen.Keys.Select(key => key.Key).ToHashSet(StringComparer.Ordinal),
-            PostKeys.OnAPost.Select(key => key.Key).ToHashSet(StringComparer.Ordinal));
+            acting.ToHashSet(StringComparer.Ordinal));
     }
 
     /// <summary>

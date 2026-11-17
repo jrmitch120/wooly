@@ -288,6 +288,11 @@ public static class Keymap
         // letter is typed into a field that is (#245).
         (ShellKey.T, AddProfileScreen) => Verb.PasteToken,
 
+        // And t everywhere else: the picked post in its instance's translation, and as written again (#615). After the
+        // add screen's line rather than beside x, so that the paste keeps its letter there — the switch takes the first
+        // arm that matches.
+        (ShellKey.T, _) => Verb.Translate,
+
         // The capitals, which are keys of their own for exactly this reason: a lower-case mark key can never fire a
         // tie or empty an inbox by accident (docs/tui-shell.md). D on the profiles screen, where there is no inbox to
         // empty, makes a profile the default instead (#244). R is the profiles screen's alone, since r is reply (#248).

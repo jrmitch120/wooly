@@ -332,6 +332,7 @@ Feed and post:
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `w` | Who favorited it, or who boosted it: the actors screen, one side at a time | On a boost, the post boosted. Opens "Favorited by" where the post's count of favorites is above zero, else "Boosted by" where its boosts are, else says `Nobody has favorited or boosted this.` and opens nothing — settled from the counts before anything is read, and always the list, never a shortcut to one account (#489). On Notifications `w` is who did what the row reports, and on an account screen's header block their follows (below, #490) |
 | `x` | Show what the post is hiding | Its warned text and poll, its sensitive attachments and link preview, or both halves at once (#113, #116, #119). What it showed belongs to the screen it was pressed on (#121, below) |
+| `t` | Show the post in its instance's translation / as written again | The text, warning, poll answers and attachment descriptions together, with a muted `Translated from German into English · DeepL.com` directly under the words; on a boost, the post boosted. Offered only on a public or unlisted post with words (ADR-0037, #615). The header spinner turns while the instance is asked; a refusal or a translator's failure is a notice in the instance's words and the post stays as written. A translation answered once is held for the session, so asking again costs no call, and an edit of the post lets it go. A warned post stays hidden until `x`, its warning translated. What it showed belongs to the screen it was pressed on, as `x`'s does (below). No mouse action |
 | `←` `→` | Walk the references (hashtag, mention, link, attachment, drawn picture) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below), a walked picture on its Picture screen, inside the TUI (#516), letting the reference go as every opening does, so that `esc` comes back to the post picked and nothing walked (review of #514). A walked picture is drawn between `⎡⎢⎣` and `⎤⎥⎦` beside its box (`[` `]` for a box one row tall) (#515), and a click anywhere on its box walks to it and a double click there opens it (review of #514) |
 | `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll is on screen and would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
 | `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. Only where the poll is on screen and would still take a vote — and on a poll already voted in or closed, says which rather than asking |
@@ -383,6 +384,8 @@ not answer them differently:
   does nothing wastes a slot and makes `…+N` promise a `?` entry that answers nothing. So `p`, `e` and `d` come off a
   post that is not the reader's own — asked of the post inside a boost — and `x` off one with nothing left to ask
   past: nothing hidden, or already asked past on this screen, which means it leaves the row the moment it is pressed.
+  And `t` off a post its instance would refuse to translate — followers-only, direct, or with no words (#615) — but
+  not off one already translated, since it is a toggle and the second press puts the original back.
   The shell still refuses the press; only what the row and `?` say changed. Whose a post is rides on the post
   (`Post.IsMine`), set where every post crosses from the wire by the one comparison `ActiveProfile.SignsInAs` makes —
   the same one the shell's refusals ask — so a screen still knows about no instance.
@@ -679,6 +682,16 @@ not answer them differently:
   a request to be asked before being shown, and honouring it once is not consent to skip the asking everywhere
   afterwards; showing somebody something on the strength of a press made on a screen they have since left is the one
   thing this key can get wrong that pressing it again does not undo.
+- **A translation shows on the screen it was asked on, and for as long as that screen does** (#615, ADR-0037). `t`
+  writes to a `Translated` the screen holds beside its `Revealed`, and is kept and dropped exactly as a reveal is:
+  through `j`/`k`, the arrows, a boost, a favorite or a vote putting a fresh copy of the post in place, and drilling in
+  and walking back out; ended by `esc`, `g` and an arrival, and asked again on a post drilled into. What is drawn is
+  the post as its **Reading** says — the hiding decided from the post as written, the words swapped afterwards — so a
+  translation never shows more of a warned post than its original would. What the instance answered is held apart from
+  that, by the shell, for the session, keyed by the instance, the post and the language asked for: `t` again, here or
+  on another screen, shows it at once with no call. One thing lets it go early, an edit of the post (a
+  `Change.PostChanged` that says it was one), which shows the post as written on every screen on the stack and makes
+  the next `t` ask anew — a translation of words the post no longer says being the one thing this key can get wrong.
 
 ### What a post's byline settled
 

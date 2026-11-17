@@ -61,6 +61,10 @@ namespace Wooly.Tui.Shell;
 ///     <b>You</b> (ADR-0028, #406). A port of its own rather than a call on <see cref="Accounts" />, being the one
 ///     account a reader changes rather than ties to.
 /// </param>
+/// <param name="Translation">
+///     A post's <b>Translation</b>, asked of the instance for <c>t</c> (ADR-0037, #615) — the same port the CLI's
+///     <c>post translate</c> asks through.
+/// </param>
 public sealed record ShellPorts(
     ITimelineReader Timelines,
     IPostAuthor Author,
@@ -76,7 +80,8 @@ public sealed record ShellPorts(
     IInstanceEmoji Emoji,
     IAccountDefaults Defaults,
     IInboxStream Stream,
-    IPublicProfileEditor PublicProfile)
+    IPublicProfileEditor PublicProfile,
+    IPostTranslation Translation)
 {
     /// <summary>
     ///     Where the profile stands with <paramref name="people" />, or them exactly as they came where the instance

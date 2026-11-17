@@ -132,6 +132,11 @@ public abstract class Screen
                 {
                     own = PostKeys.NothingHidden(own);
                 }
+
+                if (!Translated.Offers(picked))
+                {
+                    own = PostKeys.NothingToTranslate(own);
+                }
             }
 
             if (Reference is not null)
@@ -464,7 +469,7 @@ public abstract class Screen
     ///     </para>
     /// </remarks>
     protected virtual IReferring? Referring =>
-        Referencing is { } post ? new PostReferences(post, Revealed.Has(post), _boxed) : null;
+        Referencing is { } post ? new PostReferences(Translated.Over(post), Revealed.Has(post), _boxed) : null;
 
     /// <summary>
     ///     The <b>Picture screen</b> the walked still picture opens onto, or <see langword="null" /> where what is walked
@@ -708,7 +713,7 @@ public abstract class Screen
     ///     </para>
     /// </remarks>
     internal Reading ReadingOf(Post post, int at) =>
-        new(Revealed.Has(post), ReferenceOn(at), Walking?.At == at ? Chosen : null);
+        new(Revealed.Has(post), ReferenceOn(at), Walking?.At == at ? Chosen : null, Translated.Of(post));
 
     /// <summary>Moves what is picked out by <paramref name="by" /> items, stopping at either end.</summary>
     /// <remarks>
@@ -818,6 +823,30 @@ public abstract class Screen
     ///     <see cref="Move" /> and <see cref="Pick" /> need no override on one.
     /// </remarks>
     public bool Reveal() => Picked is { } picked && Revealed.Ask(picked);
+
+    /// <summary>
+    ///     The posts the reader has asked to see translated on this screen, and the translation each is showing in
+    ///     (#615) — kept and dropped as <see cref="Revealed" /> is, one per screen and for its reason (ADR-0037).
+    /// </summary>
+    protected Translated Translated { get; } = new();
+
+    /// <summary>
+    ///     The post <c>t</c> would act on — the picked one, or the one inside it where it is a boost — or
+    ///     <see langword="null" /> where nothing is picked or its instance would not translate it (#615).
+    /// </summary>
+    public Post? Translatable => Picked is { } picked && Translated.Offers(picked) ? picked.Boosted ?? picked : null;
+
+    /// <summary>The translation <paramref name="post" /> is showing in on this screen, or <see langword="null" />.</summary>
+    public Translation? TranslationOf(Post post) => Translated.Of(post);
+
+    /// <summary>Shows <paramref name="post" /> in <paramref name="translation" /> on this screen from here on.</summary>
+    public void ShowTranslated(Post post, Translation translation) => Translated.Show(post, translation);
+
+    /// <summary>
+    ///     Shows the post <paramref name="id" /> names as written again on this screen — <c>t</c> pressed a second time,
+    ///     or the post edited out from under its translation (#615).
+    /// </summary>
+    public void ShowAsWritten(string id) => Translated.Drop(id);
 
     /// <summary>
     ///     What <paramref name="post" /> is showing this reader — its author's words, what hangs off them, and which

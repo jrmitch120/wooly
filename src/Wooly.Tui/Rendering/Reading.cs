@@ -1,9 +1,11 @@
+using Wooly.Core.Posts;
+
 namespace Wooly.Tui.Rendering;
 
 /// <summary>
 ///     What this reader has done to one post: asked past what it is warned with, walked to a reference inside its
-///     text. Everything a post is drawn differently for because of who is reading it, rather than because of what it
-///     says.
+///     text, asked for its translation. Everything a post is drawn differently for because of who is reading it,
+///     rather than because of what it says.
 /// </summary>
 /// <remarks>
 ///     One thing rather than an argument apiece, because each of them is keyed by the same question — which post is
@@ -30,7 +32,13 @@ namespace Wooly.Tui.Rendering;
 ///     thing — nobody is voting in this poll — which is what every post but the one being read is, and what that one
 ///     is until a digit is pressed.
 /// </param>
+/// <param name="Translation">
+///     The instance's translation this post is showing in, or <see langword="null" /> where it shows as written — which
+///     is every post the reader has not pressed <c>t</c> on, on this screen (#615, ADR-0037). The words alone: what a
+///     warned post holds back is still decided from the post as written, so translating it never shows more of it.
+/// </param>
 public readonly record struct Reading(
     bool Revealed = false,
     Reference? Reference = null,
-    IReadOnlySet<int>? Chosen = null);
+    IReadOnlySet<int>? Chosen = null,
+    Translation? Translation = null);

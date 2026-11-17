@@ -438,7 +438,7 @@ public sealed class Drafting
                     eitherWay: saved =>
                     {
                         Popped();
-                        Reach.Tell(new Change.PostChanged(saved));
+                        Reach.Tell(new Change.PostChanged(saved) { Edited = true });
                         Reach.Say("Saved.", isError: false);
                     });
 
