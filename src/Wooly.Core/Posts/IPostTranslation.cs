@@ -6,7 +6,8 @@ namespace Wooly.Core.Posts;
 ///     Asks a reader's instance for a post's <b>Translation</b> — the instance being the only translator there is
 ///     (ADR-0037). The narrow port ADR-0005 asks for, shared by both front ends: the CLI's <c>post translate</c> and the
 ///     TUI's <c>t</c> ask through this, and their tests fake this rather than the network. A port of its own rather than
-///     a corner of <see cref="IPostEngagement" />, so that one fake tells the whole of translation.
+///     a corner of <see cref="IPostEngagement" />, so that one fake tells the whole of translation: both the translation
+///     and the languages map that says where one would be given (#616).
 /// </summary>
 /// <remarks>
 ///     Raw over <see cref="HttpClient" /> through <c>RawMastodonCall</c>, Mastonet 3.1.3 having no translation at all
@@ -40,4 +41,16 @@ public interface IPostTranslation
         string postId,
         string? target,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     The instance's languages map: which languages its translator can take a post in each language to (#616). What
+    ///     the TUI asks once per instance, to offer <c>t</c> only where it would be given; the CLI never asks it.
+    /// </summary>
+    /// <returns>
+    ///     The map, or <see cref="TranslationLanguages.None" /> where the instance has no translator — or, older than 4.2,
+    ///     no such endpoint, which is the same thing to a reader.
+    /// </returns>
+    /// <exception cref="Errors.InstanceFailedException">The instance failed to answer.</exception>
+    /// <exception cref="Errors.RateLimitedException">The profile has spent its quota with the instance.</exception>
+    Task<TranslationLanguages> Languages(ActiveProfile profile, CancellationToken cancellationToken);
 }

@@ -295,7 +295,7 @@ internal sealed class AShell
         + Suggestions.Reads.Count + Suggestions.Dismissals.Count
         + Limits.Reads.Count + Emoji.Reads.Count + Defaults.Reads.Count
         + PublicProfile.Reads.Count + PublicProfile.Saves.Count
-        + Translation.Requests.Count;
+        + Translation.Requests.Count + Translation.LanguageReads.Count;
 
     /// <summary>
     ///     The access token every request to every port that reaches an instance went out with, all told — where a test
@@ -306,7 +306,7 @@ internal sealed class AShell
         .. Timelines.Tokens, .. Author.Tokens, .. Engagement.Tokens, .. Accounts.Tokens, .. Notifications.Tokens,
         .. Messages.Tokens, .. Search.Tokens, .. Trends.Tokens, .. Suggestions.Tokens,
         .. Limits.Tokens, .. Emoji.Tokens, .. Defaults.Tokens, .. PublicProfile.Tokens,
-        .. Translation.Requests.Select(asked => asked.Token),
+        .. Translation.Requests.Select(asked => asked.Token), .. Translation.LanguageReads.Select(read => read.Token),
     ];
 
     /// <summary>A shell that has already opened onto its first destination.</summary>

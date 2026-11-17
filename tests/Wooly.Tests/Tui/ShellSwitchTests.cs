@@ -85,6 +85,7 @@ public class ShellSwitchTests
             shell.Defaults.Tokens,
         ];
         Array.ForEach(tokens, list => list.Clear());
+        shell.Translation.LanguageReads.Clear();
 
         SwitchTo(shell, opened, "work");
 

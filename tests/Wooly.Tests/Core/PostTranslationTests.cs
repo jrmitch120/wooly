@@ -168,6 +168,69 @@ public class PostTranslationTests
         Assert.Equal("mastodon.social", limited.Instance);
     }
 
+    /// <summary>
+    ///     The languages map is read raw off the instance's own endpoint (#616): each language a post can be in, under
+    ///     the code the instance gave it — <c>und</c> for a post that says none — with the languages it can be taken to,
+    ///     region codes and all, as the instance wrote them.
+    /// </summary>
+    [Fact]
+    public async Task Languages_ReadsTheMapWithUndAndRegionCodesAsTheInstanceWroteThem()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json(
+            """
+            {
+              "und": ["de", "en-GB", "pt-BR"],
+              "de": ["en-GB", "pt-BR"],
+              "pt-BR": ["de"]
+            }
+            """));
+
+        var languages = await Resolved(network).Languages(Profile, TestContext.Current.CancellationToken);
+
+        var request = Assert.Single(network.Requests);
+        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.Equal(
+            "https://mastodon.social/api/v1/instance/translation_languages",
+            request.RequestUri?.ToString());
+        Assert.Equal("Bearer token-personal", request.Headers.Authorization?.ToString());
+        Assert.Equal(["und", "de", "pt-BR"], languages.Targets.Keys);
+        Assert.Equal(["de", "en-GB", "pt-BR"], languages.Targets["und"]);
+        Assert.Equal(["en-GB", "pt-BR"], languages.Targets["de"]);
+        Assert.Equal(["de"], languages.Targets["pt-BR"]);
+    }
+
+    /// <summary>
+    ///     An instance with no translator answers an empty map, which takes nothing anywhere — not even with no target
+    ///     known, where the language check is otherwise dropped.
+    /// </summary>
+    [Fact]
+    public async Task Languages_ReadsAnEmptyMapAsTakingNothing()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json("{}"));
+
+        var languages = await Resolved(network).Languages(Profile, TestContext.Current.CancellationToken);
+
+        Assert.Empty(languages.Targets);
+        Assert.False(languages.Takes("de", "en"));
+        Assert.False(languages.Takes(from: null, to: null));
+    }
+
+    /// <summary>
+    ///     An instance older than 4.2 has no such endpoint and answers 404, which is read as the empty map it amounts to
+    ///     rather than as a failure: an instance that cannot translate, offering nothing.
+    /// </summary>
+    [Fact]
+    public async Task Languages_ReadsAnInstanceWithoutTheEndpointAsAnEmptyMap()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.NotFound, "Record not found"));
+
+        var languages = await Resolved(network).Languages(Profile, TestContext.Current.CancellationToken);
+
+        Assert.Empty(languages.Targets);
+        Assert.False(languages.Takes(from: null, to: null));
+    }
+
     private static IPostTranslation Resolved(HttpMessageHandler network)
     {
         var services = new ServiceCollection();

@@ -107,6 +107,12 @@ public sealed class Shell
     private readonly Translations _translations = new();
 
     /// <summary>
+    ///     What each instance's translator can do, read once per instance for the session (#616) — what settles whether
+    ///     <c>t</c> is offered on a post, beside the post limits drafting holds per instance the same way.
+    /// </summary>
+    private readonly LanguagesByInstance _languages;
+
+    /// <summary>
     ///     The query the people to mention were last asked for, and the wait before the instance's search of the
     ///     follows is asked for it — which the next different query calls off (#322).
     /// </summary>
@@ -187,6 +193,8 @@ public sealed class Shell
         _timing = timing;
         _tagSets = preferences?.TagSets ?? [];
         _translateTo = preferences?.TranslateTo;
+        _languages = new LanguagesByInstance(ports.Translation, host);
+        _languages.Heard += () => Changed?.Invoke();
         StatusRow = new StatusRow(host.After, timing.WidthSaidFor, () => Changed?.Invoke());
         Stack = new Stacked(this);
         _drafting = new Tui.Drafting.Drafting(
@@ -228,14 +236,14 @@ public sealed class Shell
 
         if (opening.Profile is null)
         {
-            _stack.Add(SigningIn(opening.Again, opening.Why));
+            _stack.Add(Held(SigningIn(opening.Again, opening.Why)));
 
             return;
         }
 
         _launching = true;
         _instance = RailInstance();
-        _stack.Add(new FeedScreen(Rail.Showing, []));
+        _stack.Add(Held(new FeedScreen(Rail.Showing, [])));
     }
 
     /// <summary>Raised whenever anything on screen has changed. Always on the drawing thread.</summary>
@@ -1776,6 +1784,9 @@ public sealed class Shell
         if (profile is not null)
         {
             _drafting.ActingAs(profile);
+
+            // Asked now for the same reason: whether t is offered is on the status row as soon as a post is picked.
+            _languages.Ask(profile);
         }
     }
 
@@ -1885,6 +1896,9 @@ public sealed class Shell
         }
 
         _acting = Acts(renewed, _enquiry, Actor.Cache, Actor.Lists) with { Marking = Actor.Marking };
+
+        // A languages map the refused token could not read is read now, with the token that can (#616).
+        _languages.Ask(renewed);
     }
 
     /// <summary>
@@ -2315,7 +2329,7 @@ public sealed class Shell
 
     private void Push(Screen screen)
     {
-        _stack.Add(screen);
+        _stack.Add(Held(screen));
         Saw(screen);
         StatusRow.Clear();
     }
@@ -2423,7 +2437,7 @@ public sealed class Shell
             left.Left();
         });
         _stack.Clear();
-        _stack.Add(screen);
+        _stack.Add(Held(screen));
         Saw(screen);
         StatusRow.Clear();
     }
@@ -2446,7 +2460,7 @@ public sealed class Shell
     {
         _drafting.Left(_stack[^1]);
         _stack[^1].Left();
-        _stack[^1] = fresh;
+        _stack[^1] = Held(fresh);
         Saw(fresh);
 
         // Gone with the screen it was said over, the same as at a push or an arrival: what a reader was told about the
@@ -2579,6 +2593,26 @@ public sealed class Shell
     ///     no cost, being what was already read. Nothing while nobody is being acted as.
     /// </summary>
     private void Saw(Screen screen) => _acting?.People.Saw(screen.Seen);
+
+    /// <summary>
+    ///     <paramref name="screen" />, told how to ask whether a post's language can be translated into the reader's
+    ///     (#616) — as it goes onto the stack, which is every way a screen gets there, so that <c>t</c> is offered by the
+    ///     one rule on every screen (<see cref="Translated.Offers" />).
+    /// </summary>
+    private Screen Held(Screen screen)
+    {
+        screen.TranslatesBy(Takes);
+
+        return screen;
+    }
+
+    /// <summary>
+    ///     Whether the instance acted on can take a post written in <paramref name="language" /> — <c>und</c> where it
+    ///     says none — to <c>translate_to</c>, compared by base language; or, with no <c>translate_to</c>, whether it can
+    ///     translate at all (ADR-0037). Read live, so a map landing or a switch is answered at the next frame.
+    /// </summary>
+    private bool Takes(string? language) =>
+        _acting is { } acting && _languages.For(acting.Profile).Takes(language, _translateTo);
 
     /// <summary>
     ///     Takes the screen at <paramref name="at" /> off the stack, and lets it know (<see cref="Screen.Left" />).

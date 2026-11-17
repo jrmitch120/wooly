@@ -831,6 +831,13 @@ public abstract class Screen
     protected Translated Translated { get; } = new();
 
     /// <summary>
+    ///     Says whether the instance this screen is read from can take a post in a language to the reader's (#616) — the
+    ///     shell's to say, out of the languages map it holds per instance, as it puts the screen on the stack. Until it
+    ///     has, nothing is offered.
+    /// </summary>
+    internal void TranslatesBy(Func<string?, bool> takes) => Translated.Takes = takes;
+
+    /// <summary>
     ///     The post <c>t</c> would act on — the picked one, or the one inside it where it is a boost — or
     ///     <see langword="null" /> where nothing is picked or its instance would not translate it (#615).
     /// </summary>

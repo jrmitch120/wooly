@@ -18,19 +18,27 @@ public sealed class Translated
     private readonly Dictionary<string, Translation> _showing = [];
 
     /// <summary>
-    ///     Whether <paramref name="post" /> is one its instance could translate: public or unlisted, since an instance
-    ///     refuses a post only followers or the people it mentions can see, and with words — text, a warning, a poll's
-    ///     answer or an attachment's description — since a translation of nothing is nothing (ADR-0037).
+    ///     Whether the instance can take a post written in a language — its code, or <see langword="null" /> where the
+    ///     post says none — to the reader's (#616): the shell's to say, out of the instance's languages map and
+    ///     <c>translate_to</c>, and set on every screen it holds. Nothing, until it has said.
     /// </summary>
-    /// <remarks>
-    ///     Asked of the post inside a boost. The instance's languages map narrows this further, and is not asked here
-    ///     yet (#616).
-    /// </remarks>
-    public static bool Offers(Post post)
+    public Func<string?, bool> Takes { get; set; } = _ => false;
+
+    /// <summary>
+    ///     Whether <paramref name="post" /> is one its instance would translate: public or unlisted, since an instance
+    ///     refuses a post only followers or the people it mentions can see; with words — text, a warning, a poll's
+    ///     answer or an attachment's description — since a translation of nothing is nothing; and in a language the
+    ///     instance can take to the reader's (<see cref="Takes" />, ADR-0037). The one rule for whether <c>t</c> is
+    ///     offered, so the status row, <c>?</c> and the key itself cannot come to disagree.
+    /// </summary>
+    /// <remarks>Asked of the post inside a boost.</remarks>
+    public bool Offers(Post post)
     {
         var shown = post.Boosted ?? post;
 
-        return shown.Visibility is PostVisibility.Public or PostVisibility.Unlisted && HasWords(shown);
+        return shown.Visibility is PostVisibility.Public or PostVisibility.Unlisted
+               && HasWords(shown)
+               && Takes(shown.Language);
     }
 
     /// <summary>The translation <paramref name="post" /> is showing in here, or <see langword="null" /> where none.</summary>

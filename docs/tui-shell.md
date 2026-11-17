@@ -332,7 +332,7 @@ Feed and post:
 | `d` | Delete | Own posts only, **confirmation required** (story 43) |
 | `w` | Who favorited it, or who boosted it: the actors screen, one side at a time | On a boost, the post boosted. Opens "Favorited by" where the post's count of favorites is above zero, else "Boosted by" where its boosts are, else says `Nobody has favorited or boosted this.` and opens nothing — settled from the counts before anything is read, and always the list, never a shortcut to one account (#489). On Notifications `w` is who did what the row reports, and on an account screen's header block their follows (below, #490) |
 | `x` | Show what the post is hiding | Its warned text and poll, its sensitive attachments and link preview, or both halves at once (#113, #116, #119). What it showed belongs to the screen it was pressed on (#121, below) |
-| `t` | Show the post in its instance's translation / as written again | The text, warning, poll answers and attachment descriptions together, with a muted `Translated from German into English · DeepL.com` directly under the words; on a boost, the post boosted. Offered only on a public or unlisted post with words (ADR-0037, #615). The header spinner turns while the instance is asked; a refusal or a translator's failure is a notice in the instance's words and the post stays as written. A translation answered once is held for the session, so asking again costs no call, and an edit of the post lets it go. A warned post stays hidden until `x`, its warning translated. What it showed belongs to the screen it was pressed on, as `x`'s does (below). No mouse action |
+| `t` | Show the post in its instance's translation / as written again | The text, warning, poll answers and attachment descriptions together, with a muted `Translated from German into English · DeepL.com` directly under the words; on a boost, the post boosted. Offered only where the instance would give it: a public or unlisted post with words, in a language its translation-languages map takes to `translate_to` (`und` for a post with none, compared by base language), or in any language with no `translate_to` set; nowhere on an instance with no translator (ADR-0037, #615, #616). The header spinner turns while the instance is asked; a refusal or a translator's failure is a notice in the instance's words and the post stays as written. A translation answered once is held for the session, so asking again costs no call, and an edit of the post lets it go. A warned post stays hidden until `x`, its warning translated. What it showed belongs to the screen it was pressed on, as `x`'s does (below). No mouse action |
 | `←` `→` | Walk the references (hashtag, mention, link, attachment, drawn picture) inside the picked post | Clamps at the ends; `esc`/`j`/`k` clear the pick; `⏎` opens what's picked (below), a walked picture on its Picture screen, inside the TUI (#516), letting the reference go as every opening does, so that `esc` comes back to the post picked and nothing walked (review of #514). A walked picture is drawn between `⎡⎢⎣` and `⎤⎥⎦` beside its box (`[` `]` for a box one row tall) (#515), and a click anywhere on its box walks to it and a double click there opens it (review of #514) |
 | `1`-`9` `0` | Toggle the 1st-10th option of the picked post's poll | Only where the poll is on screen and would still take a vote — no-op otherwise, and off the status row there too; `esc`/`j`/`k` discard the toggle |
 | `v` | Cast the toggled poll vote | **Confirmation required** (story 43), same as delete. Only where the poll is on screen and would still take a vote — and on a poll already voted in or closed, says which rather than asking |
@@ -384,8 +384,10 @@ not answer them differently:
   does nothing wastes a slot and makes `…+N` promise a `?` entry that answers nothing. So `p`, `e` and `d` come off a
   post that is not the reader's own — asked of the post inside a boost — and `x` off one with nothing left to ask
   past: nothing hidden, or already asked past on this screen, which means it leaves the row the moment it is pressed.
-  And `t` off a post its instance would refuse to translate — followers-only, direct, or with no words (#615) — but
-  not off one already translated, since it is a toggle and the second press puts the original back.
+  And `t` off a post its instance would refuse to translate — followers-only, direct, or with no words (#615), or in a
+  language the instance's languages map cannot take to the reader's (#616, below) — but not off one already
+  translated, since it is a toggle and the second press puts the original back: the map that offered it is held for
+  the session, so the rule that offered it still does.
   The shell still refuses the press; only what the row and `?` say changed. Whose a post is rides on the post
   (`Post.IsMine`), set where every post crosses from the wire by the one comparison `ActiveProfile.SignsInAs` makes —
   the same one the shell's refusals ask — so a screen still knows about no instance.
@@ -692,6 +694,19 @@ not answer them differently:
   on another screen, shows it at once with no call. One thing lets it go early, an edit of the post (a
   `Change.PostChanged` that says it was one), which shows the post as written on every screen on the stack and makes
   the next `t` ask anew — a translation of words the post no longer says being the one thing this key can get wrong.
+- **`t` is offered only where the instance would translate, by its languages map** (#616, ADR-0037). The shell reads
+  `GET /api/v1/instance/translation_languages` once per instance for the session, when it starts acting as a profile
+  there — held in a `LanguagesByInstance` beside the post limits drafting holds per instance, so a second profile on
+  the same instance and every post and screen after reuse it. `t` is offered where the map takes the post's language
+  (`und` for a post that says none) to `translate_to`, compared by base language on both sides (`en-GB` answers for
+  `en`), and never where the two are the same language, which the instance refuses. With no `translate_to` the
+  instance chooses a language no API names, so the language check is dropped and any public or unlisted post with
+  words is offered. An empty map — no translator, or an instance older than 4.2 answering 404 — offers nothing, and so
+  does a map not yet landed or not answered: never on a guess. The map landing redraws, so `t` comes onto the row
+  without a key pressed. A failed read is asked again the next time the session acts as a profile there, a switch or a
+  signing in again. The rule is one place, `Translated.Offers`, which the status row, `?` and the key all ask; the shell
+  hands every screen it puts on the stack the instance's half of it (`Screen.TranslatesBy`), so a screen still knows
+  no instance.
 
 ### What a post's byline settled
 

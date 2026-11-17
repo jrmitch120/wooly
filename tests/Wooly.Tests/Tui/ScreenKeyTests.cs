@@ -335,8 +335,22 @@ public class ScreenKeyTests
         }
     }
 
-    /// <summary>The screen the <paramref name="state" /> names, built with no terminal and no shell around it.</summary>
+    /// <summary>
+    ///     The screen the <paramref name="state" /> names, built with no terminal and no shell around it — and so told,
+    ///     as the shell would tell it, that its instance translates every language into the reader's (#616), so that
+    ///     <c>t</c> is off a row only by the post it is asked of.
+    /// </summary>
     private static Screen Of(string state)
+    {
+        var screen = Built(state);
+
+        screen.TranslatesBy(_ => true);
+
+        return screen;
+    }
+
+    /// <summary>The screen the <paramref name="state" /> names, as it is built.</summary>
+    private static Screen Built(string state)
     {
         // The reader's own, and warned, so that every key acting on a post can act on this one: pin, edit and delete
         // on somebody else's, and x on a post hiding nothing, are off the row by #220's rule rather than this one.

@@ -195,6 +195,19 @@ public class PostEngagementIntegrationTests
 
             var translated = translation.Over(published);
             Assert.Contains("dog", translated.Poll?.Options[1].Text, StringComparison.OrdinalIgnoreCase);
+
+            // The instance's languages map, which the TUI reads to offer t (#616): a pure read, needing no post, put
+            // here beside the translation it vouches for. The LibreTranslate loads German and English, so the map
+            // takes each to the other, a post with no language to either — and nothing else.
+            var languages = await translations.Languages(profile, cancellationToken);
+
+            Assert.True(languages.Takes("de", "en"));
+            Assert.True(languages.Takes("en", "de"));
+            Assert.True(languages.Takes(from: null, "en"));
+            Assert.False(languages.Takes("de", "fr"));
+            Assert.Equal(
+                ["de", "en"],
+                languages.Targets.Values.SelectMany(targets => targets).Distinct().Order());
         }
         finally
         {
