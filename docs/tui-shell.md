@@ -691,9 +691,12 @@ not answer them differently:
   the post as its **Reading** says — the hiding decided from the post as written, the words swapped afterwards — so a
   translation never shows more of a warned post than its original would. What the instance answered is held apart from
   that, by the shell, for the session, keyed by the instance, the post and the language asked for: `t` again, here or
-  on another screen, shows it at once with no call. One thing lets it go early, an edit of the post (a
-  `Change.PostChanged` that says it was one), which shows the post as written on every screen on the stack and makes
-  the next `t` ask anew — a translation of words the post no longer says being the one thing this key can get wrong.
+  on another screen, shows it at once with no call. Each is held with the words it was made from, and handed back only
+  for a post that still says them, so an edit made anywhere else, brought in by a refresh with no **Change** to say
+  so, is a miss and asked anew. An edit made here lets it go at once (a `Change.PostChanged` that says it was one),
+  which shows the post as written on every screen on the stack and makes the next `t` ask anew — a translation of
+  words the post no longer says being the one thing this key can get wrong. A translated preview of the reader's own
+  post under a notification says where it came from too, on one row cut to the width.
 - **`t` is offered only where the instance would translate, by its languages map** (#616, ADR-0037). The shell reads
   `GET /api/v1/instance/translation_languages` once per instance for the session, when it starts acting as a profile
   there — held in a `LanguagesByInstance` beside the post limits drafting holds per instance, so a second profile on
@@ -703,9 +706,10 @@ not answer them differently:
   instance chooses a language no API names, so the language check is dropped and any public or unlisted post with
   words is offered. An empty map — no translator, or an instance older than 4.2 answering 404 — offers nothing, and so
   does a map not yet landed or not answered: never on a guess. The map landing redraws, so `t` comes onto the row
-  without a key pressed. A failed read is asked again the next time the session acts as a profile there, a switch or a
-  signing in again. The rule is one place, `Translated.Offers`, which the status row, `?` and the key all ask; the shell
-  hands every screen it puts on the stack the instance's half of it (`Screen.TranslatesBy`), so a screen still knows
+  without a key pressed. A failed read, a timeout among them, is asked again the next time the session acts as a
+  profile there, a switch or a signing in again. The rule is one place, `Translated.Offers`, which the status row, `?`
+  and the key all ask; the shell hands every screen it puts on the stack the instance's half of it
+  (`Translated.Takes`, set in `Shell.OfferingTranslation`), so a screen still knows
   no instance.
 
 ### What a post's byline settled
