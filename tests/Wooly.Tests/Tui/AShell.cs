@@ -306,7 +306,7 @@ internal sealed class AShell
         .. Timelines.Tokens, .. Author.Tokens, .. Engagement.Tokens, .. Accounts.Tokens, .. Notifications.Tokens,
         .. Messages.Tokens, .. Search.Tokens, .. Trends.Tokens, .. Suggestions.Tokens,
         .. Limits.Tokens, .. Emoji.Tokens, .. Defaults.Tokens, .. PublicProfile.Tokens,
-        .. Translation.Requests.Select(asked => asked.Token), .. Translation.LanguageReads.Select(read => read.Token),
+        .. Translation.Tokens,
     ];
 
     /// <summary>A shell that has already opened onto its first destination.</summary>

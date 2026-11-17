@@ -50,31 +50,45 @@ public sealed class LanguagesByInstance(IPostTranslation port, IShellHost host)
 
     private async Task Read(ActiveProfile profile)
     {
-        TranslationLanguages? languages;
+        TranslationLanguages? languages = null;
 
         try
         {
             languages = await port.Languages(profile, CancellationToken.None);
         }
-        catch (Exception unanswered) when (unanswered is WoolyException or HttpRequestException or JsonException)
+        catch (Exception unanswered) when (Unanswered(unanswered))
         {
             // A refused token, which the reads that fill the screen already say with the key that fixes it; or an
             // instance not answering, which offering nothing until it is asked again says well enough.
-            languages = null;
+        }
+        finally
+        {
+            // Whatever became of the read — even a failure nobody foresaw — the instance is no longer being asked, so
+            // the next profile acting on it asks again rather than finding a question that never comes back.
+            host.OnUiThread(() => Landed(profile.Instance, languages));
+        }
+    }
+
+    private void Landed(string instance, TranslationLanguages? languages)
+    {
+        _asking.Remove(instance);
+
+        if (languages is null)
+        {
+            return;
         }
 
-        host.OnUiThread(() =>
-        {
-            _asking.Remove(profile.Instance);
+        _known[instance] = languages;
 
-            if (languages is null)
-            {
-                return;
-            }
-
-            _known[profile.Instance] = languages;
-
-            Heard?.Invoke();
-        });
+        Heard?.Invoke();
     }
+
+    /// <summary>
+    ///     Whether <paramref name="thrown" /> is the instance not answering the map: the failures the raw-call helper
+    ///     counts as unanswered (<c>RawMastodonCall.Unanswered</c> in Wooly.Core) — a rate limit, an unreachable
+    ///     instance, a refusal, a body that is not the map, or a timeout — and any other <see cref="WoolyException" />,
+    ///     a refused token among them. Every cancellation is a timeout here, since nothing asks this read to stop.
+    /// </summary>
+    private static bool Unanswered(Exception thrown) =>
+        thrown is WoolyException or HttpRequestException or JsonException or OperationCanceledException;
 }

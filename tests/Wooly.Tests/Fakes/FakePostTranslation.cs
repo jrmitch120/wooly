@@ -12,29 +12,32 @@ namespace Wooly.Tests.Fakes;
 /// </summary>
 internal sealed class FakePostTranslation : IPostTranslation
 {
+    /// <summary>
+    ///     The languages map an instance answers unless a test says otherwise (#616): a translator that takes German and
+    ///     English to each other, and a post with no language to either — LibreTranslate loading the two, as the
+    ///     integration suite's does.
+    /// </summary>
+    private static readonly TranslationLanguages GermanAndEnglish = Map(
+        ("de", ["en"]),
+        ("en", ["de"]),
+        (TranslationLanguages.Undetermined, ["de", "en"]));
+
     private readonly Func<string, Translation> _translation;
     private readonly WoolyException? _refusal;
     private readonly Task<Translation>? _held;
+    private readonly IReadOnlyList<Task<TranslationLanguages>> _languages;
 
     private FakePostTranslation(
         Func<string, Translation> translation,
         WoolyException? refusal = null,
-        Task<Translation>? held = null)
+        Task<Translation>? held = null,
+        IReadOnlyList<Task<TranslationLanguages>>? languages = null)
     {
         _translation = translation;
         _refusal = refusal;
         _held = held;
+        _languages = languages is { Count: > 0 } ? languages : [Task.FromResult(GermanAndEnglish)];
     }
-
-    /// <summary>
-    ///     What the languages map is answered with (#616): by default an instance whose translator takes German and
-    ///     English to each other, and a post with no language to either — LibreTranslate loading the two, as the
-    ///     integration suite's does.
-    /// </summary>
-    private Task<TranslationLanguages> _languages = Task.FromResult(Map(
-        ("de", ["en"]),
-        ("en", ["de"]),
-        (TranslationLanguages.Undetermined, ["de", "en"])));
 
     /// <summary>Every translation it was asked for, in order — where a test proves which post, target and profile.</summary>
     public List<Asked> Requests { get; } = [];
@@ -45,23 +48,27 @@ internal sealed class FakePostTranslation : IPostTranslation
     /// </summary>
     public List<(string Profile, string Token)> LanguageReads { get; } = [];
 
+    /// <summary>The access token every call was made with, translations and map reads alike, in order.</summary>
+    public List<string> Tokens { get; } = [];
+
     /// <summary>A languages map out of each language a post can be in and the languages it can be taken to.</summary>
     public static TranslationLanguages Map(params (string From, string[] To)[] pairs) =>
         new(pairs.ToDictionary(pair => pair.From, IReadOnlyList<string> (pair) => pair.To));
 
-    /// <summary>This instance, answering its languages map with <paramref name="languages" /> — none, for no translator.</summary>
-    public FakePostTranslation Taking(TranslationLanguages languages) => Taking(Task.FromResult(languages));
+    /// <summary>
+    ///     An instance that translates every post, whose languages map is <paramref name="languages" /> — none, for no
+    ///     translator.
+    /// </summary>
+    public static FakePostTranslation Taking(TranslationLanguages languages) =>
+        Answering(Task.FromResult(languages));
 
     /// <summary>
-    ///     This instance, answering its languages map with <paramref name="languages" /> when the test says — or failing
-    ///     to, where it is a faulted task.
+    ///     An instance that translates every post, answering each read of its languages map with the next of
+    ///     <paramref name="languages" /> — and every read past the last with the last — each landing when the test says,
+    ///     or failing to where it is a faulted task.
     /// </summary>
-    public FakePostTranslation Taking(Task<TranslationLanguages> languages)
-    {
-        _languages = languages;
-
-        return this;
-    }
+    public static FakePostTranslation Answering(params Task<TranslationLanguages>[] languages) =>
+        new(_ => ATranslation.With(), languages: languages);
 
     /// <summary>An instance that translates every post it is asked about into <paramref name="translation" />.</summary>
     public static FakePostTranslation Translating(Translation? translation = null) =>
@@ -100,6 +107,7 @@ internal sealed class FakePostTranslation : IPostTranslation
         CancellationToken cancellationToken)
     {
         Requests.Add(new Asked(profile.Name, profile.AccessToken, postId, target));
+        Tokens.Add(profile.AccessToken);
 
         if (_held is { } held)
         {
@@ -114,8 +122,9 @@ internal sealed class FakePostTranslation : IPostTranslation
     public Task<TranslationLanguages> Languages(ActiveProfile profile, CancellationToken cancellationToken)
     {
         LanguageReads.Add((profile.Name, profile.AccessToken));
+        Tokens.Add(profile.AccessToken);
 
-        return _languages;
+        return _languages[Math.Min(LanguageReads.Count, _languages.Count) - 1];
     }
 
     /// <summary>One translation asked for: as which profile and token, of which post, and into what — or nothing.</summary>

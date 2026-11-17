@@ -145,7 +145,7 @@ public class ShellTranslationLanguagesTests
         var shell = new AShell
         {
             Timelines = FakeTimelineReader.Holding(Post("de")),
-            Translation = FakePostTranslation.Translating().Taking(
+            Translation = FakePostTranslation.Answering(
                 Task.FromException<TranslationLanguages>(new Wooly.Core.Errors.InstanceFailedException(
                     "mastodon.social",
                     System.Net.HttpStatusCode.ServiceUnavailable))),
@@ -155,6 +155,41 @@ public class ShellTranslationLanguagesTests
 
         Assert.DoesNotContain(opened.Keys, key => key.Key == "t");
         Assert.Contains(AShell.Drawn(opened.Screen), line => line.Contains("Hallo Welt"));
+    }
+
+    /// <summary>
+    ///     A map read that timed out — the <see cref="System.Net.Http.HttpClient" /> giving up, which it says as a
+    ///     cancellation nobody asked for — offers nothing, and is asked again when the session next acts as a profile on
+    ///     that instance, as any other unanswered read is: one timeout never leaves <c>t</c> off for the session.
+    /// </summary>
+    [Fact]
+    public async Task Languages_AreAskedAgainAfterAReadThatTimedOut()
+    {
+        var shell = new AShell
+        {
+            Timelines = FakeTimelineReader.Holding(Post("de")),
+            Profiles = FakeProfileRegistry.Holding(
+                "personal",
+                FakeProfileRegistry.Profile("personal", "mastodon.social", "jeff@mastodon.social"),
+                FakeProfileRegistry.Profile("other", "mastodon.social", "jeffrey@mastodon.social")),
+            Translation = FakePostTranslation.Answering(
+                Task.FromException<TranslationLanguages>(new TaskCanceledException("The request timed out.")),
+                Task.FromResult(FakePostTranslation.Map(("de", ["en"])))),
+            TranslateTo = "en",
+        };
+
+        var opened = await shell.Opened();
+        await Task.Yield();
+        shell.Host.Drain();
+
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "t");
+
+        SwitchTo(shell, opened, "other");
+        await Task.Yield();
+        shell.Host.Drain();
+
+        Assert.Equal(2, shell.Translation.LanguageReads.Count);
+        Assert.Contains(opened.Keys, key => key.Key == "t");
     }
 
     /// <summary>
@@ -168,7 +203,7 @@ public class ShellTranslationLanguagesTests
         var shell = new AShell
         {
             Timelines = FakeTimelineReader.Holding(Post("de")),
-            Translation = FakePostTranslation.Translating().Taking(map.Task),
+            Translation = FakePostTranslation.Answering(map.Task),
             TranslateTo = "en",
         };
 
@@ -259,7 +294,7 @@ public class ShellTranslationLanguagesTests
     private static AShell Reading(Post post, TranslationLanguages map, string? target) => new()
     {
         Timelines = FakeTimelineReader.Holding(post),
-        Translation = FakePostTranslation.Translating().Taking(map),
+        Translation = FakePostTranslation.Taking(map),
         TranslateTo = target,
     };
 }
