@@ -354,7 +354,7 @@ public sealed class NotificationsScreen(
                 // is for — told apart by who wrote it rather than by the kind, so a kind this client has no word for
                 // is drawn by the same rule (#452). A reminder in the reader's language where they asked for it (#615).
                 var drawn = post.IsMine
-                    ? PostLines.Preview(Translated.Over(post), drawing.In(inner))
+                    ? PostLines.Preview(post, drawing.In(inner), Translated.Of(post))
                     : PostLines.Feed(post, drawing.In(inner), ReadingOf(post, at));
 
                 rows.AddRange(drawn.Select(line => line.After(new Span("  ", Role.Body))));

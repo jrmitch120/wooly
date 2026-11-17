@@ -188,9 +188,18 @@ public static class PostLines
     ///         Its first row is marked as where the post's content starts (<see cref="Line.ContentStarts" />), as
     ///         <see cref="Feed" />'s is.
     ///     </para>
+    ///     <para>
+    ///         Where the reader asked for it in <paramref name="translation" />, it previews the translated words and says
+    ///         where they came from on the row under them, as a post drawn whole does (#615) — one row cut to the width,
+    ///         so a preview is never taller for what the translator is called.
+    ///     </para>
     /// </remarks>
-    public static IReadOnlyList<Line> Preview(Post post, Drawing drawing) =>
-        [.. Previewed(post, drawing).Select((line, at) => at == 0 ? line.StartingContent() : line)];
+    public static IReadOnlyList<Line> Preview(Post post, Drawing drawing, Translation? translation = null) =>
+    [
+        .. Previewed(translation is null ? post : translation.Over(post), drawing)
+            .Select((line, at) => at == 0 ? line.StartingContent() : line),
+        .. translation is null ? Array.Empty<Line>() : [Provenance(translation, drawing.Width)],
+    ];
 
     /// <summary>The rows <see cref="Preview" /> draws, with nothing marked on them.</summary>
     /// <remarks>
