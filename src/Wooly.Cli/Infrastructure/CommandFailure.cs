@@ -70,9 +70,11 @@ internal static class CommandFailure
         // value on the command line that is wrong, not a client that could not do its job. A reply asked to go out
         // wider than the post it answers is the same kind of thing — a --visibility that cannot have what it said — and
         // so is removing the default profile, which names the one profile that cannot be removed. A picture gone between
-        // account edit checking for it and sending it is --media's case again.
-        UnknownProfileException or UnknownAccountException or UnknownConversationException or MediaNotFoundException
-            or PictureNotFoundException or UneditablePostException or WiderReplyException or DefaultProfileRemovalException
+        // account edit checking for it and sending it is --media's case again. A link that is not trending is the not-found
+        // of `timeline link` (#603): an address with no link timeline behind it, told apart by this code from a trending
+        // one nobody has shared yet, which succeeds with nothing to print.
+        UnknownProfileException or UnknownAccountException or UnknownConversationException or LinkNotTrendingException
+            or MediaNotFoundException or PictureNotFoundException or UneditablePostException or WiderReplyException or DefaultProfileRemovalException
             or UsageException or CommandParseException or CommandRuntimeException => ExitCode.UsageError,
 
         _ => ExitCode.Error,

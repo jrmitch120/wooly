@@ -78,6 +78,13 @@ public enum Verb
     Search,
 
     /// <summary>
+    ///     <c>/</c> with a trend picked under the search prompt, or <c>↑</c> from the first trend or its heading: back up to
+    ///     the field, with what it holds kept — carrying on typing being one key from anywhere under it (#605). Its own
+    ///     meaning rather than <see cref="Search" />'s, so that going to search never has to ask where it is first.
+    /// </summary>
+    ToTheField,
+
+    /// <summary>
     ///     <c>ctrl-p</c>: every profile on this machine, and which one this session is acting as (ADR-0020). Nothing on
     ///     compose, where a switch would drop the draft.
     /// </summary>
@@ -284,6 +291,12 @@ public enum Verb
     OpenPostPage,
 
     /// <summary>
+    ///     <c>o</c> on a trending link picked under the search prompt, or on the posts sharing one: the article itself, in
+    ///     the browser — the link opening as what people are saying about it, and the article one key away (#607).
+    /// </summary>
+    OpenArticle,
+
+    /// <summary>
     ///     A click on a face in a notification group's avatar strip: that one actor's account, whoever else the group
     ///     holds (#456). Only ever a click — no key stands for one face of several.
     /// </summary>
@@ -303,9 +316,6 @@ public enum Verb
 
     /// <summary><c>m</c>: take the unread mark off the conversation being read, or the one picked out.</summary>
     MarkRead,
-
-    /// <summary><c>⏎</c> on a search prompt taking a query: put it to the instance.</summary>
-    Find,
 
     /// <summary><c>⏎</c> on what it found: open the picked result.</summary>
     OpenResult,

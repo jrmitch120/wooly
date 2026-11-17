@@ -210,6 +210,127 @@ public class TimelineCommandTests : IDisposable
         Assert.Empty(_timelines.Reads);
     }
 
+    /// <summary>The posts sharing a <b>Trending link</b>, asked for by its address the way a tag timeline is by tag (#603).</summary>
+    [Fact]
+    public void Link_PrintsThePostsSharingTheLink()
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.Holding(APost.With(content: "Everyone should read this"));
+
+        var run = Run(["timeline", "link", "https://example.com/sheep?breed=merino"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("Everyone should read this", run.Output);
+        Assert.Equal(
+            Timeline.Sharing(new Uri("https://example.com/sheep?breed=merino")),
+            Assert.Single(_timelines.Reads).Timeline);
+    }
+
+    /// <summary>The same paging flag every other timeline takes, zero-limit rejection included (ADR-0007).</summary>
+    [Fact]
+    public void Link_TakesTheSamePagingFlagsAsEveryOtherTimeline()
+    {
+        AddProfile();
+
+        Run(["timeline", "link", "https://example.com/sheep", "--limit", "60"]);
+
+        Assert.Equal(60, Assert.Single(_timelines.Reads).Limit);
+
+        var rejected = Run(["timeline", "link", "https://example.com/sheep", "--limit", "0"]);
+
+        Assert.Equal((int)ExitCode.UsageError, rejected.ExitCode);
+        Assert.Contains("at least one post", rejected.ErrorOutput);
+    }
+
+    /// <summary>
+    ///     The link leads the envelope beside which timeline this was, as the hashtag does for a tag timeline, and as
+    ///     it was given: a file of these posts still says which article they were sharing.
+    /// </summary>
+    [Fact]
+    public void Link_NamesTheLinkItReadInTheJsonItWrites()
+    {
+        AddProfile();
+
+        var run = Run(["timeline", "link", "https://example.com/sheep?breed=merino", "--json"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+
+        var timeline = JsonDocument.Parse(run.Output).RootElement;
+
+        Assert.Equal("link", timeline.GetProperty("timeline").GetString());
+        Assert.Equal("https://example.com/sheep?breed=merino", timeline.GetProperty("link").GetString());
+        Assert.Equal(["timeline", "link", "complete", "posts"], FieldsOf(run));
+    }
+
+    /// <summary>
+    ///     A link that is not trending has no posts behind it to read, and the instance says so with a 404. That is a
+    ///     not-found error and its exit code — the usage error every other value an instance cannot find exits with
+    ///     (ADR-0006) — never an empty list, which is what a trending link nobody has posted about yet prints. A script
+    ///     can tell the two apart by the exit code alone.
+    /// </summary>
+    [Fact]
+    public void Link_ReportsALinkThatIsNotTrendingAsNotFoundRatherThanAsAnEmptyList()
+    {
+        AddProfile();
+        var link = new Uri("https://example.com/yesterdays-news");
+        _timelines.NotTrending(link);
+
+        var run = Run(["timeline", "link", "https://example.com/yesterdays-news"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("https://example.com/yesterdays-news is not trending on mastodon.social", run.ErrorOutput);
+        Assert.Empty(run.Output.Trim());
+    }
+
+    /// <summary>The other side of that line: a trending link with nothing shared yet is a quiet, successful timeline.</summary>
+    [Fact]
+    public void Link_ReportsATrendingLinkNobodySharedAsAnEmptyTimeline()
+    {
+        AddProfile();
+        _timelines = FakeTimelineReader.Holding();
+
+        var run = Run(["timeline", "link", "https://example.com/sheep"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("No posts in the link timeline for https://example.com/sheep.", run.Output);
+    }
+
+    /// <summary>
+    ///     Only a web page addressed in full has a link timeline: anything else is turned down as a usage error against
+    ///     what was typed, before an instance is asked. A page named without its scheme is turned down rather than
+    ///     given one, since a guess that missed would come back as "not trending" — a different answer to a different
+    ///     mistake.
+    /// </summary>
+    [Theory]
+    [InlineData("not a link")]
+    [InlineData("example.com/sheep")]
+    [InlineData("ftp://example.com/sheep")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("/etc/passwd")]
+    [InlineData("https://")]
+    public void Link_ReportsAnAddressThatIsNotAWebPageAsAUsageError(string link)
+    {
+        AddProfile();
+
+        var run = Run(["timeline", "link", link]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("whole web address", run.ErrorOutput);
+        Assert.Empty(_timelines.Reads);
+    }
+
+    [Fact]
+    public void Link_ReportsAMissingLinkAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["timeline", "link"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.NotEmpty(run.ErrorOutput.Trim());
+        Assert.Empty(_timelines.Reads);
+    }
+
     /// <summary>
     ///     The read the CLI never had (#185): an account's own posts, asked for by address the way the tag timeline is
     ///     asked for by tag.
@@ -437,6 +558,7 @@ public class TimelineCommandTests : IDisposable
         Assert.Contains("pinned", help);
         Assert.Contains("bookmarks", help);
         Assert.Contains("favorites", help);
+        Assert.Contains("link", help);
     }
 
     /// <summary>GLOSSARY.md's vocabulary, at the one place a user reads it: nothing on screen says reblog or toot.</summary>
@@ -803,6 +925,7 @@ public class TimelineCommandTests : IDisposable
         TimelineScope.Local => ["timeline", "local"],
         TimelineScope.Federated => ["timeline", "federated"],
         TimelineScope.Tag => ["timeline", "tag", "cats"],
+        TimelineScope.Link => ["timeline", "link", "https://example.com/sheep"],
         TimelineScope.Account => ["timeline", "account", "alice@hachyderm.io"],
         TimelineScope.Pinned => ["timeline", "pinned", "alice@hachyderm.io"],
         TimelineScope.WithReplies => ["timeline", "account", "alice@hachyderm.io", "--replies"],

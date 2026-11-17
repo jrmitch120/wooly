@@ -6,7 +6,9 @@ using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
+using Wooly.Core.Search;
 using Wooly.Core.Timelines;
+using Wooly.Core.Trends;
 using Wooly.Tui.Screens;
 using Entry = Wooly.Tui.Shell.Destination;
 using Person = Wooly.Core.Accounts.Account;
@@ -779,6 +781,318 @@ public abstract record Subject
             Screen standing,
             Onward from) =>
             TimelineReadsOn(Timeline.Tag(Hashtag)).From(ask, ports, profile, from);
+    }
+
+    /// <summary>
+    ///     The posts sharing a <b>Trending link</b> (#607), as a feed on the stack crumbed with the article's title —
+    ///     what people are saying about it being why it trends — read on by <c>max_id</c> as any timeline is, the
+    ///     article itself one key away in the browser (<see cref="FeedScreen.Article" />).
+    /// </summary>
+    /// <remarks>
+    ///     An instance keeps those posts only while the link trends. One that has stopped by the time it is opened is a
+    ///     not-found answer rather than a feed with nothing on it, and puts nothing up: the status row says so and offers
+    ///     the article, the link still picked where it was opened from for <c>o</c> to open. One that stops while its
+    ///     posts are being read on simply ends the timeline, keeping what was read — the adapter's answer, so nothing
+    ///     here is needed for it (<see cref="Core.Timelines.TimelineReader" />).
+    ///     <para>
+    ///         Kept nowhere, as a hashtag walked to is kept nowhere: what is trending is the instance's answer now.
+    ///     </para>
+    /// </remarks>
+    /// <param name="Link">The trending link opened.</param>
+    public sealed record Sharing(TrendingLink Link) : Subject
+    {
+        /// <summary>
+        ///     What the status row says where the link opened is no longer trending: that, and the key that still opens
+        ///     the article.
+        /// </summary>
+        public const string NoLongerTrending = "That link is no longer trending — o to open the article.";
+
+        /// <inheritdoc />
+        internal override async Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing)
+        {
+            var timeline = Shared;
+            Fetch<Post> posts;
+
+            try
+            {
+                posts = await ask.Of(token => ports.Timelines.Read(profile, timeline, Arrival.PostsWanted, token));
+            }
+            catch (LinkNotTrendingException)
+            {
+                // Said in the shell's words rather than the command line's, which name the address a script asked
+                // after: here the reader picked a row, and what they want to know is what they can still do.
+                throw new NoLongerTrendingException();
+            }
+
+            return new Found.Drawn(() => new FeedScreen(
+                Link.Title,
+                posts.Items,
+                Arrival.Emptiness(
+                    posts.Items.Count,
+                    Arrival.NothingOn(timeline),
+                    timeline.Description,
+                    posts.StoppedBy))
+            {
+                ReadingOn = new ReadingOn(posts.Onward),
+                Article = Link.Url,
+            });
+        }
+
+        /// <inheritdoc />
+        internal override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
+            TimelineReadsOn(Shared).From(ask, ports, profile, from);
+
+        /// <summary>
+        ///     The posts sharing the link — whose address is always a web page's, a link with any other being dropped where
+        ///     it arrives (<see cref="TrendingLink.Url" />).
+        /// </summary>
+        private Timeline Shared => Timeline.Sharing(Link.Url);
+
+        /// <summary>The link opened is not, or no longer, trending — said on the status row as any refusal is.</summary>
+        private sealed class NoLongerTrendingException() : WoolyException(NoLongerTrending);
+    }
+
+    /// <summary>
+    ///     The instance's <b>Trend</b>s under the empty search prompt (#605): ten trending hashtags, ten trending links
+    ///     and three trending posts, read afresh on every arrival at Search — by the rail or by <c>/</c> — and drawn
+    ///     under the field of the prompt standing for them.
+    /// </summary>
+    /// <remarks>
+    ///     Never held: what is trending is the instance's answer now, and arriving again is asking again. Coming back to
+    ///     the prompt from what it opened — <c>esc</c>, or its crumb — is no arrival, and finds the trends it was left
+    ///     with on the screen it left, asking nothing.
+    ///     <para>
+    ///         The prompt stands for them at once, its field usable while they are read; a read refused leaves it so,
+    ///         with the reason on the status row as any refused read is said.
+    ///     </para>
+    /// </remarks>
+    public sealed record Trending : Subject
+    {
+        /// <inheritdoc />
+        internal override Screen Placeholder(Move move, ActiveProfile profile) => new SearchScreen(profile.Instance);
+
+        /// <inheritdoc />
+        /// <remarks>
+        ///     Three calls under one enquiry, one kind at a time, so that the trends go up once and whole rather than a
+        ///     kind at a time under a reader already walking them.
+        /// </remarks>
+        internal override async Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing)
+        {
+            var hashtags = await ask.Of(token =>
+                ports.Trends.Hashtags(profile, TrendPage.Of(SearchScreen.TrendingHashtags), token));
+            var links = await ask.Of(token =>
+                ports.Trends.Links(profile, TrendPage.Of(SearchScreen.TrendingLinks), token));
+            var posts = await ask.Of(token =>
+                ports.Trends.Posts(profile, TrendPage.Of(SearchScreen.TrendingPosts), token));
+
+            return new UnderThePrompt(hashtags, links, posts, profile.Instance);
+        }
+
+        /// <summary>The trends read, and the prompt they are drawn under.</summary>
+        /// <param name="Hashtags">The trending hashtags.</param>
+        /// <param name="Links">The trending links.</param>
+        /// <param name="Posts">The trending posts.</param>
+        /// <param name="Instance">The instance acted as, which titles a prompt made for them where none was standing.</param>
+        private sealed record UnderThePrompt(
+            IReadOnlyList<Core.Search.Hashtag> Hashtags,
+            IReadOnlyList<TrendingLink> Links,
+            IReadOnlyList<Post> Posts,
+            string Instance) : Found
+        {
+            /// <inheritdoc />
+            /// <remarks>
+            ///     Read into the prompt standing for them, which is already up — so that whatever has been typed into its
+            ///     field while they were read stays typed.
+            /// </remarks>
+            public override Screen Becomes(Screen? standing)
+            {
+                var prompt = standing as SearchScreen ?? new SearchScreen(Instance);
+
+                prompt.Trending(Hashtags, Links, Posts);
+
+                return prompt;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     One kind of thing read a page at a time by offset, onto the screen of that kind alone (<see cref="SectionScreen" />):
+    ///     a search narrowed to one kind (<see cref="Narrowed" />) and one kind of <b>Trend</b> (<see cref="TrendsOf" />),
+    ///     which read and read on the same way and differ only in what a page is asked of and what the screen is called —
+    ///     so that the shape is written once (#598's review).
+    /// </summary>
+    /// <remarks>
+    ///     Never held: what an instance finds, and what it ranks as trending, is its answer now.
+    /// </remarks>
+    public abstract record ReadByOffset : Subject
+    {
+        /// <summary>How many a page asks for.</summary>
+        private protected abstract int PageSize { get; }
+
+        /// <inheritdoc />
+        internal sealed override async Task<Found> Read(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen? standing)
+        {
+            var read = await ask.Of(token => Page(ports, profile, from: null, token));
+
+            return new Found.Drawn(() => Drawn(read.Items, new ReadingOn(read.Onward)));
+        }
+
+        /// <inheritdoc />
+        internal sealed override Task<Found> ReadOn(
+            Enquiry.Ask ask,
+            ShellPorts ports,
+            ActiveProfile profile,
+            Screen standing,
+            Onward from) =>
+            new OnwardRead<Result>((ports, profile, at, token) => Page(ports, profile, at, token))
+                .From(ask, ports, profile, from);
+
+        /// <summary>The screen of the kind, holding what its first read brought, reading on as it says.</summary>
+        private protected abstract SectionScreen Drawn(IReadOnlyList<Result> read, ReadingOn readingOn);
+
+        /// <summary>The <paramref name="limit" /> things <paramref name="offset" /> in, as the screen walks them.</summary>
+        private protected abstract Task<IReadOnlyList<Result>> PageOf(
+            ShellPorts ports,
+            ActiveProfile profile,
+            int limit,
+            int offset,
+            CancellationToken token);
+
+        /// <summary>The page <paramref name="from" /> says, or the first.</summary>
+        private Task<Fetch<Result>> Page(ShellPorts ports, ActiveProfile profile, Onward? from, CancellationToken token) =>
+            OffsetReading.Read(
+                PageSize,
+                from,
+                (limit, offset, asking) => PageOf(ports, profile, limit, offset, asking),
+                token);
+    }
+
+    /// <summary>
+    ///     A search narrowed to one kind (#604): what was searched for, asked again of that kind alone, a page of
+    ///     <see cref="NarrowedPage" /> at a time, and <b>read on</b> by offset as the page nears the end of what is in
+    ///     hand — opened from the kind's heading on the mixed results, which ask twenty.
+    /// </summary>
+    /// <remarks>
+    ///     Never held, as a search is not: what an instance finds is its answer now. The accounts on every page carry
+    ///     where the reader stands with them, asked once for the page as the mixed results ask it, and drawn silent
+    ///     where that was refused (#204).
+    /// </remarks>
+    /// <param name="Asked">What was searched for, as it was typed.</param>
+    /// <param name="Kind">Which kind of result it is narrowed to.</param>
+    public sealed record Narrowed(string Asked, SearchKind Kind) : ReadByOffset
+    {
+        /// <summary>
+        ///     How many a narrowed search asks for at a time: the most an instance serves of one kind in one answer, a
+        ///     narrowed search being where more is read (#604).
+        /// </summary>
+        public const int NarrowedPage = SearchPage.MostPerKind;
+
+        /// <inheritdoc />
+        private protected override int PageSize => NarrowedPage;
+
+        /// <inheritdoc />
+        private protected override SectionScreen Drawn(IReadOnlyList<Result> read, ReadingOn readingOn) =>
+            new(Kind, read, $"Nothing found for {Asked}.") { ReadingOn = readingOn };
+
+        /// <inheritdoc />
+        /// <remarks>
+        ///     Asked by offset, which only a search of one kind can be paged by — with the accounts on the page stood.
+        /// </remarks>
+        private protected override async Task<IReadOnlyList<Result>> PageOf(
+            ShellPorts ports,
+            ActiveProfile profile,
+            int limit,
+            int offset,
+            CancellationToken token)
+        {
+            // The first page sends no offset, an instance starting there anyway.
+            var query = SearchQuery.For(
+                DirectQuery.Asking(Asked),
+                Kind,
+                SearchPage.Of(limit, offset > 0 ? offset : null));
+
+            var found = await ports.Search.Find(profile, query, token);
+
+            return Kind switch
+            {
+                SearchKind.Accounts =>
+                [
+                    .. (await ports.StoodOrSilent(profile, found.Accounts ?? [], token))
+                    .Select(Result (account) => new Result.OfAccount(account)),
+                ],
+                SearchKind.Hashtags =>
+                    [.. (found.Hashtags ?? []).Select(Result (hashtag) => new Result.OfHashtag(hashtag))],
+                _ => [.. (found.Posts ?? []).Select(Result (post) => new Result.OfPost(post))],
+            };
+        }
+    }
+
+    /// <summary>
+    ///     One kind of <b>Trend</b> alone (#606): the instance's trending hashtags, links or posts, a page of the most it
+    ///     serves of the kind at a time — forty posts, or twenty hashtags or links — and <b>read on</b> by offset as the
+    ///     page nears the end of what is in hand. Opened from the kind's heading under the empty prompt, which shows ten,
+    ///     or three.
+    /// </summary>
+    /// <remarks>
+    ///     Never held, as the trends under the prompt are not: what is trending is the instance's answer now.
+    /// </remarks>
+    /// <param name="Kind">Which kind of trend.</param>
+    public sealed record TrendsOf(TrendKind Kind) : ReadByOffset
+    {
+        /// <inheritdoc />
+        private protected override int PageSize => TrendPage.Most(Kind);
+
+        /// <inheritdoc />
+        private protected override SectionScreen Drawn(IReadOnlyList<Result> read, ReadingOn readingOn) =>
+            new(Kind, read, "Nothing trending on this instance") { ReadingOn = readingOn };
+
+        /// <inheritdoc />
+        /// <remarks>Asked by offset, as every trends endpoint pages.</remarks>
+        private protected override async Task<IReadOnlyList<Result>> PageOf(
+            ShellPorts ports,
+            ActiveProfile profile,
+            int limit,
+            int offset,
+            CancellationToken token)
+        {
+            var page = TrendPage.Of(limit, offset);
+
+            return Kind switch
+            {
+                TrendKind.Hashtags =>
+                [
+                    .. (await ports.Trends.Hashtags(profile, page, token))
+                    .Select(Result (hashtag) => new Result.OfHashtag(hashtag)),
+                ],
+                TrendKind.Links =>
+                [
+                    .. (await ports.Trends.Links(profile, page, token))
+                    .Select(Result (link) => new Result.OfLink(link)),
+                ],
+                _ =>
+                [
+                    .. (await ports.Trends.Posts(profile, page, token))
+                    .Select(Result (post) => new Result.OfPost(post)),
+                ],
+            };
+        }
     }
 
     /// <summary>

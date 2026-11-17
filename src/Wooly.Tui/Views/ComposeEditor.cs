@@ -1,3 +1,4 @@
+using System.Reflection;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -187,8 +188,86 @@ internal sealed class ComposeEditor(
         OnPaste(text);
     }
 
+    /// <summary>
+    ///     A change to the text while something is selected leaves the selection begun at the caret, holding nothing.
+    ///     <see cref="TextView" /> says the text has changed — and reads the selection — part way through edits made
+    ///     with something selected, a paste over it and an undo, at a moment its wrapped rows are still laid out as
+    ///     they were before the edit: each end of the selection is found in text that is no longer there, and where
+    ///     what is there is shorter, the read ran past the end of a line and threw, taking Wooly down. Terminal.Gui
+    ///     2.5 does this, and its 2.6 builds still do.
+    /// </summary>
+    /// <remarks>
+    ///     Begun at the caret, both ends are found at the same place however out of date the rows are, so there is
+    ///     nothing to read. Held rather than let go: a paste lets go of it itself once it is in, and only records the
+    ///     paste and what it replaced as one edit, for one undo to put back (<see cref="ReplaceBeforeCaret" />), where
+    ///     it is still held. Through <see cref="TextView" />'s own private fields for where the selection begins rather
+    ///     than <see cref="TextView.SelectionStartRow" />, which scrolls to the caret as well: part way through a
+    ///     paste the caret is counted in the text's own lines, not its wrapped rows, and a paste over a selection, or a
+    ///     mention put in, scrolled a long post to its top.
+    /// </remarks>
+    public override void OnContentsChanged()
+    {
+        if (IsSelecting && SelectionBeginsOnRow is not null && SelectionBeginsAtColumn is not null)
+        {
+            SelectionBeginsOnRow.SetValue(this, CurrentRow);
+            SelectionBeginsAtColumn.SetValue(this, CurrentColumn);
+        }
+
+        base.OnContentsChanged();
+    }
+
+    /// <summary>A paste goes in with the rows laid out as the text is (<see cref="LayOutRowsLeftOver" />).</summary>
+    protected override bool OnPaste(string text)
+    {
+        LayOutRowsLeftOver();
+
+        return base.OnPaste(text);
+    }
+
+    private static readonly FieldInfo? SelectionBeginsOnRow =
+        typeof(TextView).GetField("_selectionStartRow", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    private static readonly FieldInfo? SelectionBeginsAtColumn =
+        typeof(TextView).GetField("_selectionStartColumn", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    private static readonly FieldInfo? RowsLeftToLayOut =
+        typeof(TextView).GetField("_wrapNeeded", BindingFlags.Instance | BindingFlags.NonPublic);
+
+    private static readonly MethodInfo? LayOutRows =
+        typeof(TextView).GetMethod("WrapTextModel", BindingFlags.Instance | BindingFlags.NonPublic, Type.EmptyTypes);
+
+    /// <summary>
+    ///     Lays the text's wrapped rows out now, where an edit left that for later. <see cref="TextView" /> ends an
+    ///     edit holding the text's own lines while its caret is counted in wrapped rows, and leaves them to be laid out
+    ///     as rows again at the next move of the caret — which drawing is not. A paste of more than one line or an undo
+    ///     before then has it lay them out part way through itself, while the caret is counted in lines, and the caret
+    ///     was put back on the wrong line, or off the text altogether: a line break pasted after deleting a selection
+    ///     went in front of the line before, and selecting from there threw, taking Wooly down; a paste after deleting
+    ///     the last letter of a line that wraps went in short of the end. Anything else reaching it before then is
+    ///     counted against lines the caret is not counted in, too: a click went to the row above, and <c>↓</c> on the
+    ///     bio found its last line on a row that was not. Terminal.Gui 2.5 does this, and its 2.6 builds still do.
+    /// </summary>
+    /// <remarks>
+    ///     Through <see cref="TextView" />'s own flag for rows left to lay out and its own way of laying them out,
+    ///     which are private: nothing public lays them out without moving the caret first, against the lines it is not
+    ///     counted in. Where there are none left to lay out, as after every edit but those, it does nothing. A
+    ///     Terminal.Gui without these, or without the fields <see cref="OnContentsChanged" /> sets, leaves them to it,
+    ///     which is the crash and nothing worse; <c>ComposeEditorEditTests</c> is what says so.
+    /// </remarks>
+    private void LayOutRowsLeftOver()
+    {
+        if (RowsLeftToLayOut?.GetValue(this) is true && LayOutRows is not null)
+        {
+            LayOutRows.Invoke(this, null);
+            RowsLeftToLayOut.SetValue(this, false);
+        }
+    }
+
     protected override bool OnKeyDown(Key key)
     {
+        // Every key, the editor's own and those taken off it, finds the rows laid out as the text is.
+        LayOutRowsLeftOver();
+
         if (Answering?.Invoke(key) == true || Ahead?.Invoke(key) == true)
         {
             return true;
@@ -248,11 +327,20 @@ internal sealed class ComposeEditor(
     ///     views under the pointer (<see cref="DraftFields" />, #373) — so any that reaches here is taken before the
     ///     editor opens its own context menu on it, and does nothing (#307). A sideways notch is taken and does nothing
     ///     too: the text wraps to the editor's width, so there is nothing off either side, yet <see cref="TextView" />
-    ///     scrolled a column a notch regardless and a trackpad drifting sideways carried the text off the field.
+    ///     scrolled a column a notch regardless and a trackpad drifting sideways carried the text off the field. Any other
+    ///     finds the rows laid out as the text is (<see cref="LayOutRowsLeftOver" />), so a click lands where it is.
     /// </summary>
-    protected override bool OnMouseEvent(Mouse mouse) =>
-        ShellKeys.Of(mouse) is not null
-        || mouse.Flags.HasFlag(MouseFlags.WheeledLeft)
-        || mouse.Flags.HasFlag(MouseFlags.WheeledRight)
-        || base.OnMouseEvent(mouse);
+    protected override bool OnMouseEvent(Mouse mouse)
+    {
+        if (ShellKeys.Of(mouse) is not null
+            || mouse.Flags.HasFlag(MouseFlags.WheeledLeft)
+            || mouse.Flags.HasFlag(MouseFlags.WheeledRight))
+        {
+            return true;
+        }
+
+        LayOutRowsLeftOver();
+
+        return base.OnMouseEvent(mouse);
+    }
 }

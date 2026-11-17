@@ -57,6 +57,10 @@ public static class Keymap
         (ShellKey.Question or ShellKey.Minus or ShellKey.Plus or ShellKey.EqualsSign, _)
             when screen.HasWidgetsOfItsOwn => Verb.None,
         (ShellKey.Question, _) => Verb.Help,
+
+        // With a trend picked under the prompt the field is up there, with whatever it holds (#605). On the field, / is
+        // typed and never reaches here.
+        (ShellKey.Slash, SearchScreen { OnTheField: false }) => Verb.ToTheField,
         (ShellKey.Slash, _) => Verb.Search,
         (ShellKey.Tab, _) => Verb.NextDestination,
         (ShellKey.ShiftTab, _) => Verb.PreviousDestination,
@@ -170,7 +174,11 @@ public static class Keymap
         (ShellKey.Enter, _) when screen.Reference is not null => Verb.OpenReference,
         (ShellKey.Enter, AddProfileScreen) => Verb.Continue,
         (ShellKey.Enter, ProfilesScreen) => Verb.ActAs,
-        (ShellKey.Enter, SearchScreen search) => search.IsTyping ? Verb.Find : Verb.OpenResult,
+        (ShellKey.Enter, SearchResultsScreen or SectionScreen) => Verb.OpenResult,
+
+        // And on the search prompt with a trend picked, where ⏎ opens it as a search result opens; on the field the
+        // field takes ⏎ itself, and searches (#605).
+        (ShellKey.Enter, SearchScreen) => Verb.OpenResult,
         (ShellKey.Enter, FollowRequestsScreen) => Verb.OpenAsker,
         (ShellKey.Enter, FollowsScreen follows) => follows.IsTyping ? Verb.FilterDone : Verb.OpenPerson,
         (ShellKey.Enter, DiscoverScreen) => Verb.OpenPerson,
@@ -209,6 +217,12 @@ public static class Keymap
         (ShellKey.J, _) => Verb.PreviousPost,
         (ShellKey.Home, _) => Verb.ToTheTop,
         (ShellKey.End, _) => Verb.ToTheFoot,
+        // The field at the top of the search prompt is the top of what is walked there, so ↓ from it walks into the
+        // trends and ↑ from the first trend walks back onto it — where everywhere else they move the page (#605). The
+        // heading over the first trend is walked to by j and k, and passed over by the arrows (#606): ↓ lands where ]
+        // lands, on the first trend, and ↑ from the trend or its heading goes where / goes from a trend, to the field.
+        (ShellKey.Down, SearchScreen { OnTheField: true }) => Verb.NextSection,
+        (ShellKey.Up, SearchScreen { OnTheFirstTrend: true }) => Verb.ToTheField,
         (ShellKey.Down, _) => Verb.ScrollDown,
         (ShellKey.Up, _) => Verb.ScrollUp,
         (ShellKey.PageDown, _) => Verb.PageDown,
@@ -248,7 +262,8 @@ public static class Keymap
         // included (#489, #490). Notifications, where w is who did what the row reports, and the account screen's
         // header block, where it is their follows, have taken it above; a screen with no post on it leaves w nobody's
         // rather than bound to a verb with nothing to act on.
-        (ShellKey.W, FeedScreen or PostScreen or ConversationScreen or SearchScreen or AccountScreen) =>
+        (ShellKey.W, FeedScreen or PostScreen or ConversationScreen or SearchResultsScreen or SectionScreen
+            or SearchScreen or AccountScreen) =>
             Verb.OpenPostActors,
 
         // And s on a post's actors, which have two sides as a follow list does — and nowhere on a notification group's,
@@ -258,6 +273,12 @@ public static class Keymap
         // And o there, on a remote post's with a page to open, the one place it means anything: the post's page on its
         // home instance (#491). A local post's list has nowhere else to be, and leaves o nobody's.
         (ShellKey.O, ActorsScreen { Of: ActorsOf.PostSide { Page: not null } }) => Verb.OpenPostPage,
+
+        // And o on a trending link, or on the posts sharing one, the other place it opens something elsewhere: the
+        // article itself (#607). The link opens as its posts, and the article is this one key away from either — and
+        // from a trending link on the screen of trending links alone (#606).
+        (ShellKey.O, SearchScreen { PickedLink: not null } or SectionScreen { PickedLink: not null }
+            or FeedScreen { Article: not null }) => Verb.OpenArticle,
 
         // And s again on the account screen, where it swaps runs rather than sides: their posts and replies, and back
         // to their posts alone (#229). Still bound only where it does something, and announced where it is.

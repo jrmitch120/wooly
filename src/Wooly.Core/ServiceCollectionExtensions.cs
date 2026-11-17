@@ -13,6 +13,7 @@ using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
+using Wooly.Core.Trends;
 
 namespace Wooly.Core;
 
@@ -73,6 +74,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPostEngagement, PostEngagement>();
         services.AddSingleton<INotificationInbox, NotificationInbox>();
         services.AddSingleton<IInstanceSearch, InstanceSearch>();
+        services.AddSingleton<ITrends, InstanceTrends>();
         services.AddSingleton<IInstanceLimits, InstanceLimits>();
         services.AddSingleton<IInstanceEmoji, InstanceEmoji>();
         services.AddSingleton<IAccountDefaults, AccountDefaults>();

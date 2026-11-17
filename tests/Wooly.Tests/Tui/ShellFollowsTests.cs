@@ -120,6 +120,56 @@ public class ShellFollowsTests
     }
 
     /// <summary>
+    ///     <c>ctrl-u</c> empties the filter and leaves it taking letters, and the list narrows again — to everyone, as it
+    ///     would after backspacing every letter out (#310).
+    /// </summary>
+    [Fact]
+    public async Task ClearTyped_EmptiesTheFilterAndPutsEveryoneBack()
+    {
+        var (_, opened) = await OnAFollowList(
+        [
+            AnAccount.With(id: "1", author: "Maria", address: "maria@fosstodon.org"),
+            AnAccount.With(id: "2", author: "Ben", address: "ben@hachyderm.io"),
+            AnAccount.With(id: "3", author: "Marcus", address: "marcus@fosstodon.org"),
+        ]);
+
+        opened.Press(ShellKey.F);
+        opened.Type('b');
+
+        var follows = Assert.IsType<FollowsScreen>(opened.Screen);
+
+        Assert.Equal(["Ben"], follows.Shown.Select(person => person.Author));
+
+        opened.ClearTyped();
+
+        Assert.Same(follows, opened.Screen);
+        Assert.Equal(string.Empty, follows.Filter);
+        Assert.True(follows.IsTyping);
+        Assert.Equal(["Maria", "Ben", "Marcus"], follows.Shown.Select(person => person.Author));
+    }
+
+    /// <summary>
+    ///     <c>Clear: ctrl-u</c> is offered while the filter holds a letter, and not while it is empty (#310).
+    /// </summary>
+    [Fact]
+    public async Task Keys_OfferCtrlUOnlyWhileTheFilterHoldsSomething()
+    {
+        var (_, opened) = await OnAFollowList();
+
+        opened.Press(ShellKey.F);
+
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "ctrl-u");
+
+        opened.Type('m');
+
+        Assert.Contains(opened.Keys, key => key is { Key: "ctrl-u", Does: "clear" });
+
+        opened.ClearTyped();
+
+        Assert.DoesNotContain(opened.Keys, key => key.Key == "ctrl-u");
+    }
+
+    /// <summary>
     ///     A page is asked for with the standing of everyone new on it, in the one call that endpoint takes many ids
     ///     for — so the rows say where the reader stands without one call a row.
     /// </summary>

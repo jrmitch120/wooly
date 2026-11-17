@@ -58,3 +58,30 @@ copy of the end condition. The CLI hands nothing back, and `--limit` reads exact
 A rate limit part way through is still a partial result for every list read as one, a tag set of four tags or fewer
 included. A tag set read as several runs of four, merged (`MergedReading`), keeps nothing when the limit refuses any of
 its runs, since a merged list missing a run looks whole while missing posts from its middle; ADR-0033 records why.
+
+## Amendment: a link that stops trending ends its timeline, and one never trending is not found (#603)
+
+The posts sharing a **Trending link** are a timeline like the tag timeline (`Timeline.Sharing`, `timeline link`), read
+by `max_id` and enveloped the same way, with the link in the envelope where a tag timeline has its hashtag. The instance
+keeps one only while the link trends, and answers 404 for any other — so a 404 means two things, told apart by where it
+lands. **On the first page of a read from the top it is not found** (`LinkNotTrendingException`, a usage error by
+ADR-0006's not-found rule), which is how a script tells a link that is not a trend from a trending one with nothing
+shared yet, which is an empty, whole timeline. **Anywhere further on — a later page, or a read on — it ends the
+timeline**, keeping what arrived, as an empty page does: the link was trending when its first page was read and has
+stopped since, and failing the read would cost the reader the posts already in hand. The adapter decides this rather
+than each caller, so the TUI reading on and the CLI paging through `--limit` end in the same place.
+
+## Amendment: a list paged by offset reads on from the same `Onward` (#604)
+
+A search narrowed to one kind, and each kind of trend (#606), are lists the instance pages by `offset` rather than by
+`max_id`, and the TUI reads them on as it reads every other list. **The offset goes inside `Onward`**, as one more thing
+it can say inside, rather than beside it: `ReadingOn`, `Subject.ReadOn` and the shell's reading on stay typed on the one
+opaque value, and a screen cannot tell which kind of paging is behind its list. **`OffsetReading` is the one copy of
+the end condition for these lists**, in `Wooly.Core.Paging` beside `PagedReading`: given a limit, where to read on from
+and a read of one page by limit and offset — which the port already takes, the CLI naming both outright — it answers
+the page and the next `Onward`. A page shorter than the limit is the end; a page at least as long is not, an instance
+putting an exact-match hashtag ahead of the forty it ranked (ADR-0011's amendment), and the next page starts at the
+offset plus the limit, never plus the count. A page is one call, so a rate limit refuses it whole and is raised rather
+than answered as a partial fetch — there is nothing in hand to keep — and the TUI waits it out as it waits every call
+out, keeping the list it has. The alternative, a `ReadOn` on every port that pages this way, was a second read per port
+each carrying its own copy of "short page ends it"; the port answers a page, and only this says which page is next.

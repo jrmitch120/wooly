@@ -531,8 +531,20 @@ public sealed class Shell
     /// <remarks>
     ///     The keys have no equivalent of the walk back: tabbing back onto the destination shown is still a walk that
     ///     ended where it began.
+    ///     <para>
+    ///         Search shown is arrived at afresh rather than walked back out to: what it holds is a query, not a list
+    ///         the reader was part way down, and choosing it on the rail is starting a search — so it is an empty
+    ///         prompt, as tabbing onto it and <c>/</c> both give (#600). Its crumb is the walk back that keeps the
+    ///         query (<see cref="WalkBack" />).
+    ///     </para>
     /// </remarks>
-    public void Arrive(int at)
+    public void Arrive(int at) => Arrive(at, afresh: true);
+
+    /// <summary>
+    ///     The rail's click, or the first crumb's — which differ only on Search, where the rail starts an empty prompt
+    ///     and the crumb walks back to the one left (<paramref name="afresh" />).
+    /// </summary>
+    private void Arrive(int at, bool afresh)
     {
         if (_acting is null)
         {
@@ -545,10 +557,21 @@ public sealed class Shell
 
             Rail.GoTo(Rail.Destinations[at]);
 
-            if (shown)
+            if (!shown)
             {
-                Unwind(0);
+                return;
             }
+
+            // Read off the field rather than captured, as the rail's own arrivals are: a draft asked about first may be
+            // agreed to after the profile acted as has changed.
+            if (afresh && Rail.Showing.Kind == DestinationKind.Search && _acting is { } acting)
+            {
+                _ = acting.Arrival.At(Rail.Showing);
+
+                return;
+            }
+
+            Unwind(0);
         });
     }
 
@@ -556,7 +579,8 @@ public sealed class Shell
     ///     A click on the crumb <paramref name="depth" /> screens up the stack, counted from nought at the destination's
     ///     own: everything drilled in above it comes off in one move, and it is in front again as it was left
     ///     (<see cref="Unwind" />, #308). The first crumb is the destination shown on the rail, and a click on it is a
-    ///     click on that (<see cref="Arrive" />), so the two are one rule.
+    ///     click on that (<see cref="Arrive" />), so the two are one rule — but for Search, whose crumb walks back to the
+    ///     prompt with its query kept, as <c>esc</c> from the results does, where the rail starts an empty one (#600).
     /// </summary>
     /// <remarks>
     ///     The crumb in front is nothing, the first among them: one screen deep, it must not snap back a rail cursor
@@ -571,7 +595,7 @@ public sealed class Shell
 
         if (depth == 0 && _acting is not null)
         {
-            Arrive(Rail.Current);
+            Arrive(Rail.Current, afresh: false);
 
             return;
         }
@@ -659,6 +683,7 @@ public sealed class Shell
         Verb.Back => Ran(Back),
         Verb.Help => Ran(Help),
         Verb.Search => Ran(Search),
+        Verb.ToTheField => Ran(ToTheField),
         Verb.Profiles => Ran(Profiles),
         Verb.AddProfile => Ran(AddProfile),
         Verb.ActAs => Ran(ActAs),
@@ -1067,23 +1092,80 @@ public sealed class Shell
 
     /// <summary>
     ///     Goes to search, which is a frame key rather than a screen's (<c>docs/tui-shell.md</c>): it means the same
-    ///     thing everywhere, and from the search destination itself it means a fresh prompt rather than nothing —
-    ///     otherwise the one place the key is most likely to be pressed is the one place it does nothing. Either way
-    ///     it puts the stack back to one screen, so a touched draft anywhere on it is asked about first, as the rail's
-    ///     ways out ask (#373, #426).
+    ///     thing everywhere, and from the search destination itself — its results, or anything opened from them — it
+    ///     means a fresh prompt rather than nothing, otherwise the one place the key is most likely to be pressed is the
+    ///     one place it does nothing (#600). The prompt's field never gets here: it takes <c>/</c> as a letter, and with a
+    ///     trend picked under it <c>/</c> means the field instead (<see cref="ToTheField" />). It puts the stack back to
+    ///     one screen, so a touched draft anywhere on it is asked about first, as the rail's ways out ask (#373, #426).
     /// </summary>
-    public void Search() =>
+    /// <remarks>
+    ///     Arrived at afresh, as choosing it on the rail arrives, rather than a prompt put up here by hand: what arriving
+    ///     at Search does is one thing, said once in <see cref="Arrival.At" />.
+    /// </remarks>
+    public void Search()
+    {
         Leaving(0, () =>
         {
             if (Rail.Showing.Kind == DestinationKind.Search)
             {
-                Reset(new SearchScreen());
+                if (_acting is { } acting)
+                {
+                    _ = acting.Arrival.At(Rail.Showing);
+                }
 
                 return;
             }
 
             Rail.GoTo(Rail.Of(DestinationKind.Search));
         });
+    }
+
+    /// <summary>
+    ///     Back up to the search prompt's field from a trend under it, with whatever the field holds kept: carrying on
+    ///     typing is one key from anywhere under it, rather than starting again (#605). Nothing where the prompt is not in
+    ///     front, which the <see cref="Keymap" /> never sends it from.
+    /// </summary>
+    private void ToTheField()
+    {
+        if (Screen is SearchScreen prompt)
+        {
+            prompt.ToTheField();
+            StatusRow.Clear();
+        }
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> in the search field: <paramref name="query" />, what the field held, asked of the instance — or
+    ///     opened straight away, where it is a <see cref="DirectQuery" /> — from the prompt on top (#608).
+    /// </summary>
+    /// <remarks>
+    ///     Handed over with the press rather than read off the prompt, because what has been typed is the field's: a
+    ///     real one-line field with a caret and a selection, which a widget holds and a screen does not (ADR-0030).
+    ///     Nothing where the prompt is not on top, or there is nobody to act as.
+    /// </remarks>
+    public void Find(string query)
+    {
+        if (_acting is { } acting && Screen is SearchScreen prompt)
+        {
+            _ = prompt.Find(query, acting.Reach);
+        }
+    }
+
+    /// <summary>
+    ///     The search field now holds <paramref name="query" />: told to the prompt on top, so that the status row offers
+    ///     <c>ctrl-u</c> only while there is something in the field to empty (#310).
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="Changed" /> only where that changed whether the field holds anything, which is all the prompt keeps
+    ///     of it: not on every letter, every one of which the field draws for itself.
+    /// </remarks>
+    public void QueryWritten(string query)
+    {
+        if (Screen is SearchScreen prompt && prompt.Written(query))
+        {
+            Changed?.Invoke();
+        }
+    }
 
     /// <summary>
     ///     Opens the profiles screen: every profile on this machine, marked with which one this session is acting as
@@ -1331,8 +1413,8 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Puts a letter into whatever is being typed into: the search prompt, say. Never a compose screen's fields,
-    ///     which are widgets of their own and take their own letters (#320).
+    ///     Puts a letter into whatever is being typed into: the follow list's filter, say. Never a compose screen's
+    ///     fields or the search field, which are widgets of their own and take their own letters (#320, #608).
     /// </summary>
     /// <remarks>
     ///     Which screen it is going to is the screen's own answer (<see cref="Screen.IsTyping" />) rather than a type
@@ -1405,6 +1487,26 @@ public sealed class Shell
         }
 
         Screen.Backspace();
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    ///     Empties whatever is being typed into, and leaves it taking letters: <c>ctrl-u</c> (#310). Nothing where nothing
+    ///     is taking letters.
+    /// </summary>
+    /// <remarks>
+    ///     An edit, as a backspace is: it asks nothing of the instance, leaves the prompt where it is and changes nothing
+    ///     about which screen is on top. The fields that are widgets of their own — the search field, compose's — empty
+    ///     themselves on the same key (<c>OneLineField</c>).
+    /// </remarks>
+    public void ClearTyped()
+    {
+        if (!Screen.IsTyping)
+        {
+            return;
+        }
+
+        Screen.ClearTyped();
         Changed?.Invoke();
     }
 

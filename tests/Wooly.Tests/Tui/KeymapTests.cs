@@ -201,19 +201,15 @@ public class KeymapTests
     }
 
     /// <summary>
-    ///     A search prompt and what it found are the same screen answering <c>⏎</c> two ways: put the query, then open
-    ///     what came back.
+    ///     What a search found answers <c>⏎</c> by opening the picked result (#600). The prompt's <c>⏎</c> is its field's,
+    ///     which asks for what it holds before the key ever reaches the keymap (#608).
     /// </summary>
     [Fact]
-    public void TheSearchScreenSearchesWhileItIsTypingAndOpensAResultAfterwards()
+    public void TheSearchResultsOpenAResult()
     {
-        var search = new SearchScreen();
-
-        Assert.Equal(Verb.Find, Means("⏎", search));
-
-        search.Found("cats", new SearchResults { Accounts = [AnAccount.With()] });
-
-        Assert.Equal(Verb.OpenResult, Means("⏎", search));
+        Assert.Equal(
+            Verb.OpenResult,
+            Means("⏎", new SearchResultsScreen("cats", new SearchResults { Accounts = [AnAccount.With()] })));
     }
 
     /// <summary>
@@ -476,7 +472,7 @@ public class KeymapTests
     public void ASpaceMeansNothingOffTheFileBrowser()
     {
         Assert.Equal(Verb.None, Means(" ", Feed()));
-        Assert.Equal(Verb.None, Means(" ", new SearchScreen()));
+        Assert.Equal(Verb.None, Means(" ", new SearchScreen("mastodon.social")));
         Assert.Equal(Verb.None, Means(" ", new ComposeScreen(ComposeFor.Post)));
     }
 
@@ -550,12 +546,10 @@ public class KeymapTests
     private static FileBrowserScreen Browser() =>
         new(new FolderListing(Path.GetTempPath(), "/tmp", Up: null, []), PostLimits.Default, room: 4);
 
-    /// <summary>A search screen showing what it found, which is the one that has stopped taking letters.</summary>
-    private static SearchScreen Searched()
+    /// <summary>The results of a search, a screen of their own that takes no letters (#600).</summary>
+    private static SearchResultsScreen Searched()
     {
-        var search = new SearchScreen();
-
-        search.Found("cats", new SearchResults { Accounts = [AnAccount.With()] });
+        var search = new SearchResultsScreen("cats", new SearchResults { Accounts = [AnAccount.With()] });
 
         return search;
     }

@@ -185,6 +185,110 @@ public class SearchCommandTests : IDisposable
         Assert.DoesNotContain("recently", run.Output);
     }
 
+    /// <summary>
+    ///     Without <c>--limit</c> or <c>--offset</c> nothing about a page is asked, so the instance serves what it always
+    ///     has and the command prints what it always did (#599).
+    /// </summary>
+    [Fact]
+    public void Search_AsksForNoPageUnlessOneIsGiven()
+    {
+        AddProfile();
+
+        Run(["search", "cats", "--type", "posts"]);
+
+        Assert.Equal(SearchPage.First, Assert.Single(_search.Searches).Query.Page);
+    }
+
+    /// <summary><c>--limit</c> is how many of each kind, up to the most an instance serves of one (#599).</summary>
+    [Theory]
+    [InlineData("1")]
+    [InlineData("40")]
+    public void Search_AsksForAsManyOfEachKindAsTheLimitSays(string limit)
+    {
+        AddProfile();
+
+        var run = Run(["search", "cats", "--limit", limit]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+
+        var search = Assert.Single(_search.Searches);
+        Assert.Equal(SearchKind.Everything, search.Query.Kind);
+        Assert.Equal(int.Parse(limit, System.Globalization.CultureInfo.InvariantCulture), search.Query.Page.Limit);
+        Assert.Null(search.Query.Page.Offset);
+    }
+
+    /// <summary>
+    ///     A limit of none asks for nothing, and one past forty asks for what an instance quietly does not serve — both
+    ///     turned down against what was typed, before the instance is asked anything (ADR-0006).
+    /// </summary>
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("41")]
+    public void Search_ReportsALimitOutsideOneToFortyAsAUsageError(string limit)
+    {
+        AddProfile();
+
+        var run = Run(["search", "cats", "--limit", limit]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("--limit", run.ErrorOutput);
+        Assert.Contains("40", run.ErrorOutput);
+        Assert.Empty(_search.Searches);
+    }
+
+    /// <summary>
+    ///     <c>--type</c> with <c>--offset</c> is a page of one kind: the kind and the offset are both asked, and what is
+    ///     printed is that page — here the instance's third post and on, the first two skipped (#599).
+    /// </summary>
+    [Fact]
+    public void Search_PrintsThePageOfOneKindTheOffsetSays()
+    {
+        AddProfile();
+        _search = FakeInstanceSearch.Finding(
+            posts: [APost.With(id: "1", content: "First"), APost.With(id: "2", content: "Second"), APost.With(id: "3", content: "Third")]);
+
+        var run = Run(["search", "cats", "--type", "posts", "--offset", "2"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("Third", run.Output);
+        Assert.DoesNotContain("First", run.Output);
+        Assert.DoesNotContain("Second", run.Output);
+
+        var search = Assert.Single(_search.Searches);
+        Assert.Equal(SearchKind.Posts, search.Query.Kind);
+        Assert.Equal(2, search.Query.Page.Offset);
+    }
+
+    /// <summary>
+    ///     An instance ignores an offset without a kind and answers with the first page again, which a script paging
+    ///     through would read as the next page. So it is refused, and nothing is asked (#599).
+    /// </summary>
+    [Fact]
+    public void Search_ReportsAnOffsetWithoutATypeAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["search", "cats", "--offset", "20"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("--offset", run.ErrorOutput);
+        Assert.Contains("--type", run.ErrorOutput);
+        Assert.Empty(_search.Searches);
+    }
+
+    [Fact]
+    public void Search_ReportsANegativeOffsetAsAUsageError()
+    {
+        AddProfile();
+
+        var run = Run(["search", "cats", "--type", "posts", "--offset", "-1"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("--offset", run.ErrorOutput);
+        Assert.Empty(_search.Searches);
+    }
+
     [Fact]
     public void Search_ReportsATypeItDoesNotKnowAsAUsageError()
     {

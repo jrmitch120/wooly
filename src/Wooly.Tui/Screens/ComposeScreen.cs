@@ -531,6 +531,9 @@ public sealed class ComposeScreen : Screen, IDraft
     ///         <c>ctrl-o</c> is offered wherever it adds, a compose or a reply with room left on the post, except on the
     ///         Media header, whose <c>⏎</c> is offered for the same thing; an edit takes no attachments, so never.
     ///     </para>
+    ///     <para>
+    ///         <c>ctrl-u</c> only while a one-line field has the typing and holds something to empty (#310).
+    ///     </para>
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
@@ -551,6 +554,7 @@ public sealed class ComposeScreen : Screen, IDraft
             (false, true) => [new KeyHint("↓", "field")],
             _ => Array.Empty<KeyHint>(),
         },
+        .. Clears ? [PostKeys.Clearing] : Array.Empty<KeyHint>(),
         new("ctrl-s", Purpose == ComposeFor.Edit ? "save" : "send"),
         new("ctrl-w", WritingTheWarning ? "back to the post" : "content warning"),
         .. Media.Room > 0 && Typing != ComposeField.Media
@@ -691,6 +695,17 @@ public sealed class ComposeScreen : Screen, IDraft
     ///     stops at either end rather than coming round, so To offers only <c>↓</c> and the post only <c>↑</c>.
     /// </summary>
     private (bool Up, bool Down) Walks => (WalkedTo(-1) is not null, WalkedTo(1) is not null);
+
+    /// <summary>
+    ///     Whether <c>ctrl-u</c> has something to empty where the typing is: the warning, or Lang, holding anything. Every
+    ///     one-line field empties on it alike (#310); never the post, whose body is the editor's and is no prompt.
+    /// </summary>
+    private bool Clears => Typing switch
+    {
+        ComposeField.Warning => Warning.Length > 0,
+        ComposeField.Lang => Lang.Held.Length > 0,
+        _ => false,
+    };
 
     /// <summary>
     ///     Where <see cref="Walk" /> would move the typing to, or null off either end: a field, or one of the rows under

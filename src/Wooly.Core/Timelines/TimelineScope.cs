@@ -1,6 +1,6 @@
 namespace Wooly.Core.Timelines;
 
-/// <summary>The ten timelines a profile can read, which differ only in what an instance is asked for.</summary>
+/// <summary>The eleven timelines a profile can read, which differ only in what an instance is asked for.</summary>
 public enum TimelineScope
 {
     /// <summary>The posts of the accounts this profile follows.</summary>
@@ -20,6 +20,14 @@ public enum TimelineScope
     ///     rail, where <see cref="Tag" /> is one tag walked to and left.
     /// </summary>
     TagSet,
+
+    /// <summary>
+    ///     The posts sharing one <b>Trending link</b> (#603) — what people are saying about an article being why it
+    ///     trends. Beside <see cref="Tag" /> rather than anywhere new: posts, newest first, read on by <c>max_id</c>.
+    ///     Only a link the instance ranks as trending has one; any other is answered as not found
+    ///     (<see cref="Errors.LinkNotTrendingException" />) rather than as a timeline with nothing on it.
+    /// </summary>
+    Link,
 
     /// <summary>
     ///     The posts of one account, which is what an account screen shows underneath who they are. A timeline rather

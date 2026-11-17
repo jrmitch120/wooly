@@ -720,24 +720,27 @@ public partial class RoleTests
     }
 
     /// <summary>
-    ///     The search prompt says where the next letter lands with a mark rather than a colour, so a terminal with
-    ///     none still shows where the typing is going.
+    ///     The search prompt's box leaves the room inside its middle row, after the glass, to the field laid over it
+    ///     (#608, #605) — a real one, whose caret is the terminal's own, so the row paints no caret of its own.
     /// </summary>
     [Fact]
-    public void Search_DrawsACaretWhileThePromptIsTakingLetters()
+    public void Search_LeavesTheInsideOfItsBoxToTheField()
     {
-        var screen = new SearchScreen();
+        var screen = new SearchScreen("mastodon.social");
 
-        screen.Type('c');
+        var prompt = screen.Lines(new Drawing(61, Now))[2];
 
-        var prompt = screen.Lines(new Drawing(61, Now))[0];
+        Assert.Equal(" │ ⌕ ", prompt.Text[..5]);
+        Assert.DoesNotContain(prompt.Spans, span => span.Role == Role.Selection && span.Text.Length > 0);
+        Assert.Equal(new System.Drawing.Rectangle(5, 2, 54, 1), screen.FieldAt(61));
 
-        Assert.Contains("Search: c", prompt.Text);
-        Assert.Contains(prompt.Spans, span => span is { Role: Role.Selection, Text: "▌" });
+        // And what was found is a screen of its own that takes no letters, so it draws no prompt to put a caret in —
+        // the breadcrumb says what was asked (#600).
+        var found = new SearchResultsScreen("c", SearchResults.Matching(SearchKind.Everything, [], [], []));
 
-        screen.Found("c", SearchResults.Matching(SearchKind.Everything, [], [], []));
-
-        Assert.DoesNotContain(screen.Lines(new Drawing(61, Now))[0].Spans, span => span.Role == Role.Selection);
+        Assert.DoesNotContain(
+            found.Lines(new Drawing(61, Now)),
+            line => line.Text.StartsWith("Search:", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -759,8 +762,7 @@ public partial class RoleTests
             following: 187_452,
             posts: 4_210_889);
 
-        var search = new SearchScreen();
-        search.Found(
+        var search = new SearchResultsScreen(
             "a query somebody typed that is itself far longer than the prompt has room for",
             SearchResults.Matching(
                 SearchKind.Everything,
