@@ -118,14 +118,14 @@ internal static class PostReport
     ///         to ask past; here there is nothing to ask past on any post, and what is left is a flag to report.
     ///     </para>
     /// </remarks>
-    public static void Write(IAnsiConsole console, Post post) => Write(console, post, translated: null);
+    public static void Write(IAnsiConsole console, Post post) => Write(console, post, provenance: null);
 
     /// <summary>
-    ///     <see cref="Write(IAnsiConsole,Post)" />, with <paramref name="translated" /> — where the words are a
+    ///     <see cref="Write(IAnsiConsole,Post)" />, with <paramref name="provenance" /> — where the words are a
     ///     translation, where they came from — said directly under them and before what hangs off the post, which is
     ///     where the TUI says it too.
     /// </summary>
-    private static void Write(IAnsiConsole console, Post post, string? translated)
+    private static void Write(IAnsiConsole console, Post post, string? provenance)
     {
         // A boost carries none of its own text, so what gets shown is the post it points at — with the account that
         // boosted it named above, which is the only part of the boost worth reading.
@@ -176,9 +176,9 @@ internal static class PostReport
             console.MarkupLineInterpolated($"  {line}");
         }
 
-        if (translated is not null)
+        if (provenance is not null)
         {
-            console.MarkupLineInterpolated($"  [dim]{translated}[/]");
+            console.MarkupLineInterpolated($"  [dim]{provenance}[/]");
         }
 
         WriteMedia(console, shown);
@@ -322,9 +322,8 @@ internal static class PostReport
     ///     Where a translation came from, as a sentence: "translated from German into English by DeepL.com". The
     ///     language it came from is left out only where the translator did not say what it took the post to be.
     /// </summary>
-    private static string Provenance(Translation translation) => translation.From is { } from
-        ? $"translated from {PostLanguageName.NameOf(from)} into {PostLanguageName.NameOf(translation.To)} by {translation.Provider}"
-        : $"translated into {PostLanguageName.NameOf(translation.To)} by {translation.Provider}";
+    private static string Provenance(Translation translation) =>
+        $"translated {translation.Direction} by {translation.Provider}";
 
     private static string PostedAt(Post post) => LocalMoment.Of(post.PostedAt);
 

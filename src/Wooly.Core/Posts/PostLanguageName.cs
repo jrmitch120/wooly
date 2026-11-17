@@ -252,7 +252,18 @@ public static class PostLanguageName
     ///     English), and on the code itself where it knows neither.
     /// </summary>
     public static string NameOf(string code) =>
-        Of(code)?.Name ?? Of(code.Split('-', '_')[0])?.Name ?? code;
+        Of(code)?.Name ?? Of(BaseOf(code))?.Name ?? code;
+
+    /// <summary>
+    ///     The language <paramref name="code" /> is a form of, without its region or script — <c>en</c> out of
+    ///     <c>en-GB</c> or <c>en_GB</c> — lower-cased, so two codes can be compared by it.
+    /// </summary>
+    public static string BaseOf(string code)
+    {
+        var cut = code.IndexOfAny(['-', '_']);
+
+        return (cut < 0 ? code : code[..cut]).ToLowerInvariant();
+    }
 
     /// <summary>
     ///     The language <paramref name="name" /> spells — its code, its English name or its own name, in any case — or

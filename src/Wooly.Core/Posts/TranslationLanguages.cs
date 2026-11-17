@@ -48,19 +48,12 @@ public sealed class TranslationLanguages
             return true;
         }
 
-        var source = Base(from ?? Undetermined);
-        var target = Base(to);
+        var source = PostLanguageName.BaseOf(from ?? Undetermined);
+        var target = PostLanguageName.BaseOf(to);
 
         return source != target
                && Targets.Any(pair =>
-                   Base(pair.Key) == source && pair.Value.Any(language => Base(language) == target));
-    }
-
-    /// <summary>A language's code without its region or script: <c>en</c> out of <c>en-GB</c>, lower-cased.</summary>
-    private static string Base(string code)
-    {
-        var cut = code.IndexOfAny(['-', '_']);
-
-        return (cut < 0 ? code : code[..cut]).ToLowerInvariant();
+                   PostLanguageName.BaseOf(pair.Key) == source
+                   && pair.Value.Any(language => PostLanguageName.BaseOf(language) == target));
     }
 }

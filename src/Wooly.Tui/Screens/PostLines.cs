@@ -462,10 +462,7 @@ public static class PostLines
     /// </remarks>
     private static Line Provenance(Translation translation, int width)
     {
-        var into = PostLanguageName.NameOf(translation.To);
-        var said = translation.From is { } from
-            ? $"Translated from {PostLanguageName.NameOf(from)} into {into} · {translation.Provider}"
-            : $"Translated into {into} · {translation.Provider}";
+        var said = $"Translated {translation.Direction} · {translation.Provider}";
 
         return Line.Of(TextWrap.Clip(said, width), Role.Muted);
     }

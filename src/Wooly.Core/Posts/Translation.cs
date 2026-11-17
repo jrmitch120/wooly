@@ -44,6 +44,16 @@ public sealed record Translation
     public required string Provider { get; init; }
 
     /// <summary>
+    ///     The languages it went between, named in English for a sentence saying where a translation came from: "from
+    ///     German into English". Both are named, the one translated into not always being the one asked for; the first
+    ///     is left out — "into English" — only where the translator did not say what it took the post to be. Each surface
+    ///     words the rest of its sentence its own way around this.
+    /// </summary>
+    public string Direction => From is { } from
+        ? $"from {PostLanguageName.NameOf(from)} into {PostLanguageName.NameOf(To)}"
+        : $"into {PostLanguageName.NameOf(To)}";
+
+    /// <summary>
     ///     <paramref name="post" /> with these words in place of its own — its text, its warning, its poll's options and
     ///     its attachments' descriptions — and everything else as it was. A boost's words are the boosted post's, so a
     ///     boost is answered with the post it carries translated.
