@@ -530,9 +530,7 @@ public class ShellRefreshTests
 
         shell.Host.Drain();
 
-        opened.Type('d');
-
-        opened.Press(ShellKey.Enter);
+        opened.Find("d");
         shell.Host.Drain();
         opened.Press(ShellKey.Enter);
         shell.Host.Drain();
@@ -792,11 +790,9 @@ public class ShellRefreshTests
     };
 
     /// <summary>A search that has been answered, which is the screen its results are on rather than its prompt.</summary>
-    private static SearchScreen Searched()
+    private static SearchResultsScreen Searched()
     {
-        var search = new SearchScreen();
-
-        search.Found("dotnet", new SearchResults { Accounts = [], Hashtags = [], Posts = [APost.With(id: "110")] });
+        var search = new SearchResultsScreen("dotnet", new SearchResults { Accounts = [], Hashtags = [], Posts = [APost.With(id: "110")] });
 
         return search;
     }

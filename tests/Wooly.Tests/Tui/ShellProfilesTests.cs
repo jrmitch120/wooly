@@ -81,8 +81,8 @@ public class ShellProfilesTests
             new NotificationsScreen([]),
             new DirectMessagesScreen([]),
             new FollowRequestsScreen([]),
-            new SearchScreen(),
-            new HelpScreen(new SearchScreen()),
+            new SearchScreen("mastodon.social"),
+            new HelpScreen(new SearchScreen("mastodon.social")),
             new ProfilesScreen([], "personal", []),
             new ComposeScreen(ComposeFor.Post),
         ];

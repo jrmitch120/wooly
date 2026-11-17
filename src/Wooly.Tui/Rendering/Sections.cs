@@ -26,9 +26,11 @@ public static class Sections
     ///     outside, and what a screen with no headings at all answers to every press.
     /// </summary>
     /// <remarks>
-    ///     The first thing of the run rather than the heading itself, because the heading is part of no thing and
-    ///     there is nothing there to pick out: <c>]</c> is "take me to the posts", and a reader who arrives at a post
-    ///     wants to press <c>⏎</c> rather than <c>k</c> first.
+    ///     The first thing of the run rather than the heading itself, even where the heading is a thing of its own that
+    ///     can be picked out and opened — a search's, which pushes its kind alone (#604): <c>]</c> is "take me to the
+    ///     posts", and a reader who arrives at a post wants to press <c>⏎</c> rather than <c>j</c> first. A heading
+    ///     that can be picked is in the run it heads all the same, so <c>[</c> and <c>]</c> from it move as from the
+    ///     things under it.
     ///     <para>
     ///         Whole runs on both sides, so <c>[</c> from the fifth post is the first hashtag rather than the first
     ///         post: a key that sometimes moved to the top of the run it was already in and sometimes left it would be
@@ -53,15 +55,15 @@ public static class Sections
             return null;
         }
 
-        var starts = Starts(lines);
+        var runs = Runs(lines);
 
         // Which run the reader is in, counted as the last one that begins at or before them — and -1 for a thing
         // standing above every heading, which is what makes ] reach the first run from there without a case for it.
         var run = -1;
 
-        for (var at = 0; at < starts.Count; at++)
+        for (var at = 0; at < runs.Count; at++)
         {
-            if (starts[at] <= from)
+            if (runs[at].Begins <= from)
             {
                 run = at;
             }
@@ -69,37 +71,45 @@ public static class Sections
 
         var to = run + by;
 
-        return to >= 0 && to < starts.Count ? starts[to] : null;
+        return to >= 0 && to < runs.Count ? runs[to].Lands : null;
     }
 
     /// <summary>
-    ///     Which thing begins each headed run, in the order the runs are drawn: the first row under a heading that is
+    ///     Each headed run, in the order the runs are drawn: the thing it begins at — the heading, where the heading is
+    ///     a thing of its own — and the thing a jump to it lands on, which is the first row under the heading that is
     ///     part of anything, since a heading is followed by a blank as often as not.
     /// </summary>
     /// <remarks>
     ///     A heading with nothing under it starts no run, which is what keeps this honest on a screen that draws one
     ///     over an empty list — nothing to jump to is nothing to count.
     /// </remarks>
-    private static IReadOnlyList<int> Starts(IReadOnlyList<Line> lines)
+    private static IReadOnlyList<Run> Runs(IReadOnlyList<Line> lines)
     {
-        var starts = new List<int>();
+        var runs = new List<Run>();
         var heading = false;
+        int? headed = null;
 
         foreach (var line in lines)
         {
             if (line.Heads)
             {
                 heading = true;
+                headed = line.Item;
             }
-            else if (heading && line.Item is { } item)
+            else if (heading && line.Item is { } item && item != headed)
             {
-                starts.Add(item);
+                runs.Add(new Run(headed ?? item, item));
                 heading = false;
             }
         }
 
-        return starts;
+        return runs;
     }
+
+    /// <summary>One headed run: the thing it begins at, and the thing a jump to it lands on.</summary>
+    /// <param name="Begins">The first thing in the run — its heading, where that is a thing of its own.</param>
+    /// <param name="Lands">The first thing under its heading.</param>
+    private readonly record struct Run(int Begins, int Lands);
 
     /// <summary>
     ///     Which thing is picked out, as the rows say it — or <see langword="null" /> on a screen with nothing picked

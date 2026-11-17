@@ -7,8 +7,9 @@ namespace Wooly.Core.Paging;
 /// </summary>
 /// <remarks>
 ///     Opaque on purpose. A caller can hold one and hand it back to the reader it came from, and that is all: what it
-///     says inside — a <c>max_id</c>, or nothing where a read stopped before anything arrived — is the reader's, as
-///     the page size and the end condition are. A caller that could read the cursor would be a caller that could
+///     says inside — a <c>max_id</c>, an offset into a list the instance pages that way (<see cref="OffsetReading" />,
+///     #604), or nothing where a read stopped before anything arrived — is the reader's, as the page size and the end
+///     condition are. A caller that could read the cursor would be a caller that could
 ///     start paging by it, which is the copy of the loop ADR-0007 keeps in one place.
 /// </remarks>
 public sealed record Onward
@@ -18,6 +19,9 @@ public sealed record Onward
 
     /// <param name="maxId">Where the instance's next page starts, or <see langword="null" /> for the top.</param>
     internal Onward(string? maxId) => MaxId = maxId;
+
+    /// <param name="offset">How far into a list paged by offset its next page starts (<see cref="OffsetReading" />).</param>
+    private Onward(int offset) => Offset = offset;
 
     /// <param name="runs">Where each run of a list read as several reads on from, in the runs' order.</param>
     /// <param name="handedOut">The id of the last item handed out of them, or <see langword="null" /> for none yet.</param>
@@ -31,6 +35,12 @@ public sealed record Onward
     internal string? MaxId { get; }
 
     /// <summary>
+    ///     How many of a list paged by offset come before its next page, or <see langword="null" /> for a list paged
+    ///     any other way — and for the top, where nothing comes before it.
+    /// </summary>
+    internal int? Offset { get; }
+
+    /// <summary>
     ///     Where each run of a list read as several (<see cref="MergedReading" />) reads on from, or
     ///     <see langword="null" /> for a list read as one — or for the top, where no run has been read yet.
     /// </summary>
@@ -42,6 +52,9 @@ public sealed record Onward
     /// </summary>
     internal string? HandedOut { get; }
 
+    /// <summary>Where a list paged by offset reads on from: <paramref name="offset" /> into it.</summary>
+    internal static Onward Past(int offset) => new(offset);
+
     /// <summary>
     ///     The same place by value, its runs compared run by run, as ADR-0007's amendment has every place compared:
     ///     two fetches of the same answers give the one place to read on from.
@@ -49,12 +62,13 @@ public sealed record Onward
     public bool Equals(Onward? other) =>
         other is not null
         && other.MaxId == MaxId
+        && other.Offset == Offset
         && other.HandedOut == HandedOut
         && (other.Runs is null ? Runs is null : Runs is not null && other.Runs.SequenceEqual(Runs));
 
     /// <inheritdoc />
     public override int GetHashCode() =>
-        (Runs ?? []).Aggregate(HashCode.Combine(MaxId, HandedOut), (hash, run) => HashCode.Combine(hash, run));
+        (Runs ?? []).Aggregate(HashCode.Combine(MaxId, Offset, HandedOut), (hash, run) => HashCode.Combine(hash, run));
 }
 
 /// <summary>Where one run of a list read as several reads on from, compared by value.</summary>

@@ -250,6 +250,18 @@ public static class PostKeys
     public static KeyHint ToAGroup { get; } = new("`", "group", WalksTheRail: true);
 
     /// <summary>
+    ///     <c>ctrl-u</c> to empty the prompt taking letters (#310): offered by every screen with one, and only while the
+    ///     prompt holds something, so the row never announces a key that would do nothing.
+    /// </summary>
+    public static KeyHint Clearing { get; } = new("ctrl-u", "clear");
+
+    /// <summary>
+    ///     <c>o</c> for the article itself, in the browser (#607): offered on the posts sharing a <b>Trending link</b>, and
+    ///     on a trending link picked out under the prompt or on the screen of trending links alone.
+    /// </summary>
+    public static KeyHint OpeningTheArticle { get; } = new("o", "article");
+
+    /// <summary>
     ///     <c>\</c> to show the hidden rail again, which the status row offers in place of <see cref="AlongTheRail" />
     ///     while the rail is hidden and walking it is locked (#445).
     /// </summary>

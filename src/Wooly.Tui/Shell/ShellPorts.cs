@@ -9,6 +9,7 @@ using Wooly.Core.Profiles;
 using Wooly.Core.Relationships;
 using Wooly.Core.Search;
 using Wooly.Core.Timelines;
+using Wooly.Core.Trends;
 
 namespace Wooly.Tui.Shell;
 
@@ -35,6 +36,10 @@ namespace Wooly.Tui.Shell;
 ///     written through <see cref="Author" /> like anything else (ADR-0013).
 /// </param>
 /// <param name="Search">Finding accounts, hashtags and posts, for the screen <c>/</c> opens.</param>
+/// <param name="Trends">
+///     What the instance ranks as trending — hashtags, links and posts — drawn under the empty search prompt (#605). A
+///     port of its own beside <see cref="Search" /> rather than a call on it, for the reasons ADR-0036 gives.
+/// </param>
 /// <param name="Suggestions">
 ///     Who the instance offers this profile to follow, and telling it to stop offering one — the Discover
 ///     destination's whole fetch. A port of its own rather than a sixth call on <see cref="Accounts" />, whose own
@@ -64,6 +69,7 @@ public sealed record ShellPorts(
     INotificationInbox Notifications,
     IDirectMessages Messages,
     IInstanceSearch Search,
+    ITrends Trends,
     IFollowSuggestions Suggestions,
     IRateLimitReport RateLimit,
     IInstanceLimits Limits,

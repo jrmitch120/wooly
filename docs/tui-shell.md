@@ -271,7 +271,11 @@ A screen is a place in the stack, not a window. Entering one pushes, `esc` pops,
 | Actors — everyone in one notification group, crumbed by its kind: `Favorited by`, `Boosted by`, `Followed you`, or the instance's own word | `w` on a notification group of several | #455 |
 | Actors — one side of a post's actors, everyone who favorited it or everyone who boosted it, crumbed `Favorited by` / `Boosted by` | `w` on a picked post anywhere but Notifications, `s` to swap sides | #489 |
 | Discover — who to follow, in sections by why | A rail destination | #171 |
-| Search — prompt and results | A rail destination, or `/` | #29, moving between kinds #166 |
+| Search — the prompt, the destination's own screen: the search field in a box titled with the instance acted as, and the instance's **Trend**s under it — ten hashtags, ten links, three posts — the field and the trends one walk | A rail destination, or `/`, each arriving at an empty prompt with the trends read afresh; `esc` or a click on its crumb from what it pushed, the query still typed and the trends as they were left | #29, prompt alone #600, trends #605 |
+| Search results — what a search found, twenty of each of three kinds in sections, each under a heading that counts it, pushed over the prompt and crumbed `Search › cats` | `⏎` on the prompt, unless what was typed is a **Direct query** that matched | #29, moving between kinds #166, own screen #600, counted headings #604 |
+| Search narrowed — one kind a search found, alone, asked forty at a time and read on by offset, crumbed `Search › cats › Posts` (or `Accounts`, `Hashtags`) | `⏎` on a section heading of the search results, or a click on it | #604 |
+| Trends narrowed — one kind of **Trend** alone, asked at the most the instance serves of it (forty posts, twenty hashtags or links) and read on by offset, crumbed `Search › Trending posts` (or `Trending hashtags`, `Trending links`) | `⏎` on a trends heading under the prompt, or a click on it | #606 |
+| Trending link — the posts sharing a **Trending link**, newest first, read on by `max_id` as a feed is, crumbed with the article's title (`Search › Cats learn to type`), the article one key away in the browser | `⏎` on a trending link under the search prompt, or a double click on it | #607 |
 | Notifications | A rail destination | #29 |
 | Direct messages — conversations, then a thread | A rail destination | #30 |
 | Follow requests | A rail destination | #29 |
@@ -301,11 +305,12 @@ workable only because the status row always shows the current screen's keys. Wha
 | `?` | The keymap for this screen. The spec has no in-app help story; this is the shell adding one, and #28 carries it — every other screen inherits it for free. |
 | `tab` / `shift-tab` | Moves the cursor (`▶`) at once, one destination down or up the rail, crossing from one rail group into the next. The selection follows it (`▷` while it lags behind), and that destination loads, once the tabbing has stopped for ~250ms. Opening a draft — compose, a reply, an edit, the public profile form — before then calls that off: the cursor goes back to the destination selected, nothing loads, and the draft stays in front (#429). With the rail hidden, nothing but `Rail hidden — \ to show` on the status row, or `Rail hidden` where `\` is typed as a letter, as on the file browser (#445, #447). |
 | `` ` `` / `~` | Moves the cursor to the first destination of the next or previous **rail group**, wrapping. Settles and loads as `tab` does (ADR-0021), and is locked as `tab` is with the rail hidden (#445). |
-| `/` | Search. Goes to the search destination; what it opens onto is #29's. |
+| `/` | Search. Goes to the search destination and arrives at an empty prompt, from anywhere — the results, and anything opened from them or from the prompt, included (#600). On the prompt's field it is typed, a web address being entitled to one (#265); with a trend under the field picked, it goes back up to the field with what it holds kept (#605). |
 | `ctrl-p` | The profiles screen, pushed onto the stack. On compose it takes the draft off first and opens the screen in its place, asking first where the draft is touched (ADR-0020, #373); it is not listed there. |
 | off-page pick | Not a key but a rule over the keys that act on the pick: with no row of the pick on the page, the first such key only picks what is on the page, and the next acts on it ("What moving settled", #476). Listed on the `?` screen as `off-page pick   the first key picks what is on the page`, since the status row stays still as the page moves. |
 | `-` / `+` or `=` | The **Shell width** one step narrower, or one wider: `=` is `+` without the shift. Typed as letters wherever letters are typed, as `/` and `?` are, and nothing on compose, the description editor or the public profile form. Said on the status row for two seconds (`Width 90%`, or `Narrowest` / `Full width` where there is no step to take); listed on the `?` screen and on no status row (#414). See **Shell width**, above. |
 | `\` | Hides the rail, the content taking the whole width of the shell, or shows it again, saved for the next launch (#442, #445). On a prompt taking letters too, rather than typed: Search's, the follow list's filter and Add a profile (#447). Typed as a letter only on compose, the description editor and the public profile form, whose fields take it, and on the file browser, whose filter takes a Windows path (#447). Nothing where there is no rail. Listed on the `?` screen, and on the status row only while the rail is hidden, as `Rail: \` (#445). See **Hidden rail**, above. |
+| `ctrl-u` | Empties the one-line prompt taking letters and leaves it taking them (#310): the search field, the follow list's filter, whichever of Add a profile's instance, token and name fields the step is on, the file browser's filter, compose's content warning and Lang, and the public profile form's display name and custom fields — never a post's body or the bio, which are the editor's, and never the instance fixed when signing in again. An edit like `backspace` and nothing more: it asks nothing of the instance, leaves the prompt where it is and moves no screen. Where nothing is taking letters it does nothing. The status row offers `Clear: ctrl-u` only while the prompt holds something to empty. |
 
 Feed and post:
 
@@ -339,7 +344,11 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Edit public profile | `↑`/`↓` walk the fields top to bottom — display name, Avatar, Header, the custom fields, Locked, Bot, Discoverable, then the bio at the foot — stopping at either end rather than coming round; a custom field's label and value sit side by side, so `↑`/`↓` keep to the column down the rows, coming in on the labels, and `→` off the end of a label crosses to its value with the caret at the start, `←` off the start of a value back to its label; `←`/`→` move nothing else, being the caret's in a field and nobody's on a picture or toggle; in the bio `↑` walks only off its first line and `↓` only off its last, the caret having them between, and `⏎` in a one-line field walks on to the next in reading order, a label to its value; nothing is marked with a bar — a field walked to has the caret, and a picture or toggle, having none, has its value lit in `selected-text`, as compose's Media and To are · `space` or `⏎` flips the toggle walked to · on **Avatar** or **Header** `⏎` opens the file browser for one picture, crumbed `Choose avatar` or `Choose header`, and `ctrl-v` or `alt-v` pastes a picture from the clipboard — or the first copied file that is a picture — into it, saying on the status row where the clipboard holds neither, or where this machine has nothing to read the clipboard with — every press, there being no text to paste instead, where compose says the missing tool once a session; the status row offers `⏎ choose file` and `ctrl-v/alt-v paste` there, and other letters are nobody's. A picture picked is drawn in place of the current one with its file name and `sent on save` beside it, and goes up only in the save (ADR-0028) — a touch, like any other edit; on a terminal that draws, each row is two rows tall with the picture in a box (the avatar as near square as the font allows, four columns on a 1:2 cell, and fitted whole and centred — #532 — and the header twelve, filled by its picture, cropped from the middle — #438) and the words after the header's box width, and where nothing is drawn it is one line, `Avatar  change…`, `Avatar  none · choose…` or `Avatar  cat.png · sent on save` (#407) — `change…` and `choose…` saying what `⏎` does, the picture saying what is there · `ctrl-s` save, sending only what differs from what was read (ADR-0028): the custom fields as a set, an emptied row left out, which removes its field; with nothing changed it sends nothing and says so · `esc` leave — asking `Discard these changes? y / n` first where anything differs from how it opened, as every way out does, and only `y` goes (#373) · `tab`/`shift-tab` are the frame's, never a walk of the form's fields. On a terminal too short for the whole form the field walked to is always on screen: the form moves up or down only when the walk leaves what is shown, and only as far as brings it back. A save takes the form off and reads the account under it again, saying "Public profile saved." — the own account further down the stack shows it as saved, a list held a moment ago with the own account or a post it wrote or boosted on it is read again when next reached, and a new avatar or header is drawn rather than the old one; a refusal keeps the form and every edit in it, with the instance's own words on the status row until an edit spends them (#406). While the list of people to mention is open in the bio: `↑`/`↓` pick · `tab`/`⏎` insert · `esc` close the list, never the form (#408) |
 | Follows — following or followers | `f` filter, on a list under the threshold · `s` swap to the other side, in place · `⏎` open that account |
 | Actors | `⏎` open that account · `s` swap to the other side, in place, on a post's actors only — a notification group's have one side (#489) · `o` open the post's page on its home instance in the browser, on a remote post's actors only, where the whole list is (#491) |
-| Search results | `[`/`]` section, where two or more kinds found something |
+| Search | With the field picked, typing goes into the search field, a real one-line text field (#608): `←`/`→` move the caret, `home`/`end` jump to either end, `ctrl-←`/`ctrl-→` move by word · `shift-←`/`shift-→` select, as does a drag of the mouse across it, and what is typed next — or `backspace` — replaces or takes out the selection · `ctrl-c` copies the selection, `ctrl-x` cuts it, `ctrl-v` or `alt-v` pastes at the caret, as in compose's fields · `ctrl-u` empties the field (#310) · `⏎` searches for the whole field, wherever the caret is · `/`, `?` and every other printable character are typed; `\` still hides and shows the rail, and `[`/`]` move between sections, never typed · `↓` walks off the field into the trends (#605) · with a trend picked, letters are keys again: `j`/`k` walk, the headings over the trends among what they walk (#606), onto the field from the first heading, as `↑` does from it or the trend under it · `⏎` opens a trending hashtag's tag and a trending post's thread, as a search's results open them, and a trending link's posts (#607) · `o` on a trending link opens the article itself in the browser, opening nothing in the TUI (#607) · `⏎` on a trends heading, or a click on it, pushes that kind of trend alone (#606) · every key that acts on a post, on a trending post · `/` back to the field, its query kept |
+| Trending link | `o` opens the article itself in the browser · every key that acts on a post, as on any feed (#607) |
+| Search results | `[`/`]` section, where two or more kinds found something · `⏎` on a heading, or a click on it, pushes that kind alone (#604) |
+| Search narrowed | `⏎` opens what is picked, as on the results · every key that acts on a post, on a post · `esc` back to the results as they were left, asking nothing |
+| Trends narrowed | `⏎` opens what is picked, as under the prompt — a hashtag's tag, a post's thread, a link's posts · `o` on a link opens the article itself in the browser (#607) · every key that acts on a post, on a trending post, there being no field here to take letters · `/` a fresh prompt · `esc` back to the prompt with its query and trends as they were left, asking nothing (#606) |
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
 | Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts and read on as the page nears the end (#455, #467) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
@@ -493,9 +502,115 @@ not answer them differently:
   (#265). Every other frame key, `esc`, `ctrl-q` and `tab` among them, still means what it means everywhere, and the
   status row says what the prompt answers to. So does `\`, which hides and shows the rail rather than typing a
   backslash, since no search, follow or instance needs one (#447). The one prompt that types it is the file browser's
-  filter, since a Windows path is typed with it.
-- **`/` from the search screen's results starts a fresh prompt** rather than doing nothing, since that is the one place
-  the key is most likely to be pressed twice.
+  filter, since a Windows path is typed with it. On Search `[` and `]` are not typed either: they move between
+  sections there as on every screen, the field included (#605, #608).
+- **`ctrl-u` empties a prompt taking letters** (#310), wherever the caret is, and leaves it taking them — one key for
+  every one-line prompt in the shell: the search field, the follow list's filter, Add a profile's fields, the file
+  browser's filter, compose's content warning and Lang, and the public profile form's one-line fields — but never a
+  post's body or the bio, which belong to the editor and are no prompt. It is an edit like `backspace` and nothing more, so a filter narrows again at once, to everything. The
+  prompts the shell types into itself catch it ahead of the keymap, so while one is typing it never reaches the
+  keymap; the one-line fields that are widgets of their own take it themselves, Terminal.Gui's text field having no
+  binding for it, and empty themselves as their own edit, which `ctrl-z` takes back. The status row offers
+  `Clear: ctrl-u` only while the prompt holds something: a key announced where it would do nothing reads as a shell
+  that missed the press. The search prompt knows of its field only whether it holds anything, told as the field
+  changes, which is all the offer needs.
+- **`/` from the search results starts a fresh prompt** rather than doing nothing, since that is the one place the key
+  is most likely to be pressed twice. It arrives at Search as choosing it on the rail does, the stack put back to an
+  empty prompt and the query let go (#600). On the prompt itself `/` is typed, as above.
+- **The prompt and the results are two screens** (#600). The Search destination is the prompt — the search field, and
+  since #605 the instance's trends under it (*Trends under the prompt*, below). `⏎`
+  pushes what was found as a screen of its own, crumbed with the query (`Search › cats`), the prompt standing beneath
+  it; the results draw no prompt of their own, the breadcrumb saying what was asked. `esc` from the results, or a click
+  on the `Search` crumb, walks back to the prompt with `cats` still typed and taking letters, so the reader refines the
+  query rather than retyping it, and nothing is asked of the instance on the way back. Choosing Search on the rail —
+  `tab` onto it, or a click on it, even while it is shown — and `/` both arrive at an empty prompt, as choosing any
+  destination resets the stack. That is the one place the rail's click and the first crumb's part company: everywhere
+  else a click on the destination shown and on its crumb both walk back out to it as it was left (#289, #308), but a
+  prompt is not a list the reader was part way down, so the rail starts a search and the crumb comes back to one. The
+  results walk, open and move between sections exactly as they did when they shared a screen with the prompt, and the
+  status row offers the same keys. The prompt's **Subject** is its trends (`Subject.Trending`, #605), read afresh on
+  every arrival and never cached; the results have none, a live search being its own question, which `esc` and `⏎`
+  ask again. Neither refreshes, so `g` does nothing on either (#84) — nor on a narrowed search or a kind of trend alone
+  (`Subject.Narrowed`, `Subject.TrendsOf`), whose subjects say only how they read on. The results are handed what the prompt's question found and pushed
+  through `Reach.Push`, over the prompt that asked and only while it is still in front.
+- **The search field is a real one-line text field** (#608), laid inside the prompt's box as compose's content warning
+  is laid over its header (#320, ADR-0030), so a query is edited rather than only added to and backspaced from the end:
+  the caret moves, the shift-arrows and a drag of the mouse select, typing replaces a selection, and copy, cut and
+  paste are the keys compose's fields use (*Screen-local keys*, above). `⏎` asks for the whole field from wherever the
+  caret is. What has been typed is the field's rather than the prompt's: it stays in the field while what the prompt
+  opened is in front, so `esc` or the `Search` crumb comes back to it with the caret at its end, and a prompt the field
+  has not shown before — arrived at by the rail or `/` — empties it. The caret is the terminal's own cursor, as in
+  compose's fields, and the row paints none. Unlike a draft's fields, the search field does not hold the content panel
+  still while it shows, since the prompt is the top of a screen read on below it by scrolling (#605): it is laid where
+  its row has scrolled to, the page settled before it draws so that it is never a frame behind, and nowhere once its
+  row is off the page. A right click on it opens no menu, the shell having none. A drag in any one-line field selects from the cell it began on —
+  Terminal.Gui anchors a drag at the first cell the pointer moved to, which a terminal reports only once it has left
+  the cell it was pressed on, so the press is put to the field again as that first move.
+- **Trends under the prompt** (#605, settled by the prototype #602). An empty Search shows, under the field, the
+  instance's **Trend**s as three **Section**s: ten trending hashtags, then ten **Trending link**s, then three trending
+  posts — three whole posts rather than ten, which pushed the links two screens below the field. They are read afresh
+  on every arrival at an empty prompt, by the rail or by `/` (`Subject.Trending`, never cached): three calls under one
+  enquiry, so they go up once and whole, into the prompt standing for them — whose field takes letters while they are
+  read. `esc` or the `Search` crumb back to the prompt is no arrival, and finds the trends as they were left, asking
+  nothing. An instance with nothing trending — or with trends turned off — says `Nothing trending on this instance`
+  under the field; a read it refuses says why on the status row and leaves the prompt as it is, its field usable.
+  - **The field** is a rounded box titled with the instance acted as (`╭─ mastodon.social ──╮`) — not `Search`, which
+    the breadcrumb already says — with a blank row above it and no selection bar or band beside it: it marks its own
+    focus. While it takes letters its border is lit and the caret shows; while the pick is on a trend both are dimmed,
+    and what it holds is drawn muted. Empty, it says `A word, a #hashtag, an @account, or a link`. Its rows still say
+    it is the thing picked out, by a mark that draws nothing, so the page follows it and `[`/`]` move from it.
+  - **One walk.** The field is the top of what is walked, the trends under it. Letters are typed only while the field is
+    picked; with a trend picked they are keys — `j`/`k` walk, and the keys that act on a post act on a trending post.
+    `↓` from the field picks the first trend and `↑` from the first trend picks the field again — the one place the
+    arrows walk rather than move the page, since the field is the top of the walk; anywhere else under it they move the
+    page as everywhere. The heading over each run is a row of the walk too (#606): `j`/`k` stop on it, and the arrows
+    pass over the first one — `↓` lands where `]` lands, on the first trend, and `↑` from that trend or its heading goes
+    where `/` goes, to the field. `[`/`]` move between the sections from anywhere, the field included, landing on a
+    section's first trend, and are never typed. `⏎` does what the picked row does: it searches from the field, opens a
+    trending hashtag's tag or a trending post's thread as a search's results would, and a trending link's posts
+    (#607, below); `o` on a trending link opens the article itself in the browser. `/` with a trend picked goes back
+    up to the field with what it holds kept, the caret where it was; on the field `/` is typed. A click picks a trend
+    and a double click opens it; a press on the field picks it, its caret landing where it was pressed.
+  - **The rows.** A hashtag is one row: the tag, and how many people used it in recent days, the count against the
+    right edge so that the counts stand in one column however long the tags are. A link is three rows — its title,
+    its description (muted; left out where the article said nothing), then `site · N people sharing` (the link's host
+    where the site did not name itself) — with a blank between links and no picture. A post is the ordinary post
+    block, a rule between posts. Each kind's run is headed with how many stand under it, as a search's runs are —
+    `── 10+ trending hashtags ──`, `── 4 trending links ──`, `── 3+ trending posts ──` — `N+` where the instance served
+    as many as the prompt asked of the kind (ten, ten, three), which says there may be more and that the heading is
+    where they are read (`ResultLines.Heading`, one way for both). Every column is worked out from the room a row has,
+    never from what is in it, so nothing on the page moves as the trends change.
+  - **A heading opens more of its kind** (#606), as a search's does (#604). The headings are rows of the walk —
+    `Result.TrendSection` ahead of each run, gutter and all — so `⏎` on one, or a click on it, pushes that kind of
+    trend alone (`Subject.TrendsOf`, a `SectionScreen` of trends), crumbed `Search › Trending posts`,
+    `Search › Trending hashtags` or `Search › Trending links`. It asks at the instance's maximum for the kind —
+    forty posts, twenty hashtags or links (`TrendPage.Most`) — and reads on by offset as the reader scrolls, ending at
+    a page that comes back short. Each kind is drawn there exactly as under the prompt. With no field on that screen,
+    letters are only keys: the post keys act on a trending post as on a feed, `⏎` opens a hashtag's tag, a post's
+    thread or a link's posts, and `o` on a link its article (#607). `esc` walks back to the prompt as it was left — its query
+    typed, its trends, the heading still picked — asking nothing; an empty first page says
+    `Nothing trending on this instance`.
+  - **The status row** offers the keys that do something on the picked row and nothing else: on the field `⏎ search`,
+    `↓ trends` and `[/] section` where there are trends, and `tab`; on a trend `j/k trend`, `[/] section` where there
+    is another section to reach, `⏎ open` on a hashtag, a link or a heading, `o article` on a link, `/ search`, a
+    post's keys on a post, then the tail.
+- **A trending link opens as the posts sharing it** (#607) — what people are saying about it being why it trends —
+  with the article itself one key away. `⏎` or a double click on one pushes **Search › Cats learn to type**, crumbed
+  with the article's title and elided as the breadcrumb elides anything long: the link timeline
+  (`Timeline.Sharing`, `Subject.Sharing`), read forty at a time and read on by `max_id` as every feed is, the same
+  `FeedScreen` a hashtag walked to opens, with every post key acting on its posts and no `g`, being pushed rather than
+  arrived at. `o` opens the article in the browser — through **Reach**'s `Browse`, refused and said as `⏎` on a link
+  is — both from these posts and from a trending link picked under the prompt, where it opens nothing in the TUI and
+  asks the instance nothing. `o` was already the key that opens something elsewhere (a remote post's page on its
+  actors, #491), so the article took it rather than a letter of its own. The status row offers it as `Article: o`.
+  - **A link that has stopped trending pushes nothing.** An instance keeps a link's posts only while it trends, and
+    answers any other with a not-found (`LinkNotTrendingException`), told apart from a trending link nobody has shared
+    yet, which opens onto an empty feed. Opening one that has stopped says `That link is no longer trending — o to
+    open the article.` on the status row, in the shell's words rather than the command line's, and leaves the link
+    picked under the prompt for `o` to open: a stale trend is not a dead end.
+  - **One that stops while its posts are being read keeps them.** A not-found on reading on ends the timeline — the
+    adapter answers it as the end rather than a failure (#603) — so what was read stays on screen, the foot says
+    `that's everything`, and nothing is said as a refusal.
 - **A screen's own keys go in front of the shared ones on the status row.** The row is one row and draws what it has
   room for from the front (*What the status row settled*), so the keys a reader can find on no other screen are the
   ones that have to be there.
@@ -523,8 +638,8 @@ not answer them differently:
 - **A hashtag a search found opens as a screen on the stack**, not as a place on the rail. Which tags the rail keeps
   places for are the tag sets the reader wrote down, and a search result is not them changing their mind.
 - **`⏎` on a direct query opens what it names instead of searching** (#305). A `#` followed by one tag word — the
-  rule `timeline tag` takes a tag by, so `#日本語` is as direct as `#cats` — opens that tag's timeline pushed onto
-  search, the same screen and breadcrumb (`Search › #cats`) picking a hashtag result gives, and asks the instance
+  rule `timeline tag` takes a tag by, so `#日本語` is as direct as `#cats` — opens that tag's timeline pushed straight
+  over the prompt (`Search › #cats`), the same screen picking a hashtag result gives, and asks the instance
   nothing, since any well-formed tag has a timeline. `esc` comes back to the prompt as it was left, `#cats` still
   typed. Anything else — `cats`, `#cats dogs`, a lone `#` — is searched for as before, and the status row says
   `Search: ⏎` whatever is typed. The CLI's `search` never does this: scripts depend on its one output shape.
@@ -534,9 +649,10 @@ not answer them differently:
   `host/@alice/110` is asked as `https://host/@alice/110` — though without a scheme it needs a dotted host and a path,
   since a post or a profile always has one, and `node.js` or `3.14` stays a search for words. Either asks the one resolving search it always asked, and no
   more. A handle opens the account whose full address it is (a bare `@alice` read against the profile's instance); an
-  address opens the one post or account it resolved to. What opens is pushed onto search as picking that result would
-  push it, with the results put up underneath, so `esc` comes back to them and the query. With no exact match —
-  `alice@host` turning up only `alicia@host`, a page that is neither a post nor a profile — the results are listed as
+  address opens the one post or account it resolved to. What opens is pushed straight over the prompt as picking that
+  result would push it, with no results screen beneath it — *changed by #600*, which dropped the results #306 slipped
+  in underneath — so one `esc` comes back to the prompt with what was typed. With no exact match —
+  `alice@host` turning up only `alicia@host`, a page that is neither a post nor a profile — the results are pushed as
   for any query, or `Nothing found`, and never an error. `@alice hello`, `@a@b@c` and an address with words after it
   are ordinary searches.
 - **`⏎` on a follow request opens whoever is asking**, because the question is about a person and the answer to it is
@@ -771,7 +887,7 @@ mention, or address inside a post's text — replacing `BodyText`'s internal "ma
   front (`PostKeys.BeforeAReference`). On an 80-column feed that leaves it in `…+N` and `?`, which is accepted.
 - **`⏎` does four different things, refusals share one notice** (#85, #109). Which of the four is the role the
   reference draws in, since that vocabulary already tells them apart. A hashtag opens exactly the way a search result
-  for one already opens — a `Tag` **Subject** brought up by `Arrival.Open`, which `SearchScreen` reaches through
+  for one already opens — a `Tag` **Subject** brought up by `Arrival.Open`, which `SearchResultsScreen` reaches through
   `Reach.Open` — same `FeedScreen`, same breadcrumb, no new screen type, and the rail's tag
   sets left alone. A mention opens the account screen, resolved off `Post.Mentions` — which the wire
   carries down with every post, so no fetch is spent working out who a `@maria` is; a handle written bare is whoever
@@ -1341,6 +1457,7 @@ who walked to the bottom had no way to see anything older without leaving the TU
 - **Every timeline reads on, and so do an account's posts (#464).** These screens read on, the same way Home does:
   - Home, Local, Federated and every tag set on the rail;
   - a hashtag walked to from a post or a search, which is the same timeline reached another way;
+  - the posts sharing a trending link, which simply end where the link stops trending (#607);
   - an account's posts, below the pinned run, following whichever run is showing: their posts, or **Posts and
     replies** once `s` has widened it. The pinned run is never read on. It is one page in the account's own order, and
     a post pinned long ago that comes back in an older page is still drawn once, in the pinned run (#182).
@@ -1372,9 +1489,24 @@ who walked to the bottom had no way to see anything older without leaving the TU
   the list from the top to a longer limit each time `k` or `End` landed on its last row. They read on by the same
   trigger, from the same onward position, with the same foot (*What a follow list settled*), and ask where the profile
   stands only with the people a read on brought. A held Follow list does not: it is read whole at once, as before.
-- **Every list the spec named reads on.** Every timeline, an account's posts, the Inbox, a browsed **Follow list** and
-  a notification group's actors — and, since #489, one side of a post's actors. Every other list (Discover, a search, a
+- **Every list the spec named reads on.** Every timeline, an account's posts, the Inbox, a browsed **Follow list** and a
+  notification group's actors — and, since #489, one side of a post's actors, since #604 a search narrowed to one kind,
+  and since #606 one kind of trend opened from its heading. Every other list (Discover, the mixed search results, a
   **Thread**, a conversation, a held Follow list) reads once and never asks, and draws no foot.
+- **A search narrowed to one kind reads on by offset** (#604), the instance paging a search no other way. It reads on
+  through the same trigger, foot and `Onward` as every other list: the offset is inside the `Onward`
+  (`OffsetReading`, in Core beside `PagedReading`, ADR-0007's amendment), so the screen, `ReadingOn` and the shell's
+  reading on cannot tell a list paged by offset from one paged by `max_id`. Forty at a time, the most an instance serves
+  of one kind; a page that comes back short is the end, and a page at least as long as the ask is not — an instance puts
+  an exact-match hashtag ahead of the forty it ranked — with the next page starting where the ask says, not the count.
+  A search is one call, so a rate limit refuses a page whole rather than cutting it short: the reader waits it out with
+  the countdown every enquiry shows, the list read so far kept and the foot saying `reading on…`, and the same page is
+  asked again. The instance ranks every page afresh, so a thing already held that comes back on a later page is not
+  put on the list twice. Accounts on every page carry where the reader stands with them, asked once for the page and
+  only of the people it brought, as on the mixed results. A kind of trend opened from its heading reads on the same way
+  (#606), through the same `OffsetReading`, at the most the instance serves of the kind — forty posts, twenty
+  hashtags or links — since the instance ranks its trends afresh for every page, nothing already held is put on the
+  list twice.
 
 ### What conversations settled
 
@@ -1477,7 +1609,7 @@ its author remembered to warn it again by hand — which Mastodon's own clients 
   `ctrl-w` is the other half of saying so. Written, it takes the same `content-warning` role a warned post's own
   warning is drawn in, label and all, so a warning being written
   looks like the warning it will become. The caret is the field's own, the terminal's cursor, since #320 — before
-  that a painted `▌` stood for it, the way the search prompt's does.
+  that a painted `▌` stood for it, the way the search prompt's did until #608.
 - **A blank row stands above it, on every compose alike** (#143). It was ADR-0015's reply block that used to end in
   one, which is why `c` and `e` had none: hung off the block, the space appeared on a reply and nowhere else, and the
   one row all three screens have in common was the row they spaced differently. The blank belongs to the warning now,
@@ -2048,7 +2180,7 @@ anybody's account — `IAccountRelationships.List` already takes a `FollowSide` 
   every row by construction, and shows "they follow you". Your own followers list drops "they follow you" — the *gap*
   is the signal there, since what you want is who you have not followed back. Someone else's list implies nothing, so
   the full compact standing shows.
-- **The screen arrives walkable, not typing.** The search screen opens typing only because it has nothing to show yet.
+- **The screen arrives walkable, not typing.** The search prompt is typing only because a prompt is all it is.
   `f` opens the prompt, drawn with the search screen's exact construction — `Filter: ` label, typed text, `▌` caret.
   Typing narrows on every keystroke, `⏎` returns to walking with the filter still applied, `esc` clears it. It
   matches a handle or a display name, the name with the shortcodes its account lists taken out (`PlainName`, #525),
@@ -2145,6 +2277,16 @@ The answer generalised: three screens use it (#166, amended by #171 and #172):
 - **Headed runs only, and the account screen's header block is not a stop.** The jump brings a run's heading with it,
   and the header has no heading to bring; `[` from the first pinned post clamps. Nothing is unreachable — `k` from
   there lands on the header.
+- **A search's heading says `N+` where the page came back full** (#604): the mixed results ask twenty of each kind, and
+  a kind that came back with at least that many is headed `── 20+ posts ──` — more than twenty where the instance put
+  an exact-match hashtag ahead of the twenty it ranked, `── 21+ hashtags ──` — the instance having said nothing of how
+  many more there are. The `40+` of an inbox badge, in a heading.
+- **A search's heading is walked to and opened like a result** (#604). It is a row of the walk — `Picked<Result>`
+  holds a `Result.Section` ahead of each run — so `j`/`k` stop on it between two runs, the gutter marks it, and `⏎` on
+  it, or a click on it, pushes that kind alone, crumbed `Search › cats › Posts`, where it is read on past the twenty.
+  The first result is still what the results open picked on, not the heading over it. `[`/`]` still land on the first
+  result of a run, never its heading — "take me to the posts" — and from a picked heading they move as from the run it
+  heads. The heading is the screen's first row as before, now one column in, behind the gutter every picked row takes.
 - **A heading carries its count where the run's total is a fact** — `── 7 accounts ──`, `── 2 pinned ──`,
   `── 11 followed by people you follow ──`, the `── {n} replies ──` vocabulary the post screen already speaks. It costs
   nothing, the counts being in hand, and it tells a reader whether the run below is worth walking or worth jumping. A
@@ -2153,23 +2295,23 @@ The answer generalised: three screens use it (#166, amended by #171 and #172):
   apply: three "nothing" headings on a two-result search is noise, and per-kind absence is the ordinary case for almost
   every query. The screen already says `Nothing found for {asked}.` where all three are empty, which is where "was it
   even asked?" actually bites. This is deliberately unlike the CLI, where `--type` makes absence meaningful and
-  ADR-0011's null-versus-empty earns its keep — the TUI always asks for everything.
+  ADR-0011's null-versus-empty earns its keep — the mixed results always ask for everything.
 - **What separates two results is what the kind is, and one kind is parted from the next by the blank over its
   heading.** Posts keep the feed's rule between them; accounts take the blank every screen listing people takes
   (#180, #198); hashtags take nothing at all, being one row apiece under a heading that has already counted them,
   where a separator per row would spend as many rows on the gaps as on the tags. Between rather than after, so no
   separator is left hanging under the last result — and the first heading takes no blank of its own, having the
   prompt's.
-- **A run of hashtags is a table, and its columns are the run's.** The counts stand off the longest name in the run,
-  and each number is right-aligned in its own column, so a reader glances down one column rather than reading twenty
-  rows: `81` under `14` compares at sight, `81` under `1` does not. Measured once per run off what is drawn, `#` and
-  thousands separators included — a row that measured itself could only align with itself.
-- **Aligning is all or nothing, and the run decides, not the row.** On a terminal too narrow to hold the longest name
-  and the counts together the run gives its columns up altogether and every row falls back to a two-space gap and
-  unpadded counts — the row this screen drew before it had columns. Narrowing them instead would be worse than
+- **A run of hashtags is a table, and its columns come from the width, never from the run.** The counts stand
+  against the right edge, each number right-aligned in a column wide enough for `999,999`, so a reader glances down
+  one column rather than reading twenty rows: `81` under `14` compares at sight, `81` under `1` does not. The name
+  takes the rest of the row, clipped where it would run into the counts. Nothing in the run is measured, so nothing
+  jumps: a longer name or a bigger count read on to further down — on the screen of hashtags alone — moves none of
+  the rows already drawn (#598's review). A count wider than its column takes what it needs from its own row's name.
+- **Aligning is all or nothing, and the width decides, not the row.** On a terminal too narrow to hold the counts'
+  columns every row falls back to a two-space gap and unpadded counts. Narrowing them instead would be worse than
   ragged: padding is spent from the left and the row is clipped from the right, so columns held past the width cost
-  the accounts count that would otherwise have fitted. One row giving up its columns while its neighbours kept theirs
-  would be the raggedness the columns exist to prevent.
+  the accounts count that would otherwise have fitted.
 - **The status row says `[/]:section`, shell-wide**, and only where the screen has two or more headed runs *now*. One
   key that means one thing everywhere is named one way everywhere, which is why this is `section` rather than the
   `kind` the search screen alone would have said. A key announced where it does nothing reads as a shell that missed
@@ -2177,15 +2319,18 @@ The answer generalised: three screens use it (#166, amended by #171 and #172):
   `its` list, immediately after `j/k:post`, so the movement keys sit together and `F`/`M`/`B` stay an unbroken group —
   and `Around` already puts a screen's own keys ahead of the shared ones, so the nine columns come out of
   `tab:destination` and `?:keys`, both learnable on any other screen.
-- **One list, still.** `Picked<Result>` is untouched: the jump is an index into the list that already exists, with no
+- **One list, still.** `Picked<Result>` is one list, the headings in it since #604: the jump is an index into the list that already exists, with no
   per-kind list, no second count and no fold state, so the order results are drawn in and the order they are picked out
   in stay the same order by construction. The tabbed header row and the collapsing sections both lost on exactly this,
   and the tabbed shape would also have handed back what ADR-0011 bought the reader — seeing at a glance that the word
   turned out to be a hashtag.
-- **The TUI never asks for one kind.** `SearchKind` and `SearchResults.Matching` exist and the CLI's `--type` uses
-  them; the TUI sends `Everything` and always will. Narrowing the *ask* is a different answer from moving within the
-  *answer*, and a reader who knew the kind would not be searching a half-remembered word. A kind syntax would also have
-  to share a prompt that must already accept `#tags`, `@handles` and web addresses.
+- **The mixed results never ask for one kind; a heading does.** `SearchKind` and `SearchResults.Matching` exist and
+  the CLI's `--type` uses them; the prompt sends `Everything` and always will. Narrowing the *ask* from the prompt is a
+  different answer from moving within the *answer*, and a reader who knew the kind would not be searching a
+  half-remembered word. A kind syntax would also have to share a prompt that must already accept `#tags`, `@handles` and
+  web addresses. Amended by #604: the reader who has seen the answer does know the kind, and a section heading on the
+  results is where they say so — `⏎` on it asks that kind alone, forty at a time, read on as they scroll. That is the
+  only place the TUI asks for one kind, and it is asked of a search already answered rather than typed into the prompt.
 
 ### What discover settled
 
@@ -2342,10 +2487,11 @@ The trail said where you are and drew itself as one `Role.Chrome` span, so it sa
 `FeedScreen.Crumb` lowercased the rail's own label, so the sidebar said `Home` and the breadcrumb said `home`. #168
 and #213 settled the row; #216 and #217 build it:
 
-- **Every crumb is sentence case** — `Home`, `Notifications`, `Direct messages`, `Follow requests`, `Search cats`,
+- **Every crumb is sentence case** — `Home`, `Notifications`, `Direct messages`, `Follow requests`, `Search`,
   `Post by Maria`, `With maria and joe`, `Keys`, `Compose`, `Reply to Maria`, `Edit` — **except where it names
   somebody or a hashtag**, which is spelled the way that thing is spelled: `Maria`, `maria following` for somebody
-  who goes by `maria`, `Maria followers`, `#cats`. Nobody's name is capitalised. One rule rather than two: the rail's
+  who goes by `maria`, `Maria followers`, `#cats` — or is what the reader searched for, which is spelled the way it was
+  typed: the results' crumb is the query, `cats` in `Search › cats` (#600). Nobody's name is capitalised. One rule rather than two: the rail's
   ten labels are already sentence case, so a rail-label crumb matches the rail by construction and
   `.ToLowerInvariant()` is deleted rather than replaced by a rule about rail labels.
 - **A crumb names somebody by their name, as one line of plain text holds it** (#525, ADR-0035): a post's author, an
@@ -2562,11 +2708,12 @@ Three things stayed outside it, each deliberately:
   frame's verbs and the ones that act on the picked post of any screen — marks, delete, vote, reveal, opening a
   reference or an author — and `m`, which reads across the conversation and DM screens; every other verb falls through
   to the screen. What a screen can do while it answers is **Reach** (GLOSSARY.md): the ports and profile, one `Put`
-  through the shell's **Enquiry**, `Open`, `Swap` and `Again` of a **Subject** (#233, #422), `Say`, `Confirm`,
-  `Changed`, `Tell` of a **Change** (#234) and `IsMe` —
+  through the shell's **Enquiry**, `Open`, `Swap` and `Again` of a **Subject** (#233, #422), `Push` of a screen handed
+  what its own question found — the search prompt's results (#600) — `Say`, `Confirm`, `Changed`, `Tell` of a
+  **Change** (#234) and `IsMe` —
   and nothing of the stack, the rail or the cache. So the account screen's
   ties, `w` and `s` are in `AccountScreen.cs`; a follow list's `s`, `f` and `⏎` in `FollowsScreen.cs`; search's `⏎` in
-  `SearchScreen.cs`; `w`, `d` and `D` in `NotificationsScreen.cs`; the actors screen's `⏎` and `s` in
+  `SearchScreen.cs` on the prompt and `SearchResultsScreen.cs` on its results; `w`, `d` and `D` in `NotificationsScreen.cs`; the actors screen's `⏎` and `s` in
   `ActorsScreen.cs`; `a`, `x` and `⏎` in `FollowRequestsScreen.cs`; the conversation list's `⏎` in
   `DirectMessagesScreen.cs`; and Discover's `⏎`, `F` and `d` in `DiscoverScreen.cs`. A `Confirmation` carries what
   agreeing to it does, so `D` asks the same way a delete and a vote do.
@@ -2781,9 +2928,12 @@ panel the pointer is over. What the gesture then does is a move the keys already
 | Click | The crumb in front, the `… ›` lead of an elided trail, a separator, the fetch mark, the edge after the trail | Nothing. Only a crumb behind the one in front answers a click |
 | Click | A row of a thing in the content | Picks that thing, through the same pick `[`/`]` make: any row of it counts — a tall post's byline, its text, a picture on it — since which thing a row is part of is its `Line.Item`, the ordinal `Screen.Pick` takes. The remark on the status row goes, as it does for `j`/`k`, and a **Reference** walked to inside the thing is let go, so the `⏎` after it opens the thing rather than the reference. The page stays where it is rather than following the pick, so what was clicked never moves out from under the pointer. The same on every listing screen, the account screen's header block (after which the post keys go quiet, as after `j`/`k`) and a search's results in their sections among them (#290). A click on a **Reference** — a hashtag, mention or address in a post's text, a **Bio** or a **Custom field**, an **Attachment**'s own address, a **Link preview**'s, a drawn picture anywhere on its box or in the bracket columns beside it — picks the thing it is inside and walks to it, exactly as `→` would have, brackets and the status row's reference mode included; a click on either row of an address the wrap cut in two, or on the brackets of the one already walked to, counts. It never opens anything. Which reference a column is comes off the runs drawn under the pointer, each carrying the reference it is drawn for as its `Span.Reference`, as a crumb's carry its `Span.Item`; a reference drawn and never walked, a mention in a bio, picks the thing and walks to nothing (#475) |
 | Click | The boost, favorite or reply of a post's **Counts**: the whole run, `↺ 3`/`⥀ 3`, `☆ 5`/`★ 5` or `↩ 1` in a feed and `↺ 3 boosts`, `☆ 5 favorites` or `↩ 1 replies` on a thread's subject post, glyph, number and word | `b`, `f` or `r` on that post: it is picked, as by a click anywhere on its rows, and the reader's boost or favorite is toggled, or the reply's compose screen put in front, through the key's own path. Whether the mark is wanted is worked out from the post's marks, a boost's click acts on the post inside it, the **Counts** are drawn again once the instance answers, and a refusal is said in the instance's words. A reply opens on the audience and warning `r` gives it, `direct` in a conversation included (#594). The page stays where it is, and a double click marks once rather than putting the mark on and taking it off again, and replies once: its second click is spent before the compose screen the first put in front can take it, so it chooses nothing on To and puts no caret in the body, as for every click that puts a screen in front (the double click below). A slower second click, or a quick one on another cell, is the compose screen's. Answered once for every screen drawing posts (`Screen.Clicked`, `PostLines.Clicked`), the runs carrying the key as their `Span.Item`, and Notifications, whose faces and names line are clicks of their own, leaves every other click to it, so a notification's post drawn whole answers alike (#595). Carried out only where what the click picked is a post the key acts on (**Picked**, `Shell.Click`) rather than by which screen it is on: on the conversations list, whose rows are conversations and where `b`, `f` and `r` act on no post, it only picks, and a double click there is the pick's `⏎`, opening the conversation (#592). The bookmark slot, `pinned` and the gaps between the runs are no controls and only pick. Nothing is drawn differently for it (#593, #594) |
-| Click | A heading, a rule, a blank, the space under the last thing | Nothing. A click never guesses which thing was meant |
+| Click | A section heading on the search results | `⏎` on it: picks it and pushes that kind alone, crumbed `Search › cats › Posts`, as the key does (#604). A heading there is a thing of the walk, so the click is no guess. A double click pushes it once: its second click asks again from the results, and whichever answer lands second is dropped, the results no longer being in front — or, where the first has landed already, the pair is spent as for any click that puts a screen in front |
+| Click | A trends heading under the search prompt | `⏎` on it: picks it and pushes that kind of trend alone, crumbed `Search › Trending posts`, as the key does (#606) — as a search's heading does, a double click pushing it once |
+| Click | A trend under the search prompt, or the prompt's field | Picks it, as a click picks any thing: a trend takes the pick from the field, which gives up the letters, and a double click opens the trend as `⏎` does — a hashtag's tag, a post's thread, a link's posts (#607). A press on the field with a trend picked picks the field, which takes letters again with its caret where it was pressed; a click on the field's box picks it too (#605) |
+| Click | Any other heading, a rule, a blank, the space under the last thing | Nothing. A click never guesses which thing was meant |
 | Double click | A row of a thing in the content | That click, and then `⏎` through the **Keymap** on the screen in front, so it means whatever `⏎` means there: it opens a post, a search result, a conversation, the asker of a follow request or a person, and switches to a profile on the profiles screen. Where `⏎` means nothing for what is picked — the account screen's header block — it picks and does nothing more. On a **Reference** it opens the reference: the first click walks to it (#475), and the `⏎` opens it and lets it go (#474) — a hashtag's screen, a mention's account, an address handed to the browser, a drawn picture's **Picture screen**. It opens the one the first click walked to, without asking the row again, so the brackets that click drew moving the row a column on, or wrapping a long address anew, cannot change what opens (#479). Off any reference the click lets a walked **Reference** go first, so a double click on a post's text with a hashtag walked to opens the post. Terminal.Gui's own detection says what is a double click (#291): two clicks on one cell, each press and let-go within 500ms of the one before. The window keeps one timing of its own beside it, for a click that put another screen in front — the `↩` of the **Counts**, a notification group's face or names line: the rest of a pair that first click began is spent before the new screen can take it, a press on the same cell within 500ms of the first click and, once that press is spent, its let-go and whatever click Terminal.Gui makes of that, however slowly it comes, so that the new screen is never handed a let-go without its press. Terminal.Gui keeps its threshold internal, so the window says the same 500ms again rather than reading it (`ShellWindow.RepeatedClick`, #592) |
-| Double click | A heading, a rule, a blank, the space under the last thing | Nothing: never a `⏎` on what was picked before |
+| Double click | Any heading but a search's, a rule, a blank, the space under the last thing | Nothing: never a `⏎` on what was picked before |
 | Double click | The breadcrumb | Its first click's walk back and nothing more: never a `⏎` on the screen it landed on (#308) |
 | Click | The **Scrollbar**, its track or its thumb: the content panel's right edge or the margin column just inside it, beside the track's rows | Nothing: the click moves no page, leaves **Picked** where it is and picks no row beside the margin. With a confirmation open it declines it, as a click anywhere does. A press on the thumb instead takes hold of it for the drag, the only thing on the bar that moves the page (below, #503). The bar answers on two columns though only the edge is drawn, so there are two to aim for the thumb with; the window answers them before any view is asked, the edge being the panel's frame — the hit area #502 gave the bar, whose page turn on the track was dropped |
 | Drag | The **Scrollbar**'s thumb, on the edge or the margin column inside it | The **Page** follows the pointer row by row, the grabbed point of the thumb kept under it — held as how far into the thumb it is, so that a thumb shortened by rows arriving mid-drag, a list read on, comes back under the pointer on the next motion with the grabbed point inside it — and thumb and page are drawn moved on the frame the motion lands in. The page's top is the thumb's maths inverted, held at the track's ends, so dragged past the top or the foot of the track they stop there. The press takes hold of the mouse (the window grabs it), so the drag carries on wherever the pointer wanders — off the bar sideways, out of the panel, into a margin of a narrowed shell — and letting go anywhere ends it, the click Terminal.Gui makes of the let-go spent on it, so that nothing under the pointer is clicked and the next click is a click. It moves the page as `↓`/`↑` do and not **Picked**, so `j`/`k` reclaim afterwards; a held **Reference** carried off the page is let go; and near the foot of a list that reads on it reads on, as every scroll there does. With a confirmation open the press takes nothing and moves nothing, and the let-go's click declines it (#503) |

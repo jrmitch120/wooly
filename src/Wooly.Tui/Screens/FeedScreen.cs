@@ -54,12 +54,34 @@ public sealed class FeedScreen : Screen, IReadsOn<Post>
     /// <inheritdoc />
     public override bool Refreshes { get; }
 
+    /// <summary>
+    ///     The address of the article these posts share, where this is a <b>Trending link</b>'s timeline — or
+    ///     <see langword="null" /> on every other. What <c>o</c> opens in the browser, the link having opened as what
+    ///     people are saying about it and the article being one key away (#607).
+    /// </summary>
+    public Uri? Article { get; init; }
+
     /// <inheritdoc />
     protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(
             new KeyHint("j/k", "post"),
-            Refreshes ? [Refreshing] : [],
+            [
+                .. Refreshes ? [Refreshing] : Array.Empty<KeyHint>(),
+                .. Article is null ? Array.Empty<KeyHint>() : [PostKeys.OpeningTheArticle],
+            ],
             PostKeys.AlongTheRail);
+
+    /// <inheritdoc />
+    /// <remarks><c>o</c> on the posts sharing a link: the article, in the browser (#607).</remarks>
+    public override Task Answer(Verb verb, Reach reach)
+    {
+        if (verb == Verb.OpenArticle && Article is { } article)
+        {
+            reach.Browse(article.OriginalString);
+        }
+
+        return Task.CompletedTask;
+    }
 
     /// <summary>The posts on the timeline, newest first.</summary>
     public IReadOnlyList<Post> Posts => _posts.All;

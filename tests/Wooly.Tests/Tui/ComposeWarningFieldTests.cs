@@ -396,6 +396,77 @@ public class ComposeWarningFieldTests
     }
 
     /// <summary>Compose's fields over a reply to a post with no warning.</summary>
+    /// <summary>
+    ///     <c>ctrl-u</c> empties the warning while <c>ctrl-w</c> has the typing there, and leaves it there, the post
+    ///     untouched (#310).
+    /// </summary>
+    [Fact]
+    public async Task CtrlU_EmptiesTheWarningAndLeavesTheTypingThere()
+    {
+        using var view = await Replying();
+        var compose = view.Compose;
+
+        view.Press(Key.W.WithCtrl);
+        view.Type("spoilers");
+        view.Press(Key.CursorLeft);
+        view.Press(Key.U.WithCtrl);
+
+        Assert.Equal(string.Empty, compose.Warning);
+        Assert.Equal(string.Empty, view.Warning.Text);
+        Assert.True(compose.WritingTheWarning);
+        Assert.True(view.Warning.HasFocus);
+        Assert.Equal(Mention, compose.Text);
+
+        view.Type("cw");
+
+        Assert.Equal("cw", compose.Warning);
+    }
+
+    /// <summary>
+    ///     The post's body is the editor's, and <c>ctrl-u</c> does nothing to it: emptying a whole draft with one key is
+    ///     no edit of a prompt's (#310).
+    /// </summary>
+    [Fact]
+    public async Task CtrlU_DoesNothingToThePost()
+    {
+        using var view = await Replying();
+        var compose = view.Compose;
+
+        view.Type("hello");
+        view.Press(Key.U.WithCtrl);
+
+        Assert.Equal($"{Mention}hello", compose.Text);
+        Assert.True(view.Editor.HasFocus);
+        Assert.Same(compose, view.Shell.Screen);
+    }
+
+    /// <summary>
+    ///     <c>Clear: ctrl-u</c> is on the status row while the warning being written holds something, and not while it is
+    ///     empty, nor while the typing is in the post (#310).
+    /// </summary>
+    [Fact]
+    public async Task TheStatusRowOffersCtrlUOnlyWhileTheWarningHoldsSomething()
+    {
+        using var view = await Replying();
+
+        view.Press(Key.W.WithCtrl);
+
+        Assert.DoesNotContain("ctrl-u", view.Status(), StringComparison.Ordinal);
+
+        view.Type("cw");
+
+        Assert.Contains("Clear: ctrl-u", view.Status(), StringComparison.Ordinal);
+
+        view.Press(Key.W.WithCtrl);
+
+        Assert.DoesNotContain("ctrl-u", view.Status(), StringComparison.Ordinal);
+
+        view.Press(Key.W.WithCtrl);
+        view.Press(Key.U.WithCtrl);
+
+        Assert.DoesNotContain("ctrl-u", view.Status(), StringComparison.Ordinal);
+    }
+
     private static Task<ComposedView> Replying() =>
         ComposedView.Of(
             new AShell { Timelines = FakeTimelineReader.Holding(APost.With(id: "220", account: "ben@hachyderm.io")) },

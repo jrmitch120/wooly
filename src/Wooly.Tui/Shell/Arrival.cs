@@ -170,11 +170,10 @@ public sealed class Arrival(
     {
         switch (destination)
         {
-            // A prompt, which asks the instance for nothing until something has been typed into it.
+            // A prompt, with what is trending on the instance under it — read afresh on every arrival, the prompt
+            // standing for it at once so that the field takes letters while it is read (#605).
             case { Kind: DestinationKind.Search }:
-                Arrives?.Invoke(new SearchScreen());
-
-                return Task.CompletedTask;
+                return Bring(new Subject.Trending(), Move.Arrive);
 
             // The profile's own account, which is one account rather than a list of anything — standing on an empty
             // screen under the destination's own name until it arrives, as every arrival does.
@@ -199,12 +198,18 @@ public sealed class Arrival(
 
     /// <summary>Drills into <paramref name="subject" />, on top of whatever is showing.</summary>
     /// <param name="subject">What is opened.</param>
-    /// <param name="beneath">
-    ///     What is done to the screen showing just as <paramref name="subject" /> goes up over it, and not before — so
-    ///     that what <c>esc</c> will come back to changes in the same frame the subject arrives in, rather than being
-    ///     drawn on its own while the subject is read. Never done where the subject never arrives.
-    /// </param>
-    public Task Open(Subject subject, Action? beneath = null) => Bring(subject, Move.Drill, beneath: beneath);
+    public Task Open(Subject subject) => Bring(subject, Move.Drill);
+
+    /// <summary>
+    ///     Puts <paramref name="screen" /> on top of whatever is showing, as a drill puts a subject's — a screen that
+    ///     is not read but handed what a question already found, which is what a search's results are: the prompt's
+    ///     own question, rather than a subject <c>g</c> could ask again (#84, #600).
+    /// </summary>
+    /// <remarks>
+    ///     Raised as a drill rather than handed to the stack some other way, so that every screen that goes up still
+    ///     goes up through here.
+    /// </remarks>
+    public void Push(Screen screen) => Drills?.Invoke(screen);
 
     /// <summary>
     ///     Stands <paramref name="subject" /> in place of what is showing — the other side of a follow list, the other
@@ -397,34 +402,29 @@ public sealed class Arrival(
     /// <param name="subject">What is being brought up.</param>
     /// <param name="move">How, which settles where it goes.</param>
     /// <param name="blank">What stands for it where the subject has no placeholder of its own and one is owed.</param>
-    /// <param name="beneath">What is done to the screen showing as the first screen for the subject goes up.</param>
     /// <param name="landed">What is done once what was read is up (<see cref="Again" />).</param>
     private Task Bring(
         Subject subject,
         Move move,
         Screen? blank = null,
-        Action? beneath = null,
         Action? landed = null)
     {
         var standing = subject.Placeholder(move, profile) ?? blank;
 
         if (standing is not null)
         {
-            beneath?.Invoke();
-            beneath = null;
             Up(standing, subject, move);
         }
 
         if (subject.Cached && cache.Fresh(subject) is { } held)
         {
-            beneath?.Invoke();
             Land(subject, move, standing, held);
             landed?.Invoke();
 
             return Task.CompletedTask;
         }
 
-        return Read(subject, move, standing, beneath, landed);
+        return Read(subject, move, standing, landed);
     }
 
     /// <summary>Asks for it, and lands what came back while the screen it was asked from is still in front.</summary>
@@ -432,7 +432,6 @@ public sealed class Arrival(
         Subject subject,
         Move move,
         Screen? standing,
-        Action? beneath = null,
         Action? landed = null)
     {
         var listing = move != Move.Further && subject is Subject.Destination { Entry: var entry } ? entry : null;
@@ -448,8 +447,6 @@ public sealed class Arrival(
                 ask => subject.Read(ask, ports, profile, standing),
                 ifStillHere: found =>
                 {
-                    beneath?.Invoke();
-
                     var screen = Land(subject, move, standing, found);
 
                     if (subject.Cached && found.Held(screen) is { } held)

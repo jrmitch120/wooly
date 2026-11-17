@@ -99,21 +99,39 @@ public class SectionTests
     {
         var search = Searched();
 
-        Assert.Equal(0, search.At);
+        // The walk is the headings and the results under them: accounts at 1 and 2, the hashtag at 4, posts at 6.
+        Assert.Equal(1, search.At);
 
         search.Pick(Along(search, by: 1));
 
-        Assert.Equal(2, search.At);
+        Assert.Equal(4, search.At);
         Assert.NotNull(search.PickedHashtag);
 
         search.Pick(Along(search, by: 1));
 
-        Assert.Equal(3, search.At);
+        Assert.Equal(6, search.At);
         Assert.NotNull(search.Picked);
 
         search.Pick(Along(search, by: -1));
 
-        Assert.Equal(2, search.At);
+        Assert.Equal(4, search.At);
+    }
+
+    /// <summary>
+    ///     A heading picked out is in the run it heads (#604): <c>]</c> from the heading over the hashtags lands on the
+    ///     first post, <c>[</c> from it on the first account — never on a heading, the first thing under one being what
+    ///     a reader jumping wants.
+    /// </summary>
+    [Fact]
+    public void ASearchScreenMovesFromAPickedHeadingAsFromTheRunItHeads()
+    {
+        var search = Searched();
+
+        search.Pick(3);
+        Assert.Equal(SearchKind.Hashtags, search.PickedSection);
+
+        Assert.Equal(6, Along(search, by: 1));
+        Assert.Equal(1, Along(search, by: -1));
     }
 
     /// <summary>And it clamps there, on the very rows the screen draws.</summary>
@@ -124,7 +142,7 @@ public class SectionTests
 
         Assert.Null(Sections.Along(Drawn(search), by: -1, reclaiming: null));
 
-        search.Pick(3);
+        search.Pick(6);
 
         Assert.Null(Sections.Along(Drawn(search), by: 1, reclaiming: null));
     }
@@ -155,11 +173,11 @@ public class SectionTests
     [Fact]
     public void ASearchScreenPutsABlankBetweenAccountsAndNoRule()
     {
-        // The prompt, its blank, the heading, its blank, four rows of Alice, a blank, four rows of Bob.
+        // The heading, its blank, four rows of Alice, a blank, four rows of Bob.
         var rows = Drawn(Searched(hashtags: 0, posts: 0));
 
-        Assert.Equal(13, rows.Count);
-        Assert.Equal(string.Empty, rows[8].Text.Trim());
+        Assert.Equal(11, rows.Count);
+        Assert.Equal(string.Empty, rows[6].Text.Trim());
         Assert.DoesNotContain(rows.Where(line => !line.Heads), line => line.Text.Contains('─', StringComparison.Ordinal));
     }
 
@@ -173,20 +191,19 @@ public class SectionTests
     {
         var rows = Drawn(Searched(accounts: 0, hashtags: 3, posts: 0));
 
-        Assert.Equal(7, rows.Count);
-        Assert.All(rows.Skip(4), line => Assert.Contains("#tag", line.Text, StringComparison.Ordinal));
+        Assert.Equal(5, rows.Count);
+        Assert.All(rows.Skip(2), line => Assert.Contains("#tag", line.Text, StringComparison.Ordinal));
     }
 
     /// <summary>
-    ///     A run of hashtags reads down as well as across: the counts stand in one column whatever the names are, and
-    ///     the numbers are right-aligned inside it so <c>81</c> falls under <c>4</c>.
+    ///     A run of hashtags reads down as well as across: the counts stand against the right edge in columns of a
+    ///     width worked out from nothing but the room a row has, the numbers right-aligned inside them so <c>81</c>
+    ///     falls under <c>4</c>.
     /// </summary>
     [Fact]
-    public void ASearchScreenStandsAHashtagsCountsInTheRunsOwnColumns()
+    public void ASearchScreenStandsAHashtagsCountsInColumnsAgainstTheRightEdge()
     {
-        var search = new SearchScreen();
-
-        search.Found(
+        var search = new SearchResultsScreen(
             "sheep",
             new SearchResults
             {
@@ -197,26 +214,46 @@ public class SectionTests
                 ],
             });
 
-        // Past the gutter, which says which of them is picked out rather than anything about the columns.
+        // Past the gutter, which says which of them is picked out rather than anything about the columns: sixty
+        // columns of room, the counts taking the last thirty-two of them.
         Assert.Equal(
             [
-                "#ewe       81 posts ·     7 accounts",
-                "#shearing   4 posts · 1,204 accounts",
+                "#ewe                             81 posts ·       7 accounts",
+                "#shearing                         4 posts ·   1,204 accounts",
             ],
-            Drawn(search).Skip(4).Select(line => line.Text[1..]));
+            Drawn(search).Skip(2).Select(line => line.Text[1..]));
     }
 
     /// <summary>
-    ///     A terminal too narrow to hold the columns loses them altogether, the whole run falling back to a two-space
-    ///     gap and unpadded counts: padding is spent from the left and the row is clipped from the right, so columns
-    ///     held past the width would cost the accounts count that fits without them.
+    ///     Nothing jumps: a hashtag's row is the same row whatever else is in the run, so a longer name read on to
+    ///     further down — or a bigger count — moves none of the rows already drawn. The columns come from the room a
+    ///     row has, never from what the run holds.
+    /// </summary>
+    [Fact]
+    public void ASectionScreenMovesNoHashtagsRowWhenALongerOneIsReadOn()
+    {
+        var section = new SectionScreen(
+            SearchKind.Hashtags,
+            [new Result.OfHashtag(AHashtag.With("ewe", recentPosts: 81, recentAccounts: 7))],
+            "Nothing found.");
+        var before = section.Lines(new Drawing(61, AShell.Now))[0].Text;
+
+        section.ReadOn([
+            new Result.OfHashtag(AHashtag.With("shearingseasonphotography", recentPosts: 120_480, recentAccounts: 31_204)),
+        ]);
+
+        Assert.Equal(before, section.Lines(new Drawing(61, AShell.Now))[0].Text);
+    }
+
+    /// <summary>
+    ///     A terminal too narrow to hold the columns loses them, every row falling back to a two-space gap and unpadded
+    ///     counts: padding is spent from the left and the row is clipped from the right, so columns held past the width
+    ///     would cost the accounts count that fits without them. Decided by the width alone, so it is every row or none.
     /// </summary>
     [Fact]
     public void ASearchScreenGivesUpTheHashtagColumnsWhereTheyWouldNotFit()
     {
-        var search = new SearchScreen();
-
-        search.Found(
+        var search = new SearchResultsScreen(
             "sheep",
             new SearchResults
             {
@@ -227,13 +264,13 @@ public class SectionTests
                 ],
             });
 
-        // One column of gutter and 30 of room, where the widest row wants 12 + 2 + 28.
+        // One column of gutter and 30 of room, where the counts' columns alone want 32.
         Assert.Equal(
             [
                 "#photography  1,204 posts · 7…",
                 "#ewe  8 posts · 1,204 accounts",
             ],
-            search.Lines(new Drawing(31, AShell.Now)).Skip(4).Select(line => line.Text[1..]));
+            search.Lines(new Drawing(31, AShell.Now)).Skip(2).Select(line => line.Text[1..]));
     }
 
     /// <summary>
@@ -251,7 +288,7 @@ public class SectionTests
 
     /// <summary>
     ///     One kind is parted from the next by the blank over its heading — the same blank an account's header puts
-    ///     over each of its sections. The first heading has the prompt's own blank above it and takes none of its own.
+    ///     over each of its sections. The first heading is the screen's first row and takes none (#600).
     /// </summary>
     [Fact]
     public void ASearchScreenPartsItsKindsWithTheBlankOverEachHeadingButTheFirst()
@@ -259,7 +296,7 @@ public class SectionTests
         var rows = Drawn(Searched());
         var heads = rows.Select((line, at) => (line, at)).Where(row => row.line.Heads).Select(row => row.at).ToList();
 
-        Assert.Equal(2, heads[0]);
+        Assert.Equal(0, heads[0]);
         Assert.All(heads.Skip(1), at => Assert.Equal(string.Empty, rows[at - 1].Text.Trim()));
     }
 
@@ -293,7 +330,7 @@ public class SectionTests
     /// <summary>And never while the prompt is taking letters, where every key on the row would be typed instead.</summary>
     [Fact]
     public void ASearchScreenSaysNothingOfSectionsWhileThePromptIsTakingLetters() =>
-        Assert.DoesNotContain(new SearchScreen().Keys, key => key.Key == "[/]");
+        Assert.DoesNotContain(new SearchScreen("mastodon.social").Keys, key => key.Key == "[/]");
 
     /// <summary>
     ///     Whether a row is a rule between two things — a heading is drawn out of the same glyph and is not one.
@@ -302,18 +339,16 @@ public class SectionTests
         !line.Heads && line.Text.Length > 0 && line.Text.All(letter => letter == '─');
 
     /// <summary>What the rows this screen draws head their runs with.</summary>
-    private static IEnumerable<string> Headings(SearchScreen search) =>
-        Drawn(search).Where(line => line.Heads).Select(line => line.Text);
+    private static IEnumerable<string> Headings(SearchResultsScreen search) =>
+        Drawn(search).Where(line => line.Heads).Select(line => line.Text.Trim());
 
     /// <summary>
     ///     A search of <paramref name="accounts" /> accounts, <paramref name="hashtags" /> hashtags and
     ///     <paramref name="posts" /> posts, with the first result picked out.
     /// </summary>
-    private static SearchScreen Searched(int accounts = 2, int hashtags = 1, int posts = 2)
+    private static SearchResultsScreen Searched(int accounts = 2, int hashtags = 1, int posts = 2)
     {
-        var search = new SearchScreen();
-
-        search.Found(
+        var search = new SearchResultsScreen(
             "sheep",
             new SearchResults
             {
@@ -326,10 +361,10 @@ public class SectionTests
     }
 
     /// <summary>Where <paramref name="by" /> takes the pick on that screen, as its own rows say.</summary>
-    private static int Along(SearchScreen search, int by) =>
+    private static int Along(SearchResultsScreen search, int by) =>
         Sections.Along(Drawn(search), by, reclaiming: null) ?? -1;
 
-    private static IReadOnlyList<Line> Drawn(SearchScreen search) => search.Lines(new Drawing(61, AShell.Now));
+    private static IReadOnlyList<Line> Drawn(SearchResultsScreen search) => search.Lines(new Drawing(61, AShell.Now));
 
     /// <summary>
     ///     Rows of headed runs, <paramref name="runs" /> giving how many things stand under each heading — one row
