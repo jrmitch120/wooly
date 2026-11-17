@@ -98,12 +98,18 @@ internal static class RawMastodonCall
     }
 
     /// <summary>
-    ///     The parameters as an instance takes them. Only the values are escaped: a name is this client's own literal,
-    ///     and escaping the brackets in <c>id[]</c> would send a parameter Mastodon does not answer to — which is the
-    ///     same unescaped form Mastonet's own <c>/accounts/relationships</c> call is sent in.
+    ///     The parameters as an instance takes them, behind the <c>?</c> — or nothing at all where there are none: the
+    ///     one way every hand-rolled call writes its query, so that no two escape a value differently (#598's review).
+    ///     Only the values are escaped: a name is this client's own literal, and escaping the brackets in <c>id[]</c>
+    ///     would send a parameter Mastodon does not answer to — which is the same unescaped form Mastonet's own
+    ///     <c>/accounts/relationships</c> call is sent in. A number is written as the instance reads one, whatever
+    ///     culture the client runs in (<see cref="Number(int)" />).
     /// </summary>
-    private static string QueryString(IReadOnlyList<KeyValuePair<string, string>> query) =>
+    public static string QueryString(IReadOnlyList<KeyValuePair<string, string>> query) =>
         query.Count == 0
             ? string.Empty
             : $"?{string.Join("&", query.Select(parameter => $"{parameter.Key}={Uri.EscapeDataString(parameter.Value)}"))}";
+
+    /// <summary><paramref name="value" /> as a query value: digits alone, in no culture's grouping or script.</summary>
+    public static string Number(int value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 }

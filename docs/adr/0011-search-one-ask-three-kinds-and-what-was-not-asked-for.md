@@ -84,3 +84,41 @@ handler, because a user who typed `search` asked for an answer and is owed the r
 suggestion, so an instance that will not search follows — a 403 for the token, a 422 for a parameter it does not take —
 answers with no one, as #204 settled for the standing a list is decorated with. A rate limit is still raised, and the
 shell drops it silently; it is raised so that a caller can still tell it apart.
+
+## Amendment: search leaves Mastonet, a page is a limit and an offset, and an offset needs a kind (spec #598, ticket #599)
+
+The Consequences above named two ways out of the missing `limit` and `offset`, and this takes the cheaper one: `Find`
+no longer goes through `IMastodonClient` but calls `/api/v2/search` itself, through `RawMastodonCall` over the
+`HttpClient` every Mastonet call already runs through — so it is retried, rate-limit-checked and refused exactly as
+before, and nothing above the port can tell. It is the same way out ADR-0019 (suggestions), ADR-0032 (grouped
+notifications) and ADR-0033 (tag sets) took for their own gaps. ADR-0001's promise that one library speaks to the
+instance was already spent on those; this is one more endpoint, not a new kind of exception to it.
+
+**A page is a limit and an offset, and the offset is a fact about a narrowed search only.** `SearchQuery` carries a
+`SearchPage`: how many of each kind (1 to 40, Mastodon's cap per kind) and how many to skip, each sent only where it was
+said, so a search asked nothing about a page is sent exactly as Mastonet sent it and is served the instance's own
+default. The instance ignores `offset` without `type` and answers with the first page again — which a script paging
+through would take for the next one — so a page with an offset is refused for a search of every kind, in the domain
+(`SearchQuery.For`) and, before anything is asked, by the CLI as a usage error (ADR-0006). `search --limit` and
+`search --type … --offset` are the CLI's spelling of it.
+
+**`--type` now narrows what is asked for as well as what came back.** A narrowed search names its kind to the instance
+(`accounts`, `hashtags`, or `statuses`, which is the instance's word for posts), which is what lets it page, and spares
+the instance the two kinds it would have worked out for nothing — the Consequences paragraph on `--type` costing the
+instance as much as a full search no longer holds. `SearchResults.Matching` still drops the kinds not asked for, so the
+absent-versus-empty rule does not lean on the instance leaving them out.
+
+**Past the first page the instance stops resolving, without saying so.** That is harmless: the first page already went
+and fetched the handle or address it was asked about, so a later page has nothing left to resolve.
+
+**A full page of hashtags can be one longer than the limit.** The instance puts an exact match ahead of the hashtags it
+found, and the answer may then hold 41. The adapter keeps it — it is the tag most likely meant — so whatever judges
+whether a page came back full compares against the limit asked, not the count returned.
+
+**A refusal is said in the instance's words.** Mastonet raised one with the instance's `error`, which the CLI printed as
+it was; the raw call raises `SearchRefusedException` with the same words, rather than a bare failed status that would be
+reported as a defect. An instance that failed to answer — a `5xx` — is no refusal, and raises `InstanceFailedException`,
+as the trends (ADR-0036) and the link timeline do: the three raw reads #598 added say a failure one way. A rate limit
+is still raised as itself, and is still a failure rather than a partial answer.
+
+`FindFollowed` is untouched, and stays on Mastonet: its endpoint has everything it needs there.

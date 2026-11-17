@@ -6,8 +6,8 @@ namespace Wooly.Tui.Shell;
 /// <summary>
 ///     What a screen can reach of the shell while it answers one of its own verbs (<see cref="Screen.Answer" />): the
 ///     ports and the profile to ask with, the one way of asking, and the handful of things a screen may do to what is
-///     around it — open a subject, stand another in its own place, say something, ask before going ahead, and tell the
-///     shell what changed.
+///     around it — open a subject, push what its own question found, stand another in its own place, say something,
+///     ask before going ahead, and tell the shell what changed.
 /// </summary>
 /// <remarks>
 ///     Narrow on purpose, and concrete on purpose. Narrow, because the stack, the rail and the caches are the shell's:
@@ -77,7 +77,18 @@ public sealed class Reach
 
     /// <summary>Drills into <paramref name="subject" />, on top of whatever is showing.</summary>
     /// <inheritdoc cref="Arrival.Open" />
-    public Task Open(Subject subject, Action? beneath = null) => _arrival.Open(subject, beneath);
+    public Task Open(Subject subject) => _arrival.Open(subject);
+
+    /// <summary>
+    ///     Puts <paramref name="screen" /> on top of whatever is showing — a screen handed what this one's own question
+    ///     found rather than one read from a subject, as the search prompt pushes its results (#600).
+    /// </summary>
+    /// <remarks>
+    ///     Only ever from an answer's <c>ifStillHere</c>, so the screen goes up over the one that asked and never
+    ///     over whatever the reader has moved on to.
+    /// </remarks>
+    /// <inheritdoc cref="Arrival.Push" />
+    public void Push(Screen screen) => _arrival.Push(screen);
 
     /// <summary>
     ///     Stands <paramref name="subject" /> in place of the screen showing — the other side of a follow list, the

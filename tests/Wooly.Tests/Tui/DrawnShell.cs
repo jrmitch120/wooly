@@ -175,6 +175,31 @@ internal sealed class DrawnShell : IDisposable
         Redraw();
     }
 
+    /// <summary>Each letter of <paramref name="text" /> pressed in turn, as a terminal sends them.</summary>
+    public void Type(string text)
+    {
+        foreach (var letter in text)
+        {
+            Window.NewKeyDownEvent(new Key(letter));
+        }
+
+        Redraw();
+    }
+
+    /// <summary>A paste, as a terminal in bracketed-paste mode delivers one: a string, through the application.</summary>
+    public void Paste(string text)
+    {
+        Application.RaisePasteEvent(text);
+        Redraw();
+    }
+
+    /// <summary>The search field, among the views laid over the content panel (#608).</summary>
+    public SearchField SearchField => SearchFieldOf(Window);
+
+    /// <summary><paramref name="window" />'s search field, among the views it lays over the content panel (#608).</summary>
+    public static SearchField SearchFieldOf(ShellWindow window) =>
+        window.SubViews.OfType<SearchView>().Single().SubViews.OfType<SearchField>().Single();
+
     /// <summary>
     ///     The last thing on the screen picked, walked to with <c>k</c> until a press picks nothing new, and the page
     ///     following it down there — where a test needs the pick at the foot of the list. <c>End</c> takes only the

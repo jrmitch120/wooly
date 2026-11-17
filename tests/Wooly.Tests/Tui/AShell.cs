@@ -57,6 +57,12 @@ internal sealed class AShell
 
     public FakeInstanceSearch Search { get; set; }
 
+    /// <summary>
+    ///     What the instance ranks as trending, drawn under the empty search prompt (#605) — nothing at all unless a test
+    ///     says otherwise, so a test that only passes through Search draws no trends it did not ask for.
+    /// </summary>
+    public FakeTrends Trends { get; set; } = FakeTrends.TrendingNothing();
+
     public FakeFollowSuggestions Suggestions { get; set; }
 
     public FakeRateLimitReport RateLimit { get; set; }
@@ -197,6 +203,7 @@ internal sealed class AShell
         Notifications,
         Messages,
         Search,
+        Trends,
         Suggestions,
         RateLimit,
         Limits,
@@ -273,7 +280,7 @@ internal sealed class AShell
         + Notifications.Dismissals.Count + Notifications.GroupDismissals.Count
         + Notifications.Clearances.Count
         + Messages.Listings.Count + Messages.Shown.Count + Messages.MarkedRead.Count
-        + Search.Searches.Count + Search.FollowedSearches.Count
+        + Search.Searches.Count + Search.FollowedSearches.Count + Trends.Reads.Count
         + Suggestions.Reads.Count + Suggestions.Dismissals.Count
         + Limits.Reads.Count + Emoji.Reads.Count + Defaults.Reads.Count
         + PublicProfile.Reads.Count + PublicProfile.Saves.Count;
@@ -285,7 +292,7 @@ internal sealed class AShell
     public IEnumerable<string> Tokens =>
     [
         .. Timelines.Tokens, .. Author.Tokens, .. Engagement.Tokens, .. Accounts.Tokens, .. Notifications.Tokens,
-        .. Messages.Tokens, .. Search.Tokens, .. Suggestions.Tokens,
+        .. Messages.Tokens, .. Search.Tokens, .. Trends.Tokens, .. Suggestions.Tokens,
         .. Limits.Tokens, .. Emoji.Tokens, .. Defaults.Tokens, .. PublicProfile.Tokens,
     ];
 

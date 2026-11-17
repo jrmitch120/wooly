@@ -1,35 +1,41 @@
+using Terminal.Gui.Input;
 using Wooly.Core.Search;
 using Wooly.Tests.Fakes;
 using Wooly.Tui.Rendering;
 using Wooly.Tui.Screens;
 using Wooly.Tui.Shell;
+using Wooly.Tui.Theme;
+using Wooly.Tui.Views;
 
 namespace Wooly.Tests.Tui;
 
 /// <summary>
 ///     The prompt <c>/</c> opens, what it asks the instance for, and what opening one of the three kinds of result
-///     does. What is typed is a fact about the shell rather than something only a terminal knows (ADR-0015's reason,
-///     inherited), which is what makes all of this assertable without one.
+///     does. What is typed is the search field's (#608), handed to the shell with <c>⏎</c> — so what a search does is
+///     asserted without a terminal, by handing the shell the query as the field would (<see cref="Shell.Find" />), and
+///     what the field keeps across a search is read off the field itself, the whole shell drawn headless.
 /// </summary>
 public class ShellSearchTests
 {
-    /// <summary><c>/</c> is a frame key: it goes to search from wherever you are, and arrives at a prompt taking letters.</summary>
+    /// <summary>
+    ///     <c>/</c> is a frame key: it goes to search from wherever you are, and arrives at a prompt whose field is
+    ///     taking letters.
+    /// </summary>
     [Fact]
     public async Task Search_OpensAPromptThatIsTakingWhatIsTyped()
     {
         var shell = new AShell();
-        var opened = await shell.Opened();
+        using var drawn = await DrawnShell.Of(80, 24, Themes.Dark, shell);
 
-        await opened.Enter();
-        shell.Host.Drain();
-        opened.Search();
+        await drawn.Shell.Enter();
+        drawn.Settle();
+        drawn.Press(new Key('/'));
+        drawn.Settle();
 
-        shell.Host.Drain();
-
-        var search = Assert.IsType<SearchScreen>(opened.Screen);
-        Assert.True(search.IsTyping);
-        Assert.True(opened.Screen.IsTyping);
-        Assert.Equal(DestinationKind.Search, opened.Rail.Showing.Kind);
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.True(drawn.SearchField.HasFocus);
+        Assert.Empty(drawn.SearchField.Text);
+        Assert.Equal(DestinationKind.Search, drawn.Shell.Rail.Showing.Kind);
         Assert.Empty(shell.Search.Searches);
     }
 
@@ -40,18 +46,8 @@ public class ShellSearchTests
         var opened = await shell.Opened();
 
         opened.Search();
-
         shell.Host.Drain();
-
-        foreach (var letter in "cats")
-        {
-            opened.Type(letter);
-        }
-
-        opened.Type('x');
-        opened.Backspace();
-
-        opened.Press(ShellKey.Enter);
+        opened.Find("cats");
         shell.Host.Drain();
 
         var asked = Assert.Single(shell.Search.Searches);
@@ -60,9 +56,120 @@ public class ShellSearchTests
         // Everything, because this screen has no way to ask for less and no reason to guess which kind was meant.
         Assert.Equal(SearchKind.Everything, asked.Query.Kind);
 
-        var search = Assert.IsType<SearchScreen>(opened.Screen);
-        Assert.False(search.IsTyping);
-        Assert.Equal("Search cats", opened.Breadcrumb);
+        Assert.IsType<SearchResultsScreen>(opened.Screen);
+    }
+
+    /// <summary>
+    ///     <c>⏎</c> pushes what was found as a screen of its own, crumbed with what was asked, and the prompt stays
+    ///     beneath it — so the breadcrumb says what was searched for, and <c>esc</c> has the query to come back to.
+    /// </summary>
+    [Fact]
+    public async Task Find_PushesTheResultsOverThePrompt()
+    {
+        var shell = new AShell();
+        var opened = await shell.Opened();
+
+        await Found(shell, opened, "cats");
+
+        var results = Assert.IsType<SearchResultsScreen>(opened.Screen);
+        Assert.False(results.IsTyping);
+        Assert.Equal("cats", results.Asked);
+        Assert.Equal(["Search", "cats"], opened.Crumbs);
+        Assert.Equal("Search › cats", opened.Breadcrumb);
+    }
+
+    /// <summary>
+    ///     <c>esc</c> from the results comes back to the prompt with the query as it was typed, the field taking letters
+    ///     again with its caret at the end, so the reader can refine it rather than retype it — and nothing is asked of
+    ///     the instance on the way.
+    /// </summary>
+    [Fact]
+    public async Task Escape_FromTheResults_ComesBackToThePromptWithTheQueryTyped()
+    {
+        var shell = new AShell();
+        using var drawn = await Searched(shell, "cats");
+
+        drawn.Press(Key.Esc);
+        drawn.Settle();
+
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.Equal("Search", drawn.Shell.Breadcrumb);
+        Assert.Single(shell.Search.Searches);
+        Assert.True(drawn.SearchField.HasFocus);
+        Assert.Equal("cats", drawn.SearchField.Text);
+        Assert.Equal(4, drawn.SearchField.InsertionPoint);
+
+        // Still taking letters, onto the end of what was there: refining is carrying on typing.
+        drawn.Type("s");
+
+        Assert.Equal("catss", drawn.SearchField.Text);
+    }
+
+    /// <summary>
+    ///     A click on the <c>Search</c> crumb from the results does what <c>esc</c> does, so the mouse and the keys
+    ///     agree — the query kept, rather than the empty prompt choosing Search on the rail arrives at.
+    /// </summary>
+    [Fact]
+    public async Task CrumbClick_OnSearchFromTheResults_ComesBackToThePromptWithTheQueryTyped()
+    {
+        var shell = new AShell();
+        using var drawn = await Searched(shell, "cats");
+
+        drawn.Shell.WalkBack(0);
+        drawn.Settle();
+
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.Equal(1, drawn.Shell.Depth);
+        Assert.Single(shell.Search.Searches);
+        Assert.True(drawn.SearchField.HasFocus);
+        Assert.Equal("cats", drawn.SearchField.Text);
+    }
+
+    /// <summary>
+    ///     A click on Search on the rail while it is shown arrives at an empty prompt, as choosing any destination
+    ///     resets the stack — from the results, and from a prompt with something typed into it.
+    /// </summary>
+    [Fact]
+    public async Task RailClick_OnSearchWhileItIsShown_ArrivesAtAnEmptyPrompt()
+    {
+        var shell = new AShell();
+        using var drawn = await Searched(shell, "cats");
+
+        var search = drawn.Shell.Rail.IndexOf(DestinationKind.Search);
+
+        drawn.Shell.Arrive(search);
+        drawn.Settle();
+
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.Empty(drawn.SearchField.Text);
+        Assert.Equal(1, drawn.Shell.Depth);
+
+        drawn.Type("d");
+        drawn.Shell.Arrive(search);
+        drawn.Settle();
+
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.True(drawn.SearchField.HasFocus);
+        Assert.Empty(drawn.SearchField.Text);
+        Assert.Single(shell.Search.Searches);
+    }
+
+    /// <summary>Tabbing away from the results and back onto Search arrives at an empty prompt too.</summary>
+    [Fact]
+    public async Task Tab_BackOntoSearch_ArrivesAtAnEmptyPrompt()
+    {
+        var shell = new AShell();
+        using var drawn = await Searched(shell, "cats");
+
+        drawn.Shell.StepTo(DestinationKind.Home);
+        shell.Host.Settle();
+        drawn.Shell.StepTo(DestinationKind.Search);
+        shell.Host.Settle();
+        drawn.Redraw();
+
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.Empty(drawn.SearchField.Text);
+        Assert.Equal(1, drawn.Shell.Depth);
     }
 
     /// <summary>
@@ -76,16 +183,14 @@ public class ShellSearchTests
         var opened = await shell.Opened();
 
         opened.Search();
-
         shell.Host.Drain();
-
-        opened.Press(ShellKey.Enter);
+        opened.Find("  ");
         shell.Host.Drain();
 
         Assert.Empty(shell.Search.Searches);
         Assert.Equal(SearchQuery.Rejection, opened.Notice);
         Assert.True(opened.NoticeIsError);
-        Assert.True(opened.Screen.IsTyping);
+        Assert.IsType<SearchScreen>(opened.Screen);
     }
 
     /// <summary>An account a search turned up opens the same screen <c>a</c> opens from a post.</summary>
@@ -128,7 +233,7 @@ public class ShellSearchTests
         shell.Host.Drain();
 
         Assert.Equal("cats", shell.Timelines.Reads[^1].Timeline.Hashtag);
-        Assert.Equal("Search cats › #cats", opened.Breadcrumb);
+        Assert.Equal("Search › cats › #cats", opened.Breadcrumb);
         Assert.DoesNotContain(opened.Rail.Destinations, place => place.Kind == DestinationKind.TagSet);
     }
 
@@ -152,26 +257,24 @@ public class ShellSearchTests
     }
 
     /// <summary>
-    ///     <c>esc</c> from a tag opened directly comes back to search as it was left — the prompt, still taking
+    ///     <c>esc</c> from a tag opened directly comes back to search as it was left — the prompt, its field taking
     ///     letters, with what was typed still in it and nothing fetched behind it.
     /// </summary>
     [Fact]
     public async Task Escape_FromADirectTag_ComesBackToThePromptAsItWasLeft()
     {
         var shell = new AShell();
-        var opened = await shell.Opened();
+        using var drawn = await Searched(shell, "#cats");
 
-        await Found(shell, opened, "#cats");
+        drawn.Press(Key.Esc);
+        drawn.Settle();
 
-        opened.Press(ShellKey.Escape);
-        shell.Host.Drain();
-
-        var search = Assert.IsType<SearchScreen>(opened.Screen);
-        Assert.True(search.IsTyping);
-        Assert.Equal("#cats", search.Query);
-        Assert.Equal(0, search.Count);
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.True(drawn.SearchField.HasFocus);
+        Assert.Equal("#cats", drawn.SearchField.Text);
+        Assert.Equal(1, drawn.Shell.Depth);
         Assert.Empty(shell.Search.Searches);
-        Assert.Equal("Search", opened.Breadcrumb);
+        Assert.Equal("Search", drawn.Shell.Breadcrumb);
     }
 
     /// <summary>
@@ -209,7 +312,7 @@ public class ShellSearchTests
         var asked = Assert.Single(shell.Search.Searches);
         Assert.Equal(typed, asked.Query.Text);
         Assert.Equal(SearchKind.Everything, asked.Query.Kind);
-        Assert.IsType<SearchScreen>(opened.Screen);
+        Assert.IsType<SearchResultsScreen>(opened.Screen);
         Assert.Null(opened.Notice);
     }
 
@@ -237,16 +340,17 @@ public class ShellSearchTests
         Assert.Equal(typed, Assert.Single(shell.Search.Searches).Query.Text);
         Assert.Equal("alice@hachyderm.io", Assert.IsType<AccountScreen>(opened.Screen).Account.Address);
         Assert.Equal("alice@hachyderm.io", Assert.Single(shell.Accounts.Reads).Account.Text);
-        Assert.StartsWith($"Search {typed} › ", opened.Breadcrumb);
+        Assert.Equal(2, opened.Depth);
+        Assert.Equal("Search", opened.Crumbs[0]);
         Assert.Null(opened.Notice);
     }
 
     /// <summary>
-    ///     What a handle names goes straight up: while it is being read the prompt stands as it was left, and the
-    ///     results go up under the account only as it lands — never drawn on their own for a frame in between.
+    ///     What a handle names goes straight up over the prompt: while it is being read the prompt stands as it was
+    ///     left, and no results screen is ever put up — not for a frame in between, and not beneath it.
     /// </summary>
     [Fact]
-    public async Task Find_NeverShowsTheResultsBeforeWhatAHandleNamesOpens()
+    public async Task Find_OpensWhatAHandleNamesStraightOverThePrompt()
     {
         var shell = new AShell
         {
@@ -258,23 +362,17 @@ public class ShellSearchTests
 
         opened.Search();
         shell.Host.Drain();
-
-        foreach (var letter in "@alice@hachyderm.io")
-        {
-            opened.Type(letter);
-        }
-
-        opened.Press(ShellKey.Enter);
+        opened.Find("@alice@hachyderm.io");
         shell.Host.Step();
 
-        var search = Assert.IsType<SearchScreen>(opened.Screen);
-        Assert.True(search.IsTyping);
-        Assert.Equal(0, search.Count);
+        Assert.IsType<SearchScreen>(opened.Screen);
+        Assert.Equal(1, opened.Depth);
 
         shell.Host.Drain();
 
         Assert.IsType<AccountScreen>(opened.Screen);
-        Assert.Equal(1, search.Count);
+        Assert.Equal(2, opened.Depth);
+        Assert.Equal("Search", opened.Crumbs[0]);
     }
 
     /// <summary>A bare handle is read against the profile's own instance, as a tie is put on one.</summary>
@@ -308,7 +406,7 @@ public class ShellSearchTests
 
         await Found(shell, opened, "alice");
 
-        Assert.False(Assert.IsType<SearchScreen>(opened.Screen).IsTyping);
+        Assert.False(Assert.IsType<SearchResultsScreen>(opened.Screen).IsTyping);
     }
 
     /// <summary>A post's address opens the post it resolved to, the way picking it from the results would.</summary>
@@ -372,9 +470,10 @@ public class ShellSearchTests
 
         await Found(shell, opened, typed);
 
-        var search = Assert.IsType<SearchScreen>(opened.Screen);
+        var search = Assert.IsType<SearchResultsScreen>(opened.Screen);
         Assert.False(search.IsTyping);
         Assert.Equal("alicia@hachyderm.io", Assert.Single(search.Accounts).Address);
+        Assert.Equal(["Search", typed], opened.Crumbs);
         Assert.Null(opened.Notice);
     }
 
@@ -387,7 +486,7 @@ public class ShellSearchTests
 
         await Found(shell, opened, "https://example.com/notes");
 
-        Assert.IsType<SearchScreen>(opened.Screen);
+        Assert.IsType<SearchResultsScreen>(opened.Screen);
         Assert.Contains(
             AShell.Drawn(opened.Screen),
             line => line.EndsWith("found for https://example.com/notes.", StringComparison.Ordinal));
@@ -395,11 +494,11 @@ public class ShellSearchTests
     }
 
     /// <summary>
-    ///     <c>esc</c> from what a handle opened comes back to search as it was left: the results of the search that
-    ///     was asked, with the query still there.
+    ///     <c>esc</c> from what a handle opened comes back to the prompt with what was typed still on it — one
+    ///     <c>esc</c>, there being no results beneath what it opened to walk back through first.
     /// </summary>
     [Fact]
-    public async Task Escape_FromADirectAccount_ComesBackToTheResults()
+    public async Task Escape_FromADirectAccount_ComesBackToThePromptAsItWasLeft()
     {
         var shell = new AShell
         {
@@ -408,18 +507,15 @@ public class ShellSearchTests
             Accounts = FakeAccountRelationships.Holding(AnAccount.With(id: "1")),
         };
 
-        var opened = await shell.Opened();
+        using var drawn = await Searched(shell, "@alice@hachyderm.io");
 
-        await Found(shell, opened, "@alice@hachyderm.io");
+        drawn.Press(Key.Esc);
+        drawn.Settle();
 
-        opened.Press(ShellKey.Escape);
-        shell.Host.Drain();
-
-        var search = Assert.IsType<SearchScreen>(opened.Screen);
-        Assert.False(search.IsTyping);
-        Assert.Equal("@alice@hachyderm.io", search.Asked);
-        Assert.Equal(2, search.Accounts.Count);
-        Assert.Equal("Search @alice@hachyderm.io", opened.Breadcrumb);
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.True(drawn.SearchField.HasFocus);
+        Assert.Equal("@alice@hachyderm.io", drawn.SearchField.Text);
+        Assert.Equal("Search", drawn.Shell.Breadcrumb);
         Assert.Single(shell.Search.Searches);
     }
 
@@ -470,7 +566,7 @@ public class ShellSearchTests
         await Found(shell, opened, typed);
 
         Assert.Equal(typed, Assert.Single(shell.Search.Searches).Query.Text);
-        Assert.False(Assert.IsType<SearchScreen>(opened.Screen).IsTyping);
+        Assert.False(Assert.IsType<SearchResultsScreen>(opened.Screen).IsTyping);
         Assert.Null(opened.Notice);
     }
 
@@ -507,13 +603,22 @@ public class ShellSearchTests
         await Found(shell, opened, "cats");
         shell.Host.Drain();
 
-        var search = Assert.IsType<SearchScreen>(opened.Screen);
+        var search = Assert.IsType<SearchResultsScreen>(opened.Screen);
 
         Assert.NotNull(search.PickedAccount);
+
+        // Each run's heading stands between it and the run before, walked to like a result (#604).
+        opened.Move(1);
+
+        Assert.Equal(SearchKind.Hashtags, search.PickedSection);
 
         opened.Move(1);
 
         Assert.NotNull(search.PickedHashtag);
+
+        opened.Move(1);
+
+        Assert.Equal(SearchKind.Posts, search.PickedSection);
 
         opened.Move(1);
 
@@ -526,25 +631,46 @@ public class ShellSearchTests
     }
 
     /// <summary>
-    ///     <c>/</c> on the search screen starts a fresh prompt. The one place the key is most likely to be pressed is
-    ///     the one place it must not do nothing.
+    ///     <c>/</c> on the results starts a fresh prompt, the results and the query that asked for them let go. The one
+    ///     place the key is most likely to be pressed is the one place it must not do nothing.
     /// </summary>
     [Fact]
-    public async Task Search_StartsAFreshPromptFromTheSearchScreenItself()
+    public async Task Search_StartsAFreshPromptFromTheResults()
     {
         var shell = new AShell();
-        var opened = await shell.Opened();
+        using var drawn = await Searched(shell, "cats");
 
-        await Found(shell, opened, "cats");
+        drawn.Press(new Key('/'));
+        drawn.Settle();
 
-        opened.Search();
+        Assert.IsType<SearchScreen>(drawn.Shell.Screen);
+        Assert.True(drawn.SearchField.HasFocus);
+        Assert.Empty(drawn.SearchField.Text);
+        Assert.Equal(1, drawn.Shell.Depth);
+    }
 
-        shell.Host.Drain();
+    /// <summary>
+    ///     On the prompt itself <c>/</c> is typed rather than starting it again, a web address being entitled to one.
+    /// </summary>
+    [Fact]
+    public async Task Slash_OnThePromptIsTyped()
+    {
+        var built = new AShell();
+        var shell = await built.Opened();
 
-        var again = Assert.IsType<SearchScreen>(opened.Screen);
-        Assert.True(again.IsTyping);
-        Assert.Empty(again.Query);
-        Assert.Equal(0, again.Count);
+        using var window = new ShellWindow(shell, Themes.Plain, built.Clock, () => { }, new FakePictures());
+
+        shell.Search();
+        built.Host.Drain();
+
+        foreach (var letter in "a/b")
+        {
+            window.NewKeyDownEvent(new Key(letter));
+        }
+
+        Assert.IsType<SearchScreen>(shell.Screen);
+        Assert.Equal("a/b", DrawnShell.SearchFieldOf(window).Text);
+        Assert.Equal(1, shell.Depth);
     }
 
     [Fact]
@@ -578,11 +704,6 @@ public class ShellSearchTests
         Assert.Equal(["⏎", "tab"], opened.Keys.Select(key => key.Key));
 
         // The same whatever is typed, a direct query included: the prompt says what the key is, not where it goes.
-        foreach (var letter in "#cats")
-        {
-            opened.Type(letter);
-        }
-
         Assert.Equal(["⏎ search", "tab destination"], opened.Keys.Select(key => $"{key.Key} {key.Does}"));
 
         await Found(shell, opened, "cats");
@@ -644,7 +765,7 @@ public class ShellSearchTests
         var stood = Assert.Single(shell.Accounts.Standings);
         Assert.Equal(["7"], stood.AccountIds);
 
-        var search = Assert.IsType<SearchScreen>(opened.Screen);
+        var search = Assert.IsType<SearchResultsScreen>(opened.Screen);
 
         Assert.True(search.Accounts[0].Standing?.FollowedBy);
         Assert.Contains("Joined Jan 2020 · follows you", AShell.Drawn(opened.Screen));
@@ -690,7 +811,7 @@ public class ShellSearchTests
 
         await Found(shell, opened, "maria");
 
-        var search = Assert.IsType<SearchScreen>(opened.Screen);
+        var search = Assert.IsType<SearchResultsScreen>(opened.Screen);
 
         Assert.Null(search.Accounts[0].Standing);
         Assert.Contains("Joined Jan 2020", AShell.Drawn(opened.Screen));
@@ -722,7 +843,7 @@ public class ShellSearchTests
 
         opened.Changed += () =>
         {
-            if (opened.Screen is SearchScreen { Accounts.Count: > 0 } drawn
+            if (opened.Screen is SearchResultsScreen { Accounts.Count: > 0 } drawn
                 && drawn.Accounts.Any(account => account.Standing is null))
             {
                 undecorated++;
@@ -736,22 +857,33 @@ public class ShellSearchTests
     }
 
     /// <summary>
-    ///     A search screen, having had <c>⏎</c> pressed on <paramref name="text" /> — which searches for it, or opens
-    ///     it where it is a direct query.
+    ///     A search screen, having had <c>⏎</c> pressed on <paramref name="text" /> in its field — which searches for it,
+    ///     or opens it where it is a direct query.
     /// </summary>
-    private static async Task Found(AShell built, Shell shell, string text)
+    private static Task Found(AShell built, Shell shell, string text)
     {
         shell.Search();
-
+        built.Host.Drain();
+        shell.Find(text);
         built.Host.Drain();
 
-        foreach (var letter in text)
-        {
-            shell.Type(letter);
-        }
+        return Task.CompletedTask;
+    }
 
-        shell.Press(ShellKey.Enter);
+    /// <summary>
+    ///     The whole shell drawn headless, gone to search with <c>/</c>, <paramref name="text" /> typed into the field and
+    ///     <c>⏎</c> pressed on it.
+    /// </summary>
+    private static async Task<DrawnShell> Searched(AShell built, string text)
+    {
+        var drawn = await DrawnShell.Of(80, 24, Themes.Dark, built);
 
-        built.Host.Drain();
+        drawn.Press(new Key('/'));
+        drawn.Settle();
+        drawn.Type(text);
+        drawn.Press(Key.Enter);
+        drawn.Settle();
+
+        return drawn;
     }
 }

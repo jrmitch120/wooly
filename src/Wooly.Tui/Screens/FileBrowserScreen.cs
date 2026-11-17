@@ -169,6 +169,7 @@ public sealed class FileBrowserScreen : Screen
         new("⏎", _picture is null ? "attach" : "use"),
         new("←→", "folder"),
         .. _picture is null ? [new KeyHint("ctrl-a", EveryFile ? "accepted only" : "every file")] : Array.Empty<KeyHint>(),
+        .. Filter.Length > 0 ? [PostKeys.Clearing] : Array.Empty<KeyHint>(),
         new("esc", Filter.Length > 0 ? "clear" : "back"),
     ];
 
@@ -189,6 +190,14 @@ public sealed class FileBrowserScreen : Screen
         Filter = Backspaced(Filter);
         Narrowed();
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     The filter emptied, as <c>esc</c> empties it first — but pressed again on an empty filter it does nothing
+    ///     rather than going back to the draft. The browser answers to it as every prompt taking letters does, its filter
+    ///     being one of them (#310).
+    /// </remarks>
+    public override void ClearTyped() => ClearFilter();
 
     /// <inheritdoc />
     public override bool ClearFilter()

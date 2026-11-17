@@ -146,6 +146,7 @@ public sealed class FollowsScreen : Screen, IReadsOn<Account>
         ?
         [
             new KeyHint("⏎", "done"),
+            .. Filter.Length > 0 ? [PostKeys.Clearing] : Array.Empty<KeyHint>(),
             new KeyHint("esc", "clear"),
         ]
         :
@@ -359,6 +360,19 @@ public sealed class FollowsScreen : Screen, IReadsOn<Account>
     }
 
     /// <inheritdoc />
+    /// <remarks>Narrowed again, as after a backspace, so the list is no longer filtered by what is gone.</remarks>
+    public override void ClearTyped()
+    {
+        if (!_typing)
+        {
+            return;
+        }
+
+        Filter = string.Empty;
+        Narrowed();
+    }
+
+    /// <inheritdoc />
     public override IReadOnlyList<Line> Lines(Drawing drawing)
     {
         var width = drawing.Width;
@@ -448,8 +462,8 @@ public sealed class FollowsScreen : Screen, IReadsOn<Account>
         : " — this instance offers no more";
 
     /// <summary>
-    ///     What is narrowing the list, with the caret where the next letter lands — the search prompt's own
-    ///     construction, so that the one thing this shell does with typed text looks like itself everywhere.
+    ///     What is narrowing the list, with the caret where the next letter lands — the search prompt's construction
+    ///     until its field became a widget of its own (#608), so that typed text the shell holds looks alike everywhere.
     /// </summary>
     private Line Prompt(int width)
     {

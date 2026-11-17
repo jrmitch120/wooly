@@ -179,7 +179,8 @@ public sealed class PublicProfileScreen : Screen, IDraft
     /// <remarks>
     ///     <c>space</c> first on a toggle, and <c>⏎</c> and the paste on a picture, being what the row is for; then the
     ///     walk, offered only the ways it goes, as compose's is (#337): it stops at either end rather than coming round.
-    ///     The paste names both keys, since which of them reaches Wooly is the terminal's to say (#380).
+    ///     The paste names both keys, since which of them reaches Wooly is the terminal's to say (#380). <c>ctrl-u</c> only
+    ///     while a one-line field has the typing and holds something to empty (#310).
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
     [
@@ -193,9 +194,22 @@ public sealed class PublicProfileScreen : Screen, IDraft
             var at when at == Stops.Count - 1 => new KeyHint("↑", "field"),
             _ => new KeyHint("↑↓", "field"),
         },
+        .. Clears ? [PostKeys.Clearing] : Array.Empty<KeyHint>(),
         new KeyHint("ctrl-s", "save"),
         new KeyHint("esc", "leave"),
     ];
+
+    /// <summary>
+    ///     Whether <c>ctrl-u</c> has something to empty where the typing is: a one-line field — the display name, a custom
+    ///     field's label or value — holding anything. Never the bio, which is the editor's and no prompt (#310).
+    /// </summary>
+    private bool Clears => Typing.Part switch
+    {
+        PublicProfilePart.DisplayName => DisplayName.Length > 0,
+        PublicProfilePart.Label => _labels[Typing.Row].Length > 0,
+        PublicProfilePart.Value => _values[Typing.Row].Length > 0,
+        _ => false,
+    };
 
     /// <summary>
     ///     Every place the typing goes, in the order the form is read, which is the order <c>⏎</c> walks: the display

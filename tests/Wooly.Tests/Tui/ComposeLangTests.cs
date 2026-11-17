@@ -288,6 +288,27 @@ public class ComposeLangTests
     }
 
     /// <summary>
+    ///     <c>ctrl-u</c> empties Lang as it does every one-line field, leaving the typing there, and is offered only while
+    ///     Lang holds something (#310).
+    /// </summary>
+    [Fact]
+    public async Task CtrlUEmptiesLang()
+    {
+        using var drawn = await Drawn(preferred: "fr");
+
+        OnLang(drawn);
+
+        Assert.Contains("Clear: ctrl-u", drawn.Status(), StringComparison.Ordinal);
+
+        drawn.Press(Key.U.WithCtrl);
+
+        Assert.Equal(string.Empty, Field(drawn).Text);
+        Assert.Equal(string.Empty, Compose(drawn).Lang.Held);
+        Assert.True(Field(drawn).HasFocus);
+        Assert.DoesNotContain("ctrl-u", drawn.Status(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
     ///     A click on Lang opens the list and gives Lang the typing, the wheel moves the pick down it, and a click on a
     ///     row picks that language.
     /// </summary>
