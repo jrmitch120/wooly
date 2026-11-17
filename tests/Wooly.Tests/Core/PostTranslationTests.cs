@@ -231,6 +231,25 @@ public class PostTranslationTests
         Assert.False(languages.Takes(from: null, to: null));
     }
 
+    /// <summary>
+    ///     A refused read of the map — a token the instance will not take, say — is raised in the instance's words as a
+    ///     refusal to say what it translates, not as a refusal to translate a post nobody asked about.
+    /// </summary>
+    [Fact]
+    public async Task Languages_RaisesARefusalAsNotSayingWhatItTranslates()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.Forbidden, "This action is not allowed"));
+
+        var refusal = await Assert.ThrowsAsync<TranslationRefusedException>(
+            () => Resolved(network).Languages(Profile, TestContext.Current.CancellationToken));
+
+        Assert.Equal("This action is not allowed", refusal.Reason);
+        Assert.Equal(
+            "The instance would not say which languages it can translate: This action is not allowed",
+            refusal.Message);
+    }
+
     private static IPostTranslation Resolved(HttpMessageHandler network)
     {
         var services = new ServiceCollection();

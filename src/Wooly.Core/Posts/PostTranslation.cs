@@ -61,7 +61,7 @@ public sealed class PostTranslation(IHttpClientFactory httpClientFactory) : IPos
             return TranslationLanguages.None;
         }
 
-        await InstanceError.EnsureAnswered(profile, response, TranslationRefusedException.For, cancellationToken);
+        await InstanceError.EnsureAnswered(profile, response, TranslationRefusedException.ForLanguages, cancellationToken);
 
         var map = await response.Content.ReadFromJsonAsync<Dictionary<string, List<string>>>(cancellationToken);
 
