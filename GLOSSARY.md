@@ -855,11 +855,24 @@ Distinct from the language list, which hangs under compose's Lang header rather 
 _Avoid_: mention list (for the whole of it), autocomplete, emoji picker
 
 **Reading**:
-What this reader has done to one post — asked past what it is **warned** with, walked to a **reference** inside it — carried
+What this reader has done to one post — asked past what it is **warned** with, walked to a **reference** inside it, asked
+for its **translation** — carried
 as one thing, keyed by which post it is (#95). Distinct from **Picked**, which is which post: a post nobody has
 touched is `default`, and every post on a screen but the picked one is. Nothing to do with `Shell`'s own private
 sense of the word, which is the **conversation** being read.
 _Avoid_: state, reader state
+
+**Translation**:
+A post's words as its **instance** renders them in the reader's language — the text, the warning, the poll's options
+and the attachments' descriptions together, never one without the rest — with the language it was taken to be written
+in and who translated it. Always the instance's, asked for one post at a time and only when the reader asks: an
+instance with no translator offers none, and the reader is never offered one the instance would refuse — a post that
+reaches only followers or the people it mentions, a post with no words, or one already in the reader's language. Shown
+in place of the original rather than beside it, and the same ask puts the original back. Asking for it changes only the
+language: what a **warned** post holds back stays held back, its warning now in the reader's language. A boost's is
+the boosted post's. An edit makes the translation of what it replaced untrue, so a post edited is shown as written
+again until asked anew.
+_Avoid_: localisation, i18n (which are the app's own text, not a post's)
 
 **Vote**:
 Casting a choice on a post's poll, Mastodon's own word for the act. Distinct from **Picked** and from toggling an

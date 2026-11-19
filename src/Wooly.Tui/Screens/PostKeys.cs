@@ -51,6 +51,13 @@ public static class PostKeys
     private static KeyHint Revealing { get; } = new("x", "show warning");
 
     /// <summary>
+    ///     The picked post in its instance's translation, and as written again (#615). Named on its own because it acts
+    ///     only on a post its instance would translate — public or unlisted, with words (ADR-0037). One word for both
+    ///     ways, so that pressing it moves nothing on the row.
+    /// </summary>
+    private static KeyHint Translating { get; } = new("t", "translate");
+
+    /// <summary>
     ///     The three an instance lets a post's author do and nobody else, which is why they come off the row on
     ///     anybody else's post (#220).
     /// </summary>
@@ -76,9 +83,10 @@ public static class PostKeys
     /// <summary>
     ///     And the rest, which rank behind <see cref="Scrolling" /> in the tail: <c>w</c> is asked of a post less than
     ///     it is marked, <c>l</c> is a mark used less than <c>b</c> and <c>f</c>, <c>x</c> is learned on the first
-    ///     warning a reader meets, and the other three act only on your own posts (#218, #489, #561).
+    ///     warning a reader meets, <c>t</c> on the first post in a language they do not read, and the other three act
+    ///     only on your own posts (#218, #489, #561, #615).
     /// </summary>
-    private static IReadOnlyList<KeyHint> Learnable { get; } = [Who, Bookmarking, Revealing, .. Yours];
+    private static IReadOnlyList<KeyHint> Learnable { get; } = [Who, Bookmarking, Revealing, Translating, .. Yours];
 
     /// <summary>What every screen with posts on it answers to, in the rank the status row draws them in.</summary>
     public static IReadOnlyList<KeyHint> OnAPost { get; } = [.. Reminding, .. Learnable];
@@ -167,6 +175,13 @@ public static class PostKeys
     /// </summary>
     public static IReadOnlyList<KeyHint> NothingHidden(IReadOnlyList<KeyHint> keys) =>
         [.. keys.Where(key => key != Revealing)];
+
+    /// <summary>
+    ///     <paramref name="keys" /> with <c>t</c> taken out, for a screen whose picked post its instance would not
+    ///     translate — followers-only or direct, or with no words (#615, ADR-0037).
+    /// </summary>
+    public static IReadOnlyList<KeyHint> NothingToTranslate(IReadOnlyList<KeyHint> keys) =>
+        [.. keys.Where(key => key != Translating)];
 
     /// <summary>
     ///     Those keys in front of <paramref name="keys" />, standing in for any of them they share a key with — so that

@@ -72,6 +72,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(AttachmentPolling.Default);
         services.AddSingleton<IPostAuthor, PostAuthor>();
         services.AddSingleton<IPostEngagement, PostEngagement>();
+        services.AddSingleton<IPostTranslation, PostTranslation>();
         services.AddSingleton<INotificationInbox, NotificationInbox>();
         services.AddSingleton<IInstanceSearch, InstanceSearch>();
         services.AddSingleton<ITrends, InstanceTrends>();

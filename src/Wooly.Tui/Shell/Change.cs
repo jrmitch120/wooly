@@ -32,6 +32,12 @@ public abstract record Change
         ///     (#564).
         /// </summary>
         public PostMark? Gained { get; init; }
+
+        /// <summary>
+        ///     Whether the change was an edit — the post's words changed, which a translation of what they were no longer
+        ///     is (#615). <see langword="false" /> for a mark or a vote, which leave the words as they were.
+        /// </summary>
+        public bool Edited { get; init; }
     }
 
     /// <summary>A post deleted, by its id.</summary>

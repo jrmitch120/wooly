@@ -380,7 +380,8 @@ public class RailToggleMarkTests
     [Fact]
     public async Task TheHelpScreenSaysTheMarkTogglesTheRail()
     {
-        using var drawn = await DrawnShell.Of(80, 40, Themes.Plain);
+        // Tall enough for the whole keymap to reach its mouse rows, which sit below every key (t among them, #615).
+        using var drawn = await DrawnShell.Of(80, 42, Themes.Plain);
 
         drawn.Press(new Key('?'));
 

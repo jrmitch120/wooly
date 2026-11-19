@@ -37,7 +37,41 @@ echo "Preparing the Mastodon schema..." >&2
 compose run --rm web bundle exec rails db:prepare >&2
 
 echo "Starting Mastodon..." >&2
-compose up -d --wait web sidekiq streaming caddy
+compose up -d --wait web sidekiq streaming libretranslate caddy
+
+# Healthy means LibreTranslate lists German, not that it will translate yet: on a cold stack its first real
+# /translate can still fail while the models load, which Mastodon passes on to the suite as a 503. So each pair the
+# suite uses is translated once here, inside the container as its healthcheck asks, until it answers 200 — once per
+# seed, and failing loudly past the deadline rather than leaving the tests to retry.
+readonly TRANSLATOR_WARM_SECONDS=300
+
+warm_translator() {
+  local source="$1" target="$2" deadline=$((SECONDS + TRANSLATOR_WARM_SECONDS))
+
+  echo "Waiting for LibreTranslate to translate $source to $target..." >&2
+  until compose exec -T libretranslate ./venv/bin/python -c "
+import json, sys, urllib.request
+request = urllib.request.Request(
+    'http://localhost:5000/translate',
+    data=json.dumps({'q': 'Hello', 'source': '$source', 'target': '$target', 'format': 'text'}).encode(),
+    headers={'Content-Type': 'application/json'})
+try:
+    sys.exit(0 if urllib.request.urlopen(request, timeout=30).status == 200 else 1)
+except Exception:
+    sys.exit(1)
+" >/dev/null 2>&1; do
+    if ((SECONDS >= deadline)); then
+      echo "LibreTranslate did not translate $source to $target within ${TRANSLATOR_WARM_SECONDS}s." >&2
+      echo "The translation tests would fail with a 503; see: docker compose logs libretranslate" >&2
+      exit 1
+    fi
+
+    sleep 5
+  done
+}
+
+warm_translator de en
+warm_translator en de
 
 # Ensures one account exists and has a token, printing the token on stdout. find_or_create_by keeps the token half
 # idempotent across repeated local runs, which is not free with tootctl alone: it has no equivalent read/create for

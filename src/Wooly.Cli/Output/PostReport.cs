@@ -90,6 +90,22 @@ internal static class PostReport
         console.WriteAddress(post.Url);
     }
 
+    /// <summary>
+    ///     Reports one post asked for by id in its instance's <b>Translation</b>: laid out as <see cref="Shown" /> lays
+    ///     it out, with the translated words in place of the post's own and a line under them saying what they were
+    ///     translated from and into and by whom (#614).
+    /// </summary>
+    /// <remarks>
+    ///     Both languages are always named, because the one translated into is not always the one asked for — an
+    ///     instance quietly uses the account's own where it does not take the one sent (ADR-0037).
+    /// </remarks>
+    public static void Translated(IAnsiConsole console, Post post, Translation translation)
+    {
+        Write(console, translation.Over(post), Provenance(translation));
+
+        console.WriteAddress(post.Url);
+    }
+
     /// <summary>Writes the post itself: who wrote it, when, what it says, and how it has been received.</summary>
     /// <remarks>
     ///     Both halves of what a post is put behind are named — the warning its author wrote and the flag its
@@ -102,7 +118,14 @@ internal static class PostReport
     ///         to ask past; here there is nothing to ask past on any post, and what is left is a flag to report.
     ///     </para>
     /// </remarks>
-    public static void Write(IAnsiConsole console, Post post)
+    public static void Write(IAnsiConsole console, Post post) => Write(console, post, provenance: null);
+
+    /// <summary>
+    ///     <see cref="Write(IAnsiConsole,Post)" />, with <paramref name="provenance" /> — where the words are a
+    ///     translation, where they came from — said directly under them and before what hangs off the post, which is
+    ///     where the TUI says it too.
+    /// </summary>
+    private static void Write(IAnsiConsole console, Post post, string? provenance)
     {
         // A boost carries none of its own text, so what gets shown is the post it points at — with the account that
         // boosted it named above, which is the only part of the boost worth reading.
@@ -151,6 +174,11 @@ internal static class PostReport
             }
 
             console.MarkupLineInterpolated($"  {line}");
+        }
+
+        if (provenance is not null)
+        {
+            console.MarkupLineInterpolated($"  [dim]{provenance}[/]");
         }
 
         WriteMedia(console, shown);
@@ -289,6 +317,13 @@ internal static class PostReport
     private static string VoteCountLine(PostPoll poll) => poll.MultipleChoice && poll.Voters is { } voters
         ? $"{Plural.Of(poll.Votes, "vote")} from {Plural.Of(voters, "account")}"
         : Plural.Of(poll.Votes, "vote");
+
+    /// <summary>
+    ///     Where a translation came from, as a sentence: "translated from German into English by DeepL.com". The
+    ///     language it came from is left out only where the translator did not say what it took the post to be.
+    /// </summary>
+    private static string Provenance(Translation translation) =>
+        $"translated {translation.Direction} by {translation.Provider}";
 
     private static string PostedAt(Post post) => LocalMoment.Of(post.PostedAt);
 

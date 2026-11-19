@@ -45,9 +45,18 @@ public class NotificationPreviewTests
     private static IEnumerable<Span> Inked(Line line) =>
         line.Spans.Where(span => span.Text.Trim('▌', ' ').Length > 0);
 
-    private static async Task<(AShell Shell, Wooly.Tui.Shell.Shell Opened)> On(params Notification[] notifications)
+    private static Task<(AShell Shell, Wooly.Tui.Shell.Shell Opened)> On(params Notification[] notifications) =>
+        On(FakePostTranslation.Translating(), notifications);
+
+    private static async Task<(AShell Shell, Wooly.Tui.Shell.Shell Opened)> On(
+        FakePostTranslation translation,
+        params Notification[] notifications)
     {
-        var shell = new AShell { Notifications = FakeNotificationInbox.Holding(notifications) };
+        var shell = new AShell
+        {
+            Notifications = FakeNotificationInbox.Holding(notifications),
+            Translation = translation,
+        };
         var opened = await shell.Opened();
 
         opened.StepTo(DestinationKind.Notifications);
@@ -105,6 +114,54 @@ public class NotificationPreviewTests
 
         var said = Assert.Single(Under(opened));
         Assert.Equal("Morning, all", said.Text.Trim('▌', ' '));
+    }
+
+    /// <summary>
+    ///     <c>t</c> on the reader's own post previews it translated, and says so as a translated post drawn whole does: a
+    ///     muted line under the words naming both languages and the translator (#615). <c>t</c> again takes the line away
+    ///     with the translation.
+    /// </summary>
+    [Fact]
+    public async Task OwnPost_Translated_PreviewsTheTranslationAndSaysWhereItCameFrom()
+    {
+        var (shell, opened) = await On(ANotification.With(kind: NotificationKind.Favorite, post: Mine()));
+
+        opened.Press(ShellKey.T);
+        shell.Host.Drain();
+
+        var under = Under(opened);
+
+        Assert.Equal(2, under.Count);
+        Assert.Equal("Hello world, translated", under[0].Text.Trim('▌', ' '));
+        Assert.Equal("Translated from German into English · DeepL.com", under[1].Text.Trim('▌', ' '));
+        Assert.All(under, line => Assert.All(Inked(line), span => Assert.Equal(Role.Muted, span.Role)));
+
+        opened.Press(ShellKey.T);
+        shell.Host.Drain();
+
+        Assert.DoesNotContain(Under(opened), line => line.Text.Contains("Translated", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    ///     The line saying where a translation came from is one row, cut to the width rather than wrapped to its words, so
+    ///     what the translator is called never grows the preview.
+    /// </summary>
+    [Fact]
+    public async Task OwnPost_Translated_SaysWhereItCameFromOnOneRowCutToTheWidth()
+    {
+        var (shell, opened) = await On(
+            FakePostTranslation.Translating(
+                ATranslation.With(content: "Hi", provider: "A translator with a name far longer than the row is wide")),
+            ANotification.With(kind: NotificationKind.Favorite, post: Mine()));
+
+        opened.Press(ShellKey.T);
+        shell.Host.Drain();
+
+        var under = Under(opened);
+
+        Assert.Equal(2, under.Count);
+        Assert.StartsWith("Translated from German into English", under[1].Text.Trim('▌', ' '), StringComparison.Ordinal);
+        Assert.EndsWith("…", under[1].Text.TrimEnd(), StringComparison.Ordinal);
     }
 
     /// <summary>A mention is somebody speaking to the reader, which is what the row is for: it is drawn whole.</summary>

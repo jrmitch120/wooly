@@ -105,6 +105,10 @@ public static class WoolyCommandApp
                 post.AddCommand<PostShowCommand>("show")
                     .WithDescription("Show a single post by id, outside any timeline.");
 
+                // Beside show, which it lays out the same way: the same post, in the instance's translation (#614).
+                post.AddCommand<PostTranslateCommand>("translate")
+                    .WithDescription("Show a single post by id, translated by your instance.");
+
                 post.AddCommand<PostBoostCommand>("boost")
                     .WithDescription("Re-share a post to your own followers.");
 

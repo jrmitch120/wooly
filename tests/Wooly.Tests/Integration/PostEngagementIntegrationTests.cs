@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Wooly.Core.Errors;
 using Wooly.Core.Posts;
 using Wooly.Core.Timelines;
 
@@ -7,7 +8,8 @@ namespace Wooly.Tests.Integration;
 /// <summary>
 ///     Runs <see cref="PostEngagement" /> against the live instance: boosts, favorites and bookmarks a post of the
 ///     seeded account's own, then takes each mark back off, and votes in a poll of its own — checking the instance's own
-///     answer at every step rather than assuming a write that did not throw took (#33).
+///     answer at every step rather than assuming a write that did not throw took (#33). The translation port
+///     (<see cref="PostTranslation" />) rides on two of those posts rather than publishing its own (#614).
 /// </summary>
 [Trait("Category", "Integration")]
 [Collection(LiveInstanceCollection.Name)]
@@ -77,6 +79,12 @@ public class PostEngagementIntegrationTests
     ///     That the bookmark endpoints are where Mastonet says they are, and that the instance's <c>bookmarked</c> field
     ///     comes back on the post it answers with in both directions (#560); and that the <b>Bookmarks</b> run holds the
     ///     post, newest bookmark first, until the bookmark is taken off (#562).
+    ///     <para>
+    ///         The post is followers-only, which a bookmark does not mind, so that the instance can be seen refusing to
+    ///         translate it (#614): a translation is given only of a post anyone could read, and the refusal is what
+    ///         decides where the TUI offers one at all (ADR-0037). Here rather than in a test of its own, every post
+    ///         published being one more delete against the instance's throttle.
+    ///     </para>
     /// </summary>
     [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
     public async Task Mark_BookmarksAndUnbookmarksAPost()
@@ -87,11 +95,25 @@ public class PostEngagementIntegrationTests
         var author = services.GetRequiredService<IPostAuthor>();
         var engagement = services.GetRequiredService<IPostEngagement>();
         var timelines = services.GetRequiredService<ITimelineReader>();
+        var translations = services.GetRequiredService<IPostTranslation>();
 
-        var published = await author.Publish(profile, LiveInstance.ThrowawayDraft(), cancellationToken);
+        var draft = new PostDraft
+        {
+            Text = $"Nur für meine Follower. {Guid.NewGuid():N}",
+            Language = "de",
+            Visibility = PostVisibility.Followers,
+            VisibilityChosen = true,
+        };
+
+        var published = await author.Publish(profile, draft, cancellationToken);
 
         try
         {
+            Assert.Equal(PostVisibility.Followers, published.Visibility);
+
+            await Assert.ThrowsAsync<TranslationRefusedException>(
+                () => translations.Translate(profile, published.Id, "en", cancellationToken));
+
             var bookmarked = await engagement.Mark(profile, published.Id, PostMark.Bookmark, wanted: true, cancellationToken);
             Assert.Equal(published.Id, bookmarked.Id);
             Assert.True(bookmarked.Marks.Bookmarked);
@@ -126,6 +148,12 @@ public class PostEngagementIntegrationTests
     ///     refuses a vote cast in the author's own name ("You cannot vote in your own polls"), so the poll is
     ///     published as <see cref="LiveInstance.Profile" /> and voted in as <see cref="LiveInstance.VoterProfile" />,
     ///     then taken down by the account that published it.
+    ///     <para>
+    ///         The same post, written in German, is then translated into English by the instance's LibreTranslate
+    ///         (#614) — here rather than in a test of its own, every post published being one more delete against the
+    ///         instance's throttle. What only a real instance shows: that the endpoint is where this client asks, takes
+    ///         the target as sent, and answers in the shape the adapter reads, poll and all.
+    ///     </para>
     /// </summary>
     [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
     public async Task Vote_CastsAVoteInThePollOnAPost()
@@ -136,10 +164,13 @@ public class PostEngagementIntegrationTests
         var voter = LiveInstance.VoterProfile;
         var author = services.GetRequiredService<IPostAuthor>();
         var engagement = services.GetRequiredService<IPostEngagement>();
+        var translations = services.GetRequiredService<IPostTranslation>();
 
-        var draft = LiveInstance.ThrowawayDraft() with
+        var draft = new PostDraft
         {
-            Poll = PollDraft.Of(["Cats", "Dogs"], TimeSpan.FromMinutes(30)),
+            Text = $"Ich liebe meine Katze. {Guid.NewGuid():N}",
+            Language = "de",
+            Poll = PollDraft.Of(["Katzen", "Hunde"], TimeSpan.FromMinutes(30)),
         };
 
         var published = await author.Publish(profile, draft, cancellationToken);
@@ -152,6 +183,31 @@ public class PostEngagementIntegrationTests
             Assert.True(voted.Poll?.Voted);
             Assert.Equal([false, true], voted.Poll?.Options.Select(option => option.Picked));
             Assert.Equal(1, voted.Poll?.Votes);
+
+            var translation = await translations.Translate(profile, published.Id, "en", cancellationToken);
+
+            Assert.Equal("de", translation.From);
+            Assert.Equal("en", translation.To);
+            Assert.Equal("LibreTranslate", translation.Provider);
+            Assert.Contains("cat", translation.Content, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(published.Poll?.Id, translation.PollId);
+            Assert.Equal(2, translation.PollOptions.Count);
+
+            var translated = translation.Over(published);
+            Assert.Contains("dog", translated.Poll?.Options[1].Text, StringComparison.OrdinalIgnoreCase);
+
+            // The instance's languages map, which the TUI reads to offer t (#616): a pure read, needing no post, put
+            // here beside the translation it vouches for. The LibreTranslate loads German and English, so the map
+            // takes each to the other, a post with no language to either — and nothing else.
+            var languages = await translations.Languages(profile, cancellationToken);
+
+            Assert.True(languages.Takes("de", "en"));
+            Assert.True(languages.Takes("en", "de"));
+            Assert.True(languages.Takes(from: null, "en"));
+            Assert.False(languages.Takes("de", "fr"));
+            Assert.Equal(
+                ["de", "en"],
+                languages.Targets.Values.SelectMany(targets => targets).Distinct().Order());
         }
         finally
         {

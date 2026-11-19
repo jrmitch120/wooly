@@ -283,6 +283,11 @@ public class AccountWalkTests
     public void TheKeysThatActOnAPostGoQuietWhileTheHeaderIsPicked()
     {
         var screen = Opened();
+
+        // On an instance that translates every language into the reader's, as the shell would say (#616), so that t is
+        // off the row only by the post it is asked of.
+        screen.Translated.Takes = _ => true;
+
         var onTheHeader = Status(screen);
 
         foreach (var key in PostKeys.OnAPost.Where(key => key != PostKeys.Composing))

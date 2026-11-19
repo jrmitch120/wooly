@@ -65,6 +65,21 @@ internal sealed record PostDocument(
     [property: JsonPropertyName("linkPreview")] LinkPreviewDocument? LinkPreview,
     [property: JsonPropertyName("boosted")] PostDocument? Boosted)
 {
+    /// <summary>
+    ///     Where the words in this document came from, on a post written in its instance's <b>Translation</b>, and
+    ///     absent on a post as written — which is every document but <c>post translate</c>'s (#614).
+    /// </summary>
+    [JsonPropertyName("translation")]
+    public TranslationDocument? Translation { get; init; }
+
+    /// <summary>
+    ///     How <paramref name="post" /> is written down in <paramref name="translation" />'s words: the translated text,
+    ///     warning and descriptions in the post's own fields — inside <c>boosted</c> for a boost, whose words they are —
+    ///     and the translation's provenance beside them.
+    /// </summary>
+    public static PostDocument Translated(Post post, Translation translation) =>
+        Of(translation.Over(post)) with { Translation = TranslationDocument.Of(translation) };
+
     /// <summary>How <paramref name="post" /> is written down.</summary>
     public static PostDocument Of(Post post) => new(
         post.Id,

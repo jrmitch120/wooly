@@ -130,12 +130,24 @@ public class KeymapTests
     [InlineData("e", Verb.Edit)]
     [InlineData("d", Verb.Delete)]
     [InlineData("x", Verb.Reveal)]
+    [InlineData("t", Verb.Translate)]
     [InlineData("←", Verb.PreviousReference)]
     [InlineData("→", Verb.NextReference)]
     [InlineData("v", Verb.Vote)]
     [InlineData("g", Verb.Refresh)]
     public void AFeedAnswersToEveryKeyThatActsOnAPost(string key, Verb verb) =>
         Assert.Equal(verb, Means(key, Feed()));
+
+    /// <summary>
+    ///     <c>t</c> is the add screen's paste wherever that screen is in front, and translates the picked post everywhere
+    ///     else (#245, #615) — the add screen's own meaning is the one a reader adding a profile is relying on.
+    /// </summary>
+    [Fact]
+    public void TPastesATokenOnTheAddScreenAndTranslatesEverywhereElse()
+    {
+        Assert.Equal(Verb.PasteToken, Means("t", new AddProfileScreen()));
+        Assert.Equal(Verb.Translate, Means("t", Feed()));
+    }
 
     /// <summary>
     ///     The bracket pair moves between a screen's headed runs, and means that wherever it is pressed — a screen

@@ -98,6 +98,21 @@ public sealed class Shell
     private readonly ShellPorts _ports;
 
     /// <summary>
+    ///     The config file's <c>translate_to</c>, as a code: the language <c>t</c> asks the instance for, or
+    ///     <see langword="null" /> to ask for none and let the instance choose (ADR-0037).
+    /// </summary>
+    private readonly string? _translateTo;
+
+    /// <summary>Every translation answered this session, so that asking again costs no call (#615).</summary>
+    private readonly Translations _translations = new();
+
+    /// <summary>
+    ///     What each instance's translator can do, read once per instance for the session (#616) — what settles whether
+    ///     <c>t</c> is offered on a post, beside the post limits drafting holds per instance the same way.
+    /// </summary>
+    private readonly LanguagesByInstance _languages;
+
+    /// <summary>
     ///     The query the people to mention were last asked for, and the wait before the instance's search of the
     ///     follows is asked for it — which the next different query calls off (#322).
     /// </summary>
@@ -177,6 +192,9 @@ public sealed class Shell
         _clock = clock;
         _timing = timing;
         _tagSets = preferences?.TagSets ?? [];
+        _translateTo = preferences?.TranslateTo;
+        _languages = new LanguagesByInstance(ports.Translation, host);
+        _languages.Heard += () => Changed?.Invoke();
         StatusRow = new StatusRow(host.After, timing.WidthSaidFor, () => Changed?.Invoke());
         Stack = new Stacked(this);
         _drafting = new Tui.Drafting.Drafting(
@@ -218,14 +236,14 @@ public sealed class Shell
 
         if (opening.Profile is null)
         {
-            _stack.Add(SigningIn(opening.Again, opening.Why));
+            _stack.Add(OfferingTranslation(SigningIn(opening.Again, opening.Why)));
 
             return;
         }
 
         _launching = true;
         _instance = RailInstance();
-        _stack.Add(new FeedScreen(Rail.Showing, []));
+        _stack.Add(OfferingTranslation(new FeedScreen(Rail.Showing, [])));
     }
 
     /// <summary>Raised whenever anything on screen has changed. Always on the drawing thread.</summary>
@@ -706,6 +724,7 @@ public sealed class Shell
         Verb.Bookmark => Ran(() => Mark(PostMark.Bookmark)),
         Verb.Delete => Ran(AskToDelete),
         Verb.Reveal => Ran(Reveal),
+        Verb.Translate => Ran(Translate),
         Verb.Vote => Ran(AskToVote),
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
@@ -854,6 +873,56 @@ public sealed class Shell
         {
             Changed?.Invoke();
         }
+    }
+
+    /// <summary>
+    ///     What <c>t</c> does: shows the picked post in its instance's <b>Translation</b>, or as written again where it
+    ///     is showing translated already (#615, ADR-0037). A boost's is the post inside it.
+    /// </summary>
+    /// <remarks>
+    ///     A translation answered before this session is shown at once, from <see cref="_translations" />; otherwise the
+    ///     instance is asked, with the header spinner while it is, and a refusal or a translator's failure is a notice in
+    ///     the instance's words with the post left as written. What the instance answered is kept whether or not the
+    ///     reader stayed — it is true of the post, not of where anybody is — and the post shown translated only on the
+    ///     screen it was asked from, and only while that screen is still in front, as any enquiry's answer is.
+    /// </remarks>
+    public Task Translate()
+    {
+        var screen = Screen;
+
+        if (screen.Translatable is not { } about)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (screen.Translated.Of(about) is not null)
+        {
+            screen.Translated.Drop(about.Id);
+            Changed?.Invoke();
+
+            return Task.CompletedTask;
+        }
+
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = Actor.Profile;
+        var target = _translateTo;
+
+        if (_translations.Known(profile.Instance, about, target) is { } known)
+        {
+            screen.Translated.Show(about, known);
+            Changed?.Invoke();
+
+            return Task.CompletedTask;
+        }
+
+        return _enquiry.Put(
+            ask => ask.Of(token => _ports.Translation.Translate(profile, about.Id, target, token)),
+            eitherWay: translation => _translations.Keep(profile.Instance, about, target, translation),
+            ifStillHere: translation =>
+            {
+                screen.Translated.Show(about, translation);
+                Changed?.Invoke();
+            });
     }
 
     /// <summary>
@@ -1715,6 +1784,9 @@ public sealed class Shell
         if (profile is not null)
         {
             _drafting.ActingAs(profile);
+
+            // Asked now for the same reason: whether t is offered is on the status row as soon as a post is picked.
+            _languages.Ask(profile);
         }
     }
 
@@ -1824,6 +1896,9 @@ public sealed class Shell
         }
 
         _acting = Acts(renewed, _enquiry, Actor.Cache, Actor.Lists) with { Marking = Actor.Marking };
+
+        // A languages map the refused token could not read is read now, with the token that can (#616).
+        _languages.Ask(renewed);
     }
 
     /// <summary>
@@ -2254,7 +2329,7 @@ public sealed class Shell
 
     private void Push(Screen screen)
     {
-        _stack.Add(screen);
+        _stack.Add(OfferingTranslation(screen));
         Saw(screen);
         StatusRow.Clear();
     }
@@ -2362,7 +2437,7 @@ public sealed class Shell
             left.Left();
         });
         _stack.Clear();
-        _stack.Add(screen);
+        _stack.Add(OfferingTranslation(screen));
         Saw(screen);
         StatusRow.Clear();
     }
@@ -2385,7 +2460,7 @@ public sealed class Shell
     {
         _drafting.Left(_stack[^1]);
         _stack[^1].Left();
-        _stack[^1] = fresh;
+        _stack[^1] = OfferingTranslation(fresh);
         Saw(fresh);
 
         // Gone with the screen it was said over, the same as at a push or an arrival: what a reader was told about the
@@ -2411,6 +2486,20 @@ public sealed class Shell
         if (change is Change.Tied(var tied))
         {
             _acting?.People.Tied(tied);
+        }
+
+        // An edit makes every translation of what it replaced untrue, so the post shows as written again everywhere and
+        // the next t asks anew; a mark or a vote leaves the words as they were, and the translation standing (#615).
+        if (change is Change.PostChanged { Edited: true, Post: var edited } && _acting is { } acting)
+        {
+            var id = (edited.Boosted ?? edited).Id;
+
+            _translations.Forget(acting.Profile.Instance, id);
+
+            foreach (var screen in _stack)
+            {
+                screen.Translated.Drop(id);
+            }
         }
 
         for (var at = _stack.Count - 1; at >= 0; at--)
@@ -2504,6 +2593,26 @@ public sealed class Shell
     ///     no cost, being what was already read. Nothing while nobody is being acted as.
     /// </summary>
     private void Saw(Screen screen) => _acting?.People.Saw(screen.Seen);
+
+    /// <summary>
+    ///     <paramref name="screen" />, told how to ask whether a post's language can be translated into the reader's
+    ///     (#616) — as it goes onto the stack, which is every way a screen gets there, so that <c>t</c> is offered by the
+    ///     one rule on every screen (<see cref="Translated.Offers" />).
+    /// </summary>
+    private Screen OfferingTranslation(Screen screen)
+    {
+        screen.Translated.Takes = Takes;
+
+        return screen;
+    }
+
+    /// <summary>
+    ///     Whether the instance acted on can take a post written in <paramref name="language" /> — <c>und</c> where it
+    ///     says none — to <c>translate_to</c>, compared by base language; or, with no <c>translate_to</c>, whether it can
+    ///     translate at all (ADR-0037). Read live, so a map landing or a switch is answered at the next frame.
+    /// </summary>
+    private bool Takes(string? language) =>
+        _acting is { } acting && _languages.For(acting.Profile).Takes(language, _translateTo);
 
     /// <summary>
     ///     Takes the screen at <paramref name="at" /> off the stack, and lets it know (<see cref="Screen.Left" />).

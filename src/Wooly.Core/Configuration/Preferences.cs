@@ -20,6 +20,14 @@ public sealed record Preferences
     public string? DefaultLanguage { get; init; }
 
     /// <summary>
+    ///     The code of the language the reader reads, which a post's <b>Translation</b> is asked into (see
+    ///     <see cref="PostLanguageName" />), or <see langword="null" /> to send none and leave the instance to choose —
+    ///     the account's web-interface language. One setting for every profile, being a fact about the reader rather than
+    ///     an account (ADR-0037); the CLI's <c>--to</c> overrides it for one command.
+    /// </summary>
+    public string? TranslateTo { get; init; }
+
+    /// <summary>
     ///     The reader's <b>Tag set</b>s, in the order they wrote them, each a destination on the TUI's rail in its
     ///     Hashtags group (ADR-0033), or none. The same for every profile. They replace the single <c>hashtag</c> the
     ///     rail once kept a place for: a subject is seldom one tag.

@@ -35,7 +35,8 @@ internal static class InstanceError
     /// </summary>
     /// <param name="refused">The refusal to raise, out of what the instance said was wrong.</param>
     /// <exception cref="InstanceFailedException">
-    ///     The instance failed to answer — a <c>5xx</c> — which says nothing of what was sent, and may pass.
+    ///     The instance failed to answer — a <c>5xx</c> — which says nothing of what was sent, and may pass; with what
+    ///     it said of it, where it said anything readable.
     /// </exception>
     public static async Task EnsureAnswered(
         ActiveProfile profile,
@@ -50,7 +51,10 @@ internal static class InstanceError
 
         if ((int)response.StatusCode >= 500)
         {
-            throw new InstanceFailedException(profile.Instance, response.StatusCode);
+            throw new InstanceFailedException(
+                profile.Instance,
+                response.StatusCode,
+                await Reason(response, cancellationToken).ConfigureAwait(false));
         }
 
         throw refused(await Reason(response, cancellationToken).ConfigureAwait(false));

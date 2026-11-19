@@ -352,9 +352,9 @@ public sealed class NotificationsScreen(
             {
                 // The reader's own post is a reminder of which one it was, and anyone else's is what the notification
                 // is for — told apart by who wrote it rather than by the kind, so a kind this client has no word for
-                // is drawn by the same rule (#452).
+                // is drawn by the same rule (#452). A reminder in the reader's language where they asked for it (#615).
                 var drawn = post.IsMine
-                    ? PostLines.Preview(post, drawing.In(inner))
+                    ? PostLines.Preview(post, drawing.In(inner), Translated.Of(post))
                     : PostLines.Feed(post, drawing.In(inner), ReadingOf(post, at));
 
                 rows.AddRange(drawn.Select(line => line.After(new Span("  ", Role.Body))));

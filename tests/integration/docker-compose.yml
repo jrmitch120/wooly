@@ -91,6 +91,29 @@ services:
     networks:
       - internal
 
+  # The translator the instance hands a post to when a reader asks for its Translation (ADR-0037, #614). Mastodon reads
+  # it at LIBRE_TRANSLATE_ENDPOINT (mastodon.env); nothing in the suite calls it directly. Only German and English are
+  # loaded: one pair is a translation to see and a pair it does not take, and every language more is one more model
+  # downloaded each time the stack comes up.
+  libretranslate:
+    image: libretranslate/libretranslate:v1.9.6
+    restart: unless-stopped
+    environment:
+      LT_LOAD_ONLY: en,de
+    # The image's own healthcheck passes while it is still downloading its models, so this asks what a translator is
+    # asked for — the languages it serves — and is healthy only once German is among them.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          ./venv/bin/python -c "import urllib.request, sys;
+          sys.exit(0 if b'\"de\"' in urllib.request.urlopen('http://localhost:5000/languages').read() else 1)"
+      interval: 5s
+      timeout: 10s
+      retries: 120
+    networks:
+      - internal
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped

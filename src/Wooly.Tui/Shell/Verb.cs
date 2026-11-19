@@ -228,6 +228,9 @@ public enum Verb
     /// <summary><c>x</c>: show what the picked post is hiding.</summary>
     Reveal,
 
+    /// <summary><c>t</c>: show the picked post in its instance's translation, or as written again (#615).</summary>
+    Translate,
+
     /// <summary><c>→</c>: the next reference inside the picked post, entering at the first.</summary>
     NextReference,
 

@@ -122,9 +122,15 @@ public class ScreenKeyTests
 
         Assert.NotNull(screen.Picked);
 
+        // But t on a conversation's post, which went out direct: an instance translates no post only the people it
+        // mentions can see, so the key is not announced there (#615, ADR-0037).
+        var acting = PostKeys.OnAPost
+            .Select(key => key.Key)
+            .Where(key => state != "conversation" || key != "t");
+
         Assert.Subset(
             screen.Keys.Select(key => key.Key).ToHashSet(StringComparer.Ordinal),
-            PostKeys.OnAPost.Select(key => key.Key).ToHashSet(StringComparer.Ordinal));
+            acting.ToHashSet(StringComparer.Ordinal));
     }
 
     /// <summary>
@@ -329,8 +335,22 @@ public class ScreenKeyTests
         }
     }
 
-    /// <summary>The screen the <paramref name="state" /> names, built with no terminal and no shell around it.</summary>
+    /// <summary>
+    ///     The screen the <paramref name="state" /> names, built with no terminal and no shell around it — and so told,
+    ///     as the shell would tell it, that its instance translates every language into the reader's (#616), so that
+    ///     <c>t</c> is off a row only by the post it is asked of.
+    /// </summary>
     private static Screen Of(string state)
+    {
+        var screen = Built(state);
+
+        screen.Translated.Takes = _ => true;
+
+        return screen;
+    }
+
+    /// <summary>The screen the <paramref name="state" /> names, as it is built.</summary>
+    private static Screen Built(string state)
     {
         // The reader's own, and warned, so that every key acting on a post can act on this one: pin, edit and delete
         // on somebody else's, and x on a post hiding nothing, are off the row by #220's rule rather than this one.

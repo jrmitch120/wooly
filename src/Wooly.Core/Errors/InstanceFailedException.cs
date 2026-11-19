@@ -16,9 +16,18 @@ namespace Wooly.Core.Errors;
 /// </remarks>
 /// <param name="instance">The instance that failed, e.g. <c>mastodon.social</c>.</param>
 /// <param name="status">What it answered with.</param>
-public sealed class InstanceFailedException(string instance, HttpStatusCode status)
-    : WoolyException($"{instance} failed to answer ({(int)status}).")
+/// <param name="reason">
+///     What the instance said of it, where it said anything readable — a translator out of quota or rate-limited is a
+///     <c>503</c> whose words are the only place the reader learns which (#614).
+/// </param>
+public sealed class InstanceFailedException(string instance, HttpStatusCode status, string? reason = null)
+    : WoolyException(reason is null
+        ? $"{instance} failed to answer ({(int)status})."
+        : $"{instance} failed to answer ({(int)status}): {reason}")
 {
     /// <summary>What the instance answered with.</summary>
     public HttpStatusCode Status { get; } = status;
+
+    /// <summary>What the instance said of it, in its own words, or nothing where it said nothing readable.</summary>
+    public string? Reason { get; } = reason;
 }
