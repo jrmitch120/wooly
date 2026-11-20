@@ -187,6 +187,7 @@
               <tr><td><kbd>l</kbd></td><td>Bookmark, and again to undo</td></tr>
               <tr><td><kbd>w</kbd></td><td>Who favorited or boosted it</td></tr>
               <tr><td><kbd>x</kbd></td><td>Show what a content warning or a sensitive picture is hiding</td></tr>
+              <tr><td><kbd>t</kbd></td><td>Translate it, by your instance, and again for the original</td></tr>
               <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Step through the hashtags, mentions, links and pictures in the post; <kbd>⏎</kbd> opens the one picked</td></tr>
               <tr><td><kbd>1</kbd>–<kbd>9</kbd>, <kbd>0</kbd>, then <kbd>v</kbd></td><td>Pick poll options, then vote</td></tr>
               <tr><td><kbd>g</kbd></td><td>Refresh</td></tr>
@@ -197,7 +198,14 @@
         <p>On a terminal that can draw pictures (one that speaks sixel or the Kitty graphics protocol, such as
           Ghostty, kitty, WezTerm or Windows Terminal) they're drawn right in the post. Step to one with
           <kbd>→</kbd> and press <kbd>⏎</kbd> to see it full size, with its description underneath. Everywhere else,
-          each picture is shown as a link with its description. Video and audio open in your own player.</p>
+          each picture is shown as a link with its description. Video and audio open in your own player. Custom emoji
+          are drawn the same way, in posts, names and bios, and written as their <code>:shortcode:</code> where
+          pictures can't be.</p>
+        <h3>Translation</h3>
+        <p>Press <kbd>t</kbd> on a post written in another language to read it in yours, translated by your
+          instance, and again to see it as written. Set the language with <code>translate_to</code> in your
+          <a href="#config">config file</a>. Wooly offers <kbd>t</kbd> only where your instance can translate the post:
+          a public or unlisted one, on an instance with a translator.</p>
         <h3 id="tag-sets">Tag sets</h3>
         <p>A tag set is a name for up to twelve hashtags, followed on the rail as one timeline of the posts that
           carry any of them. You write them in your <a href="#config">config file</a>, and each gets its own place in
@@ -231,7 +239,8 @@ tags = ["dotnet", "csharp", "fsharp"]</code></pre>
             <kbd>s</kbd> marks it sensitive, and <kbd>del</kbd> takes it off.</li>
         </ul>
         <p>Typing <code>@</code> and part of a name opens a list of people to mention; pick one with <kbd>↑</kbd>
-          <kbd>↓</kbd> and <kbd>tab</kbd>. On your own posts, <kbd>p</kbd> pins or unpins and <kbd>d</kbd> deletes
+          <kbd>↓</kbd> and <kbd>tab</kbd>. Typing <code>:</code> and two letters of a shortcode does the same for your instance's
+          custom emoji. On your own posts, <kbd>p</kbd> pins or unpins and <kbd>d</kbd> deletes
           after asking.</p>
         <p>From the CLI:</p>
         <pre class="copyable"><code><span class="c"># A post with a content warning and a described picture</span>
@@ -269,7 +278,11 @@ wooly-cli account requests list</code></pre>
         <h2 class="section-title">People and search</h2>
         <p>Press <kbd>/</kbd> and type a word, a <code>#hashtag</code> or an <code>@name</code> to search accounts,
           hashtags and posts at once. <kbd>[</kbd> and <kbd>]</kbd> move between the kinds of result. Typing a full
-          handle or the web address of a post or profile takes you straight there.</p>
+          handle or the web address of a post or profile takes you straight there. On a heading, <kbd>⏎</kbd> shows
+          that kind of result alone, and reads on as far as you scroll.</p>
+        <p>Before you type anything, the search screen shows what's trending on your instance: hashtags, links and
+          posts. <kbd>↓</kbd> moves from the search field into them and <kbd>⏎</kbd> opens one. A trending link opens
+          the posts sharing it, and <kbd>o</kbd> opens the article itself in your browser.</p>
         <p>On someone's profile:</p>
         <div class="table-scroll">
           <table class="keys">
@@ -294,12 +307,13 @@ wooly-cli account requests list</code></pre>
             <thead><tr><th scope="col">Command</th><th scope="col">What it does</th></tr></thead>
             <tbody>
               <tr><td><code>profile</code></td><td><code>add</code>, <code>list</code>, <code>show</code>, <code>switch</code> and <code>remove</code> your profiles</td></tr>
-              <tr><td><code>timeline</code></td><td>Read <code>home</code>, <code>local</code>, <code>federated</code>, a <code>tag</code>, an <code>account</code>'s posts or its <code>pinned</code> ones, or your own <code>bookmarks</code> and <code>favorites</code></td></tr>
+              <tr><td><code>timeline</code></td><td>Read <code>home</code>, <code>local</code>, <code>federated</code>, a <code>tag</code>, the posts sharing a trending <code>link</code>, an <code>account</code>'s posts or its <code>pinned</code> ones, or your own <code>bookmarks</code> and <code>favorites</code></td></tr>
               <tr><td><code>post</code></td><td><code>create</code>, <code>reply</code>, <code>edit</code>, <code>delete</code>, <code>show</code>, <code>translate</code> (by your instance), <code>boost</code>, <code>favorite</code>, <code>pin</code>, <code>bookmark</code> and <code>vote</code>, the undo of each, and <code>favorited-by</code> / <code>boosted-by</code></td></tr>
               <tr><td><code>account</code></td><td><code>show</code>, <code>edit</code> your profile, <code>follow</code>, <code>block</code>, <code>mute</code> (and undo), list <code>followers</code> and <code>following</code>, and answer <code>requests</code></td></tr>
               <tr><td><code>notification</code></td><td><code>list</code>, <code>dismiss</code> one, or <code>clear</code> them all</td></tr>
               <tr><td><code>dm</code></td><td><code>list</code> conversations, <code>show</code> one, <code>send</code> a message, mark one <code>read</code></td></tr>
-              <tr><td><code>search</code></td><td>Accounts, hashtags and posts, or one kind with <code>--type</code></td></tr>
+              <tr><td><code>search</code></td><td>Accounts, hashtags and posts, or one kind with <code>--type</code>; <code>--limit</code> and <code>--offset</code> page it</td></tr>
+              <tr><td><code>trends</code></td><td>The hashtags, posts and links trending on your instance, or one kind with <code>--type</code></td></tr>
               <tr><td><code>version</code></td><td>Print the version</td></tr>
             </tbody>
           </table>
@@ -313,12 +327,16 @@ wooly-cli timeline home --limit 40 --json
 wooly-cli post reply 113452907716812345 "Agreed!"
 
 <span class="c"># Search for a hashtag</span>
-wooly-cli search "#dotnet"</code></pre>
+wooly-cli search "#dotnet"
+
+<span class="c"># The next 20 trending links, as JSON</span>
+wooly-cli trends --type links --limit 20 --offset 20 --json</code></pre>
 
         <h3>In scripts</h3>
         <ul>
           <li>Lists fetch 20 items by default. <code>--limit</code> asks for more, and Wooly pages through your
-            instance for you.</li>
+            instance for you. A search is one ask: <code>--limit</code> takes up to 40 of each kind, and
+            <code>--offset</code> pages through one kind named with <code>--type</code>.</li>
           <li><code>--json</code> works on lists, searches, posts and accounts, and on what you publish. A list comes
             wrapped in an object that says whether it's complete: a list cut short (by a rate limit, say) still prints
             what it got, with <code>"complete": false</code>.</li>
@@ -332,7 +350,7 @@ wooly-cli search "#dotnet"</code></pre>
             <tbody>
               <tr><td><code>0</code></td><td>Success</td></tr>
               <tr><td><code>1</code></td><td>Something else went wrong</td></tr>
-              <tr><td><code>2</code></td><td>The command was typed wrong, or used an option Wooly doesn't have</td></tr>
+              <tr><td><code>2</code></td><td>The command was typed wrong, or used an option Wooly doesn't have, or named something the instance can't find</td></tr>
               <tr><td><code>3</code></td><td>Sign-in problem: sign the profile in again</td></tr>
               <tr><td><code>4</code></td><td>Couldn't reach the instance</td></tr>
               <tr><td><code>5</code></td><td>Rate limited by the instance; try again later</td></tr>
