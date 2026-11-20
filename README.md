@@ -26,7 +26,8 @@ Sign in once and both of them act as the same profile.
 - Boost, favorite, pin, bookmark, and vote in polls, and read back what you bookmarked or favorited
 - Notifications, direct messages, and follow requests for a locked account
 - Follow, mute and block accounts, and edit your own public profile
-- One search across accounts, hashtags and posts
+- One search across accounts, hashtags and posts, and the hashtags, posts and links trending on your instance
+- Posts translated by your instance into your own language
 - Several profiles, across one instance or many, with a default and a per-run `--profile` override
 - Sign-in through your browser (OAuth). Wooly never asks for your password.
 
@@ -37,9 +38,10 @@ Sign in once and both of them act as the same profile.
 - Tag sets: a name for a few hashtags, followed on the rail as one timeline of the posts carrying any of them
 - Pictures drawn inline on terminals that speak sixel or the Kitty graphics protocol, and linked with their alt text
   everywhere else. Video and audio open in your own player.
+- Custom emoji drawn in posts, names and bios on those terminals too
 - Live unread counts on the Inbox, kept up to date by the instance's streaming API, with an optional bell
-- Compose on its own screen, with mention and language pickers, a file browser for attachments, and pasting pictures or
-  files from the clipboard
+- Compose on its own screen, with mention, custom emoji and language pickers, a file browser for attachments, and
+  pasting pictures or files from the clipboard
 - Mouse support, an adjustable shell width, a hideable rail, and themes you can write yourself in the config file
 - Works without colour too: `NO_COLOR` and `TERM=dumb` are respected
 
@@ -132,6 +134,7 @@ On a timeline or a post:
 | `e` / `d` / `p` | Edit / delete / pin your own post |
 | `w` | Who favorited or boosted it |
 | `x` | Show what a content warning is hiding |
+| `t` | Translate it, by your instance (and back) |
 | `←` / `→` | Walk the hashtags, mentions and links in the post |
 | `1`–`9`, `0`, then `v` | Pick poll options, then vote |
 | `g` | Refresh |
