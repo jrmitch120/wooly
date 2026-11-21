@@ -156,7 +156,7 @@ The full contract for every screen, key and theme role is in [docs/tui-shell.md]
 | `post` | `create`, `reply`, `edit`, `delete`, `show`, `translate` (by your instance), `boost`, `favorite`, `pin`, `bookmark`, `vote`, `favorited-by`, `boosted-by`, and their undos |
 | `account` | `show`, `edit`, `follow`, `unfollow`, `followers`, `following`, `block`, `mute` (and undos), and `requests list/accept/reject` |
 | `notification` | `list`, `dismiss` and `clear` |
-| `dm` | `list`, `show`, `send` and `read` |
+| `dm` | `list`, `show`, `send`, `read`, and `remove` (takes a conversation off your list; deletes no post, and a new message brings it back) |
 | `search` | Accounts, hashtags and posts, or one kind with `--type`; `--limit` and `--offset` page it |
 | `trends` | The hashtags, posts and links trending on your instance, or one kind with `--type` |
 | `version` | Print the version |
