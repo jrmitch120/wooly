@@ -32,7 +32,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     ///     What the list says with nothing on it: where nobody has written, and where the last conversation on it has
     ///     been removed (#621) — the same words either way, which are the words the next arrival would say.
     /// </summary>
-    public const string Nobody = "No direct conversations yet.";
+    public const string WhenEmpty = "No direct conversations yet.";
 
     /// <inheritdoc />
     public override string Crumb => "Direct messages";
@@ -143,7 +143,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
 
                 if (_conversations.Count == 0)
                 {
-                    Notice = Nobody;
+                    Notice = WhenEmpty;
                 }
 
                 break;

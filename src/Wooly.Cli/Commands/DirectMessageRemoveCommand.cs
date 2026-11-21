@@ -8,9 +8,9 @@ using Wooly.Core.Profiles;
 namespace Wooly.Cli.Commands;
 
 /// <summary>
-///     Takes one conversation off the profile's own list — removing a conversation, what Mastodon's own UI calls "Delete
-///     conversation" (#620). Named <c>remove</c> rather than <c>delete</c> because nothing is deleted: the posts stand,
-///     the others in the conversation keep it, and a new message in the thread brings it back (ADR-0013's amendment).
+///     Takes one conversation off the profile's own list — removing a conversation (#620). Named <c>remove</c> rather
+///     than <c>delete</c> because nothing is deleted: the posts stand, the others in the conversation keep it, and a new
+///     message in the thread brings it back (ADR-0013's amendment).
 /// </summary>
 /// <remarks>
 ///     It asks first all the same, through the consent <c>post delete</c> asks through: what a mistyped id takes off the
