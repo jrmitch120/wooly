@@ -321,8 +321,9 @@ public enum Verb
     MarkRead,
 
     /// <summary>
-    ///     <c>R</c> on the conversations list: take the picked conversation off the reader's own list, once they have said
-    ///     so twice — removing a conversation, which deletes no post (GLOSSARY.md, #621).
+    ///     <c>R</c> on the conversations list or inside a conversation: take the picked conversation, or the one being
+    ///     read, off the reader's own list, once they have said so twice — removing a conversation, which deletes no
+    ///     post (GLOSSARY.md, #621, #622).
     /// </summary>
     RemoveConversation,
 

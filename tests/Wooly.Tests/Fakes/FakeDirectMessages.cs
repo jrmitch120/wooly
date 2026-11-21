@@ -129,7 +129,11 @@ internal sealed class FakeDirectMessages(
             return Task.FromException<ConversationThread>(refusal);
         }
 
-        return Task.FromResult(thread ?? AConversation.Thread());
+        // Where no thread was given, the conversation asked for as it is listed, so that opening a row other than the
+        // first opens that row's conversation (#622).
+        var listed = (_onward ?? _fetch.Items).FirstOrDefault(conversation => conversation.Id == conversationId);
+
+        return Task.FromResult(thread ?? AConversation.Thread(listed));
     }
 
     public Task<Conversation> MarkRead(

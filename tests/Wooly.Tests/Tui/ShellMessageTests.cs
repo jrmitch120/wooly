@@ -538,6 +538,156 @@ public class ShellMessageTests
     }
 
     /// <summary>
+    ///     The same question from inside the conversation, where a reader who has just finished it is most likely to
+    ///     press <c>R</c> (#622) — and <c>esc</c> leaves them reading it, with nothing removed.
+    /// </summary>
+    [Fact]
+    public async Task Remove_AsksTheSameQuestionFromInsideAndEscStaysThere()
+    {
+        var shell = new AShell { Messages = FakeDirectMessages.Threading(AConversation.Thread()) };
+        var opened = await shell.Opened();
+
+        opened.StepTo(DestinationKind.Messages);
+        shell.Host.Settle();
+
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        opened.Press(ShellKey.CapitalR);
+
+        Assert.NotNull(opened.Asking);
+        Assert.Equal("Remove this conversation from your list?", opened.Asking.Ask);
+        Assert.Equal("remove", opened.Asking.Going);
+        Assert.Equal(string.Empty, opened.Asking.Warning);
+
+        await opened.Answer(ShellKey.Escape);
+        shell.Host.Drain();
+
+        Assert.Empty(shell.Messages.Removed);
+        Assert.Equal("7", Assert.IsType<ConversationScreen>(opened.Screen).Conversation.Id);
+    }
+
+    /// <summary>
+    ///     Removed from inside, the conversation is no longer the reader's to be reading: its screen leaves the stack
+    ///     and they land on the list, the row gone and the pick on the conversation after it — as though removed from
+    ///     there (#622).
+    /// </summary>
+    [Fact]
+    public async Task Remove_FromInsideLandsOnTheListWithTheRowGoneAndThePickMoved()
+    {
+        var shell = new AShell
+        {
+            Messages = FakeDirectMessages.Holding(
+                AConversation.With(id: "7"),
+                AConversation.With(id: "8", latest: AConversation.DirectPost(id: "120")),
+                AConversation.With(id: "9")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.StepTo(DestinationKind.Messages);
+        shell.Host.Settle();
+
+        opened.Move(1);
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        Assert.Equal("8", Assert.IsType<ConversationScreen>(opened.Screen).Conversation.Id);
+
+        opened.Press(ShellKey.CapitalR);
+        await opened.Answer(ShellKey.Y);
+        shell.Host.Drain();
+
+        Assert.Equal(new FakeDirectMessages.Named("personal", "8"), Assert.Single(shell.Messages.Removed));
+
+        var screen = Assert.IsType<DirectMessagesScreen>(opened.Screen);
+        Assert.Equal(["7", "9"], screen.Conversations.Select(conversation => conversation.Id));
+        Assert.Equal("9", screen.PickedConversation?.Id);
+        Assert.Equal("Direct messages", opened.Breadcrumb);
+        Assert.Equal("Removed.", opened.Notice);
+    }
+
+    /// <summary>
+    ///     A refusal from inside leaves the reader reading, in the instance's own words — the screen walks out only on
+    ///     a removal that happened.
+    /// </summary>
+    [Fact]
+    public async Task Remove_LeavesTheReaderInsideWhereTheInstanceRefuses()
+    {
+        var shell = new AShell
+        {
+            Messages = FakeDirectMessages.RefusingToRemove(
+                ConversationRefusedException.ForRemoval("Not today"),
+                AConversation.With(id: "7"),
+                AConversation.With(id: "8")),
+        };
+
+        var opened = await shell.Opened();
+
+        opened.StepTo(DestinationKind.Messages);
+        shell.Host.Settle();
+
+        opened.Move(1);
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        opened.Press(ShellKey.CapitalR);
+        await opened.Answer(ShellKey.Y);
+        shell.Host.Settle();
+
+        Assert.Equal("8", Assert.Single(shell.Messages.Removed).ConversationId);
+        Assert.Equal("8", Assert.IsType<ConversationScreen>(opened.Screen).Conversation.Id);
+        Assert.Contains("Not today", opened.Notice, StringComparison.Ordinal);
+
+        opened.Back();
+
+        Assert.Equal(
+            ["7", "8"],
+            Assert.IsType<DirectMessagesScreen>(opened.Screen).Conversations.Select(conversation => conversation.Id));
+    }
+
+    /// <summary>
+    ///     <c>d</c> inside a conversation goes on deleting the reader's own message, and only it: removing the
+    ///     conversation and unsending a message stay two keys (#622).
+    /// </summary>
+    [Fact]
+    public async Task Delete_InsideAConversationStillDeletesOnlyTheOwnMessage()
+    {
+        var theirs = AConversation.DirectPost(id: "110", content: "Are you about?");
+        var mine = APost.With(
+            id: "111",
+            account: "jeff@mastodon.social",
+            content: "Sent in error",
+            visibility: PostVisibility.Direct);
+
+        var thread = AConversation.Thread(AConversation.With(id: "7", latest: mine), theirs, mine);
+
+        var shell = new AShell { Messages = FakeDirectMessages.Threading(thread) };
+        var opened = await shell.Opened();
+
+        opened.StepTo(DestinationKind.Messages);
+        shell.Host.Settle();
+
+        opened.Press(ShellKey.Enter);
+        shell.Host.Drain();
+
+        opened.Move(1);
+        opened.Press(ShellKey.D);
+
+        Assert.NotNull(opened.Asking);
+        Assert.NotEqual("Remove this conversation from your list?", opened.Asking.Ask);
+
+        await opened.Answer(ShellKey.Y);
+        shell.Host.Drain();
+
+        Assert.Equal("111", Assert.Single(shell.Author.Deletions).PostId);
+        Assert.Empty(shell.Messages.Removed);
+
+        var screen = Assert.IsType<ConversationScreen>(opened.Screen);
+        Assert.Equal(["110"], screen.Posts.Select(post => post.Id));
+    }
+
+    /// <summary>
     ///     Walking out along the rail and back is one listing rather than one per arrival (ADR-0014) — the question the
     ///     cache answers is "is this still what I just left", and a conversation list has the same answer as a
     ///     timeline.
@@ -928,7 +1078,15 @@ public class ShellMessageTests
         shell.Host.Drain();
 
         Assert.Contains(opened.Keys, key => key is { Key: "m", Does: "mark read" });
+        Assert.Contains(opened.Keys, key => key is { Key: "R", Does: "remove" });
         Assert.Contains(opened.Keys, key => key is { Key: "r", Does: "reply" });
         Assert.Contains(opened.Keys, key => key.Key == "esc");
+
+        // Inside too, R beside m on the row and in ? (#622).
+        opened.Help();
+        Assert.Contains(
+            opened.Screen.Lines(new Drawing(61, AShell.Now)),
+            line => line.Text.StartsWith("R ", StringComparison.Ordinal) && line.Text.EndsWith("remove", StringComparison.Ordinal));
+        opened.Back();
     }
 }
