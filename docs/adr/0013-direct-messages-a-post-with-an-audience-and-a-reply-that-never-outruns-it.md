@@ -96,8 +96,8 @@ its own word. It is `dm remove <ID>` rather than a `dm delete`, and `IDirectMess
 because *delete* in this client always means gone for everyone — a post of one's own taken down — and this is not that:
 the conversation leaves the reader's own list, no post is deleted, the others in it keep it, and a new message in the
 thread brings it back. What comes back is a new entry under a new id rather than the old one restored — the Docker suite
-sees it — so an id `dm remove` was given names nothing afterwards. GLOSSARY.md records it as **Removing a conversation**; Mastodon's own UI word, "Delete
-conversation", is noted there and nowhere else.
+sees it — so an id `dm remove` was given names nothing afterwards. GLOSSARY.md records it as **Removing a
+conversation**; Mastodon's own UI word, "Delete conversation", is noted there and nowhere else.
 
 It takes the conversation's own id, the one `dm list` prints and `dm show` / `dm read` take, and asks first through the
 consent `post delete` asks through, since a mistyped id takes a conversation off the list that only a new message brings

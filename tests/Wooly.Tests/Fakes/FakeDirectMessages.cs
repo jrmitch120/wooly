@@ -7,8 +7,8 @@ namespace Wooly.Tests.Fakes;
 
 /// <summary>
 ///     A profile's direct conversations without the instance. ADR-0005's primary seam for anything above the API layer:
-///     a command test says what conversations there are and then asks what was listed, shown, marked read or removed, and never
-///     fakes HTTP to do it.
+///     a command test says what conversations there are and then asks what was listed, shown, marked read or removed,
+///     and never fakes HTTP to do it.
 /// </summary>
 internal sealed class FakeDirectMessages(
     Fetch<Conversation> fetch,

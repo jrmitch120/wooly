@@ -5,10 +5,10 @@ namespace Wooly.Core.Conversations;
 
 /// <summary>
 ///     The direct conversations a profile is in: the ones it has, one of them in full, marking one read, and removing one
-///     from the list. The narrow
-///     port ADR-0005 asks for over Mastonet's whole REST surface, alongside <see cref="Timelines.ITimelineReader" />,
-///     <see cref="Posts.IPostAuthor" /> and <see cref="Notifications.INotificationInbox" /> — front ends depend on this,
-///     and their tests fake this rather than the network.
+///     from the list. The narrow port ADR-0005 asks for over Mastonet's whole REST surface, alongside
+///     <see cref="Timelines.ITimelineReader" />, <see cref="Posts.IPostAuthor" /> and
+///     <see cref="Notifications.INotificationInbox" /> — front ends depend on this, and their tests fake this rather than
+///     the network.
 /// </summary>
 /// <remarks>
 ///     Nothing here sends a message, and that absence is the shape of this feature rather than an omission (ADR-0013).
@@ -75,7 +75,7 @@ public interface IDirectMessages
 
     /// <summary>
     ///     Takes the conversation <paramref name="conversationId" /> names off the profile's own list — removing a
-    ///     conversation, what Mastodon's own UI calls "Delete conversation" (#620).
+    ///     conversation (#620).
     /// </summary>
     /// <param name="conversationId">
     ///     The conversation's own id, as a listing reports it — never the id of a post in it.
