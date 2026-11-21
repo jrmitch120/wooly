@@ -7,7 +7,7 @@ namespace Wooly.Tests.Fakes;
 
 /// <summary>
 ///     A profile's direct conversations without the instance. ADR-0005's primary seam for anything above the API layer:
-///     a command test says what conversations there are and then asks what was listed, shown or marked read, and never
+///     a command test says what conversations there are and then asks what was listed, shown, marked read or removed, and never
 ///     fakes HTTP to do it.
 /// </summary>
 internal sealed class FakeDirectMessages(
@@ -34,6 +34,9 @@ internal sealed class FakeDirectMessages(
 
     /// <summary>Every conversation it was asked to mark read, in order.</summary>
     public List<Named> MarkedRead { get; } = [];
+
+    /// <summary>Every conversation it was asked to remove from the list, in order (#620).</summary>
+    public List<Named> Removed { get; } = [];
 
     /// <summary>Conversations there to be listed, read to the end of whatever was asked for.</summary>
     public static FakeDirectMessages Holding(params Conversation[] conversations) =>
@@ -134,6 +137,14 @@ internal sealed class FakeDirectMessages(
 
         // What the instance answers with is the conversation as it now stands, which is the point of marking it.
         return Task.FromResult(AConversation.With(id: conversationId, unread: false));
+    }
+
+    public Task Remove(ActiveProfile profile, string conversationId, CancellationToken cancellationToken)
+    {
+        Removed.Add(new Named(profile.Name, conversationId));
+        Tokens.Add(profile.AccessToken);
+
+        return refusal is not null ? Task.FromException(refusal) : Task.CompletedTask;
     }
 
     /// <summary>One listing: which profile it was made as, and how many conversations it wanted.</summary>

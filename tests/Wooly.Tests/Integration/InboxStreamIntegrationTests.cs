@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
+using Wooly.Core.Conversations;
 using Wooly.Core.Http;
 using Wooly.Core.Inbox;
 using Wooly.Core.Notifications;
@@ -10,7 +11,8 @@ namespace Wooly.Tests.Integration;
 /// <summary>
 ///     Runs <see cref="InboxStream" /> against the live instance's streaming service (#401): <c>woolyvoter</c> writing to
 ///     <c>woolytester</c> reaches the tester's stream as the port's events — a mention as a notification, a direct
-///     message as a conversation.
+///     message as a conversation. The direct message is also where removing a conversation (#620) is seen against an
+///     instance: off the list, and back on it with the next message in the thread.
 /// </summary>
 /// <remarks>
 ///     What this leaves to the fake seams: follow requests over the stream (it would mean locking the tester account,
@@ -34,8 +36,15 @@ public class InboxStreamIntegrationTests
         Assert.Equal(new InboxEvent.Notified(NotificationKind.Mention), heard);
     }
 
+    /// <summary>
+    ///     The direct message, and then the conversation it made: removed, it leaves the tester's list, and the voter's
+    ///     next message in the thread brings it back, under a new id (#620) — what GLOSSARY.md's <b>Removing a
+    ///     conversation</b> claims, seen here rather than taken on trust. Done inside this test, on the message it already
+    ///     sends, because the suite runs close to Mastodon's limit on deleting posts and a test of its own would be
+    ///     another pair. The answer that brings it back is the voter's, whose deletes are this test's alone.
+    /// </summary>
     [Fact(Skip = LiveInstance.SkipReason, SkipType = typeof(LiveInstance), SkipUnless = nameof(LiveInstance.Available))]
-    public async Task ADirectMessage_ReachesTheStreamAsAConversation()
+    public async Task ADirectMessage_ReachesTheStreamAsAConversationThatRemovingTakesOffTheListUntilTheNextMessage()
     {
         // Mastodon 4.3 on files a private mention from someone the account does not follow under its notification
         // requests, by default — and a mention filtered so never reaches the conversation, or the stream. The tester
@@ -51,13 +60,90 @@ public class InboxStreamIntegrationTests
                     Visibility = PostVisibility.Direct,
                     VisibilityChosen = true,
                 },
-                said => said is InboxEvent.ConversationChanged);
+                said => said is InboxEvent.ConversationChanged,
+                whileItStands: RemovedUntilTheNextMessage);
 
             Assert.Equal(new InboxEvent.ConversationChanged(), heard);
         }
         finally
         {
             await PrivateMentions("filter");
+        }
+    }
+
+    /// <summary>
+    ///     Removes the conversation <paramref name="sent" /> made on the tester's list, sees it gone, and has the voter
+    ///     answer in the thread — which brings it back.
+    /// </summary>
+    private static async Task RemovedUntilTheNextMessage(Post sent)
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var services = LiveInstance.NewServices();
+        var messages = services.GetRequiredService<IDirectMessages>();
+        var author = services.GetRequiredService<IPostAuthor>();
+
+        var conversation = await Holding(messages, sent.Id, cancellationToken)
+                           ?? throw new InvalidOperationException("The direct message made no conversation on the list.");
+
+        await messages.Remove(LiveInstance.Profile, conversation.Id, cancellationToken);
+
+        Assert.Null(await Holding(messages, sent.Id, cancellationToken));
+
+        var answer = await author.Publish(
+            LiveInstance.VoterProfile,
+            new PostDraft
+            {
+                Text = $"@{LiveInstance.Username} wooly integration test {Guid.NewGuid():N}",
+                Visibility = PostVisibility.Direct,
+                VisibilityChosen = true,
+                InReplyTo = sent.Id,
+            },
+            cancellationToken);
+
+        try
+        {
+            // Delivered by a Sidekiq job rather than inline with publishing, as the message before it was.
+            var back = await Eventually(() => Holding(messages, answer.Id, cancellationToken), cancellationToken);
+
+            Assert.NotNull(back);
+
+            // Back as a new entry on the list rather than the old one restored: Mastodon destroyed the reader's copy,
+            // and the next message makes another, under an id of its own.
+            Assert.NotEqual(conversation.Id, back.Id);
+        }
+        finally
+        {
+            await author.Delete(LiveInstance.VoterProfile, answer.Id, cancellationToken);
+        }
+    }
+
+    /// <summary>The conversation on the tester's list whose last post is <paramref name="postId" />, if there is one.</summary>
+    private static async Task<Conversation?> Holding(
+        IDirectMessages messages,
+        string postId,
+        CancellationToken cancellationToken)
+    {
+        var listing = await messages.List(LiveInstance.Profile, 40, cancellationToken);
+
+        return listing.Items.FirstOrDefault(conversation => conversation.Latest?.Id == postId);
+    }
+
+    /// <summary>What <paramref name="look" /> finds, looked for again until it finds something or patience runs out.</summary>
+    private static async Task<T?> Eventually<T>(Func<Task<T?>> look, CancellationToken cancellationToken)
+        where T : class
+    {
+        var giveUp = DateTimeOffset.UtcNow + Patience;
+
+        while (true)
+        {
+            var found = await look();
+
+            if (found is not null || DateTimeOffset.UtcNow > giveUp)
+            {
+                return found;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
         }
     }
 
@@ -81,7 +167,13 @@ public class InboxStreamIntegrationTests
     ///     Listens to the tester's stream, has the voter publish <paramref name="draft" /> once it is up, and answers
     ///     the first thing heard that is <paramref name="wanted" /> — or skips, where the stream never came up.
     /// </summary>
-    private static async Task<InboxEvent?> Heard(PostDraft draft, Func<InboxEvent, bool> wanted)
+    /// <param name="whileItStands">
+    ///     What else to do with the published post once it has been heard, before it is deleted — or nothing.
+    /// </param>
+    private static async Task<InboxEvent?> Heard(
+        PostDraft draft,
+        Func<InboxEvent, bool> wanted,
+        Func<Post, Task>? whileItStands = null)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var services = LiveInstance.NewServices();
@@ -106,7 +198,14 @@ public class InboxStreamIntegrationTests
             {
                 // The one wait: Mastodon delivers to the account mentioned through a Sidekiq job rather than inline
                 // with publishing, so what the stream says can be a moment behind the post.
-                return await Next(heard.Reader, wanted, cancellationToken);
+                var said = await Next(heard.Reader, wanted, cancellationToken);
+
+                if (said is not null && whileItStands is not null)
+                {
+                    await whileItStands(post);
+                }
+
+                return said;
             }
             finally
             {

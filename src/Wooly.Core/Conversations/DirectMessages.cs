@@ -1,5 +1,7 @@
+using System.Net;
 using Mastonet;
 using Wooly.Core.Errors;
+using Wooly.Core.Http;
 using Wooly.Core.Paging;
 using Wooly.Core.Posts;
 using Wooly.Core.Profiles;
@@ -21,7 +23,8 @@ namespace Wooly.Core.Conversations;
 ///     because ADR-0006 resends nothing an instance has already taken, and a rate limit is reported rather than slept
 ///     off.
 /// </summary>
-public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDirectMessages
+public sealed class DirectMessages(IMastodonClientFactory clientFactory, IHttpClientFactory httpClientFactory)
+    : IDirectMessages
 {
     /// <summary>
     ///     The most conversations Mastodon serves in one call — a timeline's page rather than an inbox's, which is what
@@ -99,6 +102,38 @@ public sealed class DirectMessages(IMastodonClientFactory clientFactory) : IDire
         // conversation read needs nothing about it except that the instance knows the id, and an id it does not know
         // is a refusal the instance words better than a search through the list could.
         return ConversationWire.ToConversation(await client.MarkAsRead(conversationId), profile);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    ///     Sent raw through <see cref="RawMastodonCall" /> although Mastonet 3.1.3 has the endpoint, because its
+    ///     <c>DeleteConversation</c> answers a bare <see cref="Task" /> and so never reads the body that would turn a
+    ///     refusal into an exception — the gap <see cref="Discovery.IFollowSuggestions.Dismiss" /> records for its own
+    ///     delete. There it costs nothing; here it would print "Removed" for a mistyped id, which is the one thing a
+    ///     removal must not say when it did not happen. The raw call is ADR-0011's way out, spent on a gap that is real.
+    /// </remarks>
+    public async Task Remove(ActiveProfile profile, string conversationId, CancellationToken cancellationToken)
+    {
+        using var response = await RawMastodonCall.Sent(
+            httpClientFactory,
+            profile,
+            HttpMethod.Delete,
+            $"api/v1/conversations/{Uri.EscapeDataString(conversationId)}",
+            content: null,
+            cancellationToken);
+
+        // Mastodon looks the id up among the profile's own conversations only, so a 404 is the id naming nothing on
+        // this profile's list: a value the user got wrong, said as such rather than as a refusal.
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw UnknownConversationException.NotOnTheList(conversationId);
+        }
+
+        await InstanceError.EnsureAnswered(
+            profile,
+            response,
+            ConversationRefusedException.ForRemoval,
+            cancellationToken);
     }
 
     /// <summary>

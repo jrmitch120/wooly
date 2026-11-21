@@ -332,7 +332,8 @@ last said. It carries an id of its own, which is what shows it and what marks it
 **Removing a conversation**:
 Taking a **conversation** off the reader's own list of direct messages — what Mastodon's own UI calls "Delete
 conversation". The posts in it are not deleted and the others in it keep it; a new message in the thread brings it
-back. Distinct from deleting a **direct message**, which is deleting a post of one's own, for everyone.
+back, under a new id (seen against an instance, #620). Distinct from deleting a **direct message**, which is deleting
+a post of one's own, for everyone.
 _Avoid_: delete (for this; delete is for everyone), hide, archive
 
 **Instance**:

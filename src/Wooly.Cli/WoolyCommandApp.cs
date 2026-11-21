@@ -268,6 +268,9 @@ public static class WoolyCommandApp
 
                 dm.AddCommand<DirectMessageReadCommand>("read")
                   .WithDescription("Clear the unread mark on a conversation.");
+
+                dm.AddCommand<DirectMessageRemoveCommand>("remove")
+                  .WithDescription("Take a conversation off your list. Deletes no post; a new message brings it back.");
             });
 
             // A verb of its own rather than a branch: one command covers accounts, hashtags and posts alike, which is

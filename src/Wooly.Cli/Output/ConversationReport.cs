@@ -94,6 +94,10 @@ internal static class ConversationReport
     public static void MarkedRead(IAnsiConsole console, Conversation conversation) =>
         console.MarkupLineInterpolated($"Marked conversation [bold]{conversation.Id}[/] as read.");
 
+    /// <summary>Reports the conversation that has just been taken off the profile's list (#620).</summary>
+    public static void Removed(IAnsiConsole console, string conversationId) =>
+        console.MarkupLineInterpolated($"Removed conversation [bold]{conversationId}[/].");
+
     /// <summary>
     ///     The line that names a conversation: its id, who it is with, and whether it is still unread.
     /// </summary>
