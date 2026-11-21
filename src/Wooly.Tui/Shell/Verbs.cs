@@ -32,8 +32,8 @@ public static class Verbs
     ///     would be refused — <c>d</c>, <c>p</c> and <c>e</c> on somebody else's post, <c>x</c> with nothing hidden —
     ///     and a key left off must still not act on a post off the page. <c>D clear all</c> is not here, though its
     ///     hint needs a list to show (<see cref="Screens.KeyHint.NeedsAPick" />): it clears every notification rather
-    ///     than the picked one, so it acts at once. The attachments screen's <c>s</c> is. The two whose meaning turns
-    ///     on the screen — <c>F</c>, <c>m</c> — are <see cref="Keymap.NeedsAPick" />'s.
+    ///     than the picked one, so it acts at once. The attachments screen's <c>s</c> is. The three whose meaning turns
+    ///     on the screen — <c>F</c>, <c>m</c>, <c>R</c> — are <see cref="Keymap.NeedsAPick" />'s.
     ///     <c>←</c> and <c>→</c> are not here: they reclaim and enter in the same press (#477).
     /// </remarks>
     public static bool NeedsAPick(this Verb verb) => verb is

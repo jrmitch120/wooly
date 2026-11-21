@@ -244,7 +244,7 @@ public abstract record Subject
                 DestinationKind.Messages => new Listing<Core.Conversations.Conversation>(
                     Reads: InboxCount.Conversations,
                     Becomes: (written, notice, _) => new DirectMessagesScreen(written, notice),
-                    WhenEmpty: "No direct conversations yet.",
+                    WhenEmpty: DirectMessagesScreen.Nobody,
 
                     // The badge counts the conversations with something unread in them, and counts them off the list
                     // it is drawn beside — so the rail cannot say two over a list of one.

@@ -295,8 +295,8 @@ public static class Keymap
 
         // The capitals, which are keys of their own for exactly this reason: a lower-case mark key can never fire a
         // tie or empty an inbox by accident (docs/tui-shell.md). D on the profiles screen, where there is no inbox to
-        // empty, makes a profile the default instead (#244). R is the profiles screen's alone, since r is reply (#248).
-        // Nobody's on the own account, which cannot follow, mute or block itself.
+        // empty, makes a profile the default instead (#244). R is the profiles screen's and the conversations list's
+        // alone, since r is reply (#248, #621). Nobody's on the own account, which cannot follow, mute or block itself.
         (ShellKey.CapitalF or ShellKey.CapitalM or ShellKey.CapitalB, AccountScreen { IsOwnAccount: true }) => Verb.None,
         (ShellKey.CapitalF, _) => Verb.Follow,
         (ShellKey.CapitalM, _) => Verb.Mute,
@@ -308,6 +308,11 @@ public static class Keymap
         // nobody's, as p, e and d are on somebody else's post (#406).
         (ShellKey.CapitalE, AccountScreen { IsOwnAccount: true }) => Verb.EditPublicProfile,
         (ShellKey.CapitalR, ProfilesScreen) => Verb.SignInAgain,
+
+        // And R on the conversations list, where there is no profile to sign in again: it removes the picked
+        // conversation from the reader's own list (#621). A capital for the reason the ties are one — r beside it is
+        // reply — and asked before anything happens all the same.
+        (ShellKey.CapitalR, DirectMessagesScreen) => Verb.RemoveConversation,
 
         // Every digit means the same thing; which answer it addresses is Answer's, below.
         (ShellKey.One or ShellKey.Two or ShellKey.Three or ShellKey.Four or ShellKey.Five, _) => Verb.Toggle,
@@ -323,13 +328,14 @@ public static class Keymap
     ///     (#476).
     /// </summary>
     /// <remarks>
-    ///     Here rather than on the verb alone for the two that act on the pick only on some screens: <c>F</c> follows
-    ///     whoever is picked on Discover and the account shown on an account screen, and <c>m</c> marks the picked
-    ///     conversation read on the conversations list and the one being read inside it.
+    ///     Here rather than on the verb alone for the three that act on the pick only on some screens: <c>F</c> follows
+    ///     whoever is picked on Discover and the account shown on an account screen, <c>m</c> marks the picked
+    ///     conversation read on the conversations list and the one being read inside it, and <c>R</c> removes the
+    ///     picked conversation on the list (#621).
     /// </remarks>
     public static bool NeedsAPick(Verb verb, Screen screen) => (verb, screen) switch
     {
-        (Verb.Follow, DiscoverScreen) or (Verb.MarkRead, DirectMessagesScreen) => true,
+        (Verb.Follow, DiscoverScreen) or (Verb.MarkRead or Verb.RemoveConversation, DirectMessagesScreen) => true,
         _ => verb.NeedsAPick(),
     };
 

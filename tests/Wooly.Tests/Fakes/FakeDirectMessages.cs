@@ -17,6 +17,9 @@ internal sealed class FakeDirectMessages(
 {
     private Fetch<Conversation> _fetch = fetch;
 
+    /// <summary>What a removal alone is refused with, where everything else is answered (#621).</summary>
+    private Exception? _removalRefusal;
+
     /// <summary>Every conversation there is, where the listing reads on (<see cref="ReadingOn" />).</summary>
     private IReadOnlyList<Conversation>? _onward;
 
@@ -62,6 +65,13 @@ internal sealed class FakeDirectMessages(
     /// <summary>An instance that refuses everything with <paramref name="refusal" />, having recorded the attempt.</summary>
     public static FakeDirectMessages Refusing(Exception refusal) =>
         new(Fetch<Conversation>.Complete([]), thread: null, refusal);
+
+    /// <summary>
+    ///     Conversations there to be listed, shown and marked read, on an instance that refuses to remove any of them
+    ///     with <paramref name="refusal" />, having recorded the attempt (#621).
+    /// </summary>
+    public static FakeDirectMessages RefusingToRemove(Exception refusal, params Conversation[] conversations) =>
+        new(Fetch<Conversation>.Complete(conversations)) { _removalRefusal = refusal };
 
     /// <summary>
     ///     What every listing holds from here on — what arrived while the reader was elsewhere, which a poll is asked to
@@ -144,7 +154,23 @@ internal sealed class FakeDirectMessages(
         Removed.Add(new Named(profile.Name, conversationId));
         Tokens.Add(profile.AccessToken);
 
-        return refusal is not null ? Task.FromException(refusal) : Task.CompletedTask;
+        if ((refusal ?? _removalRefusal) is { } refused)
+        {
+            return Task.FromException(refused);
+        }
+
+        // Off every listing from here on, as it is off the instance's: a list read again after a removal does not bring
+        // the conversation back (#621).
+        if (_onward is { } all)
+        {
+            _onward = [.. all.Where(conversation => conversation.Id != conversationId)];
+        }
+        else
+        {
+            _fetch = _fetch with { Items = [.. _fetch.Items.Where(conversation => conversation.Id != conversationId)] };
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>One listing: which profile it was made as, and how many conversations it wanted.</summary>
