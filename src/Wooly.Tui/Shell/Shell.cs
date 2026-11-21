@@ -448,8 +448,8 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     The conversation <c>m</c> would mark read: the one being read, or the one picked out on the list. The two
-    ///     screens that have one, in one place, so that the key means the same thing on both.
+    ///     The conversation <c>m</c> would mark read and <c>R</c> remove: the one being read, or the one picked out on
+    ///     the list. The two screens that have one, in one place, so that each key means the same thing on both.
     /// </summary>
     private Conversation? Reading => Screen switch
     {
@@ -1623,8 +1623,8 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     Asks before taking the conversation picked out on the list off the reader's own list: <c>R</c>, removing a
-    ///     conversation (GLOSSARY.md, #621). Nothing where nothing is picked.
+    ///     Asks before taking the conversation being read, or the one picked out on the list, off the reader's own
+    ///     list: <c>R</c>, removing a conversation (GLOSSARY.md, #621, #622). Nothing where nothing is picked.
     /// </summary>
     /// <remarks>
     ///     Asked though it deletes nothing, because <c>R</c> sits beside <c>r</c>, reply, and a slip of the shift key
@@ -1633,7 +1633,7 @@ public sealed class Shell
     /// </remarks>
     public void AskToRemoveConversation()
     {
-        if (Screen is not DirectMessagesScreen { PickedConversation: { } conversation })
+        if (Reading is not { } conversation)
         {
             return;
         }

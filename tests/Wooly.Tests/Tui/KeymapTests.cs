@@ -227,6 +227,18 @@ public class KeymapTests
     }
 
     /// <summary>
+    ///     <c>R</c> inside a conversation removes the one being read (#622), while <c>d</c> there goes on deleting the
+    ///     reader's own message: removing a conversation and unsending a message stay two keys.
+    /// </summary>
+    [Fact]
+    public void CapitalRRemovesTheConversationBeingReadAndDStillDeletes()
+    {
+        Assert.Equal(Verb.RemoveConversation, Means("R", new ConversationScreen(AConversation.Thread())));
+        Assert.Equal(Verb.Delete, Means("d", new ConversationScreen(AConversation.Thread())));
+        Assert.Equal(Verb.Reply, Means("r", new ConversationScreen(AConversation.Thread())));
+    }
+
+    /// <summary>
     ///     What a search found answers <c>⏎</c> by opening the picked result (#600). The prompt's <c>⏎</c> is its field's,
     ///     which asks for what it holds before the key ever reaches the keymap (#608).
     /// </summary>

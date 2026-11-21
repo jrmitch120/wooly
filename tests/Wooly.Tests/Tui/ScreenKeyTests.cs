@@ -162,6 +162,8 @@ public class ScreenKeyTests
     [InlineData("messages", "⏎:open")]
     [InlineData("messages", "m:mark read")]
     [InlineData("messages", "R:remove")]
+    [InlineData("conversation", "m:mark read")]
+    [InlineData("conversation", "R:remove")]
     [InlineData("requests", "⏎:read them")]
     [InlineData("requests", "a:accept")]
     [InlineData("requests", "x:reject")]

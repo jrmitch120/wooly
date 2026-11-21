@@ -140,7 +140,8 @@ On a timeline or a post:
 | `g` | Refresh |
 
 On Direct messages, `⏎` opens a conversation, `m` marks it read, and `R` removes it from your list, asking first. No
-post is deleted, and a new message in the conversation brings it back.
+post is deleted, and a new message in the conversation brings it back. Inside a conversation, `m` and `R` do the same
+for the one you are reading, `R` putting you back on the list.
 
 When composing, `ctrl-s` sends, `esc` discards (asking first if you've typed anything), `ctrl-w` moves between the post
 and its content warning, `ctrl-o` opens the file browser, and `ctrl-v` or `alt-v` attaches a picture or files from the

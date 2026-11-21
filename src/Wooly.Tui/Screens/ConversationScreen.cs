@@ -35,13 +35,15 @@ public sealed class ConversationScreen : Screen
 
     /// <inheritdoc />
     /// <remarks>
-    ///     <c>m</c> in front of the shared keys, because it is the one a reader can find on no other screen and the
-    ///     status row draws what it has room for from the front (<c>docs/tui-shell.md</c>).
+    ///     <c>m</c> and <c>R</c> in front of the shared keys, because they are the two a reader can find on no screen
+    ///     of posts but this one and the status row draws what it has room for from the front
+    ///     (<c>docs/tui-shell.md</c>). Neither needs a pick: what they act on is the conversation, which is here
+    ///     whatever message is picked (#622).
     /// </remarks>
     protected override IReadOnlyList<KeyHint> OwnKeys =>
         PostKeys.Around(
             new KeyHint("j/k", "message"),
-            [new KeyHint("m", "mark read")],
+            [new KeyHint("m", "mark read"), new KeyHint("R", "remove")],
             new KeyHint("esc", "back"));
 
     /// <summary>The conversation itself: its id, who it is with, and whether it is still unread.</summary>
@@ -90,7 +92,7 @@ public sealed class ConversationScreen : Screen
     ///     written — here, or on a post opened from here (#484) — and goes on the end of it, which is where the next
     ///     read of a conversation, read around its last message, puts it too. Picked, and the page following it, only
     ///     where it was written here; a conversation further down the stack takes it in and stays where the reader
-    ///     left it.
+    ///     left it. A conversation removed from the reader's list takes this screen off the stack with it (#622).
     /// </remarks>
     public override bool Heard(Change change)
     {
@@ -120,6 +122,11 @@ public sealed class ConversationScreen : Screen
                 Marked(marked);
 
                 break;
+
+            // Off the reader's own list, from here or from the list underneath, so no longer theirs to be reading: the
+            // screen walks out, and the reader lands on the list it was opened from with the row gone (#622).
+            case Change.ConversationRemoved(var id) when id == Conversation.Id:
+                return true;
         }
 
         return false;
