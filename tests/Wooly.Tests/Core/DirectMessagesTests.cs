@@ -349,6 +349,69 @@ public class DirectMessagesTests
     }
 
     /// <summary>
+    ///     Removing a conversation (#620) is a <c>DELETE</c> of the conversation's own id, as the profile — never of a
+    ///     post in it, which would be deleting that post for everyone.
+    /// </summary>
+    [Fact]
+    public async Task Remove_TakesTheConversationItWasNamedOffTheProfilesList()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Json("{}"));
+
+        await NewMessages(network).Remove(Profile, "7", TestContext.Current.CancellationToken);
+
+        var request = Assert.Single(network.Requests);
+        Assert.Equal("https://mastodon.social/api/v1/conversations/7", request.RequestUri?.ToString());
+        Assert.Equal(HttpMethod.Delete, request.Method);
+        Assert.Equal("Bearer token-personal", request.Headers.Authorization?.ToString());
+    }
+
+    /// <summary>
+    ///     An id the instance cannot find among the profile's conversations is a value the user got wrong, said as the
+    ///     instance's not-found rather than passed off as a removal that happened.
+    /// </summary>
+    [Fact]
+    public async Task Remove_RefusesAnIdTheInstanceHasNoConversationFor()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.NotFound, "Record not found"));
+
+        var refusal = await Assert.ThrowsAsync<UnknownConversationException>(
+            () => NewMessages(network).Remove(Profile, "9", TestContext.Current.CancellationToken));
+
+        Assert.Equal("9", refusal.ConversationId);
+        Assert.Contains("9", refusal.Message);
+    }
+
+    /// <summary>
+    ///     Any other refusal is raised in the instance's own words, as something both front ends say — and never passed
+    ///     over as a removal that happened, which is what Mastonet's own <c>DeleteConversation</c> would do with it.
+    /// </summary>
+    [Fact]
+    public async Task Remove_RaisesARefusalInTheInstancesOwnWords()
+    {
+        var network = new ScriptedHttpMessageHandler(
+            ScriptedHttpMessageHandler.Refusal(HttpStatusCode.Forbidden, "This action is not allowed"));
+
+        var refusal = await Assert.ThrowsAsync<ConversationRefusedException>(
+            () => NewMessages(network).Remove(Profile, "7", TestContext.Current.CancellationToken));
+
+        Assert.Equal("This action is not allowed", refusal.Reason);
+        Assert.Contains("This action is not allowed", refusal.Message);
+    }
+
+    /// <summary>One call, so a rate limit is raised for ADR-0006's handler — or the TUI's countdown — to say.</summary>
+    [Fact]
+    public async Task Remove_RaisesARateLimitAsItself()
+    {
+        var network = new ScriptedHttpMessageHandler(ScriptedHttpMessageHandler.Status(HttpStatusCode.TooManyRequests));
+
+        await Assert.ThrowsAsync<RateLimitedException>(
+            () => NewMessages(network).Remove(Profile, "7", TestContext.Current.CancellationToken));
+
+        Assert.Single(network.Requests);
+    }
+
+    /// <summary>
     ///     A message to a conversation with several accounts in it names every one of them, because Mastodon delivers
     ///     a direct post to the accounts its text mentions and one that named only the last speaker would drop the
     ///     rest of the conversation out of it.
