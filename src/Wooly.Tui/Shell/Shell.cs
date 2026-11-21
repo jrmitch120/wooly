@@ -728,6 +728,7 @@ public sealed class Shell
         Verb.Vote => Ran(AskToVote),
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
+        Verb.RemoveConversation => Ran(AskToRemoveConversation),
         Verb.ToggleRail => Ran(ToggleRail),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
@@ -1621,6 +1622,37 @@ public sealed class Shell
         Apply(() => marking.Remove(conversation.Id));
     }
 
+    /// <summary>
+    ///     Asks before taking the conversation picked out on the list off the reader's own list: <c>R</c>, removing a
+    ///     conversation (GLOSSARY.md, #621). Nothing where nothing is picked.
+    /// </summary>
+    /// <remarks>
+    ///     Asked though it deletes nothing, because <c>R</c> sits beside <c>r</c>, reply, and a slip of the shift key
+    ///     should cost nothing. No "cannot be undone" under it: a new message in the thread brings the conversation back,
+    ///     and saying otherwise would be warning of something untrue.
+    /// </remarks>
+    public void AskToRemoveConversation()
+    {
+        if (Screen is not DirectMessagesScreen { PickedConversation: { } conversation })
+        {
+            return;
+        }
+
+        // Still drawn until the first is answered, so a second R lands here rather than on a question asked twice —
+        // the same rule m keeps, and nothing said for the same reason: the breadcrumb's fetch mark already says
+        // something is on its way.
+        if (Actor.Removing.Contains(conversation.Id))
+        {
+            return;
+        }
+
+        StatusRow.Ask(new Confirmation(
+            "Remove this conversation from your list?",
+            () => RemoveConversation(conversation.Id),
+            Going: "remove",
+            Warning: string.Empty));
+    }
+
     /// <summary>Shows the current screen's keymap, which is itself a place in the stack.</summary>
     public void Help()
     {
@@ -1895,7 +1927,11 @@ public sealed class Shell
             return;
         }
 
-        _acting = Acts(renewed, _enquiry, Actor.Cache, Actor.Lists) with { Marking = Actor.Marking };
+        _acting = Acts(renewed, _enquiry, Actor.Cache, Actor.Lists) with
+        {
+            Marking = Actor.Marking,
+            Removing = Actor.Removing,
+        };
 
         // A languages map the refused token could not read is read now, with the token that can (#616).
         _languages.Ask(renewed);
@@ -2069,6 +2105,37 @@ public sealed class Shell
         {
             StatusRow.Say(NoBrowser, isError: true);
         }
+    }
+
+    /// <summary>
+    ///     Takes the conversation <paramref name="conversationId" /> off the reader's own list, by its own id — never the
+    ///     id of a post in it — once the reader has agreed to (#621).
+    /// </summary>
+    private async Task RemoveConversation(string conversationId)
+    {
+        var removing = Actor.Removing;
+
+        if (!removing.Add(conversationId))
+        {
+            return;
+        }
+
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        var profile = Actor.Profile;
+
+        await _enquiry.Put(
+            ask => ask.Of(token => _ports.Messages.Remove(profile, conversationId, token)),
+            eitherWay: () =>
+            {
+                // Said whether or not the reader is still here, as a delete is: the instance has taken it off the
+                // list wherever they have walked to since.
+                Tell(new Change.ConversationRemoved(conversationId));
+                StatusRow.Say("Removed.", isError: false);
+            });
+
+        // Let go on the drawing thread, behind whatever the answer or its failure has already queued there: by then the
+        // row is gone, or still standing to be removed again.
+        Apply(() => removing.Remove(conversationId));
     }
 
     private Task Delete(string postId)
@@ -2737,6 +2804,12 @@ public sealed class Shell
         ///     before the first lands marks nothing twice, and moves the badge once (#234).
         /// </summary>
         public HashSet<string> Marking { get; init; } = new(StringComparer.Ordinal);
+
+        /// <summary>
+        ///     The conversations <c>R</c> has been agreed to and not yet answered about, by id — so a second press before
+        ///     the first lands asks nothing twice (#621).
+        /// </summary>
+        public HashSet<string> Removing { get; init; } = new(StringComparer.Ordinal);
 
         /// <summary>Which destinations' own list reads are in flight, which hold a re-read's find back (story 11).</summary>
         public ListReads Lists { get; init; } = new();

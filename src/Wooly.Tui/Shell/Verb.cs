@@ -320,6 +320,12 @@ public enum Verb
     /// <summary><c>m</c>: take the unread mark off the conversation being read, or the one picked out.</summary>
     MarkRead,
 
+    /// <summary>
+    ///     <c>R</c> on the conversations list: take the picked conversation off the reader's own list, once they have said
+    ///     so twice — removing a conversation, which deletes no post (GLOSSARY.md, #621).
+    /// </summary>
+    RemoveConversation,
+
     /// <summary><c>⏎</c> on what it found: open the picked result.</summary>
     OpenResult,
 

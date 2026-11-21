@@ -353,7 +353,7 @@ Screen-local, and deliberately colliding with the above because they are never o
 | Discover | `F` follow/unfollow · `d` dismiss, one-way · `[`/`]` section |
 | Notifications | `w` open who did it — whoever favorited, boosted, followed or mentioned (#451), `a` staying the post's author as on every feed (#448); on a group of several, the actors screen listing every one of them, read from the group's own accounts and read on as the page nears the end (#455, #467) · `d` dismiss the group, every notification in it (#457) · `D` clear all |
 | Follow requests | `a` accept · `x` reject |
-| Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it |
+| Direct messages | `⏎` open the conversation · `m` mark read — `m` again inside the thread, where a reader who has just read it is most likely to press it · `R` remove the picked conversation from the reader's own list, after a confirmation (#621) |
 | Conversation | `m` mark read, and every key that acts on a post, since each message in it is one |
 | Profiles | `⏎` act as that profile, for this session — not offered on the one already acted as · `D` make it the default, for the CLI and the next launch — not offered on the one already the default · `a` add a profile · `R` sign it in again, replacing its token — offered on every row · `x` remove it, after a confirmation — refused on the one acted as and on the default |
 | Add a profile | `⏎` on to the next step · `t` paste a token instead, while the browser is out or after it failed · `esc` back to the list, calling off a sign-in or a check in flight — or, as the only screen on first run, back to the first step, with `ctrl-q` quit offered (#247) |
@@ -1565,6 +1565,18 @@ The last two screens, and the one place a screen writes words of its own into wh
   the message named them, which is how it reached them, and on a message they wrote themselves, which therefore opens
   addressed to whoever they sent it to — and an address this client cannot parse is left out of the mention rather than
   thrown over the reply, where the reader can see that it is missing.
+- **Removing a conversation takes it off the reader's own list, and deletes nothing** (GLOSSARY.md, #621). `R` on the
+  list asks first — `Remove this conversation from your list?`, offering `y remove · esc keep` — through the same
+  confirmation a delete asks through, because `R` sits beside `r`, reply, and a slip of the shift key should cost
+  nothing. It warns of nothing being undoable, since a new message in the thread brings the conversation back. It is
+  removed by its own id, never a post's; once the instance agrees the row goes, the pick moving on to the next
+  conversation or back to the previous where it was the last, and a list emptied says so. The shell tells every screen
+  the conversation is gone (`Change.ConversationRemoved`), forgets what Direct messages held so the next arrival lists
+  afresh, and reads the badge again from the instance rather than counting it down (ADR-0027) — whether the
+  conversation was unread is the instance's to say. A refusal is said in the instance's words, with the row and pick
+  left as they were and nothing told; a second `R` while the first is on its way asks nothing, as `m` keeps. `R` means
+  this on the list alone: on Profiles it is still sign in again, and elsewhere nothing — *remove* rather than *delete*,
+  because delete here always means gone for everyone.
 - **A reply lands at the end of the thread it answers, and on the row it was opened from** — rather than appearing
   nowhere until the conversation is read again. A conversation is read in the order it was said in, what was just said
   is part of it, and it is the conversation's last word as well as the thread's last message.

@@ -84,6 +84,12 @@ public abstract record Change
     /// <summary>A conversation that was unread, as the instance has it now it is marked read.</summary>
     public sealed record ConversationMarked(Core.Conversations.Conversation Conversation) : Change;
 
+    /// <summary>
+    ///     A conversation taken off the reader's own list, by its own id (#621). Nothing in it was deleted: the posts
+    ///     stand, and a new message in the thread brings it back (GLOSSARY.md).
+    /// </summary>
+    public sealed record ConversationRemoved(string Id) : Change;
+
     /// <summary>The own account's public profile saved, and the account as the instance now has it (#406).</summary>
     public sealed record PublicProfileSaved(Person Account) : Change;
 }

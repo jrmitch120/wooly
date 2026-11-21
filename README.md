@@ -139,6 +139,9 @@ On a timeline or a post:
 | `1`–`9`, `0`, then `v` | Pick poll options, then vote |
 | `g` | Refresh |
 
+On Direct messages, `⏎` opens a conversation, `m` marks it read, and `R` removes it from your list, asking first. No
+post is deleted, and a new message in the conversation brings it back.
+
 When composing, `ctrl-s` sends, `esc` discards (asking first if you've typed anything), `ctrl-w` moves between the post
 and its content warning, `ctrl-o` opens the file browser, and `ctrl-v` or `alt-v` attaches a picture or files from the
 clipboard.
