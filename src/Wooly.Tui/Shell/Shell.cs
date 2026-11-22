@@ -448,8 +448,8 @@ public sealed class Shell
     }
 
     /// <summary>
-    ///     The conversation <c>m</c> would mark read: the one being read, or the one picked out on the list. The two
-    ///     screens that have one, in one place, so that the key means the same thing on both.
+    ///     The conversation <c>m</c> would mark read and <c>R</c> remove: the one being read, or the one picked out on
+    ///     the list. The two screens that have one, in one place, so that each key means the same thing on both.
     /// </summary>
     private Conversation? Reading => Screen switch
     {
@@ -728,6 +728,7 @@ public sealed class Shell
         Verb.Vote => Ran(AskToVote),
         Verb.Refresh => Ran(Refresh),
         Verb.MarkRead => Ran(MarkRead),
+        Verb.RemoveConversation => Ran(AskToRemoveConversation),
         Verb.ToggleRail => Ran(ToggleRail),
 
         // Nothing, and the terminal's own — which the window has already taken, and which no screen answers either.
@@ -1599,26 +1600,44 @@ public sealed class Shell
             return;
         }
 
-        // Still drawn unread until the first press is answered, so a second one lands here rather than above. Nothing
-        // is said: the breadcrumb's fetch mark already says something is on its way, and "Marked as read." follows.
-        var marking = Actor.Marking;
+        // Still drawn unread until the first press is answered, so a second one lands in the wait below rather than
+        // above. Nothing is said: the breadcrumb's fetch mark already says something is on its way, and "Marked as
+        // read." follows.
+        await OneAtATime(Actor.Awaiting.Marking, conversation.Id, profile => _enquiry.Put(
+            ask => ask.Of(token => _ports.Messages.MarkRead(profile, conversation.Id, token)),
+            eitherWay: marked => Tell(new Change.ConversationMarked(marked)),
+            ifStillHere: _ => StatusRow.Say("Marked as read.", isError: false)));
+    }
 
-        if (!marking.Add(conversation.Id))
+    /// <summary>
+    ///     Asks before taking the conversation being read, or the one picked out on the list, off the reader's own
+    ///     list: <c>R</c>, removing a conversation (GLOSSARY.md, #621, #622). Nothing where nothing is picked.
+    /// </summary>
+    /// <remarks>
+    ///     Asked though it deletes nothing, because <c>R</c> sits beside <c>r</c>, reply, and a slip of the shift key
+    ///     should cost nothing. No "cannot be undone" under it: a new message in the thread brings the conversation back,
+    ///     and saying otherwise would be warning of something untrue.
+    /// </remarks>
+    public void AskToRemoveConversation()
+    {
+        if (Reading is not { } conversation)
         {
             return;
         }
 
-        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
-        var profile = Actor.Profile;
+        // Still drawn until the first is answered, so a second R lands here rather than on a question asked twice —
+        // the same rule m keeps, and nothing said for the same reason: the breadcrumb's fetch mark already says
+        // something is on its way.
+        if (Actor.Awaiting.Removing.Contains(conversation.Id))
+        {
+            return;
+        }
 
-        await _enquiry.Put(
-            ask => ask.Of(token => _ports.Messages.MarkRead(profile, conversation.Id, token)),
-            eitherWay: marked => Tell(new Change.ConversationMarked(marked)),
-            ifStillHere: _ => StatusRow.Say("Marked as read.", isError: false));
-
-        // Let go on the drawing thread, behind whatever the answer or its failure has already queued there: by then the
-        // conversation is drawn as the instance has it, and a press that fails can be pressed again.
-        Apply(() => marking.Remove(conversation.Id));
+        StatusRow.Ask(new Confirmation(
+            "Remove this conversation from your list?",
+            () => RemoveConversation(conversation.Id),
+            Going: "remove",
+            Warning: string.Empty));
     }
 
     /// <summary>Shows the current screen's keymap, which is itself a place in the stack.</summary>
@@ -1895,7 +1914,7 @@ public sealed class Shell
             return;
         }
 
-        _acting = Acts(renewed, _enquiry, Actor.Cache, Actor.Lists) with { Marking = Actor.Marking };
+        _acting = Acts(renewed, _enquiry, Actor.Cache, Actor.Lists) with { Awaiting = Actor.Awaiting };
 
         // A languages map the refused token could not read is read now, with the token that can (#616).
         _languages.Ask(renewed);
@@ -2069,6 +2088,41 @@ public sealed class Shell
         {
             StatusRow.Say(NoBrowser, isError: true);
         }
+    }
+
+    /// <summary>
+    ///     Takes the conversation <paramref name="conversationId" /> off the reader's own list, by its own id — never the
+    ///     id of a post in it — once the reader has agreed to (#621).
+    /// </summary>
+    private Task RemoveConversation(string conversationId) =>
+        OneAtATime(Actor.Awaiting.Removing, conversationId, profile => _enquiry.Put(
+            ask => ask.Of(token => _ports.Messages.Remove(profile, conversationId, token)),
+            eitherWay: () =>
+            {
+                // Said whether or not the reader is still here, as a delete is: the instance has taken it off the
+                // list wherever they have walked to since.
+                Tell(new Change.ConversationRemoved(conversationId));
+                StatusRow.Say("Removed.", isError: false);
+            }));
+
+    /// <summary>
+    ///     Asks <paramref name="ask" /> as the profile acted as now, unless <paramref name="waiting" /> already holds
+    ///     <paramref name="conversationId" /> — the one wait <c>m</c> and <c>R</c> share, so that a second press before
+    ///     the first is answered asks the instance nothing twice (#234, #621).
+    /// </summary>
+    private async Task OneAtATime(HashSet<string> waiting, string conversationId, Func<ActiveProfile, Task> ask)
+    {
+        if (!waiting.Add(conversationId))
+        {
+            return;
+        }
+
+        // Taken now rather than read when the call is made, which a rate-limit wait can put after a switch (#243).
+        await ask(Actor.Profile);
+
+        // Let go on the drawing thread, behind whatever the answer or its failure has already queued there: by then the
+        // conversation is drawn as the instance has it, and a press that fails can be pressed again.
+        Apply(() => waiting.Remove(conversationId));
     }
 
     private Task Delete(string postId)
@@ -2712,10 +2766,10 @@ public sealed class Shell
 
     /// <summary>
     ///     Who the session is acting as, with everything that holds what was read as them: the arrival and its cache,
-    ///     what a screen can reach, and the conversations being marked read. One thing rather than four, so that a
-    ///     switch puts a whole new one in place and none of it can be left behind by accident (#243). The enquiry their
-    ///     questions go through is beside it rather than in it, since adding a profile asks through one with nobody
-    ///     acted as at all (#247).
+    ///     what a screen can reach, and the conversations being marked read or removed. One thing rather than four, so
+    ///     that a switch puts a whole new one in place and none of it can be left behind by accident (#243). The enquiry
+    ///     their questions go through is beside it rather than in it, since adding a profile asks through one with
+    ///     nobody acted as at all (#247).
     /// </summary>
     /// <param name="Profile">Who is being acted as.</param>
     /// <param name="Arrival">
@@ -2732,13 +2786,30 @@ public sealed class Shell
         SubjectCache Cache,
         PeopleToMention People)
     {
-        /// <summary>
-        ///     The conversations <c>m</c> has been pressed on and not yet answered about, by id — so a second press
-        ///     before the first lands marks nothing twice, and moves the badge once (#234).
-        /// </summary>
-        public HashSet<string> Marking { get; init; } = new(StringComparer.Ordinal);
+        /// <summary>The conversations waiting on the instance to answer <c>m</c> or <c>R</c>, kept over a renewal.</summary>
+        public Awaited Awaiting { get; init; } = new();
 
         /// <summary>Which destinations' own list reads are in flight, which hold a re-read's find back (story 11).</summary>
         public ListReads Lists { get; init; } = new();
+    }
+
+    /// <summary>
+    ///     The conversations asked about and not yet answered, by id, one set for each key that asks
+    ///     (<see cref="OneAtATime" />). One thing rather than two, so that a renewed token carries every wait over at
+    ///     once.
+    /// </summary>
+    private sealed class Awaited
+    {
+        /// <summary>
+        ///     The conversations <c>m</c> has been pressed on and not yet answered about — so a second press before the
+        ///     first lands marks nothing twice, and moves the badge once (#234).
+        /// </summary>
+        public HashSet<string> Marking { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>
+        ///     The conversations <c>R</c> has been agreed to and not yet answered about — so a second press before the
+        ///     first lands asks nothing twice (#621).
+        /// </summary>
+        public HashSet<string> Removing { get; } = new(StringComparer.Ordinal);
     }
 }

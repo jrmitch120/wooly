@@ -4,10 +4,11 @@ using Wooly.Core.Profiles;
 namespace Wooly.Core.Conversations;
 
 /// <summary>
-///     The direct conversations a profile is in: the ones it has, one of them in full, and marking one read. The narrow
-///     port ADR-0005 asks for over Mastonet's whole REST surface, alongside <see cref="Timelines.ITimelineReader" />,
-///     <see cref="Posts.IPostAuthor" /> and <see cref="Notifications.INotificationInbox" /> — front ends depend on this,
-///     and their tests fake this rather than the network.
+///     The direct conversations a profile is in: the ones it has, one of them in full, marking one read, and removing one
+///     from the list. The narrow port ADR-0005 asks for over Mastonet's whole REST surface, alongside
+///     <see cref="Timelines.ITimelineReader" />, <see cref="Posts.IPostAuthor" /> and
+///     <see cref="Notifications.INotificationInbox" /> — front ends depend on this, and their tests fake this rather than
+///     the network.
 /// </summary>
 /// <remarks>
 ///     Nothing here sends a message, and that absence is the shape of this feature rather than an omission (ADR-0013).
@@ -71,4 +72,23 @@ public interface IDirectMessages
     /// </remarks>
     /// <returns>The conversation as it now stands, so a caller can say what was marked rather than which id was.</returns>
     Task<Conversation> MarkRead(ActiveProfile profile, string conversationId, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Takes the conversation <paramref name="conversationId" /> names off the profile's own list — removing a
+    ///     conversation (#620).
+    /// </summary>
+    /// <param name="conversationId">
+    ///     The conversation's own id, as a listing reports it — never the id of a post in it.
+    /// </param>
+    /// <remarks>
+    ///     Nothing is deleted: the posts in the conversation stand, the others in it keep it, and a new message in the
+    ///     thread brings it back to the list. Deleting a post of one's own, for everyone, is
+    ///     <see cref="Posts.IPostAuthor.Delete" />, and the two are kept apart by name as well as by call (GLOSSARY.md).
+    /// </remarks>
+    /// <exception cref="Errors.UnknownConversationException">The instance has no conversation by that id on the profile's list.</exception>
+    /// <exception cref="Errors.ConversationRefusedException">The instance turned the removal down, in its own words.</exception>
+    /// <exception cref="Errors.InstanceFailedException">The instance failed to answer.</exception>
+    /// <exception cref="Errors.RateLimitedException">The profile has spent its quota with the instance.</exception>
+    /// <exception cref="Errors.TransientNetworkException">The instance could not be reached, retries included.</exception>
+    Task Remove(ActiveProfile profile, string conversationId, CancellationToken cancellationToken);
 }

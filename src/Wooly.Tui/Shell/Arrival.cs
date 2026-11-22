@@ -371,6 +371,14 @@ public sealed class Arrival(
 
                 break;
 
+            // Read again rather than moved, whether or not the conversation was unread: the count is the instance's to
+            // say, and the list it is counted off has just changed under it (ADR-0027, #621).
+            case Change.ConversationRemoved:
+                Forget(DestinationKind.Messages);
+                Rereads?.Invoke(DestinationKind.Messages);
+
+                break;
+
             // Wherever the own account is held — a follow list it is on, a list carrying a post it wrote or boosted, whose
             // byline says its name and draws its avatar — it is held as it was before the save (#406).
             case Change.PublicProfileSaved(var account):

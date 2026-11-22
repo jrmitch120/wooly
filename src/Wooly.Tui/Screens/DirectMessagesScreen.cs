@@ -12,8 +12,9 @@ namespace Wooly.Tui.Screens;
 /// </summary>
 /// <remarks>
 ///     A row is a conversation, not a post — so this screen answers to none of the keys that act on one. What it
-///     offers is the two things a conversation can be asked: <c>⏎</c> opens the thread and <c>m</c> takes the unread
-///     mark off, both by the conversation's own id, which is not the id of any post in it (GLOSSARY.md).
+///     offers is the three things a conversation can be asked: <c>⏎</c> opens the thread, <c>m</c> takes the unread
+///     mark off and <c>R</c> removes it from the reader's own list (#621), all by the conversation's own id, which is
+///     not the id of any post in it (GLOSSARY.md).
 ///     <para>
 ///         The last post is drawn under each row rather than summarised, because it is the thing that tells one
 ///         conversation from another, and drawing it through <see cref="PostLines" /> is what stops a message read
@@ -27,6 +28,12 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     // puts the reader back on (#84).
     private readonly Picked<Conversation> _conversations = new(conversations);
 
+    /// <summary>
+    ///     What the list says with nothing on it: where nobody has written, and where the last conversation on it has
+    ///     been removed (#621) — the same words either way, which are the words the next arrival would say.
+    /// </summary>
+    public const string WhenEmpty = "No direct conversations yet.";
+
     /// <inheritdoc />
     public override string Crumb => "Direct messages";
 
@@ -39,6 +46,7 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
         new("j/k", "conversation"),
         new("⏎", "open", NeedsAPick: true),
         new("m", "mark read", NeedsAPick: true),
+        new("R", "remove", NeedsAPick: true),
         Refreshing,
         .. PostKeys.Leaving(PostKeys.AlongTheRail),
     ];
@@ -64,8 +72,8 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
     public int Unread => _conversations.All.Count(conversation => conversation.Unread);
 
     /// <summary>
-    ///     The conversation picked out, or <see langword="null" /> where nobody has written. What <c>⏎</c> opens and
-    ///     <c>m</c> marks read, named by its own id.
+    ///     The conversation picked out, or <see langword="null" /> where nobody has written. What <c>⏎</c> opens,
+    ///     <c>m</c> marks read and <c>R</c> removes, named by its own id.
     /// </summary>
     public Conversation? PickedConversation => _conversations.Out;
 
@@ -125,6 +133,18 @@ public sealed class DirectMessagesScreen(IReadOnlyList<Conversation> conversatio
 
             case Change.ConversationMarked(var marked):
                 _conversations.Rewrite(held => held.Id == marked.Id ? marked : held);
+
+                break;
+
+            // Off the list, the pick going on to the conversation after it, or back to the one before where it was the
+            // last (#621) — and a list emptied says so, as one that arrived empty does, rather than reading as broken.
+            case Change.ConversationRemoved(var id):
+                _conversations.Remove(held => held.Id == id);
+
+                if (_conversations.Count == 0)
+                {
+                    Notice = WhenEmpty;
+                }
 
                 break;
         }

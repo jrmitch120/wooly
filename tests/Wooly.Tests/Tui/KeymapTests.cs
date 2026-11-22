@@ -213,6 +213,32 @@ public class KeymapTests
     }
 
     /// <summary>
+    ///     <c>R</c> on the conversations list removes the picked conversation from the reader's own list (#621), and
+    ///     keeps meaning sign in again on the profiles screen and nothing on a screen of posts — <c>r</c> there is reply.
+    /// </summary>
+    [Fact]
+    public void CapitalRRemovesAConversationOnTheListAndKeepsItsMeaningElsewhere()
+    {
+        Assert.Equal(Verb.RemoveConversation, Means("R", new DirectMessagesScreen([AConversation.With()])));
+        Assert.Equal(Verb.SignInAgain, Means("R", new ProfilesScreen([], "personal", [])));
+        Assert.Equal(Verb.None, Means("R", Feed()));
+        Assert.Equal(Verb.None, Means("R", Notifications()));
+        Assert.Equal(Verb.Reply, Means("r", new DirectMessagesScreen([AConversation.With()])));
+    }
+
+    /// <summary>
+    ///     <c>R</c> inside a conversation removes the one being read (#622), while <c>d</c> there goes on deleting the
+    ///     reader's own message: removing a conversation and unsending a message stay two keys.
+    /// </summary>
+    [Fact]
+    public void CapitalRRemovesTheConversationBeingReadAndDStillDeletes()
+    {
+        Assert.Equal(Verb.RemoveConversation, Means("R", new ConversationScreen(AConversation.Thread())));
+        Assert.Equal(Verb.Delete, Means("d", new ConversationScreen(AConversation.Thread())));
+        Assert.Equal(Verb.Reply, Means("r", new ConversationScreen(AConversation.Thread())));
+    }
+
+    /// <summary>
     ///     What a search found answers <c>⏎</c> by opening the picked result (#600). The prompt's <c>⏎</c> is its field's,
     ///     which asks for what it holds before the key ever reaches the keymap (#608).
     /// </summary>

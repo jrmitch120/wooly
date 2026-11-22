@@ -88,3 +88,23 @@ documented preference, and it is the right way round: the preference exists so a
 One thing this deliberately does not do: **nothing here deletes or mutes a conversation.** Mastodon offers both, #27
 asks for neither, and a `dm delete` that removed a thread from the list while leaving the posts in it standing would be
 a verb whose meaning nobody could guess. If it is wanted, it wants its own ticket and its own word.
+
+## Amendment (2026-11-21): the conversation removal declined above now exists, as *remove* (#620)
+
+What the last paragraph asked for has happened: removing a conversation arrived under its own ticket (#619, #620) and
+its own word. It is `dm remove <ID>` rather than a `dm delete`, and `IDirectMessages.Remove` rather than a `Delete`,
+because *delete* in this client always means gone for everyone — a post of one's own taken down — and this is not that:
+the conversation leaves the reader's own list, no post is deleted, the others in it keep it, and a new message in the
+thread brings it back. What comes back is a new entry under a new id rather than the old one restored — the Docker suite
+sees it — so an id `dm remove` was given names nothing afterwards. GLOSSARY.md records it as **Removing a
+conversation**; Mastodon's own UI word, "Delete conversation", is noted there and nowhere else.
+
+It takes the conversation's own id, the one `dm list` prints and `dm show` / `dm read` take, and asks first through the
+consent `post delete` asks through, since a mistyped id takes a conversation off the list that only a new message brings
+back. Unlike `dm show`, it does not walk the list: it names the id to the instance, and the instance's not-found is
+reported as the usage error an unknown conversation always is.
+
+The `DELETE` is sent raw (ADR-0011) although Mastonet 3.1.3 has `DeleteConversation`. That call answers a bare `Task`
+and never reads the body a refusal comes in — the gap `IFollowSuggestions.Dismiss` records for its own delete — so a
+mistyped id would have been reported as removed. Muting a conversation is still declined, and still wants its own
+ticket if it is wanted.

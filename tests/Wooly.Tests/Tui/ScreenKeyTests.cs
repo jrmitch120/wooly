@@ -161,6 +161,9 @@ public class ScreenKeyTests
     [InlineData("search-hashtag", "⏎:open")]
     [InlineData("messages", "⏎:open")]
     [InlineData("messages", "m:mark read")]
+    [InlineData("messages", "R:remove")]
+    [InlineData("conversation", "m:mark read")]
+    [InlineData("conversation", "R:remove")]
     [InlineData("requests", "⏎:read them")]
     [InlineData("requests", "a:accept")]
     [InlineData("requests", "x:reject")]
@@ -216,7 +219,7 @@ public class ScreenKeyTests
     [
         ("feed-empty", "feed", []),
         ("inbox-empty", "notifications-follow", ["w:who", "d:dismiss", "D:clear all"]),
-        ("messages-empty", "messages", ["⏎:open", "m:mark read"]),
+        ("messages-empty", "messages", ["⏎:open", "m:mark read", "R:remove"]),
         ("requests-empty", "requests", ["⏎:read them", "a:accept", "x:reject"]),
         ("search-nothing", "search-account", ["⏎:open"]),
         ("section-nothing", "section-account", ["⏎:open"]),

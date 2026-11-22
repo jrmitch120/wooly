@@ -255,6 +255,151 @@ public class DirectMessageCommandTests : IDisposable
         Assert.False(document.RootElement.GetProperty("unread").GetBoolean());
     }
 
+    /// <summary>
+    ///     Removing a conversation (#620) by its own id, as the profile, and saying so — with <c>--yes</c> answering
+    ///     the question on the command line.
+    /// </summary>
+    [Fact]
+    public void Remove_TakesTheConversationItWasNamedOffTheList()
+    {
+        AddProfile();
+
+        var run = Run(["dm", "remove", "7", "--yes"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Empty(run.ErrorOutput.Trim());
+
+        var removed = Assert.Single(_messages.Removed);
+        Assert.Equal("personal", removed.Profile);
+        Assert.Equal("7", removed.ConversationId);
+        Assert.Contains("Removed conversation 7.", run.Output);
+    }
+
+    /// <summary>
+    ///     A person at a terminal is asked first, through the consent <c>post delete</c> asks through — naming the id,
+    ///     and how far the removal reaches.
+    /// </summary>
+    [Fact]
+    public void Remove_AsksBeforeTakingAConversationOffTheListWhenThereIsSomebodyToAsk()
+    {
+        AddProfile();
+
+        var run = Run(["dm", "remove", "7"], atATerminal: true, typed: "y");
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Contains("Remove conversation 7 from your list?", run.Output);
+        Assert.Equal("7", Assert.Single(_messages.Removed).ConversationId);
+        Assert.Contains("Removed conversation 7.", run.Output);
+    }
+
+    /// <summary>Saying no is an answer rather than a failure, so it exits the way a removal does.</summary>
+    [Fact]
+    public void Remove_LeavesTheConversationAloneWhenTheAnswerIsNo()
+    {
+        AddProfile();
+
+        var run = Run(["dm", "remove", "7"], atATerminal: true, typed: "n");
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Empty(_messages.Removed);
+        Assert.Contains("Left conversation 7 alone.", run.Output);
+        Assert.DoesNotContain("Removed", run.Output);
+    }
+
+    [Fact]
+    public void Remove_DoesNotAskWhenTheCommandLineAlreadySaidYes()
+    {
+        AddProfile();
+
+        var run = Run(["dm", "remove", "7", "--yes"], atATerminal: true);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.DoesNotContain("from your list?", run.Output);
+        Assert.Equal("7", Assert.Single(_messages.Removed).ConversationId);
+    }
+
+    [Fact]
+    public void Remove_ActsAsTheProfileNamedByTheOverride()
+    {
+        AddProfile();
+        AddProfile("work", "hachyderm.io");
+
+        var run = Run(["dm", "remove", "7", "--yes", "--profile", "work"]);
+
+        Assert.Equal((int)ExitCode.Success, run.ExitCode);
+        Assert.Equal("work", Assert.Single(_messages.Removed).Profile);
+        Assert.Equal(["token-work"], _messages.Tokens);
+    }
+
+    /// <summary>
+    ///     An id the instance has no conversation for is a value on the command line that is wrong — told apart by its
+    ///     exit code from a network that failed — and nothing claims it was removed.
+    /// </summary>
+    [Fact]
+    public void Remove_ReportsAnIdTheInstanceCannotFindAsSomethingTheUserTyped()
+    {
+        AddProfile();
+        _messages = FakeDirectMessages.Refusing(UnknownConversationException.NotOnTheList("9"));
+
+        var run = Run(["dm", "remove", "9", "--yes"]);
+
+        Assert.Equal((int)ExitCode.UsageError, run.ExitCode);
+        Assert.Contains("9", run.ErrorOutput);
+        Assert.Empty(run.Output.Trim());
+    }
+
+    /// <summary>The other failures exit with ADR-0006's codes, as they do from every other command.</summary>
+    [Theory]
+    [MemberData(nameof(RemovalFailures))]
+    public void Remove_ExitsWithTheDocumentedCodeForEachOtherFailure(Exception failure, ExitCode expected)
+    {
+        AddProfile();
+        _messages = FakeDirectMessages.Refusing(failure);
+
+        var run = Run(["dm", "remove", "7", "--yes"]);
+
+        Assert.Equal((int)expected, run.ExitCode);
+        Assert.DoesNotContain("Removed", run.Output);
+    }
+
+    public static TheoryData<Exception, ExitCode> RemovalFailures() => new()
+    {
+        { new AuthenticationException("The access token was rejected."), ExitCode.AuthenticationError },
+        {
+            new TransientNetworkException(
+                new Uri("https://mastodon.social/api/v1/conversations/7"),
+                3,
+                new HttpRequestException("Connection refused")),
+            ExitCode.NetworkError
+        },
+        {
+            new RateLimitedException("mastodon.social", new DateTimeOffset(2026, 7, 29, 13, 0, 0, TimeSpan.Zero)),
+            ExitCode.RateLimited
+        },
+        { ConversationRefusedException.ForRemoval("This action is not allowed"), ExitCode.Error },
+    };
+
+    /// <summary>The instance's own words reach the user when it turns a removal down.</summary>
+    [Fact]
+    public void Remove_SaysARefusalInTheInstancesOwnWords()
+    {
+        AddProfile();
+        _messages = FakeDirectMessages.Refusing(ConversationRefusedException.ForRemoval("This action is not allowed"));
+
+        var run = Run(["dm", "remove", "7", "--yes"]);
+
+        Assert.Contains("This action is not allowed", run.ErrorOutput);
+    }
+
+    [Fact]
+    public void Remove_IsOfferedInTheDirectMessagesHelp()
+    {
+        var help = Run(["dm", "--help"]).Output;
+
+        Assert.Contains("remove", help);
+        Assert.Contains("Take a conversation off your list", help);
+    }
+
     /// <summary>Reading a conversation is not marking it read — the two are separate acts on purpose.</summary>
     [Fact]
     public void Show_DoesNotMarkTheConversationRead()
@@ -422,10 +567,22 @@ public class DirectMessageCommandTests : IDisposable
             $"{Environment.NewLine}[preferences]{Environment.NewLine}default_visibility = \"{visibility}\"{Environment.NewLine}");
     }
 
-    private CommandRun Run(string[] args)
+    /// <param name="atATerminal">Whether there is somebody to ask, as <c>PostCommandTests</c> says it.</param>
+    /// <param name="typed">What that somebody answers a question with.</param>
+    private CommandRun Run(string[] args, bool atATerminal = false, string? typed = null)
     {
         var console = new TestConsole().Width(200);
         var errorConsole = new TestConsole().Width(200);
+
+        if (atATerminal)
+        {
+            console.Interactive();
+        }
+
+        if (typed is not null)
+        {
+            console.Input.PushTextWithEnter(typed);
+        }
 
         var app = WoolyCommandApp.Create(console, errorConsole, services =>
         {

@@ -263,9 +263,11 @@ wooly-cli post create "Home safe" --visibility followers</code></pre>
           <li><strong>Notifications</strong> are grouped the way your instance groups them, so ten favorites on one
             post are one row. <kbd>w</kbd> shows who did it, <kbd>d</kbd> dismisses a group and <kbd>D</kbd> clears
             them all.</li>
-          <li><strong>Direct messages</strong> are listed as conversations. <kbd>⏎</kbd> opens one and <kbd>m</kbd>
-            marks it read. Every message in a conversation is a post, so <kbd>r</kbd>, <kbd>f</kbd> and the rest work
-            there too.</li>
+          <li><strong>Direct messages</strong> are listed as conversations. <kbd>⏎</kbd> opens one, <kbd>m</kbd>
+            marks it read and <kbd>R</kbd> removes it from your list, asking first: no post is deleted, and a new
+            message in it brings it back. Inside a conversation <kbd>m</kbd> and <kbd>R</kbd> act on the one you are
+            reading, <kbd>R</kbd> putting you back on the list. Every message in a conversation is a post, so
+            <kbd>r</kbd>, <kbd>f</kbd> and the rest work there too.</li>
           <li><strong>Follow requests</strong>, for a locked account: <kbd>a</kbd> accepts and <kbd>x</kbd>
             rejects.</li>
         </ul>
@@ -311,7 +313,7 @@ wooly-cli account requests list</code></pre>
               <tr><td><code>post</code></td><td><code>create</code>, <code>reply</code>, <code>edit</code>, <code>delete</code>, <code>show</code>, <code>translate</code> (by your instance), <code>boost</code>, <code>favorite</code>, <code>pin</code>, <code>bookmark</code> and <code>vote</code>, the undo of each, and <code>favorited-by</code> / <code>boosted-by</code></td></tr>
               <tr><td><code>account</code></td><td><code>show</code>, <code>edit</code> your profile, <code>follow</code>, <code>block</code>, <code>mute</code> (and undo), list <code>followers</code> and <code>following</code>, and answer <code>requests</code></td></tr>
               <tr><td><code>notification</code></td><td><code>list</code>, <code>dismiss</code> one, or <code>clear</code> them all</td></tr>
-              <tr><td><code>dm</code></td><td><code>list</code> conversations, <code>show</code> one, <code>send</code> a message, mark one <code>read</code></td></tr>
+              <tr><td><code>dm</code></td><td><code>list</code> conversations, <code>show</code> one, <code>send</code> a message, mark one <code>read</code>, <code>remove</code> one from your list (no post is deleted, and a new message brings it back)</td></tr>
               <tr><td><code>search</code></td><td>Accounts, hashtags and posts, or one kind with <code>--type</code>; <code>--limit</code> and <code>--offset</code> page it</td></tr>
               <tr><td><code>trends</code></td><td>The hashtags, posts and links trending on your instance, or one kind with <code>--type</code></td></tr>
               <tr><td><code>version</code></td><td>Print the version</td></tr>
@@ -341,7 +343,7 @@ wooly-cli trends --type links --limit 20 --offset 20 --json</code></pre>
             wrapped in an object that says whether it's complete: a list cut short (by a rate limit, say) still prints
             what it got, with <code>"complete": false</code>.</li>
           <li>Results go to stdout and errors to stderr.</li>
-          <li>Commands that ask before acting, such as <code>post delete</code> and <code>post vote</code>, take
+          <li>Commands that ask before acting, such as <code>post delete</code>, <code>post vote</code> and <code>dm remove</code>, take
             <code>--yes</code> to skip the question.</li>
         </ul>
         <p>Exit codes keep their meaning from release to release:</p>

@@ -329,6 +329,13 @@ One thread of direct messages, as the instance keeps it: who it is with, whether
 last said. It carries an id of its own, which is what shows it and what marks it read — distinct from the id of any
 **post** in it, and the two are not interchangeable.
 
+**Removing a conversation**:
+Taking a **conversation** off the reader's own list of direct messages — what Mastodon's own UI calls "Delete
+conversation". The posts in it are not deleted and the others in it keep it; a new message in the thread brings it
+back, under a new id (seen against an instance, #620). Distinct from deleting a **direct message**, which is deleting
+a post of one's own, for everyone.
+_Avoid_: delete (for this; delete is for everyone), hide, archive
+
 **Instance**:
 The Mastodon server a given account is registered on, identified by its domain (e.g. `mastodon.social`). Mastodon's own newer UI/docs increasingly say "server", but this project uses "instance" throughout for consistency with the wider ecosystem (other clients, API error messages) and to avoid ambiguity with "server" as hostname or client-server architecture.
 _Avoid_: server (when referring to a Mastodon instance)
